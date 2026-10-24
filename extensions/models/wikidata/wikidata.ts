@@ -29,6 +29,21 @@
  */
 import { z } from "npm:zod@4";
 
+import {
+  cleanupEnterpriseFiles,
+  cleanupEnterpriseWorkDir,
+  DEFAULT_ENTERPRISE_VAULT,
+  type EnterpriseContext,
+  enterpriseEntityToPublic,
+  enterpriseEntityUrl,
+  enterprisePlan,
+  enterpriseSessionFromResponse,
+  enterpriseStatus,
+  parseEnterpriseArticle,
+  recordEnterpriseFailure,
+  recordEnterpriseUsage,
+} from "./wikidata_enterprise.ts";
+
 const WIKIDATA_API = "https://www.wikidata.org/w/api.php";
 
 // ---------------------------------------------------------------------------
@@ -51,6 +66,41 @@ const GlobalArgsSchema = z.object({
   site: z.string()
     .default("enwiki")
     .describe("Site id used for sitelink lookups (e.g. enwiki, commonswiki)"),
+  enterpriseVaultName: z.string()
+    .default(DEFAULT_ENTERPRISE_VAULT)
+    .describe(
+      "Vault checked for Wikimedia Enterprise credentials. The default is " +
+        "`enterprise-wikimedia` (swamp vault names cannot contain underscores; " +
+        "`enterprise_wikimedia` is also tried as an alias).",
+    ),
+  enterpriseUsernameKey: z.string()
+    .default("username")
+    .describe("Vault key holding the Enterprise account username"),
+  // swamp-quality-ignore credentials-sensitive-field: holds the vault key name, not the secret
+  enterprisePasswordKey: z.string()
+    .default("password")
+    .describe("Vault key holding the Enterprise account password"),
+  // swamp-quality-ignore credentials-sensitive-field: holds the vault key name, not the secret
+  enterpriseAccessTokenKey: z.string()
+    .default("access_token")
+    .describe("Vault key holding an existing Enterprise JWT access token"),
+  // swamp-quality-ignore credentials-sensitive-field: holds the vault key name, not the secret
+  enterpriseRefreshTokenKey: z.string()
+    .default("refresh_token")
+    .describe("Vault key holding an Enterprise refresh token"),
+  enterpriseApiUrl: z.string()
+    .default("https://api.enterprise.wikimedia.com")
+    .describe("Wikimedia Enterprise On-demand API base URL"),
+  enterpriseAuthUrl: z.string()
+    .default("https://auth.enterprise.wikimedia.com")
+    .describe("Wikimedia Enterprise authentication base URL"),
+  enterpriseMonthlyQuota: z.number().int().nonnegative()
+    .default(50_000)
+    .describe(
+      "Local monthly Enterprise Wikidata lookup budget. Enterprise is skipped " +
+        "when this many lookups have been recorded this month; 0 means no " +
+        "local cap.",
+    ),
 });
 
 type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
@@ -145,13 +195,8 @@ type ResolveTitleUrlArgs = z.infer<typeof ResolveTitleUrlArgsSchema>;
 // Method context
 // ---------------------------------------------------------------------------
 
-type MethodContext = {
-  globalArgs: GlobalArgs;
-  logger: {
-    info: (m: string, p?: Record<string, unknown>) => void;
-    debug?: (m: string, p?: Record<string, unknown>) => void;
-    warn?: (m: string, p?: Record<string, unknown>) => void;
-  };
+type MethodContext = EnterpriseContext & {
+  globalArgs: GlobalArgs & EnterpriseContext["globalArgs"];
   writeResource: (
     specName: string,
     name: string,
@@ -354,6 +399,9 @@ export function extractClaimValues(claims: unknown[] | undefined): string[] {
 // Resource schemas
 // ---------------------------------------------------------------------------
 
+const SourceSchema = z.enum(["public-cache", "enterprise-cache", "none"]);
+type Source = z.infer<typeof SourceSchema>;
+
 const SearchResultSchema = z.object({
   query: z.string(),
   results: z.array(z.object({
@@ -363,6 +411,7 @@ const SearchResultSchema = z.object({
     url: z.string().nullable(),
   })),
   cached: z.boolean(),
+  source: SourceSchema,
 });
 
 const EntityResultSchema = z.object({
@@ -376,6 +425,7 @@ const EntityResultSchema = z.object({
   }).nullable(),
   missing: z.boolean(),
   cached: z.boolean(),
+  source: SourceSchema,
 });
 
 const ResolutionResultSchema = z.object({
@@ -385,6 +435,7 @@ const ResolutionResultSchema = z.object({
   label: z.string().nullable(),
   description: z.string().nullable(),
   cached: z.boolean(),
+  source: SourceSchema,
 });
 
 const ClaimsResultSchema = z.object({
@@ -392,18 +443,168 @@ const ClaimsResultSchema = z.object({
   property: z.string(),
   values: z.array(z.string()),
   cached: z.boolean(),
+  source: SourceSchema,
 });
 
 const InstanceOfResultSchema = z.object({
   id: z.string(),
   instanceOf: z.array(z.string()),
   cached: z.boolean(),
+  source: SourceSchema,
 });
 
 const UrlResultSchema = z.object({
   url: z.string(),
   urls: z.array(z.string()),
 });
+
+const EnterprisePlanArgsSchema = z.object({
+  id: z.string().min(1).describe("Wikidata QID or PID"),
+  runId: z.string().optional()
+    .describe("Workflow run id used to namespace private plan/token files"),
+  instanceKey: z.string().optional()
+    .describe("Unique resource-instance suffix (pass ${{ run.id }})"),
+  url: z.string().url().optional()
+    .describe("Public URL override (defaults to the entity URL)"),
+  publicUrl: z.string().optional()
+    .describe("Explicit public cache/request URL"),
+});
+
+const EnterpriseSessionArgsSchema = z.object({
+  responseFile: z.string()
+    .describe("Path curl wrote the login/refresh response body to"),
+  // swamp-quality-ignore credentials-sensitive-field: holds a token file path, not the secret
+  tokenFile: z.string()
+    .describe("0600 bearer-token file web-cache will read"),
+  bodyFile: z.string().optional()
+    .describe("Optional 0600 login/refresh request body file to delete"),
+  instanceKey: z.string().optional()
+    .describe("Unique resource-instance suffix for the result"),
+});
+
+const EnterpriseUsageResultSchema = z.object({
+  month: z.string(),
+  used: z.number().int().nonnegative(),
+  limit: z.number().int().nonnegative(),
+  remaining: z.number().int().nullable(),
+  exhausted: z.boolean(),
+  rateLimitedUntil: z.number().nonnegative(),
+  authFailedUntil: z.number().nonnegative(),
+  updatedAt: z.string(),
+});
+
+const EnterpriseFailureArgsSchema = z.object({
+  kind: z.enum(["auth", "rate"]).default("auth"),
+});
+
+const EnterpriseCleanupArgsSchema = z.object({
+  workDir: z.string().default(""),
+  files: z.array(z.string()).default([]),
+});
+
+const EnterprisePlanSchema = z.object({
+  provider: z.enum(["enterprise", "public", "cache"]),
+  reason: z.string(),
+  publicUrl: z.string(),
+  enterpriseUrl: z.string(),
+  workDir: z.string(),
+  // swamp-quality-ignore credentials-sensitive-field: holds a token file path, not the secret
+  tokenFile: z.string(),
+  auth: z.object({
+    url: z.string(),
+    method: z.string(),
+    bodyFile: z.string(),
+    responseFile: z.string(),
+    username: z.string(),
+    via: z.string(),
+  }).nullable(),
+  quota: EnterpriseUsageResultSchema.extend({
+    available: z.boolean(),
+    reason: z.string(),
+  }),
+  credentials: z.object({
+    hasUsername: z.boolean(),
+    hasPassword: z.boolean(),
+    hasAccessToken: z.boolean(),
+    hasRefreshToken: z.boolean(),
+  }),
+});
+
+const EnterpriseSessionResultSchema = z.object({
+  ok: z.boolean(),
+  error: z.string().optional(),
+  expiresAt: z.string().optional(),
+  // swamp-quality-ignore credentials-sensitive-field: holds a token file path, not the secret
+  tokenFile: z.string(),
+});
+
+const EnterpriseStatusSchema = z.object({
+  vaultName: z.string(),
+  vaultNames: z.array(z.string()),
+  project: z.string(),
+  hasUsername: z.boolean(),
+  hasPassword: z.boolean(),
+  hasAccessToken: z.boolean(),
+  hasRefreshToken: z.boolean(),
+  hasCredentials: z.boolean(),
+  sessionValid: z.boolean(),
+  sessionVia: z.string().nullable(),
+  sessionObtainedAt: z.string().nullable(),
+  sessionExpiresAt: z.string().nullable(),
+  quota: EnterpriseUsageResultSchema.extend({
+    available: z.boolean(),
+    reason: z.string(),
+  }),
+  eligible: z.boolean(),
+  reason: z.string(),
+});
+
+// ---------------------------------------------------------------------------
+// Dual-cache resolution (public URL first, then Enterprise URL)
+// ---------------------------------------------------------------------------
+
+interface ResolvedEntity {
+  entity: Entity | null;
+  source: Source;
+}
+
+async function resolveEntity(
+  ctx: MethodContext,
+  id: string,
+  publicUrl: string,
+): Promise<ResolvedEntity> {
+  const dir = expandHome(ctx.globalArgs.cacheDir);
+  const publicBody = await readCachedBody(dir, publicUrl);
+  if (publicBody != null) {
+    try {
+      const entities = parseEntities(JSON.parse(publicBody));
+      if (entities) {
+        const entity = entities[id] ??
+          (Object.keys(entities).length === 1
+            ? Object.values(entities)[0]!
+            : null);
+        if (entity) return { entity, source: "public-cache" };
+      }
+    } catch {
+      // treat as a miss
+    }
+  }
+
+  const enterpriseBody = await readCachedBody(
+    dir,
+    enterpriseEntityUrl(ctx, id),
+  );
+  if (enterpriseBody != null) {
+    const article = parseEnterpriseArticle(enterpriseBody);
+    if (article) {
+      return {
+        entity: enterpriseEntityToPublic(article, id) as unknown as Entity,
+        source: "enterprise-cache",
+      };
+    }
+  }
+  return { entity: null, source: "none" };
+}
 
 // ---------------------------------------------------------------------------
 // Model definition
@@ -412,7 +613,7 @@ const UrlResultSchema = z.object({
 /** A read-only Wikidata domain client layered over @svendowideit/web-cache. */
 export const model = {
   type: "@svendowideit/wikidata",
-  version: "2026.10.24.1",
+  version: "2026.10.24.2",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -431,8 +632,17 @@ export const model = {
     {
       toVersion: "2026.10.24.1",
       description:
-        "No model schema changes — propagate the run-level maxFetches budget " +
-        "through the workflow.",
+        "Add dual-cache reads (public + Enterprise Wikidata URLs) and " +
+        "Enterprise planning/session/quota methods; propagate the run-level " +
+        "maxFetches budget through the workflows. No direct HTTP.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.24.2",
+      description:
+        "Add Wikimedia Enterprise Wikidata lookups (items/properties) with " +
+        "dual-cache reads, Enterprise planning/session/quota and public " +
+        "fallback; maxFetches=0 is unlimited.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -470,6 +680,59 @@ export const model = {
     url: {
       description: "A built Wikidata URL (for the fetch seam)",
       schema: UrlResultSchema,
+      lifetime: "infinite",
+      garbageCollection: 20,
+    },
+    "enterprise-plan": {
+      description:
+        "Source-selection plan: public vs Enterprise, cache URLs, private auth files",
+      schema: EnterprisePlanSchema,
+      lifetime: "infinite",
+      garbageCollection: 20,
+    },
+    "enterprise-session": {
+      description:
+        "Wikimedia Enterprise JWT session (access/refresh tokens are sensitive)",
+      schema: z.object({
+        username: z.string().optional(),
+        accessToken: z.string().optional().meta({ sensitive: true }),
+        refreshToken: z.string().optional().meta({ sensitive: true }),
+        expiresAt: z.string().optional(),
+        obtainedAt: z.string().optional(),
+        via: z.string().optional(),
+      }),
+      lifetime: "infinite",
+      garbageCollection: 20,
+    },
+    "enterprise-session-result": {
+      description: "Result of persisting a login/refresh response",
+      schema: EnterpriseSessionResultSchema,
+      lifetime: "infinite",
+      garbageCollection: 20,
+    },
+    "enterprise-usage": {
+      description:
+        "Wikimedia Enterprise Wikidata monthly request counter and cooldown state",
+      schema: EnterpriseUsageResultSchema,
+      lifetime: "infinite",
+      garbageCollection: 20,
+    },
+    "enterprise-usage-result": {
+      description: "Updated Enterprise Wikidata usage after a record/failure",
+      schema: EnterpriseUsageResultSchema,
+      lifetime: "infinite",
+      garbageCollection: 20,
+    },
+    "enterprise-status": {
+      description:
+        "Read-only Wikimedia Enterprise Wikidata credential and quota report",
+      schema: EnterpriseStatusSchema,
+      lifetime: "infinite",
+      garbageCollection: 20,
+    },
+    "enterprise-cleanup": {
+      description: "Count of temporary Enterprise plan files removed",
+      schema: z.object({ deleted: z.number().int().nonnegative() }),
       lifetime: "infinite",
       garbageCollection: 20,
     },
@@ -579,6 +842,7 @@ export const model = {
           query: args.query,
           results,
           cached: body != null,
+          source: body != null ? "public-cache" : "none",
         };
         const handle = await context.writeResource(
           "search",
@@ -599,19 +863,9 @@ export const model = {
         "(id, label, description, sitelinks, and raw claims).",
       arguments: GetEntityArgsSchema,
       execute: async (args: GetEntityArgs, context: MethodContext) => {
-        const dir = expandHome(context.globalArgs.cacheDir);
-        const url = args.url ?? entityUrl(context, args.id);
-        const body = await readCachedBody(dir, url);
-
-        let entity: Entity | null = null;
-        if (body) {
-          try {
-            const entities = parseEntities(JSON.parse(body));
-            entity = entities?.[args.id] ?? null;
-          } catch {
-            // ignore
-          }
-        }
+        const publicUrl = args.url ?? entityUrl(context, args.id);
+        const resolved = await resolveEntity(context, args.id, publicUrl);
+        const entity = resolved.entity;
 
         const lang = context.globalArgs.language;
         const result = {
@@ -626,7 +880,8 @@ export const model = {
             }
             : null,
           missing: entity?.missing === true,
-          cached: body != null,
+          cached: resolved.source !== "none",
+          source: resolved.source,
         };
         const handle = await context.writeResource(
           "entity",
@@ -635,7 +890,7 @@ export const model = {
         );
         context.logger.info("Got entity {id} ({src})", {
           id: args.id,
-          src: body != null ? "cache" : "miss",
+          src: resolved.source,
         });
         return { dataHandles: [handle] };
       },
@@ -682,6 +937,7 @@ export const model = {
           label: entity ? localized(entity.labels, lang) : null,
           description: entity ? localized(entity.descriptions, lang) : null,
           cached: body != null,
+          source: body != null ? "public-cache" : "none",
         };
         const handle = await context.writeResource(
           "resolution",
@@ -702,29 +958,20 @@ export const model = {
         "entity. Returns the list of claim value ids.",
       arguments: GetClaimsArgsSchema,
       execute: async (args: GetClaimsArgs, context: MethodContext) => {
-        const dir = expandHome(context.globalArgs.cacheDir);
-        const url = args.url ?? entityUrl(context, args.id);
-        const body = await readCachedBody(dir, url);
-
-        let values: string[] = [];
-        if (body) {
-          try {
-            const entities = parseEntities(JSON.parse(body));
-            const entity = entities?.[args.id];
-            const claims = entity?.claims?.[args.property] as
-              | unknown[]
-              | undefined;
-            values = extractClaimValues(claims);
-          } catch {
-            // ignore
-          }
-        }
+        const publicUrl = args.url ?? entityUrl(context, args.id);
+        const resolved = await resolveEntity(context, args.id, publicUrl);
+        const entity = resolved.entity;
+        const claims = entity?.claims?.[args.property] as
+          | unknown[]
+          | undefined;
+        const values = extractClaimValues(claims);
 
         const result = {
           id: args.id,
           property: args.property,
           values,
-          cached: body != null,
+          cached: resolved.source !== "none",
+          source: resolved.source,
         };
         const handle = await context.writeResource(
           "claims",
@@ -737,7 +984,7 @@ export const model = {
             property: args.property,
             id: args.id,
             n: values.length,
-            src: body != null ? "cache" : "miss",
+            src: resolved.source,
           },
         );
         return { dataHandles: [handle] };
@@ -749,26 +996,17 @@ export const model = {
         "entity. Useful for classifying what a thing is (person vs book vs …).",
       arguments: GetInstanceOfArgsSchema,
       execute: async (args: GetInstanceOfArgs, context: MethodContext) => {
-        const dir = expandHome(context.globalArgs.cacheDir);
-        const url = args.url ?? entityUrl(context, args.id);
-        const body = await readCachedBody(dir, url);
-
-        let values: string[] = [];
-        if (body) {
-          try {
-            const entities = parseEntities(JSON.parse(body));
-            const entity = entities?.[args.id];
-            const claims = entity?.claims?.["P31"] as unknown[] | undefined;
-            values = extractClaimValues(claims);
-          } catch {
-            // ignore
-          }
-        }
+        const publicUrl = args.url ?? entityUrl(context, args.id);
+        const resolved = await resolveEntity(context, args.id, publicUrl);
+        const entity = resolved.entity;
+        const claims = entity?.claims?.["P31"] as unknown[] | undefined;
+        const values = extractClaimValues(claims);
 
         const result = {
           id: args.id,
           instanceOf: values,
-          cached: body != null,
+          cached: resolved.source !== "none",
+          source: resolved.source,
         };
         const handle = await context.writeResource(
           "instance-of",
@@ -778,7 +1016,159 @@ export const model = {
         context.logger.info("Instance-of {id}: {n} values ({src})", {
           id: args.id,
           n: values.length,
-          src: body != null ? "cache" : "miss",
+          src: resolved.source,
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+    "enterprise-plan": {
+      description:
+        "Decide whether an entity should come from Wikimedia Enterprise or the " +
+        "public API, and write the private files the fetch workflow needs. " +
+        "Makes no request. The returned cache URLs are the public entity URL and " +
+        "the synthetic Enterprise Wikidata URL.",
+      arguments: EnterprisePlanArgsSchema,
+      execute: async (
+        args: z.infer<typeof EnterprisePlanArgsSchema>,
+        context: MethodContext,
+      ) => {
+        const publicUrl = args.publicUrl || args.url ||
+          entityUrl(context, args.id);
+        const plan = await enterprisePlan(
+          context,
+          args.id,
+          publicUrl,
+          args.runId,
+        );
+        const planName = args.instanceKey
+          ? `enterprise-plan-${args.instanceKey}`
+          : "enterprise-plan";
+        const handle = await context.writeResource(
+          "enterprise-plan",
+          planName,
+          plan as unknown as Record<string, unknown>,
+        );
+        context.logger.info(
+          "Enterprise Wikidata plan for {id}: {provider} ({reason})",
+          { id: args.id, provider: plan.provider, reason: plan.reason },
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    "enterprise-session": {
+      description:
+        "Parse curl's login/refresh response, persist the session and write the " +
+        "0600 bearer-token file web-cache reads. Deletes the temporary auth files.",
+      arguments: EnterpriseSessionArgsSchema,
+      execute: async (
+        args: z.infer<typeof EnterpriseSessionArgsSchema>,
+        context: MethodContext,
+      ) => {
+        const result = await enterpriseSessionFromResponse(
+          context,
+          args.responseFile,
+          args.tokenFile,
+          args.bodyFile ?? "",
+        );
+        const resultName = args.instanceKey
+          ? `enterprise-session-result-${args.instanceKey}`
+          : "enterprise-session-result";
+        const handle = await context.writeResource(
+          "enterprise-session-result",
+          resultName,
+          result as unknown as Record<string, unknown>,
+        );
+        if (result.ok) {
+          context.logger.info(
+            "Enterprise Wikidata session saved (expires {expiresAt})",
+            { expiresAt: result.expiresAt ?? "unknown" },
+          );
+        } else {
+          context.logger.warn?.("Enterprise Wikidata session failed: {error}", {
+            error: result.error ?? "unknown",
+          });
+        }
+        return { dataHandles: [handle] };
+      },
+    },
+    "enterprise-record": {
+      description:
+        "Record one successful Enterprise Wikidata lookup against the local " +
+        "monthly budget. Call only after an origin fetch, not on a cache hit.",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: MethodContext) => {
+        const usage = await recordEnterpriseUsage(context);
+        const handle = await context.writeResource(
+          "enterprise-usage-result",
+          "enterprise-usage-result",
+          usage as unknown as Record<string, unknown>,
+        );
+        context.logger.info("Enterprise Wikidata usage: {used}/{limit}", {
+          used: usage.used,
+          limit: usage.limit,
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+    "enterprise-failure": {
+      description:
+        "Record an Enterprise Wikidata auth failure or allowance/rate-limit so " +
+        "the next plan backs off and falls back to public.",
+      arguments: EnterpriseFailureArgsSchema,
+      execute: async (
+        args: z.infer<typeof EnterpriseFailureArgsSchema>,
+        context: MethodContext,
+      ) => {
+        const usage = await recordEnterpriseFailure(context, args.kind);
+        const handle = await context.writeResource(
+          "enterprise-usage-result",
+          "enterprise-usage-result",
+          usage as unknown as Record<string, unknown>,
+        );
+        context.logger.warn?.(
+          "Enterprise Wikidata {kind} cooldown recorded",
+          { kind: args.kind },
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    "enterprise-cleanup": {
+      description:
+        "Delete temporary Enterprise plan/auth files. Best-effort and safe to " +
+        "call repeatedly.",
+      arguments: EnterpriseCleanupArgsSchema,
+      execute: async (
+        args: z.infer<typeof EnterpriseCleanupArgsSchema>,
+        context: MethodContext,
+      ) => {
+        await cleanupEnterpriseWorkDir(context, args.workDir);
+        await cleanupEnterpriseFiles(args.files);
+        const handle = await context.writeResource(
+          "enterprise-cleanup",
+          "enterprise-cleanup",
+          { deleted: args.files.length + (args.workDir ? 1 : 0) },
+        );
+        context.logger.info("Cleaned up Enterprise Wikidata plan files", {
+          workDir: args.workDir || "none",
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+    "enterprise-status": {
+      description:
+        "Report Wikimedia Enterprise Wikidata readiness without making a request " +
+        "or printing a secret: vault keys present, session validity, monthly " +
+        "quota usage, cooldown state and the current decision.",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: MethodContext) => {
+        const status = await enterpriseStatus(context);
+        const handle = await context.writeResource(
+          "enterprise-status",
+          "enterprise-status",
+          status as unknown as Record<string, unknown>,
+        );
+        context.logger.info("Enterprise Wikidata status: {reason}", {
+          reason: status.reason,
         });
         return { dataHandles: [handle] };
       },

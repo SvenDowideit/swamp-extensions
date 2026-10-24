@@ -13,6 +13,7 @@ import {
   sitelinkUrl,
   webCacheKey,
 } from "./wikidata.ts";
+import { enterpriseEntityUrl } from "./wikidata_enterprise.ts";
 
 Deno.test("extractClaimValues pulls value ids from value snaks", () => {
   const claims = [
@@ -217,6 +218,24 @@ const ENTITY_BODY = JSON.stringify({
   },
 });
 
+const ENTERPRISE_URL = enterpriseEntityUrl(defaultCtx, "Q286116");
+const ENTERPRISE_BODY = JSON.stringify([
+  {
+    name: "Q286116",
+    entity: {
+      identifier: "Q286116",
+      type: "item",
+      labels: { en: "Alfred Bester" },
+      descriptions: { en: "American writer" },
+      sitelinks: { enwiki: { title: "Alfred Bester" } },
+      statements: {
+        P31: [{ value: { type: "wikibase-item", content: "Q5" } }],
+        P106: [{ value: { type: "wikibase-item", content: "Q36180" } }],
+      },
+    },
+  },
+]);
+
 const SEARCH_BODY = JSON.stringify({
   search: [
     { id: "Q286116", label: "Alfred Bester", description: "American writer", url: "https://www.wikidata.org/wiki/Q286116" },
@@ -302,6 +321,53 @@ Deno.test("get-entity returns entity=null on a miss", async () => {
     await model.methods["get-entity"].execute({ id: "Q999999" }, context);
     assertEquals(written[0].data.entity, null);
     assertEquals(written[0].data.cached, false);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("get-entity reads the Enterprise cache when the public cache is empty", async () => {
+  const dir = await seedCache(ENTERPRISE_URL, ENTERPRISE_BODY);
+  try {
+    const { context, written } = makeContext({ cacheDir: dir });
+    await model.methods["get-entity"].execute({
+      id: "Q286116",
+      url: ENTITY_URL,
+    }, context);
+    assertEquals(written[0].data.source, "enterprise-cache");
+    assertEquals(written[0].data.cached, true);
+    const entity = written[0].data.entity as Record<string, unknown>;
+    assertEquals(entity.label, "Alfred Bester");
+    assertEquals(entity.description, "American writer");
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("get-instance-of reads P31 from the Enterprise cache", async () => {
+  const dir = await seedCache(ENTERPRISE_URL, ENTERPRISE_BODY);
+  try {
+    const { context, written } = makeContext({ cacheDir: dir });
+    await model.methods["get-instance-of"].execute({
+      id: "Q286116",
+      url: ENTITY_URL,
+    }, context);
+    assertEquals(written[0].data.source, "enterprise-cache");
+    assertEquals(written[0].data.instanceOf, ["Q5"]);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("get-entity reports public-cache when the public body is present", async () => {
+  const dir = await seedCache(ENTITY_URL, ENTITY_BODY);
+  try {
+    const { context, written } = makeContext({ cacheDir: dir });
+    await model.methods["get-entity"].execute({
+      id: "Q286116",
+      url: ENTITY_URL,
+    }, context);
+    assertEquals(written[0].data.source, "public-cache");
   } finally {
     await Deno.remove(dir, { recursive: true });
   }

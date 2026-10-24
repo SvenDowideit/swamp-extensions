@@ -1,62 +1,68 @@
 manifestVersion: 1
 name: "@svendowideit/wikidata"
-version: "2026.10.24.1"
+version: "2026.10.24.2"
 description: |
-  A Wikidata domain parser that reads cached responses from the shared cache
-  owned by @svendowideit/web-cache. It fetches nothing itself — fetch, cache,
-  pacing and rate-limit retry are web-cache's job.
+  A fetch-free Wikidata domain client. It builds public Wikidata URLs and
+  Wikimedia Enterprise request plans, reads the shared web cache, and parses
+  whichever shape it finds. It never opens an HTTPS connection itself.
 
   WHAT IT DOES
 
-    Parses cached Wikidata responses into structured swamp data: search
-    entities, fetch an entity's claims/labels/descriptions, resolve a
-    Wikipedia title to a QID via its sitelink, and extract claims such as
-    instance-of into simple key/value form.
+    Parses Wikidata into structured swamp data: search entities, resolve a
+    Wikipedia title to a QID via its sitelink, fetch an entity's
+    claims/labels/descriptions, and extract claims such as instance-of. A QID
+    or PID lookup is read from the public Wikidata URL first, then from the
+    synthetic Enterprise Wikidata URL, so both cache locations are usable. When
+    the `enterprise-wikimedia` vault holds credentials and the local monthly
+    budget has room, the wikidata-get-entity and wikidata-instance-of workflows
+    prefer Enterprise; curl performs the login/refresh POST and web-cache GETs
+    the Enterprise entity URL with a 0600 bearer-token file. Title resolution
+    and search stay public because Enterprise has no equivalent endpoint.
 
   INSTALL
 
-      swamp extension pull @svendowideit/web-cache
       swamp extension pull @svendowideit/wikidata
 
   DEPENDENCIES
 
-    @svendowideit/web-cache (hard dependency, declared in this manifest). No
-    host packages are installed.
+    @svendowideit/web-cache (declared; pulled automatically) for every public
+    and Enterprise GET and the shared run-level fetch budget.
+    @svendowideit/curl is used only for the Enterprise login/refresh POST.
 
   RUN
 
-      # Fetch + cache a Wikidata entity.
-      swamp model @svendowideit/web-cache method run get cache \
-        --input url="https://www.wikidata.org/w/api.php?action=wbgetentities&ids=Q286116&format=json"
-
-      # Parse the cached entity.
-      swamp model @svendowideit/wikidata method run get-entity wd \
+      # Fetch + parse an entity through the normal workflow. With no Enterprise
+      # credentials the miss is fetched from the public Wikidata API.
+      swamp workflow run @svendowideit/wikidata-get-entity \
         --input id="Q286116"
 
-      # Extract instance-of values from the cached entity.
-      swamp model @svendowideit/wikidata method run get-instance-of wd \
+      # Resolve instance-of (P31) values; this also prefers Enterprise on a miss.
+      swamp workflow run @svendowideit/wikidata-instance-of \
         --input id="Q286116"
+
+      # Search and title resolution are public-only.
+      swamp model @svendowideit/wikidata method run search wd \
+        --input query="Alfred Bester"
+
+      # Check whether Enterprise Wikidata is ready and how much local quota
+      # remains. No request is made and no secret is printed.
+      swamp model @svendowideit/wikidata method run enterprise-status wd
 
   CONFIGURE
 
-    All optional global arguments: cacheDir (default ~/.swamp/web-cache), apiUrl
-    (default www.wikidata.org), language (default en), site (default enwiki).
-    See the README for the full argument tables.
-
-  UPGRADE
-
-    This extension installs nothing on the host, so an upgrade is:
-
-        swamp extension update
-
-    Model definitions record the version they were created with; the model's
-    bundled upgrades entry migrates them on the next method run. Swamp data is
-    preserved.
+    All arguments are optional global arguments:
+      cacheDir                  Shared cache dir          (default ~/.swamp/web-cache)
+      apiUrl                    Public Wikidata API       (default www.wikidata.org)
+      language / site           Labels and sitelink language/site
+      enterpriseVaultName       Vault checked for creds   (default enterprise-wikimedia)
+      enterpriseMonthlyQuota    Local monthly budget      (default 50000; 0 = no local cap)
+    The entity workflows also take maxFetches (0 = unlimited) and budgetId.
 
   WHAT IT INSTALLS
 
-    Nothing on the host — no services, triggers, or webhooks. Only pulled
-    extension files and swamp data resources.
+    Nothing on the host — no services, daemons, cron triggers, or webhooks. It
+    reads the shared cache, writes swamp data resources (including the optional
+    Enterprise session and usage counters), and uses curl/web-cache for HTTPS.
 
 repository: https://github.com/svendowideit/swamp-extensions
 
@@ -65,14 +71,17 @@ paths:
 
 models:
   - wikidata.ts
+  - wikidata_enterprise.ts
 
 workflows:
+  - wikidata-fetch-entity.yaml
   - wikidata-get-entity.yaml
   - wikidata-instance-of.yaml
   - wikidata-resolve-title.yaml
 
 dependencies:
   - "@svendowideit/web-cache"
+  - "@svendowideit/curl"
 
 additionalFiles:
   - README.md

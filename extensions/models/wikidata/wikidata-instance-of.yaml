@@ -27,8 +27,8 @@ inputs:
       description: Shared cache directory
     maxFetches:
       type: number
-      default: 20
-      description: Run-level origin-fetch budget
+      default: 0
+      description: Run-level origin-fetch budget (0 = unlimited)
     budgetId:
       type: string
       default: ""
@@ -51,16 +51,17 @@ jobs:
         dependsOn: []
         weight: 0
         allowFailure: false
-      - name: fetch
-        description: Fetch + cache the entity URL.
+      - name: fetch-entity
+        description: Fetch the entity from Enterprise or the public API into the cache.
         task:
           type: workflow
-          workflowIdOrName: "@svendowideit/web-cache-fetch"
+          workflowIdOrName: "@svendowideit/wikidata-fetch-entity"
           inputs:
-            budgetId: ${{ inputs.budgetId }}
-            maxFetches: ${{ inputs.maxFetches }}
-            urls: ${{ data.latest("wd", "entity-url").attributes.urls }}
+            id: ${{ inputs.id }}
+            publicUrl: ${{ data.latest("wd", "entity-url").attributes.url }}
             cacheDir: ${{ inputs.cacheDir }}
+            maxFetches: ${{ inputs.maxFetches }}
+            budgetId: ${{ inputs.budgetId }}
         dependsOn:
           - step: build-url
             condition:
@@ -79,8 +80,9 @@ jobs:
           inputs:
             id: ${{ inputs.id }}
             key: ${{ inputs.key }}
+            url: ${{ data.latest("wd", "entity-url").attributes.url }}
         dependsOn:
-          - step: fetch
+          - step: fetch-entity
             condition:
               type: always
         weight: 0

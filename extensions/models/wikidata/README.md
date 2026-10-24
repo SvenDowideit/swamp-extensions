@@ -1,8 +1,10 @@
 # @svendowideit/wikidata
 
-A Wikidata domain client layered on top of the shared web cache owned by
-[`@svendowideit/web-cache`](../web-cache). It **fetches nothing itself** — it
-parses responses that `web-cache` has already fetched and cached.
+A fetch-free Wikidata domain client layered on top of the shared web cache
+owned by [`@svendowideit/web-cache`](../web-cache). It builds public and
+Enterprise request plans, reads the cache, and parses the result. A QID/PID can
+be cached under either the public Wikidata URL or the synthetic Wikimedia
+Enterprise Wikidata URL.
 
 It is the generalised counterpart to [`@svendowideit/wikipedia`](../wikipedia)
 and covers the entity-resolution operations an ebook/author pipeline needs.
@@ -17,6 +19,11 @@ and covers the entity-resolution operations an ebook/author pipeline needs.
   its sitelink (the step that turns "Alfred Bester" → `Q286116`).
 - **Extracts claims** — pulls a single property's value QIDs (e.g. `P31`) out
   of an entity into a simple list.
+- **Uses Enterprise where it can** — when the `enterprise-wikimedia` vault holds
+  credentials and the local monthly budget allows it, entity/QID lookups prefer
+  the Enterprise Wikidata endpoints. Curl performs the login/refresh POST and
+  web-cache GETs the Enterprise URL with a 0600 bearer-token file. Search and
+  title resolution stay public because Enterprise has no equivalent endpoint.
 - **Instance-of shortcut** — `get-instance-of` extracts `P31` (instance of),
   the standard way to classify *what a thing is* (human `Q5` vs book `Q571` vs
   …).
@@ -25,8 +32,15 @@ and covers the entity-resolution operations an ebook/author pipeline needs.
 
 Fetching, caching, pacing and retry are `@svendowideit/web-cache`'s job. This
 model only *reads* entries from the shared cache directory (default
-`~/.swamp/web-cache`), keyed by a normalized URL. On a cache miss it returns an
-empty result with `cached: false` — it never makes a network request.
+`~/.swamp/web-cache`), keyed by a normalized URL. `get-entity`, `get-claims`
+and `get-instance-of` check the public URL first, then the Enterprise URL. On a
+miss they return an empty result with `cached: false`/`source: "none"` — they
+never make a network request.
+
+The `wikidata-fetch-entity` workflow does the source selection and fetch:
+plan → (optional curl login/refresh) → web-cache GET (Enterprise with a bearer
+token file, or public) → record/cleanup. The parse methods then read whichever
+cache entry exists.
 
 The intended seam is a workflow:
 

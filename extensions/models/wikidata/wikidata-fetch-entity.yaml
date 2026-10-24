@@ -1,0 +1,294 @@
+id: 3c5ae2a6-76cd-4716-9de2-af1ca0fddc87
+name: "@svendowideit/wikidata-fetch-entity"
+description: |
+  Populate the shared cache for one Wikidata entity from Wikimedia Enterprise
+  (when the vault + quota allow it) or the public Wikidata API. No parsing is
+  done here: the caller runs `get-entity` / `get-claims` / `get-instance-of`,
+  which read whichever cache entry exists.
+
+  All HTTPS goes through existing primitives:
+    - @svendowideit/curl for the Enterprise login/refresh POST;
+    - @svendowideit/web-cache for the Enterprise/public GET (with a 0600
+      bearer-token file for Enterprise).
+
+  Inputs:
+    id        — Wikidata QID or PID
+    cacheDir  — shared cache dir (default ~/.swamp/web-cache)
+    publicUrl — public wbgetentities URL (used as the public cache key)
+    maxFetches— run-level fetch budget (shared through web-cache)
+    budgetId  — workflow run id used to share that budget
+tags: {}
+inputs:
+  properties:
+    id:
+      type: string
+      description: Wikidata QID or PID
+    cacheDir:
+      type: string
+      default: "~/.swamp/web-cache"
+      description: Shared cache directory
+    publicUrl:
+      type: string
+      description: Public wbgetentities URL (public cache key)
+    maxFetches:
+      type: number
+      default: 0
+      description: Run-level origin-fetch budget (0 = unlimited)
+    budgetId:
+      type: string
+      default: ""
+      description: Run id that shares the fetch budget across fetch steps
+  required:
+    - id
+    - publicUrl
+jobs:
+  - name: main
+    description: Plan, authenticate if needed, and fetch into the shared cache.
+    steps:
+      - name: plan
+        description: Choose Enterprise or public and write private request plans.
+        task:
+          type: model_method
+          modelType: "@svendowideit/wikidata"
+          modelName: wd
+          methodName: enterprise-plan
+          globalArgs:
+            cacheDir: ${{ inputs.cacheDir }}
+          inputs:
+            id: ${{ inputs.id }}
+            publicUrl: ${{ inputs.publicUrl }}
+            runId: ${{ run.id }}
+            instanceKey: ${{ run.id }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: auth
+        description: POST the Enterprise login/refresh request through curl.
+        guard: >-
+          ${{ !(data.latest("wd", "enterprise-plan-" + run.id).?attributes.?provider.orValue("") == "enterprise" &&
+          data.latest("wd", "enterprise-plan-" + run.id).?attributes.?auth.orValue(null) != null) }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/curl"
+          modelName: wd-enterprise-auth
+          methodName: request
+          inputs:
+            url: ${{ data.latest("wd", "enterprise-plan-" + run.id).attributes.auth.url }}
+            method: POST
+            headers:
+              - "Content-Type: application/json"
+            dataFile: ${{ data.latest("wd", "enterprise-plan-" + run.id).attributes.auth.bodyFile }}
+            outputFile: ${{ data.latest("wd", "enterprise-plan-" + run.id).attributes.auth.responseFile }}
+            maxBodyBytes: 0
+            label: enterprise-wikidata-auth
+        dependsOn:
+          - step: plan
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+      - name: session
+        description: Persist the JWT session and write the 0600 bearer-token file.
+        guard: >-
+          ${{ !(data.latest("wd", "enterprise-plan-" + run.id).?attributes.?provider.orValue("") == "enterprise" &&
+          data.latest("wd", "enterprise-plan-" + run.id).?attributes.?auth.orValue(null) != null) }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/wikidata"
+          modelName: wd
+          methodName: enterprise-session
+          globalArgs:
+            cacheDir: ${{ inputs.cacheDir }}
+          inputs:
+            responseFile: ${{ data.latest("wd", "enterprise-plan-" + run.id).attributes.auth.responseFile }}
+            tokenFile: ${{ data.latest("wd", "enterprise-plan-" + run.id).attributes.tokenFile }}
+            bodyFile: ${{ data.latest("wd", "enterprise-plan-" + run.id).attributes.auth.bodyFile }}
+            instanceKey: ${{ run.id }}
+        dependsOn:
+          - step: auth
+            condition:
+              type: always
+        weight: 0
+        allowFailure: true
+      - name: enterprise-fetch
+        description: GET the Enterprise Wikidata URL through web-cache with the bearer token.
+        guard: >-
+          ${{ !(data.latest("wd", "enterprise-plan-" + run.id).?attributes.?provider.orValue("") == "enterprise" &&
+          (data.latest("wd", "enterprise-plan-" + run.id).?attributes.?auth.orValue(null) == null ||
+          data.latest("wd", "enterprise-session-result-" + run.id).?attributes.?ok.orValue(false))) }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/web-cache"
+          modelName: cache
+          methodName: get
+          globalArgs:
+            cacheDir: ${{ inputs.cacheDir }}
+          inputs:
+            url: ${{ data.latest("wd", "enterprise-plan-" + run.id).attributes.enterpriseUrl }}
+            bearerTokenFile: ${{ data.latest("wd", "enterprise-plan-" + run.id).attributes.tokenFile }}
+            maxFetches: ${{ inputs.maxFetches }}
+            budgetId: ${{ inputs.budgetId }}
+            resultName: enterprise-fetch
+        dependsOn:
+          - step: plan
+            condition:
+              type: succeeded
+          - step: session
+            condition:
+              type: always
+        weight: 0
+        allowFailure: true
+      - name: public-fetch
+        description: GET the public Wikidata URL through web-cache.
+        guard: ${{ !(data.latest("wd", "enterprise-plan-" + run.id).?attributes.?provider.orValue("") == "public") }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/web-cache"
+          modelName: cache
+          methodName: get
+          globalArgs:
+            cacheDir: ${{ inputs.cacheDir }}
+          inputs:
+            url: ${{ data.latest("wd", "enterprise-plan-" + run.id).attributes.publicUrl }}
+            maxFetches: ${{ inputs.maxFetches }}
+            budgetId: ${{ inputs.budgetId }}
+            resultName: public-fetch
+        dependsOn:
+          - step: plan
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+      - name: public-fallback-auth
+        description: Fetch the public URL when the Enterprise login/refresh failed.
+        guard: >-
+          ${{ !(data.latest("wd", "enterprise-plan-" + run.id).?attributes.?provider.orValue("") == "enterprise" &&
+          data.latest("wd", "enterprise-plan-" + run.id).?attributes.?auth.orValue(null) != null &&
+          !data.latest("wd", "enterprise-session-result-" + run.id).?attributes.?ok.orValue(false)) }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/web-cache"
+          modelName: cache
+          methodName: get
+          globalArgs:
+            cacheDir: ${{ inputs.cacheDir }}
+          inputs:
+            url: ${{ data.latest("wd", "enterprise-plan-" + run.id).attributes.publicUrl }}
+            maxFetches: ${{ inputs.maxFetches }}
+            budgetId: ${{ inputs.budgetId }}
+            resultName: public-fallback-auth
+        dependsOn:
+          - step: session
+            condition:
+              type: always
+        weight: 0
+        allowFailure: true
+      - name: public-fallback-fetch
+        description: Fetch the public URL when the Enterprise Wikidata GET failed.
+        guard: ${{ !(data.latest("wd", "enterprise-plan-" + run.id).?attributes.?provider.orValue("") == "enterprise") }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/web-cache"
+          modelName: cache
+          methodName: get
+          globalArgs:
+            cacheDir: ${{ inputs.cacheDir }}
+          inputs:
+            url: ${{ data.latest("wd", "enterprise-plan-" + run.id).attributes.publicUrl }}
+            maxFetches: ${{ inputs.maxFetches }}
+            budgetId: ${{ inputs.budgetId }}
+            resultName: public-fallback-fetch
+        dependsOn:
+          - step: enterprise-fetch
+            condition:
+              type: failed
+        weight: 0
+        allowFailure: true
+      - name: record
+        description: Count a successful non-cached Enterprise Wikidata lookup.
+        guard: >-
+          ${{ !(data.latest("wd", "enterprise-plan-" + run.id).?attributes.?provider.orValue("") == "enterprise" &&
+          !data.latest("cache", "enterprise-fetch").?attributes.?capped.orValue(false) &&
+          !data.latest("cache", "enterprise-fetch").?attributes.?fromCache.orValue(true)) }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/wikidata"
+          modelName: wd
+          methodName: enterprise-record
+          globalArgs:
+            cacheDir: ${{ inputs.cacheDir }}
+          inputs: {}
+        dependsOn:
+          - step: enterprise-fetch
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+      - name: auth-failure
+        description: Record an auth cooldown when the login/refresh response was unusable.
+        guard: >-
+          ${{ !(data.latest("wd", "enterprise-plan-" + run.id).?attributes.?provider.orValue("") == "enterprise" &&
+          data.latest("wd", "enterprise-plan-" + run.id).?attributes.?auth.orValue(null) != null &&
+          !data.latest("wd", "enterprise-session-result-" + run.id).?attributes.?ok.orValue(false)) }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/wikidata"
+          modelName: wd
+          methodName: enterprise-failure
+          globalArgs:
+            cacheDir: ${{ inputs.cacheDir }}
+          inputs:
+            kind: auth
+        dependsOn:
+          - step: session
+            condition:
+              type: always
+        weight: 0
+        allowFailure: true
+      - name: rate-failure
+        description: Record an allowance/rate cooldown when the Enterprise GET failed.
+        guard: ${{ !(data.latest("wd", "enterprise-plan-" + run.id).?attributes.?provider.orValue("") == "enterprise") }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/wikidata"
+          modelName: wd
+          methodName: enterprise-failure
+          globalArgs:
+            cacheDir: ${{ inputs.cacheDir }}
+          inputs:
+            kind: rate
+        dependsOn:
+          - step: enterprise-fetch
+            condition:
+              type: failed
+        weight: 0
+        allowFailure: true
+      - name: cleanup
+        description: Remove the private plan/token directory now the fetch is done.
+        task:
+          type: model_method
+          modelType: "@svendowideit/wikidata"
+          modelName: wd
+          methodName: enterprise-cleanup
+          globalArgs:
+            cacheDir: ${{ inputs.cacheDir }}
+          inputs:
+            workDir: ${{ data.latest("wd", "enterprise-plan-" + run.id).attributes.workDir }}
+        dependsOn:
+          - step: enterprise-fetch
+            condition:
+              type: always
+          - step: public-fetch
+            condition:
+              type: always
+          - step: public-fallback-auth
+            condition:
+              type: always
+          - step: public-fallback-fetch
+            condition:
+              type: always
+        weight: 0
+        allowFailure: true
+    dependsOn: []
+    weight: 0
+version: 1

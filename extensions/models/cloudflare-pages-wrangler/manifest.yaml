@@ -1,0 +1,79 @@
+manifestVersion: 1
+name: "@svendowideit/cloudflare-pages-wrangler"
+version: "2026.10.24.1"
+description: >
+  Direct-upload Cloudflare Pages deployment and custom-domain binding for sites
+  that do not use a Git repository.
+
+  WHAT IT DOES
+
+    Create and deploy a Cloudflare Pages project from a local directory, then
+    bind a custom domain, without requiring Git integration or a GitHub
+    repository. It wraps the Wrangler direct-upload workflow behind normal
+    typed swamp methods so deployments are repeatable, auditable, and secret
+    safe. Prefer it over manual drag-and-drop uploads or a shell script: the
+    account, token, project name, directory, and domain all come from model
+    arguments, and every method writes swamp data.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/cloudflare-pages-wrangler
+
+  DEPENDENCIES
+
+    `@swamp/cloudflare/pages` supplies the Cloudflare Pages project type;
+    direct upload uses Wrangler through npx on the host. Cloudflare account ID
+    and a Pages-editing API token are required at run time.
+
+  RUN
+
+      # Create a direct-upload Pages project.
+      swamp model method run pages createProject \
+        --input name=figy-blog
+
+      # Deploy a rendered directory to that project.
+      swamp model method run pages deployDirect \
+        --input projectName=figy-blog --input directory=/home/me/site
+
+      # Bind the custom domain to the project.
+      swamp model method run pages bindDomain \
+        --input projectName=figy-blog --input domain=blog.example.com
+
+  CONFIGURE
+
+    Set the global arguments on the model:
+      accountId                Cloudflare account ID
+      apiToken                 Pages-capable Cloudflare API token
+      productionBranch         Production branch label (default main)
+
+    Method arguments:
+      createProject.name       Pages project name
+      deployDirect.projectName Project to deploy
+      deployDirect.directory   Local directory to upload
+      deployDirect.branch      Optional deployment branch
+      bindDomain.projectName   Project receiving the domain
+      bindDomain.domain        Domain to bind
+
+  WHAT IT INSTALLS
+
+    Nothing persistent on the host. The model calls Cloudflare Pages APIs and
+    runs Wrangler as a subprocess. Upgrade is just `swamp extension update`
+    because nothing is installed locally.
+
+paths:
+  base: manifest
+models:
+  - cf_pages_wrangler.ts
+platforms: []
+labels:
+  - cloudflare
+  - pages
+visibility: public
+license: MIT
+repository: 'https://github.com/svendowideit/swamp-extensions'
+dependencies:
+  - '@swamp/cloudflare/pages'
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - cf_pages_wrangler.ts

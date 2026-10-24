@@ -694,3 +694,61 @@ Deno.test("a shared budgetId caps get-many and reports truncation", async () => 
     await Deno.remove(dir, { recursive: true });
   }
 });
+
+Deno.test("maxFetches=0 disables the run budget", async () => {
+  const dir = await newCacheDir();
+  try {
+    await withFetch([{ status: 200, body: "ok" }], async (calls) => {
+      const { context, written } = makeContext({
+        cacheDir: dir,
+        requestDelayMs: 0,
+      });
+      await model.methods.get.execute({
+        url: "https://e.com/a",
+        budgetId: "unlimited",
+        maxFetches: 0,
+        forceRefresh: false,
+      }, context);
+      await model.methods.get.execute({
+        url: "https://e.com/b",
+        budgetId: "unlimited",
+        maxFetches: 0,
+        forceRefresh: false,
+      }, context);
+      assertEquals(calls.length, 2);
+      assertEquals(written.every((w) => w.data.capped === false), true);
+    });
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("get-many counts a budget-capped URL as left for the next run", async () => {
+  const dir = await newCacheDir();
+  try {
+    await withFetch([{ status: 200, body: "ok" }], async () => {
+      const { context, written } = makeContext({
+        cacheDir: dir,
+        requestDelayMs: 0,
+      });
+      await model.methods["get-many"].execute({
+        urls: ["https://e.com/a"],
+        budgetId: "spent",
+        maxFetches: 1,
+        forceRefresh: false,
+      }, context);
+      await model.methods["get-many"].execute({
+        urls: ["https://e.com/b"],
+        budgetId: "spent",
+        maxFetches: 1,
+        forceRefresh: false,
+      }, context);
+      const batches = written.filter((w) => w.specName === "batch");
+      assertEquals(batches[1].data.fetched, 0);
+      assertEquals(batches[1].data.remaining, 1);
+      assertEquals(batches[1].data.truncated, true);
+    });
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});

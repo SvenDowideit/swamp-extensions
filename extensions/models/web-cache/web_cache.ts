@@ -112,12 +112,12 @@ const BudgetArgsSchema = z.object({
         "initialises `<cacheDir>/.fetch-budget-<budgetId>.json` from " +
         "`maxFetches`; later calls share the remaining count.",
     ),
-  maxFetches: z.number().int().positive()
+  maxFetches: z.number().int().nonnegative()
     .optional()
     .describe(
       "Initial run budget when `budgetId` is first seen (default " +
         "maxFetchesPerCall). For get-many it is also the per-call origin-fetch " +
-        "cap. Cached hits never count.",
+        "cap. 0 disables the run/per-call cap. Cached hits never count.",
     ),
 });
 
@@ -562,6 +562,9 @@ async function consumeFetchBudget(
   initialMax: number | undefined,
 ): Promise<{ allowed: boolean; remaining: number | null }> {
   if (!budgetId) return { allowed: true, remaining: null };
+  if (initialMax !== undefined && initialMax <= 0) {
+    return { allowed: true, remaining: null };
+  }
   const path = budgetPath(dir, budgetId);
   let state: BudgetState | null = null;
   try {
@@ -790,7 +793,7 @@ async function cachedFetch(
 /** A managed, disk-backed HTTP GET cache with pacing and retry. */
 export const model = {
   type: "@svendowideit/web-cache",
-  version: "2026.10.24.1",
+  version: "2026.10.24.2",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -833,6 +836,13 @@ export const model = {
       description:
         "Add a generic bearer-token file header and a run-scoped fetch budget " +
         "(budgetId + maxFetches) shared across get/get-json/get-many calls.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.24.2",
+      description:
+        "maxFetches=0 disables the run/per-call budget; a budget-capped " +
+        "get-many URL is reported as left for the next run.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -953,6 +963,9 @@ export const model = {
         const handles: { name: string }[] = [];
         const maxFetches = args.maxFetches ??
           context.globalArgs.maxFetchesPerCall;
+        const perCallCap = maxFetches > 0
+          ? maxFetches
+          : Number.POSITIVE_INFINITY;
         let fetched = 0;
         let cached = 0;
         let skipped = 0;
@@ -998,12 +1011,11 @@ export const model = {
             processed += 1;
             continue;
           }
-          if (fetched >= maxFetches) {
+          if (fetched >= perCallCap) {
             capped = true;
             break;
           }
           const res = await cachedFetch(context, url, args);
-          processed += 1;
           const result: FetchResult = {
             url,
             key,
@@ -1024,6 +1036,7 @@ export const model = {
             capped = true;
             break;
           }
+          processed += 1;
           if (res.fromCache) cached += 1;
           else fetched += 1;
         }
@@ -1051,7 +1064,7 @@ export const model = {
             cached,
             skipped,
             remaining,
-            cap: capped ? ` (cap ${maxFetches})` : "",
+            cap: capped ? ` (fetch budget exhausted; cap ${maxFetches})` : "",
           },
         );
         return { dataHandles: handles };

@@ -67,7 +67,8 @@ steps:
 - `budgetId` + `maxFetches` — share one origin-fetch budget across many calls in
   the same run. The first call initialises
   `<cacheDir>/.fetch-budget-<budgetId>.json` from `maxFetches`; later calls
-  consume the remaining count. Cached hits never consume the budget. `get` and
+  consume the remaining count. Cached hits never consume the budget.
+  `maxFetches=0` disables the budget entirely. `get` and
   `get-json` also accept `resultName` so a workflow can read the result's
   `capped` flag under a stable name.
 

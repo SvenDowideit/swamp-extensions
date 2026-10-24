@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/web-cache"
-version: "2026.10.24.1"
+version: "2026.10.24.2"
 description: >
   A managed, disk-backed HTTP GET cache — the single place responses are
   fetched, cached, paced, and retried, so other models read the cache instead
@@ -19,7 +19,8 @@ description: >
     The cache key depends only on the URL, so any model that knows a URL can
     share the same cache directory. Optional generic helpers let callers send a
     bearer token read from a 0600 file (never logged) and share a run-level
-    origin-fetch budget across calls via `budgetId` + `maxFetches`.
+    origin-fetch budget across calls via `budgetId` + `maxFetches`
+    (`maxFetches=0` disables the budget).
 
   INSTALL
 

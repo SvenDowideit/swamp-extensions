@@ -1,0 +1,263 @@
+id: f73c56b4-4eaf-4a1d-ac6d-e0a1bb67881e
+name: '@figy/blog'
+description: |
+  fi.gy's blog: render Markdown from an Obsidian vault folder, publish the
+  directory to Cloudflare Pages, bind its custom domain, and manage the DNS
+  CNAME through @svendowideit/caddy. No Git repository is used.
+
+tags:
+  collective: figy
+inputs:
+  properties:
+    blogDir:
+      type: string
+      default: /home/sven/src/obsidian/blog
+      description: Absolute directory holding Markdown posts.
+    templateDir:
+      type: string
+      default: ''
+      description: Optional HTML template directory for markdown-blog.
+    siteTitle:
+      type: string
+      default: Notes
+      description: Site title used by markdown-blog.
+    operation:
+      type: string
+      enum: [create, update]
+      default: create
+      description: create or update posts.
+    pythonExecutable:
+      type: string
+      default: /home/sven/.swamp/blog-python/bin/python
+      description: Python executable with Markdown 3.3.6 and PyYAML 5.4.1, provisioned by the python job.
+    markdownModel:
+      type: string
+      default: blog-markdown
+      description: markdown-blog instance name.
+    corpusModel:
+      type: string
+      default: blog-corpus
+      description: markdown-corpus instance name.
+    pagesModel:
+      type: string
+      default: blog-pages
+      description: cloudflare-pages-wrangler instance name.
+    pagesProject:
+      type: string
+      default: figy-blog
+      description: Cloudflare Pages project name.
+    cloudflareAccountId:
+      type: string
+      default: ''
+      description: Optional literal Cloudflare account ID; prefer cloudflareAccountIdRef.
+    cloudflareAccountIdRef:
+      type: string
+      default: CLOUDFLARE_ACCOUNT_ID
+      description: Vault key for the Cloudflare account ID.
+    vaultName:
+      type: string
+      default: figy-cloudflare-pages
+      description: Vault holding the Cloudflare Pages token and account ID.
+    cloudflareTokenRef:
+      type: string
+      default: CLOUDFLARE_API_TOKEN
+      description: Vault key for the Cloudflare token.
+    host:
+      type: string
+      default: x1yoga
+      description: Host name segment.
+    zone:
+      type: string
+      default: fi.gy
+      description: DNS zone configured with Caddy.
+    hostname:
+      type: string
+      default: ''
+      description: Full blog hostname; defaults to blog.<host>.<zone>.
+    caddyModel:
+      type: string
+      default: my-caddy
+      description: Caddy model for TLS subject handling.
+    dnsModel:
+      type: string
+      default: my-caddy
+      description: Caddy model that also has the Pages CNAME DNS record set.
+    publishDir:
+      type: string
+      default: /home/sven/src/swamp-project/blog
+      description: Absolute rendered directory served/published.
+  required: []
+jobs:
+  - name: render
+    steps:
+      - name: generate-site
+        task:
+          type: model_method
+          modelType: '@svendowideit/markdown2html'
+          modelName: blog-site
+          methodName: generate
+          globalArgs:
+            sourceDir: ${{ inputs.blogDir }}
+            outputDir: ${{ inputs.publishDir }}
+            siteTitle: ${{ inputs.siteTitle }}
+            recursive: true
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+    weight: 0
+
+  - name: pages
+    dependsOn:
+      - job: render
+        condition:
+          type: completed
+    steps:
+      - name: create-project
+        task:
+          type: model_method
+          modelType: '@svendowideit/cloudflare-pages-wrangler'
+          modelName: '${{ inputs.pagesModel }}'
+          methodName: createProject
+          globalArgs:
+            accountId: '${{ vault.get(inputs.vaultName, inputs.cloudflareAccountIdRef) }}'
+            apiToken: '${{ vault.get(inputs.vaultName, inputs.cloudflareTokenRef) }}'
+            productionBranch: main
+          inputs:
+            name: '${{ inputs.pagesProject }}'
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: deploy
+        task:
+          type: model_method
+          modelType: '@svendowideit/cloudflare-pages-wrangler'
+          modelName: '${{ inputs.pagesModel }}'
+          methodName: deployDirect
+          globalArgs:
+            accountId: '${{ vault.get(inputs.vaultName, inputs.cloudflareAccountIdRef) }}'
+            apiToken: '${{ vault.get(inputs.vaultName, inputs.cloudflareTokenRef) }}'
+            productionBranch: main
+          inputs:
+            projectName: '${{ inputs.pagesProject }}'
+            directory: '${{ inputs.publishDir }}'
+            branch: main
+        dependsOn:
+          - step: create-project
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: bind-domain
+        task:
+          type: model_method
+          modelType: '@svendowideit/cloudflare-pages-wrangler'
+          modelName: '${{ inputs.pagesModel }}'
+          methodName: bindDomain
+          globalArgs:
+            accountId: '${{ vault.get(inputs.vaultName, inputs.cloudflareAccountIdRef) }}'
+            apiToken: '${{ vault.get(inputs.vaultName, inputs.cloudflareTokenRef) }}'
+            productionBranch: main
+          inputs:
+            projectName: '${{ inputs.pagesProject }}'
+            domain: '${{ inputs.hostname != "" ? inputs.hostname : "blog." + inputs.host + "." + inputs.zone }}'
+        dependsOn:
+          - step: deploy
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+    weight: 0
+
+  - name: caddy-dns-model
+    dependsOn:
+      - job: pages
+        condition:
+          type: completed
+    steps:
+      - name: ensure-blog-caddy
+        task:
+          type: model_method
+          modelType: command/shell
+          modelName: blog-caddy-bootstrap
+          methodName: execute
+          inputs:
+            run: |
+              HOSTNAME='${{ inputs.hostname != "" ? inputs.hostname : "blog." + inputs.host + "." + inputs.zone }}'
+              PAGESPROJECT='${{ inputs.pagesProject }}'
+              ZONE='${{ inputs.zone }}'
+              BASE="$(swamp --json behavior get '${{ inputs.caddyModel }}')"
+              TARGET="$(printf '%s' "$BASE" | jq -r '.globalArguments.target // ""')"
+              SERVICE="$(printf '%s' "$BASE" | jq -r '.globalArguments.serviceName // "caddy"')"
+              BASEDOMAIN="$(printf '%s' "$BASE" | jq -r '.globalArguments.baseDomain // ""')"
+              PLUGINS="$(printf '%s' "$BASE" | jq -c '.globalArguments.plugins // []')"
+              EMAIL="$(printf '%s' "$BASE" | jq -r '.globalArguments.letsEncryptEmail // ""')"
+              ENVFILE="$(printf '%s' "$BASE" | jq -r '.globalArguments.environmentFile // ""')"
+              swamp behavior create @svendowideit/caddy "${{ inputs.dnsModel }}" \
+                --global-arg baseDomain="$BASEDOMAIN" \
+                --global-arg target="$TARGET" \
+                --global-arg serviceName="$SERVICE" \
+                --global-arg "plugins:json=$PLUGINS" \
+                --global-arg letsEncryptEmail="$EMAIL" \
+                --global-arg environmentFile="$ENVFILE" \
+                --global-arg "dnsRecords:json=[{\"name\":\"$HOSTNAME\",\"type\":\"CNAME\",\"value\":[\"$PAGESPROJECT.pages.dev\"],\"zone\":\"$ZONE\"}]" >/dev/null 2>&1 || true
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+    weight: 0
+
+  - name: dns
+    dependsOn:
+      - job: caddy-dns-model
+        condition:
+          type: succeeded
+      - job: pages
+        condition:
+          type: completed
+    steps:
+      - name: configure-tls
+        task:
+          type: model_method
+          modelType: '@svendowideit/caddy'
+          modelName: '${{ inputs.dnsModel }}'
+          methodName: configureTls
+          inputs:
+            subjects:
+              - '${{ inputs.hostname != "" ? inputs.hostname : "blog." + inputs.host + "." + inputs.zone }}'
+        dependsOn: []
+        weight: 0
+        allowFailure: true
+      - name: apply-dns
+        task:
+          type: model_method
+          modelType: '@svendowideit/caddy'
+          modelName: '${{ inputs.dnsModel }}'
+          methodName: applyDnsRecords
+        dependsOn:
+          - step: configure-tls
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: true
+    weight: 0
+
+  - name: verify-public
+    dependsOn:
+      - job: dns
+        condition:
+          type: completed
+    steps:
+      - name: fetch
+        task:
+          type: model_method
+          modelType: '@svendowideit/curl'
+          modelName: blog-curl
+          methodName: get
+          globalArgs:
+            followRedirects: true
+          inputs:
+            url: '${{ "https://" + (inputs.hostname != "" ? inputs.hostname : "blog." + inputs.host + "." + inputs.zone) + "/" }}'
+        dependsOn: []
+        weight: 0
+        allowFailure: true
+    weight: 0
+version: 1

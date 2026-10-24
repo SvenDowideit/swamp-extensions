@@ -1,0 +1,123 @@
+manifestVersion: 1
+name: "@figy/blog"
+version: "2026.10.24.1"
+description: >
+  @figy's blog: render Markdown posts from an Obsidian vault folder and publish
+  them on Cloudflare Pages. DNS is managed by an isolated Caddy DNS model
+  created automatically by the workflow from the user's existing Caddy model.
+
+  WHAT IT DOES
+
+    A single workflow (@figy/blog) creates its own Python environment, ingests
+    the post directory, renders every post with preview/write/verify, creates a
+    direct-upload Cloudflare Pages project, deploys the rendered directory
+    through @svendowideit/cloudflare-pages-wrangler, binds the custom domain,
+    creates or updates an isolated @svendowideit/caddy model by reading the
+    existing Caddy model's base settings, writes the Pages CNAME into its
+    dnsRecords, reconciles DNS, and verifies the final HTTPS URL.
+
+  INSTALL
+
+      swamp extension pull @figy/blog
+
+  DEPENDENCIES
+
+    @mgreten/markdown-blog, @mgreten/markdown-corpus,
+    @svendowideit/caddy, @svendowideit/curl, and
+    @svendowideit/cloudflare-pages-wrangler, installed automatically.
+    The workflow provisions Python itself into ~/.swamp/blog-python.
+
+  RUN
+
+      # 1. Create a Cloudflare token with:
+      #    - Account / Cloudflare Pages / Edit
+      #    Scoped to the Pages account and DNS metadata zones.
+
+      # 2. Store credentials in a vault.
+      swamp vault create local_encryption figy-cloudflare-pages
+      swamp vault put figy-cloudflare-pages CLOUDFLARE_API_TOKEN
+      swamp vault put figy-cloudflare-pages CLOUDFLARE_ACCOUNT_ID
+
+      # 3. Create a post.
+      mkdir -p /home/me/obsidian/blog /home/me/swamp-project/blog
+      cat > /home/me/obsidian/blog/2026-10-24-hello.md <<'MD'
+      ---
+      title: Hello
+      date: 2026-10-24
+      slug: hello
+      excerpt: First post
+      ---
+
+      # Hello
+      <!-- blog:content:start -->
+      Hello from Caddy-managed Pages DNS.
+      <!-- blog:content:end -->
+      MD
+
+      # 4. Validate and run; the workflow provisions Python and creates the
+      #    isolated blog-caddy DNS model from my-caddy.
+      swamp workflow validate @figy/blog
+      swamp workflow run @figy/blog \\
+        --input blogDir=/home/me/obsidian/blog \\
+        --input publishDir=/home/me/swamp-project/blog \\
+        --input hostname=blog.x1yoga.fi.gy \\
+        --input vaultName=figy-cloudflare-pages \\
+        --input caddyModel=my-caddy \\
+        --input dnsModel=blog-caddy
+
+      # 5. Verify.
+      curl -I https://blog.x1yoga.fi.gy/
+
+  CONFIGURE
+
+    blogDir               Absolute directory of Markdown files
+    templateDir           Optional custom template path
+    siteTitle             Site title (default Notes)
+    pagesModel            cloudflare-pages-wrangler instance (default blog-pages)
+    pagesProject          Pages project name (default figy-blog)
+    vaultName             Vault name (default figy-cloudflare-pages)
+    cloudflareTokenRef     Vault key for the token (default CLOUDFLARE_API_TOKEN)
+    cloudflareAccountIdRef Vault key for account ID (default CLOUDFLARE_ACCOUNT_ID)
+    host                  Host segment (default x1yoga)
+    zone                  DNS zone (default fi.gy)
+    hostname              Full blog hostname (default blog.<host>.<zone>)
+    caddyModel            Existing Caddy model copied by workflow (default my-caddy)
+    dnsModel              Isolated model created by workflow (default blog-caddy)
+    publishDir            Absolute directory published to Pages
+
+  WHAT IT INSTALLS
+
+    No Git repository, Pages Git source, or manual Python setup. The workflow
+    creates a direct-upload Pages project and uploads the rendered directory.
+    Caddy's isolated model writes the DNS CNAME into the mixed config without
+    changing the existing Caddy model. Cloudflare Pages serves the HTML.
+
+    Cloudflare Pages token permissions are Pages-only:
+    Account/Cloudflare Pages/Edit (Pages project upload/deploy/domain bind).
+    Zone/DNS/Edit and Zone/Zone/Read are not needed when Caddy, through another
+    DNS provider, owns the zone. Upgrade is `swamp extension update`.
+
+paths:
+  base: manifest
+models: []
+workflows:
+  - figy-blog.yaml
+vaults: []
+datastores: []
+reports: []
+dependencies:
+  - '@svendowideit/markdown2html'
+  - '@svendowideit/caddy'
+  - '@svendowideit/curl'
+  - '@svendowideit/cloudflare-pages-wrangler'
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+platforms: []
+labels:
+  - blog
+  - markdown
+  - static-site
+visibility: public
+license: MIT
+repository: 'https://github.com/svendowideit/swamp-extensions'

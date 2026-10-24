@@ -6,6 +6,9 @@ const GlobalArgsSchema = z.object({
   sourceDir: z.string().min(1).describe("Directory containing Markdown files"),
   outputDir: z.string().min(1).describe("Directory where the site is written"),
   siteTitle: z.string().min(1).max(200).default("Notes").describe("Site title"),
+  indexTitle: z.string().min(1).max(200).optional().describe(
+    "Title used for index.html and rss.xml; defaults to siteTitle",
+  ),
   templatePath: z.string().min(1).optional().describe(
     "Optional HTML template using {{title}}, {{body}}, {{date}}, {{slug}}, and {{excerpt}}",
   ),
@@ -19,7 +22,7 @@ type PageMeta = {
   excerpt: string;
   sourcePath: string;
   outputPath: string;
-  html: string;
+  bodyHtml: string;
 };
 
 type MethodContext = {
@@ -157,13 +160,16 @@ function applyTemplate(
     /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g,
     (_, key: string) => {
       const value = values[key] ?? "";
-      return key === "body" ? value : escapeHtml(value);
+      return ["body", "recent_posts", "archives"].includes(key)
+        ? value
+        : escapeHtml(value);
     },
   );
 }
 
 async function renderPages(context: MethodContext): Promise<PageMeta[]> {
   const g = context.globalArgs;
+  const indexTitle = g.indexTitle || g.siteTitle;
   const sourceDir = g.sourceDir;
   const outputDir = g.outputDir;
   const template = await readTemplate(g.templatePath, PAGE_TEMPLATE);
@@ -190,19 +196,15 @@ async function renderPages(context: MethodContext): Promise<PageMeta[]> {
       slug = `${slug}-${counter}`;
     }
     usedSlugs.add(slug);
-
-    const htmlBody = String(marked.parse(body));
-    const html = applyTemplate(template, {
+    pages.push({
       title,
       date,
       slug,
       excerpt,
-      body: htmlBody,
-      siteTitle: g.siteTitle,
+      sourcePath,
+      outputPath: join(outputDir, `${slug}.html`),
+      bodyHtml: String(marked.parse(body)),
     });
-    const outputPath = join(outputDir, `${slug}.html`);
-    await Deno.writeTextFile(outputPath, html);
-    pages.push({ title, date, slug, excerpt, sourcePath, outputPath, html });
   }
 
   pages.sort((a, b) => {
@@ -210,41 +212,72 @@ async function renderPages(context: MethodContext): Promise<PageMeta[]> {
     return a.title.localeCompare(b.title);
   });
 
-  const indexItems = pages.map((page) => {
-    const rel = relative(outputDir, page.outputPath);
-    return `<li><a href="${escapeHtml(rel)}">${escapeHtml(page.title)}</a>${
+  const relOf = (page: PageMeta) => relative(outputDir, page.outputPath);
+  const recentPostsHtml = [
+    '<li><a href="rss.xml">RSS feed</a></li>',
+    ...pages.slice(0, 5).map((page) =>
+      `<li><a href="${escapeHtml(relOf(page))}">${
+        escapeHtml(page.title)
+      }</a></li>`
+    ),
+  ].join("\n");
+  const archivesHtml = pages.map((page) =>
+    `<li><a href="${escapeHtml(relOf(page))}">${escapeHtml(page.title)}</a>${
       page.date ? ` <span class="meta">${escapeHtml(page.date)}</span>` : ""
-    }${page.excerpt ? `<p>${escapeHtml(page.excerpt)}</p>` : ""}</li>`;
-  }).join("\n");
+    }</li>`
+  ).join("\n");
+  const sidebar = {
+    recent_posts: recentPostsHtml,
+    archives: archivesHtml,
+  };
 
-  const indexHtml = `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escapeHtml(g.siteTitle)}</title>
-<style>
-body { font-family: system-ui, sans-serif; line-height: 1.7; max-width: 760px; margin: 2rem auto; padding: 0 1rem; }
-h1 { line-height: 1.25; }
-ul { padding-left: 1.25rem; }
-.meta { color: #555; font-size: .9rem; }
-p { margin: .35rem 0 1.1rem; }
-</style>
-<link rel="alternate" type="application/rss+xml" href="rss.xml" title="${
-    escapeHtml(g.siteTitle)
-  }">
-</head>
-<body>
-<h1>${escapeHtml(g.siteTitle)}</h1>
-<ul>
-${indexItems}
-</ul>
-</body>
-</html>`;
+  for (const page of pages) {
+    const html = applyTemplate(template, {
+      title: page.title,
+      date: page.date,
+      slug: page.slug,
+      excerpt: page.excerpt,
+      body: page.bodyHtml,
+      siteTitle: g.siteTitle,
+      ...sidebar,
+    });
+    await Deno.writeTextFile(page.outputPath, html);
+  }
+
+  const latest = pages[0];
+  const latestHtml = latest
+    ? `<article class="latest-post">
+<h2 class="entry-title"><a href="${escapeHtml(relOf(latest))}">${
+      escapeHtml(latest.title)
+    }</a></h2>
+${latest.date ? `<p class="meta">${escapeHtml(latest.date)}</p>` : ""}
+<div class="entry-content">${latest.bodyHtml}</div>
+</article>`
+    : "";
+
+  const summariesHtml = pages.slice(1, 5).map((page) =>
+    `<article class="post-summary">
+<h2 class="entry-title"><a href="${escapeHtml(relOf(page))}">${
+      escapeHtml(page.title)
+    }</a></h2>
+${page.date ? `<p class="meta">${escapeHtml(page.date)}</p>` : ""}
+<p>${escapeHtml(page.excerpt)}</p>
+</article>`
+  ).join("\n");
+
+  const indexHtml = applyTemplate(template, {
+    title: indexTitle,
+    date: "",
+    slug: "index",
+    excerpt: "",
+    body: latestHtml + summariesHtml,
+    siteTitle: g.siteTitle,
+    ...sidebar,
+  });
   await Deno.writeTextFile(join(outputDir, "index.html"), indexHtml);
 
   const rssItems = pages.map((page) => {
-    const rel = relative(outputDir, page.outputPath);
+    const rel = relOf(page);
     const pubDate = toRssDate(page.date);
     return `<item>
 <title>${escapeHtml(page.title)}</title>
@@ -263,7 +296,7 @@ ${indexItems}
   const rssXml = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
 <channel>
-<title>${escapeHtml(g.siteTitle)}</title>
+<title>${escapeHtml(indexTitle)}</title>
 <link>index.html</link>
 <description>${escapeHtml(g.siteTitle)}</description>
 <lastBuildDate>${escapeHtml(lastBuildDate)}</lastBuildDate>
@@ -277,7 +310,15 @@ ${rssItems}
 
 export const model = {
   type: "@svendowideit/markdown2html",
-  version: "2026.10.24.1",
+  version: "2026.10.24.2",
+  upgrades: [
+    {
+      toVersion: "2026.10.24.2",
+      description:
+        "Index summaries, RSS/archive sidebar tokens, and separate index title; no schema change",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   resources: {
     result: {
@@ -295,6 +336,7 @@ export const model = {
         sourceDir: z.string().optional().describe("Override source directory"),
         outputDir: z.string().optional().describe("Override output directory"),
         siteTitle: z.string().optional().describe("Override site title"),
+        indexTitle: z.string().optional().describe("Override index/feed title"),
         templatePath: z.string().optional().describe("Override template path"),
         recursive: z.boolean().optional().describe("Override recursive scan"),
       }),
@@ -313,6 +355,9 @@ export const model = {
           siteTitle: typeof args.siteTitle === "string"
             ? args.siteTitle
             : g.siteTitle,
+          indexTitle: typeof args.indexTitle === "string"
+            ? args.indexTitle
+            : g.indexTitle,
           templatePath: typeof args.templatePath === "string"
             ? args.templatePath
             : g.templatePath,

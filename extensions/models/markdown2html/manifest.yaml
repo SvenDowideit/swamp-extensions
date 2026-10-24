@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/markdown2html"
-version: "2026.10.24.1"
+version: "2026.10.24.2"
 description: >
   Render Markdown files into a static HTML site with an index page, without
   requiring Python or special content markers.
@@ -49,9 +49,12 @@ description: >
       sourceDir            Directory containing Markdown files
       outputDir            Directory where the site is written
       siteTitle            Site title (default Notes)
+      indexTitle           Title for index.html and rss.xml
+                           (defaults to siteTitle)
       templatePath         Optional HTML template; supported tokens are
                              {{title}}, {{body}}, {{date}}, {{slug}},
-                             {{excerpt}}, and {{siteTitle}}
+                             {{excerpt}}, {{siteTitle}}, {{recent_posts}},
+                             and {{archives}}
       recursive            Scan subdirectories (default true)
 
   WHAT IT INSTALLS

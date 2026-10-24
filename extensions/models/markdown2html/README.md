@@ -26,17 +26,21 @@ fall back as follows:
 - `excerpt`: first paragraph
 
 Template tokens: `{{title}}`, `{{body}}`, `{{date}}`, `{{slug}}`,
-`{{excerpt}}`, and `{{siteTitle}}`. `{{body}}` is inserted unescaped; all
-other tokens are HTML-escaped.
+`{{excerpt}}`, `{{siteTitle}}`, `{{recent_posts}}`, and `{{archives}}`.
+`{{body}}`, `{{recent_posts}}`, and `{{archives}}` are inserted unescaped;
+all other tokens are HTML-escaped.
 
 Pages are sorted by optional frontmatter date from newest to oldest; files without dates sort after
 dated files. Ties are ordered by title. The workflow writes one HTML file per
-Markdown file and then writes `index.html` with links to every page.
+Markdown file and then writes `index.html` with the latest post in full and the
+next four as summaries. `rss.xml` contains every post. `{{recent_posts}}` is
+RSS followed by the latest five posts; `{{archives}}` lists every post.
 
 ## Configuration
 
-Global arguments: `sourceDir`, `outputDir`, `siteTitle`, `templatePath`,
-`recursive`.
+Global arguments: `sourceDir`, `outputDir`, `siteTitle`, `indexTitle`,
+`templatePath`, `recursive`. `indexTitle` controls the title of `index.html`
+and `rss.xml`; it defaults to `siteTitle`.
 
 Method: `generate` with optional overrides for these fields.
 

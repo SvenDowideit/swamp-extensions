@@ -1046,7 +1046,7 @@ export async function runSwampCmd(
 /** Model definition for incrementally scanning and listing local ebooks. */
 export const model = {
   type: "@svendowideit/ebooks",
-  version: "2026.10.24.1",
+  version: "2026.10.24.2",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1096,6 +1096,13 @@ export const model = {
       description:
         "No model schema changes — propagate the run-level maxFetches budget " +
         "through the resolution workflows.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.24.2",
+      description:
+        "maxFetches defaults to 0 (unlimited); resolution matching is " +
+        "case/whitespace-insensitive.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -75,10 +75,11 @@ inputs:
         the metadata detection or rendering and don't need to re-walk the filesystem.
     maxFetches:
       type: number
-      default: 20
+      default: 0
       description: >-
         Run-level origin-fetch budget shared by every Wikipedia/Wikidata fetch
-        in this run. Cached hits do not count; the backlog drains on the next run.
+        in this run. 0 = unlimited. Cached hits do not count; when set, the
+        backlog drains on the next run.
   required: []
 jobs:
   - name: main

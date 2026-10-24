@@ -69,7 +69,15 @@ async function cloudflarePages(
  */
 export const model = {
   type: "@svendowideit/cloudflare-pages-wrangler",
-  version: "2026.10.24.1",
+  version: "2026.10.24.2",
+  upgrades: [
+    {
+      toVersion: "2026.10.24.2",
+      description:
+        "Idempotent project creation and typed method arguments; no schema change",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   resources: {
     project: {

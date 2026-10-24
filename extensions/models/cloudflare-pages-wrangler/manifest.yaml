@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/cloudflare-pages-wrangler"
-version: "2026.10.24.1"
+version: "2026.10.24.2"
 description: >
   Direct-upload Cloudflare Pages deployment and custom-domain binding for sites
   that do not use a Git repository.

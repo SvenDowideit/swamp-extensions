@@ -71,11 +71,143 @@ footer .ver{color:var(--acc)}
 <h2 class="page-title">Documentation changes — This month</h2>
 <div class="cards">
 <div class="card"><div class="n">161</div><div class="l">FILES CHANGED</div></div>
-<div class="card"><div class="n">311</div><div class="l">CHANGES</div></div>
+<div class="card"><div class="n">314</div><div class="l">CHANGES</div></div>
 <div class="card"><div class="n">19</div><div class="l">WITH MANUAL PAGE</div></div>
 </div>
 <p class="lede">Documentation changed in the This month window, newest first. The activity leaderboard is on the
 <a href="leaderboard.html">Leaderboard</a> page.</p>
+<article class="item doc-item">
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastore-litestream.md" rel="noopener">design/enablers/datastore-litestream.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>7 changes</span><span>updated <time datetime="2026-10-24T12:59:25Z">2026-10-24T12:59:25Z</time></span><span><span class="dim">no published page</span></span></div>
+<ul class="doc-changes"><li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-10-24T12:59:25Z">2026-10-24T12:59:25Z</time></span>
+<span class="doc-title">a command cut off before it committed anything no longer says its changes are saved locally, and a run cut mid-step names a recover command that works (swamp-club#3882) (#3358)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a71ac553d14444659466f750011da63d506fc700" rel="noopener">a71ac553</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3358" rel="noopener">#3358</a>𝗔 <a href="https://swamp-club.com/lab/3882" rel="noopener">lab#3882</a></span>
+</li>
+<li class="doc-change">
+<span class="tier B">B</span>
+<span class="doc-date"><time datetime="2026-10-24T01:11:53Z">2026-10-24T01:11:53Z</time></span>
+<span class="doc-title">v3 first clone and restore replay only what is left at the end of the feed, batch the catalog, and load a compacted base without per-file syncs (swamp-club#3803) (#3352)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/5840c80b4ab4bffbc70c749482789794fdb88de9" rel="noopener">5840c80b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3352" rel="noopener">#3352</a>𝗔 <a href="https://swamp-club.com/lab/3803" rel="noopener">lab#3803</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-10-20T17:15:41Z">2026-10-20T17:15:41Z</time></span>
+<span class="doc-title">v3 local durability: chunks are synced before a commit names them, one torn chunk no longer wedges every checkout, and writer and format markers survive a power cut (swamp-club#3617) (#3229)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/f469323c3d53feebad5853bc2aaa41b31b887e69" rel="noopener">f469323c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3229" rel="noopener">#3229</a>𝗔 <a href="https://swamp-club.com/lab/3617" rel="noopener">lab#3617</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-10-17T20:35:11Z">2026-10-17T20:35:11Z</time></span>
+<span class="doc-title">v3 writer liveness is judged by process identity (swamp-club#3564) (#3184)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/83a7777a3be12aa222d2774d294d425afc84d4f3" rel="noopener">83a7777a</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3184" rel="noopener">#3184</a>𝗔 <a href="https://swamp-club.com/lab/3564" rel="noopener">lab#3564</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-10-15T23:37:13Z">2026-10-15T23:37:13Z</time></span>
+<span class="doc-title">a provider capability to remove abandoned Litestream lineage paths on buckets (replicaPaths()), plus conformance (swamp-club#3531) (#3155)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a39bdd69f257b7f96833e3a6b230ddb99c870ade" rel="noopener">a39bdd69</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3155" rel="noopener">#3155</a>𝗔 <a href="https://swamp-club.com/lab/3531" rel="noopener">lab#3531</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-10-15T17:21:47Z">2026-10-15T17:21:47Z</time></span>
+<span class="doc-title">a v3 writer killed while it commits leaves its commit for the next writer to land once, and compacted_txns is pruned (swamp-club#3490) (#3142)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/245634c8f1b23605c58e8f2b1e6cd884079abd03" rel="noopener">245634c8</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3142" rel="noopener">#3142</a>𝗔 <a href="https://swamp-club.com/lab/3490" rel="noopener">lab#3490</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-10-14T01:54:11Z">2026-10-14T01:54:11Z</time></span>
+<span class="doc-title">a dormant Litestream sidecar for v3 writers, and a write command confirms its commits are replicated before it succeeds (swamp-club#3416) (#3096)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/fd84c82602837d51a1a32f221a4e9b36e724d945" rel="noopener">fd84c826</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3096" rel="noopener">#3096</a>𝗔 <a href="https://swamp-club.com/lab/3416" rel="noopener">lab#3416</a></span>
+</li></ul>
+</article>
+<article class="item doc-item">
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>7 changes</span><span>updated <time datetime="2026-10-24T12:59:25Z">2026-10-24T12:59:25Z</time></span><span><a href="https://swamp-club.com/manual/reference/datastore-configuration" rel="noopener">published manual</a></span></div>
+<ul class="doc-changes"><li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-10-24T12:59:25Z">2026-10-24T12:59:25Z</time></span>
+<span class="doc-title">a command cut off before it committed anything no longer says its changes are saved locally, and a run cut mid-step names a recover command that works (swamp-club#3882) (#3358)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a71ac553d14444659466f750011da63d506fc700" rel="noopener">a71ac553</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3358" rel="noopener">#3358</a>𝗔 <a href="https://swamp-club.com/lab/3882" rel="noopener">lab#3882</a></span>
+</li>
+<li class="doc-change">
+<span class="tier B">B</span>
+<span class="doc-date"><time datetime="2026-10-24T01:11:53Z">2026-10-24T01:11:53Z</time></span>
+<span class="doc-title">v3 first clone and restore replay only what is left at the end of the feed, batch the catalog, and load a compacted base without per-file syncs (swamp-club#3803) (#3352)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/5840c80b4ab4bffbc70c749482789794fdb88de9" rel="noopener">5840c80b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3352" rel="noopener">#3352</a>𝗔 <a href="https://swamp-club.com/lab/3803" rel="noopener">lab#3803</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-10-20T17:15:41Z">2026-10-20T17:15:41Z</time></span>
+<span class="doc-title">v3 local durability: chunks are synced before a commit names them, one torn chunk no longer wedges every checkout, and writer and format markers survive a power cut (swamp-club#3617) (#3229)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/f469323c3d53feebad5853bc2aaa41b31b887e69" rel="noopener">f469323c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3229" rel="noopener">#3229</a>𝗔 <a href="https://swamp-club.com/lab/3617" rel="noopener">lab#3617</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-10-17T20:35:11Z">2026-10-17T20:35:11Z</time></span>
+<span class="doc-title">v3 writer liveness is judged by process identity (swamp-club#3564) (#3184)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/83a7777a3be12aa222d2774d294d425afc84d4f3" rel="noopener">83a7777a</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3184" rel="noopener">#3184</a>𝗔 <a href="https://swamp-club.com/lab/3564" rel="noopener">lab#3564</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-10-15T23:37:13Z">2026-10-15T23:37:13Z</time></span>
+<span class="doc-title">a provider capability to remove abandoned Litestream lineage paths on buckets (replicaPaths()), plus conformance (swamp-club#3531) (#3155)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a39bdd69f257b7f96833e3a6b230ddb99c870ade" rel="noopener">a39bdd69</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3155" rel="noopener">#3155</a>𝗔 <a href="https://swamp-club.com/lab/3531" rel="noopener">lab#3531</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-10-15T17:21:47Z">2026-10-15T17:21:47Z</time></span>
+<span class="doc-title">a v3 writer killed while it commits leaves its commit for the next writer to land once, and compacted_txns is pruned (swamp-club#3490) (#3142)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/245634c8f1b23605c58e8f2b1e6cd884079abd03" rel="noopener">245634c8</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3142" rel="noopener">#3142</a>𝗔 <a href="https://swamp-club.com/lab/3490" rel="noopener">lab#3490</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-10-14T01:54:11Z">2026-10-14T01:54:11Z</time></span>
+<span class="doc-title">a dormant Litestream sidecar for v3 writers, and a write command confirms its commits are replicated before it succeeds (swamp-club#3416) (#3096)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/fd84c82602837d51a1a32f221a4e9b36e724d945" rel="noopener">fd84c826</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3096" rel="noopener">#3096</a>𝗔 <a href="https://swamp-club.com/lab/3416" rel="noopener">lab#3416</a></span>
+</li></ul>
+</article>
+<article class="item doc-item">
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>6 changes</span><span>updated <time datetime="2026-10-24T12:57:51Z">2026-10-24T12:57:51Z</time></span><span><a href="https://swamp-club.com/manual/explanation/the-workflow-execution-model" rel="noopener">published manual</a></span></div>
+<ul class="doc-changes"><li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-10-24T12:57:51Z">2026-10-24T12:57:51Z</time></span>
+<span class="doc-title">workflow validate reports a string-form dependsOn, an unknown key, a removed driver field or a refused step task as a schema failure instead of a fatal stack trace (swamp-club#3832) (#3357)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/fb9d658de287864d98514759846b192d904beaa9" rel="noopener">fb9d658d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3357" rel="noopener">#3357</a>𝗔 <a href="https://swamp-club.com/lab/3832" rel="noopener">lab#3832</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-10-23T21:43:02Z">2026-10-23T21:43:02Z</time></span>
+<span class="doc-title">share queued run index repairs (swamp-club#3857) (#3345)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/59cb86e8c4044c8585a2c4868ca0508d45e85d9b" rel="noopener">59cb86e8</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3345" rel="noopener">#3345</a>𝗔 <a href="https://swamp-club.com/lab/3857" rel="noopener">lab#3857</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-10-20T17:51:12Z">2026-10-20T17:51:12Z</time></span>
+<span class="doc-title">a step&#39;s dataOutputOverrides vaultName routes its sensitive outputs, and merges with the definition&#39;s override field by field (swamp-club#3606) (#3232)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/72af7c6c6b0ecce4cf19fd970e61ed5dbb227a08" rel="noopener">72af7c6c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3232" rel="noopener">#3232</a>𝗔 <a href="https://swamp-club.com/lab/3606" rel="noopener">lab#3606</a></span>
+</li>
+<li class="doc-change">
+<span class="tier C">C</span>
+<span class="doc-date"><time datetime="2026-10-14T01:37:06Z">2026-10-14T01:37:06Z</time></span>
+<span class="doc-title">README, design docs and agent-constraints teach swamp behavior commands (swamp-club#3412) (#3095)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/3538494a5918ee83f8cead53543201c2b1a8a31e" rel="noopener">3538494a</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3095" rel="noopener">#3095</a>𝗔 <a href="https://swamp-club.com/lab/3412" rel="noopener">lab#3412</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-10-13T21:53:50Z">2026-10-13T21:53:50Z</time></span>
+<span class="doc-title">pass only known foreign roots through step arguments (swamp-club#3400) (#3082)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a3fab18fb7dbc40a91cbbeece83ef176f567c21e" rel="noopener">a3fab18f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3082" rel="noopener">#3082</a>𝗔 <a href="https://swamp-club.com/lab/3400" rel="noopener">lab#3400</a></span>
+</li>
+<li class="doc-change">
+<span class="tier C">C</span>
+<span class="doc-date"><time datetime="2026-10-13T00:18:24Z">2026-10-13T00:18:24Z</time></span>
+<span class="doc-title">behavior is the product term for models, with model kept working (swamp-club#3329) (#3045)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b00007648072589c45fb45a5cee1a5b6ff01bc1b" rel="noopener">b0000764</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3045" rel="noopener">#3045</a>𝗔 <a href="https://swamp-club.com/lab/3329" rel="noopener">lab#3329</a></span>
+</li></ul>
+</article>
 <article class="item doc-item">
 <h2><a href="https://github.com/swamp-club/swamp-extensions/blob/main/codegen/designs/aws.md" rel="noopener">codegen/designs/aws.md</a></h2>
 <div class="meta"><span>swamp-club/swamp-extensions</span><span>1 change</span><span>updated <time datetime="2026-10-24T02:12:40Z">2026-10-24T02:12:40Z</time></span><span><span class="dim">no published page</span></span></div>
@@ -185,86 +317,6 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastore-litestream.md" rel="noopener">design/enablers/datastore-litestream.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>6 changes</span><span>updated <time datetime="2026-10-24T01:11:53Z">2026-10-24T01:11:53Z</time></span><span><span class="dim">no published page</span></span></div>
-<ul class="doc-changes"><li class="doc-change">
-<span class="tier B">B</span>
-<span class="doc-date"><time datetime="2026-10-24T01:11:53Z">2026-10-24T01:11:53Z</time></span>
-<span class="doc-title">v3 first clone and restore replay only what is left at the end of the feed, batch the catalog, and load a compacted base without per-file syncs (swamp-club#3803) (#3352)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/5840c80b4ab4bffbc70c749482789794fdb88de9" rel="noopener">5840c80b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3352" rel="noopener">#3352</a>𝗔 <a href="https://swamp-club.com/lab/3803" rel="noopener">lab#3803</a></span>
-</li>
-<li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-20T17:15:41Z">2026-10-20T17:15:41Z</time></span>
-<span class="doc-title">v3 local durability: chunks are synced before a commit names them, one torn chunk no longer wedges every checkout, and writer and format markers survive a power cut (swamp-club#3617) (#3229)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/f469323c3d53feebad5853bc2aaa41b31b887e69" rel="noopener">f469323c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3229" rel="noopener">#3229</a>𝗔 <a href="https://swamp-club.com/lab/3617" rel="noopener">lab#3617</a></span>
-</li>
-<li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-17T20:35:11Z">2026-10-17T20:35:11Z</time></span>
-<span class="doc-title">v3 writer liveness is judged by process identity (swamp-club#3564) (#3184)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/83a7777a3be12aa222d2774d294d425afc84d4f3" rel="noopener">83a7777a</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3184" rel="noopener">#3184</a>𝗔 <a href="https://swamp-club.com/lab/3564" rel="noopener">lab#3564</a></span>
-</li>
-<li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-15T23:37:13Z">2026-10-15T23:37:13Z</time></span>
-<span class="doc-title">a provider capability to remove abandoned Litestream lineage paths on buckets (replicaPaths()), plus conformance (swamp-club#3531) (#3155)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a39bdd69f257b7f96833e3a6b230ddb99c870ade" rel="noopener">a39bdd69</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3155" rel="noopener">#3155</a>𝗔 <a href="https://swamp-club.com/lab/3531" rel="noopener">lab#3531</a></span>
-</li>
-<li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-15T17:21:47Z">2026-10-15T17:21:47Z</time></span>
-<span class="doc-title">a v3 writer killed while it commits leaves its commit for the next writer to land once, and compacted_txns is pruned (swamp-club#3490) (#3142)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/245634c8f1b23605c58e8f2b1e6cd884079abd03" rel="noopener">245634c8</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3142" rel="noopener">#3142</a>𝗔 <a href="https://swamp-club.com/lab/3490" rel="noopener">lab#3490</a></span>
-</li>
-<li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-14T01:54:11Z">2026-10-14T01:54:11Z</time></span>
-<span class="doc-title">a dormant Litestream sidecar for v3 writers, and a write command confirms its commits are replicated before it succeeds (swamp-club#3416) (#3096)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/fd84c82602837d51a1a32f221a4e9b36e724d945" rel="noopener">fd84c826</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3096" rel="noopener">#3096</a>𝗔 <a href="https://swamp-club.com/lab/3416" rel="noopener">lab#3416</a></span>
-</li></ul>
-</article>
-<article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>6 changes</span><span>updated <time datetime="2026-10-24T01:11:53Z">2026-10-24T01:11:53Z</time></span><span><a href="https://swamp-club.com/manual/reference/datastore-configuration" rel="noopener">published manual</a></span></div>
-<ul class="doc-changes"><li class="doc-change">
-<span class="tier B">B</span>
-<span class="doc-date"><time datetime="2026-10-24T01:11:53Z">2026-10-24T01:11:53Z</time></span>
-<span class="doc-title">v3 first clone and restore replay only what is left at the end of the feed, batch the catalog, and load a compacted base without per-file syncs (swamp-club#3803) (#3352)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/5840c80b4ab4bffbc70c749482789794fdb88de9" rel="noopener">5840c80b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3352" rel="noopener">#3352</a>𝗔 <a href="https://swamp-club.com/lab/3803" rel="noopener">lab#3803</a></span>
-</li>
-<li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-20T17:15:41Z">2026-10-20T17:15:41Z</time></span>
-<span class="doc-title">v3 local durability: chunks are synced before a commit names them, one torn chunk no longer wedges every checkout, and writer and format markers survive a power cut (swamp-club#3617) (#3229)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/f469323c3d53feebad5853bc2aaa41b31b887e69" rel="noopener">f469323c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3229" rel="noopener">#3229</a>𝗔 <a href="https://swamp-club.com/lab/3617" rel="noopener">lab#3617</a></span>
-</li>
-<li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-17T20:35:11Z">2026-10-17T20:35:11Z</time></span>
-<span class="doc-title">v3 writer liveness is judged by process identity (swamp-club#3564) (#3184)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/83a7777a3be12aa222d2774d294d425afc84d4f3" rel="noopener">83a7777a</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3184" rel="noopener">#3184</a>𝗔 <a href="https://swamp-club.com/lab/3564" rel="noopener">lab#3564</a></span>
-</li>
-<li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-15T23:37:13Z">2026-10-15T23:37:13Z</time></span>
-<span class="doc-title">a provider capability to remove abandoned Litestream lineage paths on buckets (replicaPaths()), plus conformance (swamp-club#3531) (#3155)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a39bdd69f257b7f96833e3a6b230ddb99c870ade" rel="noopener">a39bdd69</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3155" rel="noopener">#3155</a>𝗔 <a href="https://swamp-club.com/lab/3531" rel="noopener">lab#3531</a></span>
-</li>
-<li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-15T17:21:47Z">2026-10-15T17:21:47Z</time></span>
-<span class="doc-title">a v3 writer killed while it commits leaves its commit for the next writer to land once, and compacted_txns is pruned (swamp-club#3490) (#3142)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/245634c8f1b23605c58e8f2b1e6cd884079abd03" rel="noopener">245634c8</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3142" rel="noopener">#3142</a>𝗔 <a href="https://swamp-club.com/lab/3490" rel="noopener">lab#3490</a></span>
-</li>
-<li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-14T01:54:11Z">2026-10-14T01:54:11Z</time></span>
-<span class="doc-title">a dormant Litestream sidecar for v3 writers, and a write command confirms its commits are replicated before it succeeds (swamp-club#3416) (#3096)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/fd84c82602837d51a1a32f221a4e9b36e724d945" rel="noopener">fd84c826</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3096" rel="noopener">#3096</a>𝗔 <a href="https://swamp-club.com/lab/3416" rel="noopener">lab#3416</a></span>
-</li></ul>
-</article>
-<article class="item doc-item">
 <h2><a href="https://github.com/swamp-club/swamp-extensions/blob/main/codegen/designs/gcp.md" rel="noopener">codegen/designs/gcp.md</a></h2>
 <div class="meta"><span>swamp-club/swamp-extensions</span><span>1 change</span><span>updated <time datetime="2026-10-24T00:59:02Z">2026-10-24T00:59:02Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
@@ -320,40 +372,6 @@ footer .ver{color:var(--acc)}
 <span class="doc-date"><time datetime="2026-10-23T22:19:36Z">2026-10-23T22:19:36Z</time></span>
 <span class="doc-title">keep provenance scans linear and behavior data lazy (swamp-club#3874) (#3346)</span>
 <span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/fd20ea5b6d257dfa2267086f973fe6f88b47d1fd" rel="noopener">fd20ea5b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3346" rel="noopener">#3346</a>𝗔 <a href="https://swamp-club.com/lab/3874" rel="noopener">lab#3874</a></span>
-</li>
-<li class="doc-change">
-<span class="tier C">C</span>
-<span class="doc-date"><time datetime="2026-10-14T01:37:06Z">2026-10-14T01:37:06Z</time></span>
-<span class="doc-title">README, design docs and agent-constraints teach swamp behavior commands (swamp-club#3412) (#3095)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/3538494a5918ee83f8cead53543201c2b1a8a31e" rel="noopener">3538494a</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3095" rel="noopener">#3095</a>𝗔 <a href="https://swamp-club.com/lab/3412" rel="noopener">lab#3412</a></span>
-</li>
-<li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-13T21:53:50Z">2026-10-13T21:53:50Z</time></span>
-<span class="doc-title">pass only known foreign roots through step arguments (swamp-club#3400) (#3082)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a3fab18fb7dbc40a91cbbeece83ef176f567c21e" rel="noopener">a3fab18f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3082" rel="noopener">#3082</a>𝗔 <a href="https://swamp-club.com/lab/3400" rel="noopener">lab#3400</a></span>
-</li>
-<li class="doc-change">
-<span class="tier C">C</span>
-<span class="doc-date"><time datetime="2026-10-13T00:18:24Z">2026-10-13T00:18:24Z</time></span>
-<span class="doc-title">behavior is the product term for models, with model kept working (swamp-club#3329) (#3045)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b00007648072589c45fb45a5cee1a5b6ff01bc1b" rel="noopener">b0000764</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3045" rel="noopener">#3045</a>𝗔 <a href="https://swamp-club.com/lab/3329" rel="noopener">lab#3329</a></span>
-</li></ul>
-</article>
-<article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>5 changes</span><span>updated <time datetime="2026-10-23T21:43:02Z">2026-10-23T21:43:02Z</time></span><span><a href="https://swamp-club.com/manual/explanation/the-workflow-execution-model" rel="noopener">published manual</a></span></div>
-<ul class="doc-changes"><li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-23T21:43:02Z">2026-10-23T21:43:02Z</time></span>
-<span class="doc-title">share queued run index repairs (swamp-club#3857) (#3345)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/59cb86e8c4044c8585a2c4868ca0508d45e85d9b" rel="noopener">59cb86e8</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3345" rel="noopener">#3345</a>𝗔 <a href="https://swamp-club.com/lab/3857" rel="noopener">lab#3857</a></span>
-</li>
-<li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-20T17:51:12Z">2026-10-20T17:51:12Z</time></span>
-<span class="doc-title">a step&#39;s dataOutputOverrides vaultName routes its sensitive outputs, and merges with the definition&#39;s override field by field (swamp-club#3606) (#3232)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/72af7c6c6b0ecce4cf19fd970e61ed5dbb227a08" rel="noopener">72af7c6c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3232" rel="noopener">#3232</a>𝗔 <a href="https://swamp-club.com/lab/3606" rel="noopener">lab#3606</a></span>
 </li>
 <li class="doc-change">
 <span class="tier C">C</span>
@@ -2588,7 +2606,7 @@ footer .ver{color:var(--acc)}
 </article>
 </main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-24T14:05:53.157Z">2026-10-24T14:05:53.157Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-24T15:04:36.768Z">2026-10-24T15:04:36.768Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

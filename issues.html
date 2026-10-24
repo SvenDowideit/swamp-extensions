@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-2527"><span class="tier A">A</span>@swamp/aws/certificatemanager/certificate: expose ACM&#39;s repo</a><a href="#issue-3879"><span class="tier A">A</span>auth login browser flow prints a fatal stack trace when swam</a><a href="#issue-3880"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-3776"><span class="tier A">A</span>@swamp/cve/dirtyfrag: report and README print the old swamp </a><a href="#issue-3814"><span class="tier A">A</span>@swamp/cve/dirtyfrag: scan flags suspicious XFRM SAs on ever</a><a href="#issue-3844"><span class="tier A">A</span>workflow validate passes a CEL behavior target with a resolv</a><a href="#issue-3803"><span class="tier A">A</span>v3 first clone and restore of a bucket datastore take 2.6-3x</a><a href="#issue-3831"><span class="tier A">A</span>auth login on a non-TTY stdin with no --username prompts, th</a><a href="#issue-3847"><span class="tier A">A</span>swamp-testing getWrittenFiles types content as Uint8Array fo</a><a href="#issue-3849"><span class="tier A">A</span>swamp-testing: createModelTestContext is not generic over gl</a><a href="#issue-3873"><span class="tier A">A</span>workflow validate derives required arguments from zod&#39;s JSON</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3882"><span class="tier A">A</span>v3 bucket outage: a command cut off while becoming the write</a><a href="#issue-2527"><span class="tier A">A</span>@swamp/aws/certificatemanager/certificate: expose ACM&#39;s repo</a><a href="#issue-3879"><span class="tier A">A</span>auth login browser flow prints a fatal stack trace when swam</a><a href="#issue-3880"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-3776"><span class="tier A">A</span>@swamp/cve/dirtyfrag: report and README print the old swamp </a><a href="#issue-3814"><span class="tier A">A</span>@swamp/cve/dirtyfrag: scan flags suspicious XFRM SAs on ever</a><a href="#issue-3844"><span class="tier A">A</span>workflow validate passes a CEL behavior target with a resolv</a><a href="#issue-3803"><span class="tier A">A</span>v3 first clone and restore of a bucket datastore take 2.6-3x</a><a href="#issue-3831"><span class="tier A">A</span>auth login on a non-TTY stdin with no --username prompts, th</a><a href="#issue-3847"><span class="tier A">A</span>swamp-testing getWrittenFiles types content as Uint8Array fo</a><a href="#issue-3849"><span class="tier A">A</span>swamp-testing: createModelTestContext is not generic over gl</a></aside><div>
 
 <article class="item" id="issue-3576">
 <h2><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --body is silently ignored</h2>
@@ -76,6 +76,14 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3576" rel="noopener">lab#3576</a></div>
+</article>
+<article class="item" id="issue-3882">
+<h2><span class="tier A">A</span>v3 bucket outage: a command cut off while becoming the writer says its changes are saved locally when nothing was saved (workflow approve), and the suggested recover fails for a run cut mid-step (found by #3756)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-24T13:00:30.934Z">2026-10-24T13:00:30.934Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3882" rel="noopener">lab#3882</a></div>
 </article>
 <article class="item" id="issue-2527">
 <h2><span class="tier A">A</span>@swamp/aws/certificatemanager/certificate: expose ACM&#39;s reported attributes (NotAfter, Type, RenewalEligibility, InUseBy) on read</h2>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3849" rel="noopener">lab#3849</a></div>
 </article>
-<article class="item" id="issue-3873">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3873">
 <h2><span class="tier A">A</span>workflow validate derives required arguments from zod&#39;s JSON Schema, so zod 4.6.7 rejects workflows that omit optional preprocess and catch arguments</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-23T22:22:10.047Z">2026-10-23T22:22:10.047Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3873" rel="noopener">lab#3873</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3874">
+<article class="item" id="issue-3874">
 <h2><span class="tier A">A</span>Workflow run-start evaluation is quadratic in behavior count: provenance map construction and data-hydrating scans in spliceOrigin (~100+ s for @swamp/ci-uat/run)</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-23T22:20:39.826Z">2026-10-23T22:20:39.826Z</time></span></div>
@@ -5695,19 +5703,11 @@ footer .ver{color:var(--acc)}
 </article>
 <article class="item" id="issue-3832">
 <h2><span class="tier B">B</span>workflow validate reports a string-form dependsOn as an [FTL] error with a zod stack trace, not a validation failure</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-24T11:58:21.244Z">2026-10-24T11:58:21.244Z</time></span></div>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-24T12:55:14.325Z">2026-10-24T12:55:14.325Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3832" rel="noopener">lab#3832</a></div>
-</article>
-<article class="item" id="issue-3882">
-<h2><span class="tier B">B</span>v3 bucket outage: a command cut off while becoming the writer says its changes are saved locally when nothing was saved (workflow approve), and the suggested recover fails for a run cut mid-step (found by #3756)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-24T11:54:47.295Z">2026-10-24T11:54:47.295Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3882" rel="noopener">lab#3882</a></div>
 </article>
 <article class="item" id="issue-2907">
 <h2><span class="tier B">B</span>S3/GCS datastore: a push that fails after uploading drops its recorded deletes, so the retry brings deleted data back</h2>
@@ -7743,12 +7743,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>959 items across 1 source(s) in this window:
-1 critical, 702 notable, 20 routine,
+1 critical, 703 notable, 19 routine,
 236 minor.</p>
 <ul><li><strong>issues</strong> — 959</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-24T12:04:43.531Z">2026-10-24T12:04:43.531Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-24T13:04:57.372Z">2026-10-24T13:04:57.372Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

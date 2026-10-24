@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3832"><span class="tier A">A</span>workflow validate reports a string-form dependsOn as an [FTL</a><a href="#issue-3882"><span class="tier A">A</span>v3 bucket outage: a command cut off while becoming the write</a><a href="#issue-2527"><span class="tier A">A</span>@swamp/aws/certificatemanager/certificate: expose ACM&#39;s repo</a><a href="#issue-3879"><span class="tier A">A</span>auth login browser flow prints a fatal stack trace when swam</a><a href="#issue-3880"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-3776"><span class="tier A">A</span>@swamp/cve/dirtyfrag: report and README print the old swamp </a><a href="#issue-3814"><span class="tier A">A</span>@swamp/cve/dirtyfrag: scan flags suspicious XFRM SAs on ever</a><a href="#issue-3844"><span class="tier A">A</span>workflow validate passes a CEL behavior target with a resolv</a><a href="#issue-3803"><span class="tier A">A</span>v3 first clone and restore of a bucket datastore take 2.6-3x</a><a href="#issue-3831"><span class="tier A">A</span>auth login on a non-TTY stdin with no --username prompts, th</a><a href="#issue-3847"><span class="tier A">A</span>swamp-testing getWrittenFiles types content as Uint8Array fo</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3851"><span class="tier A">A</span>behavior validate gives pre-flight checks unparsed global ar</a><a href="#issue-3756"><span class="tier A">A</span>Datastore rework Phase 4 I: dogfood and benchmark solo v3 (f</a><a href="#issue-3832"><span class="tier A">A</span>workflow validate reports a string-form dependsOn as an [FTL</a><a href="#issue-3882"><span class="tier A">A</span>v3 bucket outage: a command cut off while becoming the write</a><a href="#issue-2527"><span class="tier A">A</span>@swamp/aws/certificatemanager/certificate: expose ACM&#39;s repo</a><a href="#issue-3879"><span class="tier A">A</span>auth login browser flow prints a fatal stack trace when swam</a><a href="#issue-3880"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-3776"><span class="tier A">A</span>@swamp/cve/dirtyfrag: report and README print the old swamp </a><a href="#issue-3814"><span class="tier A">A</span>@swamp/cve/dirtyfrag: scan flags suspicious XFRM SAs on ever</a><a href="#issue-3844"><span class="tier A">A</span>workflow validate passes a CEL behavior target with a resolv</a><a href="#issue-3803"><span class="tier A">A</span>v3 first clone and restore of a bucket datastore take 2.6-3x</a></aside><div>
 
 <article class="item" id="issue-3576">
 <h2><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --body is silently ignored</h2>
@@ -76,6 +76,22 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3576" rel="noopener">lab#3576</a></div>
+</article>
+<article class="item" id="issue-3851">
+<h2><span class="tier A">A</span>behavior validate gives pre-flight checks unparsed global arguments (no zod defaults), unlike behavior run</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-24T18:52:45.969Z">2026-10-24T18:52:45.969Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3851" rel="noopener">lab#3851</a></div>
+</article>
+<article class="item" id="issue-3756">
+<h2><span class="tier A">A</span>Datastore rework Phase 4 I: dogfood and benchmark solo v3 (filesystem, S3, GCS) in a throwaway repo with the released binary, check the kill criteria, and decide whether to announce</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-24T18:37:57.281Z">2026-10-24T18:37:57.281Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3756" rel="noopener">lab#3756</a></div>
 </article>
 <article class="item" id="issue-3832">
 <h2><span class="tier A">A</span>workflow validate reports a string-form dependsOn as an [FTL] error with a zod stack trace, not a validation failure</h2>
@@ -149,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3803" rel="noopener">lab#3803</a></div>
 </article>
-<article class="item" id="issue-3831">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3831">
 <h2><span class="tier A">A</span>auth login on a non-TTY stdin with no --username prompts, then fails with &quot;Username and password are required&quot;</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-24T01:10:03.946Z">2026-10-24T01:10:03.946Z</time></span></div>
@@ -165,7 +181,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3847" rel="noopener">lab#3847</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3849">
+<article class="item" id="issue-3849">
 <h2><span class="tier A">A</span>swamp-testing: createModelTestContext is not generic over globalArgs, so interface-typed args are rejected</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-23T22:27:35.651Z">2026-10-23T22:27:35.651Z</time></span></div>
@@ -5709,26 +5725,10 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-3851">
-<h2><span class="tier B">B</span>behavior validate gives pre-flight checks unparsed global arguments (no zod defaults), unlike behavior run</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-24T18:25:55.654Z">2026-10-24T18:25:55.654Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3851" rel="noopener">lab#3851</a></div>
-</article>
-<article class="item" id="issue-3756">
-<h2><span class="tier B">B</span>Datastore rework Phase 4 I: dogfood and benchmark solo v3 (filesystem, S3, GCS) in a throwaway repo with the released binary, check the kill criteria, and decide whether to announce</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-24T14:16:59.717Z">2026-10-24T14:16:59.717Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3756" rel="noopener">lab#3756</a></div>
-</article>
 <article class="item" id="issue-2907">
 <h2><span class="tier B">B</span>S3/GCS datastore: a push that fails after uploading drops its recorded deletes, so the retry brings deleted data back</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-24T10:12:39.349Z">2026-10-24T10:12:39.349Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-24T18:51:58.817Z">2026-10-24T18:51:58.817Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2907" rel="noopener">lab#2907</a></div>
@@ -5736,7 +5736,7 @@ footer .ver{color:var(--acc)}
 <article class="item" id="issue-3860">
 <h2><span class="tier B">B</span>v2 S3: about 4-5% of serial workflow runs fail with datastore_unpublished_data_version (&#39;a concurrent run or the serve poller synced&#39;) when nothing else is running (found by #3756)</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-24T10:12:38.764Z">2026-10-24T10:12:38.764Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-24T18:51:58.185Z">2026-10-24T18:51:58.185Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3860" rel="noopener">lab#3860</a></div>
@@ -5861,7 +5861,15 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3884">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3885">
+<h2><span class="tier C">C</span>Skill propulsion rule is silent when no transition is satisfied because stage work is outstanding</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-24T18:33:53.534Z">2026-10-24T18:33:53.534Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3885" rel="noopener">lab#3885</a></div>
+</article>
+<article class="item" id="issue-3884">
 <h2><span class="tier C">C</span>authz-probe rnd2-d903 (please ignore)</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-24T16:04:05.221Z">2026-10-24T16:04:05.221Z</time></span></div>
@@ -7750,13 +7758,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>960 items across 1 source(s) in this window:
-1 critical, 704 notable, 19 routine,
-236 minor.</p>
-<ul><li><strong>issues</strong> — 960</li></ul></section>
+<p>961 items across 1 source(s) in this window:
+1 critical, 706 notable, 17 routine,
+237 minor.</p>
+<ul><li><strong>issues</strong> — 961</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-24T18:30:40.112Z">2026-10-24T18:30:40.112Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-24T19:05:56.952Z">2026-10-24T19:05:56.952Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

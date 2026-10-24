@@ -1,0 +1,78 @@
+manifestVersion: 1
+name: "@svendowideit/markdown2html"
+version: "2026.10.24.1"
+description: >
+  Render Markdown files into a static HTML site with an index page, without
+  requiring Python or special content markers.
+
+  WHAT IT DOES
+
+    Scan a directory of Markdown files, parse optional YAML frontmatter, render
+    titles/dates/excerpts/body as HTML with marked, apply an optional template,
+    write one HTML file per post, create `index.html`, and create `rss.xml`.
+    Prefer it over
+    copy-pasting Markdown or hand-writing HTML when the source notes already
+    contain the content you want published.
+
+    Optional YAML frontmatter is parsed only if the file begins with ``---``
+    and ends with ``---``. Supported fields are ``title``, ``date``, ``slug``,
+    and ``excerpt``. Title also falls back to the first H1, then the file
+    name. Date falls back to an empty string. Slug falls back to the file
+    name without its extension. Excerpt falls back to the first paragraph.
+    Pages are sorted newest date first (empty dates sort last), then title, and
+    the generated ``index.html`` links to every page.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/markdown2html
+
+  DEPENDENCIES
+
+    `marked`, `js-yaml`, and the swamp CLI only. Everything is bundled into the
+    extension, so no separate runtime is needed.
+
+  RUN
+
+      # Render /home/me/notes into a static site.
+      swamp workflow run @svendowideit/markdown2html-render \
+        --input sourceDir=/home/me/notes \
+        --input outputDir=/home/me/site
+
+      # Validate a direct model run first.
+      swamp model method run pages generate \
+        --input sourceDir=/home/me/notes \
+        --input outputDir=/home/me/site
+
+  CONFIGURE
+
+    Global/module inputs:
+      sourceDir            Directory containing Markdown files
+      outputDir            Directory where the site is written
+      siteTitle            Site title (default Notes)
+      templatePath         Optional HTML template; supported tokens are
+                             {{title}}, {{body}}, {{date}}, {{slug}},
+                             {{excerpt}}, and {{siteTitle}}
+      recursive            Scan subdirectories (default true)
+
+  WHAT IT INSTALLS
+
+    Nothing on the host. It writes HTML, `index.html`, and swamp data only.
+    Upgrade with `swamp extension update`.
+
+paths:
+  base: manifest
+models:
+  - markdown2html.ts
+platforms: []
+labels:
+  - markdown
+  - html
+  - static-site
+visibility: public
+license: MIT
+repository: 'https://github.com/svendowideit/swamp-extensions'
+dependencies: []
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - markdown2html.ts

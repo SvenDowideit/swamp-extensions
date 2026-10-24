@@ -67,12 +67,12 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3889"><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli deco</a><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3818"><span class="tier A">A</span>scanFleet: support a different SSH user per host (user@host </a><a href="#issue-2907"><span class="tier A">A</span>S3/GCS datastore: a push that fails after uploading drops it</a><a href="#issue-3860"><span class="tier A">A</span>v2 S3: about 4-5% of serial workflow runs fail with datastor</a><a href="#issue-3851"><span class="tier A">A</span>behavior validate gives pre-flight checks unparsed global ar</a><a href="#issue-3756"><span class="tier A">A</span>Datastore rework Phase 4 I: dogfood and benchmark solo v3 (f</a><a href="#issue-3832"><span class="tier A">A</span>workflow validate reports a string-form dependsOn as an [FTL</a><a href="#issue-3882"><span class="tier A">A</span>v3 bucket outage: a command cut off while becoming the write</a><a href="#issue-2527"><span class="tier A">A</span>@swamp/aws/certificatemanager/certificate: expose ACM&#39;s repo</a><a href="#issue-3879"><span class="tier A">A</span>auth login browser flow prints a fatal stack trace when swam</a><a href="#issue-3880"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3889"><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli deco</a><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3886"><span class="tier A">A</span>studio: no favicon — /favicon.ico 404s and the page declares</a><a href="#issue-3891"><span class="tier A">A</span>extension_tarball_analyzer_test fails on macOS: tar --mode i</a><a href="#issue-3775"><span class="tier A">A</span>@swamp/cve/php-rce-2026-10: match RHEL fixes for the PHP RCE</a><a href="#issue-3818"><span class="tier A">A</span>scanFleet: support a different SSH user per host (user@host </a><a href="#issue-2907"><span class="tier A">A</span>S3/GCS datastore: a push that fails after uploading drops it</a><a href="#issue-3860"><span class="tier A">A</span>v2 S3: about 4-5% of serial workflow runs fail with datastor</a><a href="#issue-3851"><span class="tier A">A</span>behavior validate gives pre-flight checks unparsed global ar</a><a href="#issue-3756"><span class="tier A">A</span>Datastore rework Phase 4 I: dogfood and benchmark solo v3 (f</a><a href="#issue-3832"><span class="tier A">A</span>workflow validate reports a string-form dependsOn as an [FTL</a><a href="#issue-3882"><span class="tier A">A</span>v3 bucket outage: a command cut off while becoming the write</a></aside><div>
 
 <article class="item" id="issue-3889">
 <h2><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli decoder RCE (CVE-2026-111497, Node2Shell/HTTP2Shell)</h2>
 <p class="lede">Security-related change</p>
-<div class="meta"><span><time datetime="2026-10-24T21:35:05.334Z">2026-10-24T21:35:05.334Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-24T23:01:52.772Z">2026-10-24T23:01:52.772Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3889" rel="noopener">lab#3889</a></div>
@@ -84,6 +84,30 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3576" rel="noopener">lab#3576</a></div>
+</article>
+<article class="item" id="issue-3886">
+<h2><span class="tier A">A</span>studio: no favicon — /favicon.ico 404s and the page declares no icon</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-24T22:46:07.185Z">2026-10-24T22:46:07.185Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3886" rel="noopener">lab#3886</a></div>
+</article>
+<article class="item" id="issue-3891">
+<h2><span class="tier A">A</span>extension_tarball_analyzer_test fails on macOS: tar --mode is GNU-only</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-24T22:44:36.687Z">2026-10-24T22:44:36.687Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3891" rel="noopener">lab#3891</a></div>
+</article>
+<article class="item" id="issue-3775">
+<h2><span class="tier A">A</span>@swamp/cve/php-rce-2026-10: match RHEL fixes for the PHP RCEs</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-24T22:36:06.494Z">2026-10-24T22:36:06.494Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3775" rel="noopener">lab#3775</a></div>
 </article>
 <article class="item" id="issue-3818">
 <h2><span class="tier A">A</span>scanFleet: support a different SSH user per host (user@host entries)</h2>
@@ -141,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3882" rel="noopener">lab#3882</a></div>
 </article>
-<article class="item" id="issue-2527">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-2527">
 <h2><span class="tier A">A</span>@swamp/aws/certificatemanager/certificate: expose ACM&#39;s reported attributes (NotAfter, Type, RenewalEligibility, InUseBy) on read</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-24T02:13:25.050Z">2026-10-24T02:13:25.050Z</time></span></div>
@@ -165,7 +189,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3880" rel="noopener">lab#3880</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3776">
+<article class="item" id="issue-3776">
 <h2><span class="tier A">A</span>@swamp/cve/dirtyfrag: report and README print the old swamp model command spelling</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-24T01:42:57.304Z">2026-10-24T01:42:57.304Z</time></span></div>
@@ -5757,30 +5781,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-3886">
-<h2><span class="tier B">B</span>studio: no favicon — /favicon.ico 404s and the page declares no icon</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-24T21:52:48.771Z">2026-10-24T21:52:48.771Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3886" rel="noopener">lab#3886</a></div>
-</article>
-<article class="item" id="issue-3891">
-<h2><span class="tier B">B</span>extension_tarball_analyzer_test fails on macOS: tar --mode is GNU-only</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-24T21:43:59.863Z">2026-10-24T21:43:59.863Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3891" rel="noopener">lab#3891</a></div>
-</article>
-<article class="item" id="issue-3775">
-<h2><span class="tier B">B</span>@swamp/cve/php-rce-2026-10: match RHEL fixes for the PHP RCEs</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-24T21:30:29.692Z">2026-10-24T21:30:29.692Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3775" rel="noopener">lab#3775</a></div>
-</article>
 <article class="item" id="issue-3735">
 <h2><span class="tier B">B</span>typed-secrets 4.6: turn the typed path on for every entry point, remove the internal option, and delete the regular-expression rewrite, the value search and the plaintext resolution of tagged fields</h2>
 <p class="lede">Issue in_progress</p>
@@ -5901,7 +5901,23 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3887">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3893">
+<h2><span class="tier C">C</span>v3 long silent waits: crash recovery runs ~24 s with no output, data prune is silent 6-10 s in log mode, and a lagging read hangs ~112 s when Litestream&#39;s listing is cut (found by #3756)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-24T22:59:24.363Z">2026-10-24T22:59:24.363Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3893" rel="noopener">lab#3893</a></div>
+</article>
+<article class="item" id="issue-3892">
+<h2><span class="tier C">C</span>WS handshake drops the port from the Origin, so a --trusted-hosts entry with a port never matches (follow-up to #1840)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-24T22:13:07.918Z">2026-10-24T22:13:07.918Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3892" rel="noopener">lab#3892</a></div>
+</article>
+<article class="item" id="issue-3887">
 <h2><span class="tier C">C</span>A workflow step&#39;s method output is invisible to `data query` and `data list`, and the method summary&#39;s retrieval command returns an older run&#39;s data</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-24T19:46:54.505Z">2026-10-24T19:46:54.505Z</time></span></div>
@@ -7790,13 +7806,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>965 items across 1 source(s) in this window:
-2 critical, 709 notable, 18 routine,
-236 minor.</p>
-<ul><li><strong>issues</strong> — 965</li></ul></section>
+<p>967 items across 1 source(s) in this window:
+2 critical, 712 notable, 15 routine,
+238 minor.</p>
+<ul><li><strong>issues</strong> — 967</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-24T22:05:11.517Z">2026-10-24T22:05:11.517Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-24T23:05:31.770Z">2026-10-24T23:05:31.770Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

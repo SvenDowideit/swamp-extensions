@@ -10,7 +10,8 @@ One workflow, `@figy/blog`, provisions its own Python environment, renders
 Obsidian Markdown Markdown posts, creates a direct-upload Cloudflare Pages
 project, uploads the rendered directory, binds the custom domain, creates an
 isolated Caddy DNS model by reading the existing Caddy model, writes the
-Pages CNAME, reconciles DNS, and verifies the public URL.
+Pages CNAME, reconciles DNS, checks the authoritative CNAME, and verifies the
+public URL.
 
 ## Install
 
@@ -57,8 +58,20 @@ Pages CNAME in its `dnsRecords`.
 The Pages CNAME format is:
 
 ```json
-{"name":"blog.x1yoga.fi.gy","type":"CNAME","value":["figy-blog.pages.dev"],"zone":"fi.gy"}
+{"name":"blog.x1yoga.fi.gy","type":"CNAME","value":["figy-blog.pages.dev."],"zone":"fi.gy"}
 ```
+
+The trailing dot is required. Without it, Gandi treats the CNAME target as
+relative to the zone, turning `figy-blog.pages.dev` into
+`figy-blog.pages.dev.fi.gy`.
+
+After reconciling DNS the workflow queries the zone's authoritative nameserver
+and fails if the CNAME does not match. The failure reports the actual target,
+its TTL in hours/minutes/seconds, and the nameserver that was queried. Caddy
+cannot replace an existing Gandi CNAME automatically because libdns/gandi
+appends values and Gandi rejects more than one CNAME target, so the message
+also names the manual fix: delete the stale CNAME in Gandi, ensure the
+`dnsModel` carries the new value, then re-run the workflow.
 
 ### Workflow inputs
 
@@ -66,6 +79,7 @@ The Pages CNAME format is:
 | --- | --- |
 | `blogDir` | Absolute Obsidian directory of Markdown posts |
 | `publishDir` | Absolute rendered Pages directory |
+| `indexTitle` | Title for `index.html`/`rss.xml`, default `Sven's blog` |
 | `hostname` | Full blog hostname |
 | `vaultName` | Vault name, default `figy-cloudflare-pages` |
 | `caddyModel` | Existing Caddy model copied by the workflow |

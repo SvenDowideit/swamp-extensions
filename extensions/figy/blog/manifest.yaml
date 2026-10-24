@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@figy/blog"
-version: "2026.10.24.1"
+version: "2026.10.24.2"
 description: >
   @figy's blog: render Markdown posts from an Obsidian vault folder and publish
   them on Cloudflare Pages. DNS is managed by an isolated Caddy DNS model
@@ -14,7 +14,9 @@ description: >
     through @svendowideit/cloudflare-pages-wrangler, binds the custom domain,
     creates or updates an isolated @svendowideit/caddy model by reading the
     existing Caddy model's base settings, writes the Pages CNAME into its
-    dnsRecords, reconciles DNS, and verifies the final HTTPS URL.
+    dnsRecords, reconciles DNS, checks the authoritative CNAME (failing with the
+    exact manual Gandi cleanup when it is wrong), and verifies the final HTTPS
+    URL.
 
   INSTALL
 
@@ -73,6 +75,7 @@ description: >
     blogDir               Absolute directory of Markdown files
     templateDir           Optional custom template path
     siteTitle             Site title (default Notes)
+    indexTitle            Title for index.html and rss.xml (default "Sven's blog")
     pagesModel            cloudflare-pages-wrangler instance (default blog-pages)
     pagesProject          Pages project name (default figy-blog)
     vaultName             Vault name (default figy-cloudflare-pages)

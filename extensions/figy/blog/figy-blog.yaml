@@ -17,10 +17,18 @@ inputs:
       type: string
       default: ''
       description: Optional HTML template directory for markdown-blog.
+    templatePath:
+      type: string
+      default: ''
+      description: Optional HTML template path passed to markdown2html.
     siteTitle:
       type: string
       default: Notes
       description: Site title used by markdown-blog.
+    indexTitle:
+      type: string
+      default: "Sven's blog"
+      description: Title used for index.html and rss.xml.
     operation:
       type: string
       enum: [create, update]
@@ -100,6 +108,8 @@ jobs:
             sourceDir: ${{ inputs.blogDir }}
             outputDir: ${{ inputs.publishDir }}
             siteTitle: ${{ inputs.siteTitle }}
+            indexTitle: ${{ inputs.indexTitle }}
+            templatePath: '${{ inputs.templatePath != "" ? inputs.templatePath : inputs.templateDir }}'
             recursive: true
         dependsOn: []
         weight: 0
@@ -199,7 +209,7 @@ jobs:
                 --global-arg "plugins:json=$PLUGINS" \
                 --global-arg letsEncryptEmail="$EMAIL" \
                 --global-arg environmentFile="$ENVFILE" \
-                --global-arg "dnsRecords:json=[{\"name\":\"$HOSTNAME\",\"type\":\"CNAME\",\"value\":[\"$PAGESPROJECT.pages.dev\"],\"zone\":\"$ZONE\"}]" >/dev/null 2>&1 || true
+                --global-arg "dnsRecords:json=[{\"name\":\"$HOSTNAME\",\"type\":\"CNAME\",\"value\":[\"$PAGESPROJECT.pages.dev.\"],\"zone\":\"$ZONE\"}]" >/dev/null 2>&1 || true
         dependsOn: []
         weight: 0
         allowFailure: false
@@ -238,6 +248,69 @@ jobs:
               type: completed
         weight: 0
         allowFailure: true
+      - name: check-dns
+        task:
+          type: model_method
+          modelType: command/shell
+          modelName: blog-dns-check
+          methodName: execute
+          inputs:
+            ignoreExitCode: true
+            run: |
+              HOST='${{ inputs.hostname != "" ? inputs.hostname : "blog." + inputs.host + "." + inputs.zone }}'
+              EXPECTED='${{ inputs.pagesProject }}.pages.dev'
+              ZONE='${{ inputs.zone }}'
+              NS="$(dig +short NS "$ZONE" | head -n1 | sed 's/\.$//')"
+              QUERY_NS="${NS:-1.1.1.1}"
+              ANSWER=''
+              for _ in 1 2 3; do
+                ANSWER="$(dig @"$QUERY_NS" +noall +answer "$HOST" CNAME | head -n1)"
+                [ -n "$ANSWER" ] && break
+                sleep 5
+              done
+              TTL="$(printf '%s\n' "$ANSWER" | awk '{print $2}')"
+              TARGET="$(printf '%s\n' "$ANSWER" | awk '{print $5}')"
+              if [ -n "$TTL" ]; then
+                TTL_HMS="$(printf '%dh%dm%ds' $((TTL / 3600)) $(((TTL % 3600) / 60)) $((TTL % 60)))"
+              else
+                TTL='?'
+                TTL_HMS='?'
+              fi
+              if [ "${TARGET%.}" = "$EXPECTED" ]; then
+                STATUS='ok'
+              else
+                STATUS='bad'
+              fi
+              printf 'status=%s|nameserver=%s|ttl=%ss (%s)|target=%s' \
+                "$STATUS" "$QUERY_NS" "$TTL" "$TTL_HMS" "${TARGET:-not-found}"
+        dependsOn:
+          - step: apply-dns
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: false
+      - name: assert-dns
+        task:
+          type: assert
+          expr: >-
+            data.latest("blog-dns-check", "result").attributes.stdout.contains("status=ok|")
+          message: >-
+            DNS CNAME check for ${{ inputs.hostname != "" ? inputs.hostname : "blog." + inputs.host + "." + inputs.zone }} failed:
+            ${{ data.latest("blog-dns-check", "result").attributes.stdout }}.
+            Expected target '${{ inputs.pagesProject }}.pages.dev.'. Caddy could
+            not correct it automatically because libdns/gandi appends to an
+            existing CNAME and Gandi rejects multiple CNAME values. In Gandi,
+            delete the existing CNAME for that host, then make sure the
+            '${{ inputs.dnsModel }}' model's dnsRecords value is
+            '${{ inputs.pagesProject }}.pages.dev.' (the workflow only creates a
+            missing model), and re-run this workflow.
+          severity: high
+        dependsOn:
+          - step: check-dns
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
     weight: 0
 
   - name: verify-public

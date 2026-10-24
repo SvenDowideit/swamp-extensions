@@ -1,0 +1,49 @@
+id: 2c3c4a52-56c0-4214-b445-bb2026353e75
+name: "@svendowideit/ssh-key-upgrade"
+description: Upgrade selected hosts to a specified SSH key with tested replacement.
+tags: {}
+inputs:
+  properties:
+    hosts:
+      type: array
+      items:
+        type: string
+      default: []
+      description: Hosts to upgrade (user@host). Empty uses known hosts.
+    newKey:
+      type: string
+      default: ""
+      description: Local path to the new private key.
+    oldFingerprint:
+      type: string
+      default: ""
+      description: Fingerprint of the authorized key to remove after success.
+    testCommand:
+      type: string
+      default: "true"
+      description: Command to run using the new key before removing the old key.
+    removeOld:
+      type: boolean
+      default: true
+      description: Remove old authorized key after successful test.
+  required: []
+jobs:
+  - name: main
+    description: Upgrade selected hosts to the new key.
+    steps:
+      - name: upgrade
+        description: Add, test, and remove the old key.
+        task:
+          type: model_method
+          modelType: "@svendowideit/ssh-key-inventory"
+          modelName: ssh-keys
+          methodName: upgrade
+          inputs:
+            hosts: ${{ inputs.hosts }}
+            newPrivateKeyPath: ${{ inputs.newKey }}
+            oldFingerprint: ${{ inputs.oldFingerprint }}
+            testCommand: ${{ inputs.testCommand }}
+            removeOld: ${{ inputs.removeOld }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false

@@ -1,0 +1,80 @@
+manifestVersion: 1
+name: "@svendowideit/ssh-key-inventory"
+version: "2026.10.24.2"
+description: >
+  Inventory, assess and safely replace SSH private keys across every host your
+  control account can reach, with an HTML report and per-key remediation advice.
+
+  WHAT IT DOES
+
+    Finds private key files and authorized_keys entries on remote hosts over SSH,
+    fingerprints and deduplicates them, scores each unique key for algorithm,
+    size, age, encryption, permissions and reuse, and renders an HTML report
+    showing where each key lives and where it is authorized. It also upgrades a
+    set of hosts to a specified key by adding, testing, then (only after
+    success) removing the old authorized key, with per-host backup and rollback.
+    Host targets accumulate across runs.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/ssh-key-inventory
+
+  DEPENDENCIES
+
+    An OpenSSH client (ssh, ssh-keygen) on the machine running swamp, and SSH
+    access (keys or agent) to the target hosts. No other extension.
+
+  RUN
+
+      # Register hosts (additive across runs).
+      swamp model @svendowideit/ssh-key-inventory method run add-hosts ssh-keys \
+        --input 'hosts:json=["alice@host1.example", "bob@host2.example"]'
+
+      # Inventory private keys and authorized keys over SSH.
+      swamp model @svendowideit/ssh-key-inventory method run inventory ssh-keys
+
+      # Write the HTML report.
+      swamp model @svendowideit/ssh-key-inventory method run report ssh-keys
+
+      # Or run the whole sweep workflow.
+      swamp workflow run @svendowideit/ssh-key-inventory-sweep
+
+      # Upgrade selected hosts to a new key (test before removing the old one).
+      swamp workflow run @svendowideit/ssh-key-upgrade \
+        --input 'hosts:json=["alice@host1.example"]' \
+        --input newKey=~/.ssh/id_ed25519_new
+
+  CONFIGURE
+
+    Global arguments (set at creation with --global-arg, or per call with --input):
+
+      sshUser           Default user for bare host entries (default: current user)
+      outputDir         Where the HTML report is written
+      connectTimeoutSec SSH connect timeout in seconds (default: 10)
+      keyPaths          Remote directories searched for private keys
+
+  WHAT IT INSTALLS
+
+    Nothing on remote hosts except timestamped authorized_keys backups during
+    upgrade. It writes swamp resources (hosts, inventory, upgrade) and an HTML
+    report locally.
+
+repository: https://github.com/svendowideit/swamp-extensions
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - ssh_key_inventory.ts
+
+reports:
+  - ssh_key_inventory_report.ts
+
+workflows:
+  - ssh-key-inventory-sweep.yaml
+  - ssh-key-upgrade.yaml
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt

@@ -1,0 +1,32 @@
+id: 42976068-4f52-456e-ad4a-acbbc6bdb73c
+name: "@svendowideit/ssh-key-inventory-sweep"
+description: Inventory SSH keys across known hosts and write an HTML report.
+tags: {}
+inputs: {}
+jobs:
+  - name: main
+    description: Inventory known hosts, then render HTML.
+    steps:
+      - name: inventory
+        description: Collect private and authorized keys from known hosts.
+        task:
+          type: model_method
+          modelType: "@svendowideit/ssh-key-inventory"
+          modelName: ssh-keys
+          methodName: inventory
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: report
+        description: Render the HTML report from the inventory data.
+        task:
+          type: model_method
+          modelType: "@svendowideit/ssh-key-inventory"
+          modelName: ssh-keys
+          methodName: report
+        dependsOn:
+          - step: inventory
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false

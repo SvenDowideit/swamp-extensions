@@ -24,6 +24,14 @@ inputs:
       type: string
       default: "~/.swamp/web-cache"
       description: Shared cache directory
+    maxFetches:
+      type: number
+      default: 20
+      description: Run-level origin-fetch budget
+    budgetId:
+      type: string
+      default: ""
+      description: Run id that shares the fetch budget across fetch steps
   required:
     - title
 jobs:
@@ -49,6 +57,8 @@ jobs:
           type: workflow
           workflowIdOrName: "@svendowideit/web-cache-fetch"
           inputs:
+            budgetId: ${{ inputs.budgetId }}
+            maxFetches: ${{ inputs.maxFetches }}
             urls: ${{ data.latest("wd", "resolve-title-url").attributes.urls }}
             cacheDir: ${{ inputs.cacheDir }}
         dependsOn:

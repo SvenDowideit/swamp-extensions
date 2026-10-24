@@ -412,7 +412,7 @@ const UrlResultSchema = z.object({
 /** A read-only Wikidata domain client layered over @svendowideit/web-cache. */
 export const model = {
   type: "@svendowideit/wikidata",
-  version: "2026.10.23.1",
+  version: "2026.10.24.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -426,6 +426,13 @@ export const model = {
       toVersion: "2026.10.23.1",
       description:
         "Honour SWAMP_HOME when resolving ~/.swamp-relative cache paths.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.24.1",
+      description:
+        "No model schema changes — propagate the run-level maxFetches budget " +
+        "through the workflow.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

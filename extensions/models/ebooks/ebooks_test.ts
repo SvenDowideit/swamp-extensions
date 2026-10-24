@@ -317,6 +317,31 @@ Deno.test("plan-resolution: the next plan changes after a name is resolved", asy
   assertEquals(secondItems, []);
 });
 
+Deno.test("plan-resolution matches resolutions case/whitespace-insensitively", async () => {
+  const metadata = {
+    "/books/1.epub": {
+      authors: ["Ursula K. le Guin", "Katherine MacLean"],
+      title: null,
+    },
+  };
+  // The same authors were detected with different capitalisation in an
+  // earlier scan: "Le Guin" vs "le Guin" and "MaClean" vs "MacLean".
+  const stored = [
+    resolutionRecord("Ursula K. Le Guin", true),
+    resolutionRecord("Katherine MaClean", true),
+  ];
+  const ctx = contextWithResolutions(metadata, stored);
+  await model.methods["plan-resolution"].execute(
+    { maxNames: 5 },
+    // deno-lint-ignore no-explicit-any
+    ctx.context as any,
+  );
+  const names = ctx.getWrittenResources().find((r) => r.specName === "names");
+  assert(names);
+  const items = (names.data as { items: { name: string }[] }).items;
+  assertEquals(items, []);
+});
+
 Deno.test("plan-resolution: authors are planned before titles", async () => {
   // Many authorless PDFs, each contributing only a title.
   const metadata: Record<string, unknown> = {};

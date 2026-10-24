@@ -41,6 +41,14 @@ inputs:
       type: string
       default: "~/.swamp/web-cache"
       description: Shared cache directory
+    maxFetches:
+      type: number
+      default: 20
+      description: Run-level origin-fetch budget
+    budgetId:
+      type: string
+      default: ""
+      description: Run id that shares the fetch budget across sub-workflows
   required:
     - name
     - expectKind
@@ -57,6 +65,8 @@ jobs:
             query: ${{ inputs.name }}
             key: ${{ inputs.key }}
             cacheDir: ${{ inputs.cacheDir }}
+            maxFetches: ${{ inputs.maxFetches }}
+            budgetId: ${{ inputs.budgetId }}
         dependsOn: []
         weight: 0
         allowFailure: true
@@ -71,6 +81,8 @@ jobs:
             titles: ${{ data.latest("wiki", 'search-' + inputs.key).?attributes.?results.orValue([]).map(r, r.title) }}
             key: ${{ inputs.key }}
             cacheDir: ${{ inputs.cacheDir }}
+            maxFetches: ${{ inputs.maxFetches }}
+            budgetId: ${{ inputs.budgetId }}
         dependsOn:
           - step: search
             condition:
@@ -107,6 +119,9 @@ jobs:
             title: ${{ data.latest("ebooks", 'candidate-' + inputs.key).?attributes.?title.orValue("") }}
             key: ${{ inputs.key }}
             cacheDir: ${{ inputs.cacheDir }}
+            maxFetches: ${{ inputs.maxFetches }}
+            budgetId: ${{ inputs.budgetId }}
+            runId: ${{ inputs.budgetId }}
         dependsOn:
           - step: pick
             condition:
@@ -124,6 +139,8 @@ jobs:
             id: ${{ data.latest("ebooks", 'candidate-' + inputs.key).?attributes.?wikidataId.orValue("") }}
             key: ${{ inputs.key }}
             cacheDir: ${{ inputs.cacheDir }}
+            maxFetches: ${{ inputs.maxFetches }}
+            budgetId: ${{ inputs.budgetId }}
         dependsOn:
           - step: pick
             condition:

@@ -451,8 +451,29 @@ async function loadResolutions(
     if (rec.isDeleted || rec.isRenamed) continue;
     const content = await context.readResource(rec.name) as Resolution | null;
     if (!content) continue;
-    const key = content.from ?? content.name;
-    if (key) byName.set(key, content);
+    const raw = content.from ?? content.name ?? "";
+    if (!raw) continue;
+    // Match candidates case-insensitively and whitespace-insensitively: the
+    // same author arrives as "Katherine MaClean" in one scan and
+    // "Katherine MacLean" in the next. Keep the raw spelling too so legacy
+    // callers of planNames (and older records) still line up.
+    for (
+      const key of [
+        nameKey(raw),
+        raw,
+        content.name ? nameKey(content.name) : "",
+      ]
+    ) {
+      if (!key) continue;
+      const existing = byName.get(key);
+      if (
+        !existing ||
+        (content.resolved && !existing.resolved) ||
+        ((content.resolvedAt ?? "") > (existing.resolvedAt ?? ""))
+      ) {
+        byName.set(key, content);
+      }
+    }
   }
   return byName;
 }
@@ -490,7 +511,7 @@ export function planNames(
   const failed: { item: NameItem; at: string }[] = [];
   let done = 0;
   for (const item of candidates) {
-    const res = resolutions.get(item.name);
+    const res = resolutions.get(item.key) ?? resolutions.get(item.name);
     if (!res) {
       fresh.push(item);
     } else if (res.resolved) {
@@ -1025,7 +1046,7 @@ export async function runSwampCmd(
 /** Model definition for incrementally scanning and listing local ebooks. */
 export const model = {
   type: "@svendowideit/ebooks",
-  version: "2026.10.23.1",
+  version: "2026.10.24.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1068,6 +1089,13 @@ export const model = {
       toVersion: "2026.10.23.1",
       description:
         "Honour SWAMP_HOME when resolving ~/.swamp-relative output/cache paths.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.24.1",
+      description:
+        "No model schema changes — propagate the run-level maxFetches budget " +
+        "through the resolution workflows.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

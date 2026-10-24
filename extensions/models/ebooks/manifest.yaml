@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/ebooks"
-version: "2026.10.23.1"
+version: "2026.10.24.1"
 description: >
   Find every ebook on your machine, detect its bibliographic metadata, resolve
   authors and titles against Wikipedia + Wikidata, and render a browsable HTML
@@ -58,8 +58,8 @@ description: >
       # filesystem — use after changing metadata detection or rendering.
       swamp workflow run @svendowideit/ebook-scan --input skipScan=true
 
-      # Raise the per-call origin-fetch cap to drain the resolution backlog
-      # faster (cached hits do not count).
+      # Bound the whole run to 50 origin fetches (cached hits do not count).
+      # The budget is shared across every Wikipedia/Wikidata child step.
       swamp workflow run @svendowideit/ebook-scan --input maxFetches=50
 
       # Read the discovered ebooks and their detected metadata as JSON.
@@ -80,7 +80,7 @@ description: >
       authorsOutputPath  Author-index output path          (default ~/.swamp/ebooks/index.html)
       title              Page title                        (default "Ebooks")
       cacheDir           Shared web-cache directory        (default ~/.swamp/web-cache)
-      maxFetches         Origin fetches per get-many call  (default 20)
+      maxFetches         Run-level origin-fetch budget     (default 20)
       skipScan           Skip the directory scan           (default false)
 
     The ebooks model also reads global arguments:

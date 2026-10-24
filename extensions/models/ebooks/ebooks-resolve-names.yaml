@@ -32,6 +32,14 @@ inputs:
       type: string
       default: "~/.swamp/web-cache"
       description: Shared cache directory
+    maxFetches:
+      type: number
+      default: 20
+      description: Run-level origin-fetch budget
+    budgetId:
+      type: string
+      default: ""
+      description: Run id that shares the fetch budget across sub-workflows
   required:
     - items
 jobs:
@@ -51,6 +59,8 @@ jobs:
             expectKind: ${{ self.item.expectKind }}
             key: ${{ self.item.key }}
             cacheDir: ${{ inputs.cacheDir }}
+            maxFetches: ${{ inputs.maxFetches }}
+            budgetId: ${{ inputs.budgetId }}
         dependsOn: []
         weight: 0
         allowFailure: true

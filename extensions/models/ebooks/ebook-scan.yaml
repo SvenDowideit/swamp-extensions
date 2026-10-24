@@ -13,8 +13,10 @@ description: |
   Resolution is pure workflow composition. This workflow knows nothing about
   fetching or caching: it fans out per name into the
   @svendowideit/ebooks-resolve-name child workflow, which in turn calls the
-  @svendowideit/wikipedia and @svendowideit/wikidata workflows (and they call
-  @svendowideit/web-cache). Cache-hit vs fetch is invisible throughout.
+  @svendowideit/wikipedia and @svendowideit/wikidata workflows (which fetch
+  through @svendowideit/web-cache and, for Enterprise auth, @svendowideit/curl).
+  Cache-hit vs fetch is invisible throughout. `maxFetches` is a run-level origin
+  budget shared by all child fetch steps.
 
     scan-disk → detect-metadata → plan-resolution
     → forEach name: @svendowideit/ebooks-resolve-name
@@ -71,6 +73,12 @@ inputs:
         Skip the directory scan and only re-process the already-discovered ebook
         paths (detect metadata + resolve + render). Useful when you only changed
         the metadata detection or rendering and don't need to re-walk the filesystem.
+    maxFetches:
+      type: number
+      default: 20
+      description: >-
+        Run-level origin-fetch budget shared by every Wikipedia/Wikidata fetch
+        in this run. Cached hits do not count; the backlog drains on the next run.
   required: []
 jobs:
   - name: main
@@ -139,6 +147,8 @@ jobs:
           inputs:
             items: ${{ data.latest("ebooks", "names").attributes.items }}
             cacheDir: ${{ inputs.cacheDir }}
+            maxFetches: ${{ inputs.maxFetches }}
+            budgetId: ${{ run.id }}
         dependsOn:
           - step: plan-resolution
             condition:

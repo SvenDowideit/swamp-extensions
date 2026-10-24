@@ -26,6 +26,10 @@ inputs:
       type: number
       default: 20
       description: Cap on origin fetches per call (cached hits don't count)
+    budgetId:
+      type: string
+      default: ""
+      description: Run id that shares one origin-fetch budget across calls
     cacheDir:
       type: string
       default: "~/.swamp/web-cache"
@@ -48,6 +52,7 @@ jobs:
           inputs:
             urls: ${{ inputs.urls }}
             maxFetches: ${{ inputs.maxFetches }}
+            budgetId: ${{ inputs.budgetId }}
         dependsOn: []
         weight: 0
         allowFailure: true

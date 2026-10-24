@@ -56,6 +56,24 @@ steps:
     task: { type: model_method, modelType: "@svendowideit/wikipedia", modelName: wiki, methodName: get-page, inputs: { title: ... } }
 ```
 
+## Bearer tokens and run budgets
+
+`get`, `get-json` and `get-many` accept two optional generic helpers:
+
+- `bearerTokenFile` — read a token from a 0600 file and send
+  `Authorization: Bearer <token>`. The token is never logged or written to the
+  result. This is how a caller can use an authenticated GET without putting the
+  secret in workflow arguments.
+- `budgetId` + `maxFetches` — share one origin-fetch budget across many calls in
+  the same run. The first call initialises
+  `<cacheDir>/.fetch-budget-<budgetId>.json` from `maxFetches`; later calls
+  consume the remaining count. Cached hits never consume the budget. `get` and
+  `get-json` also accept `resultName` so a workflow can read the result's
+  `capped` flag under a stable name.
+
+Both features are domain-agnostic: nothing in this model knows what the token
+means or which service the URL belongs to.
+
 ## Details
 
 `@svendowideit/web-cache` ships one model type (`@svendowideit/web-cache`) and

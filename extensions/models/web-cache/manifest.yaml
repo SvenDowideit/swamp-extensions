@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/web-cache"
-version: "2026.10.23.1"
+version: "2026.10.24.1"
 description: >
   A managed, disk-backed HTTP GET cache — the single place responses are
   fetched, cached, paced, and retried, so other models read the cache instead
@@ -17,7 +17,9 @@ description: >
     retried with backoff, and each call's new fetches are capped, so bulk work
     stays within the origin's rate limits and a large backlog drains across runs.
     The cache key depends only on the URL, so any model that knows a URL can
-    share the same cache directory.
+    share the same cache directory. Optional generic helpers let callers send a
+    bearer token read from a 0600 file (never logged) and share a run-level
+    origin-fetch budget across calls via `budgetId` + `maxFetches`.
 
   INSTALL
 
@@ -41,6 +43,17 @@ description: >
         --input 'urls:json=["https://example.org/a.json","https://example.org/b.json"]' \
         --input maxFetches=20
 
+      # Send a bearer token from a 0600 file (e.g. a signed-in API session).
+      swamp model @svendowideit/web-cache method run get cache \
+        --input url="https://api.example.test/v2/items" \
+        --input bearerTokenFile="~/.swamp/tokens/api-token"
+
+      # Share one origin-fetch budget across many calls in a run. Cached hits
+      # do not count; the first call initialises the budget from maxFetches.
+      swamp model @svendowideit/web-cache method run get cache \
+        --input url="https://example.org/a.json" \
+        --input budgetId="run-123" --input maxFetches=20
+
       # Inspect the cache: size, age, freshness, stored headers.
       swamp model @svendowideit/web-cache method run cache-info cache
 
@@ -60,9 +73,11 @@ description: >
       maxFetchesPerCall   Cap on origin fetches per call   (default 100)
       acceptHeader        Accept header sent               (default application/json)
 
-    Per-run overrides: `url`, `forceRefresh`, and `maxAgeMs` on `get`/`get-json`;
-    `urls`, `maxFetches`, `forceRefresh` on `get-many`; `url`/`all` on
-    `invalidate`. See the README for the full method and data reference.
+    Per-run overrides: `url`, `forceRefresh`, `maxAgeMs`, `bearerTokenFile`,
+    `budgetId`, `maxFetches` and `resultName` on `get`/`get-json`; `urls`,
+    `maxFetches`, `forceRefresh`, `bearerTokenFile` and `budgetId` on
+    `get-many`; `url`/`all` on `invalidate`. See the README for the full method
+    and data reference.
 
   WHAT IT INSTALLS
 

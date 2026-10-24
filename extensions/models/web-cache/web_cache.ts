@@ -91,10 +91,57 @@ const FreshnessArgs = z.object({
     .describe("Bypass the cache and re-fetch from the origin"),
 });
 
-const GetArgsSchema = z.object({ url: UrlArg }).extend(FreshnessArgs.shape);
+/** Optional bearer token read from a 0600 file (e.g. an Enterprise JWT). */
+const AuthArgsSchema = z.object({
+  // swamp-quality-ignore credentials-sensitive-field: holds a token file path, not the secret
+  bearerTokenFile: z.string()
+    .optional()
+    .describe(
+      "Read a bearer token from this 0600 file and send it as " +
+        "`Authorization: Bearer <token>`. The token is never logged or stored " +
+        "in the result.",
+    ),
+});
+
+/** Optional run-scoped fetch budget stored under cacheDir. */
+const BudgetArgsSchema = z.object({
+  budgetId: z.string()
+    .optional()
+    .describe(
+      "Run-scoped budget id (e.g. a workflow run id). The first fetch " +
+        "initialises `<cacheDir>/.fetch-budget-<budgetId>.json` from " +
+        "`maxFetches`; later calls share the remaining count.",
+    ),
+  maxFetches: z.number().int().positive()
+    .optional()
+    .describe(
+      "Initial run budget when `budgetId` is first seen (default " +
+        "maxFetchesPerCall). For get-many it is also the per-call origin-fetch " +
+        "cap. Cached hits never count.",
+    ),
+});
+
+const ResultNameArgsSchema = z.object({
+  resultName: z.string()
+    .optional()
+    .describe(
+      "Resource instance name for the result (default: the URL cache key). " +
+        "Use a stable name so a workflow can read `capped`/`body` directly.",
+    ),
+});
+
+const GetArgsSchema = z.object({ url: UrlArg })
+  .extend(FreshnessArgs.shape)
+  .extend(AuthArgsSchema.shape)
+  .extend(BudgetArgsSchema.shape)
+  .extend(ResultNameArgsSchema.shape);
 type GetArgs = z.infer<typeof GetArgsSchema>;
 
-const GetJsonArgsSchema = z.object({ url: UrlArg }).extend(FreshnessArgs.shape);
+const GetJsonArgsSchema = z.object({ url: UrlArg })
+  .extend(FreshnessArgs.shape)
+  .extend(AuthArgsSchema.shape)
+  .extend(BudgetArgsSchema.shape)
+  .extend(ResultNameArgsSchema.shape);
 type GetJsonArgs = z.infer<typeof GetJsonArgsSchema>;
 
 const GetManyArgsSchema = z.object({
@@ -103,15 +150,10 @@ const GetManyArgsSchema = z.object({
       "URLs to fetch (each cached independently). Empty strings are skipped, " +
         "so parallel arrays may carry placeholders for not-found entries.",
     ),
-  maxFetches: z.number().int().positive()
-    .optional()
-    .describe(
-      "Cap on the number of origin fetches this call makes (omit = use global " +
-        "maxFetchesPerCall). Cached hits don't count against the cap and are " +
-        "still served once it is reached; only URLs that would need a network " +
-        "fetch are left for a later run.",
-    ),
-}).extend(FreshnessArgs.shape);
+})
+  .extend(FreshnessArgs.shape)
+  .extend(AuthArgsSchema.shape)
+  .extend(BudgetArgsSchema.shape);
 type GetManyArgs = z.infer<typeof GetManyArgsSchema>;
 
 const InvalidateArgsSchema = z.object({
@@ -162,6 +204,8 @@ const FetchResultSchema = z.object({
   headers: z.record(z.string(), z.string()),
   fromCache: z.boolean(),
   refreshed: z.boolean(),
+  /** True when a run budget prevented an origin fetch. */
+  capped: z.boolean(),
 });
 
 type FetchResult = z.infer<typeof FetchResultSchema>;
@@ -195,6 +239,8 @@ const JsonResultSchema = z.object({
   status: z.number().int().nullable(),
   fromCache: z.boolean(),
   refreshed: z.boolean(),
+  /** True when a run budget prevented an origin fetch. */
+  capped: z.boolean(),
 });
 
 type JsonResult = z.infer<typeof JsonResultSchema>;
@@ -485,15 +531,76 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+/** Read a bearer token from a 0600 file, trimmed. */
+async function readBearerToken(path: string): Promise<string> {
+  const raw = await Deno.readTextFile(expandHome(path));
+  const token = raw.trim();
+  if (!token) {
+    throw new Error(`Bearer-token file is empty: ${path}`);
+  }
+  return token;
+}
+
+interface BudgetState {
+  remaining: number;
+}
+
+function budgetPath(dir: string, budgetId: string): string {
+  const safe = budgetId.replace(/[^a-zA-Z0-9._-]+/g, "-").slice(0, 120);
+  return `${dir}/.fetch-budget-${safe}.json`;
+}
+
+/**
+ * Consume one unit of the run-scoped fetch budget. Returns `allowed: true`
+ * when no budget is configured. The first call initialises the file from
+ * `initialMax` (or the global per-call cap).
+ */
+async function consumeFetchBudget(
+  ctx: MethodContext,
+  dir: string,
+  budgetId: string | undefined,
+  initialMax: number | undefined,
+): Promise<{ allowed: boolean; remaining: number | null }> {
+  if (!budgetId) return { allowed: true, remaining: null };
+  const path = budgetPath(dir, budgetId);
+  let state: BudgetState | null = null;
+  try {
+    state = JSON.parse(await Deno.readTextFile(path)) as BudgetState;
+  } catch {
+    state = null;
+  }
+  if (!state || !Number.isFinite(state.remaining)) {
+    state = {
+      remaining: initialMax ?? ctx.globalArgs.maxFetchesPerCall,
+    };
+  }
+  if (state.remaining <= 0) {
+    return { allowed: false, remaining: 0 };
+  }
+  state.remaining -= 1;
+  try {
+    await Deno.writeTextFile(path, JSON.stringify(state));
+  } catch {
+    // Best-effort budget state.
+  }
+  return { allowed: true, remaining: state.remaining };
+}
+
 /** Perform a GET with the shared user-agent, honoring the AbortSignal. */
 async function httpGet(
   url: string,
   userAgent: string,
   accept: string,
+  bearerToken: string,
   signal?: AbortSignal,
 ): Promise<Response> {
+  const headers: Record<string, string> = {
+    "User-Agent": userAgent,
+    "Accept": accept,
+  };
+  if (bearerToken) headers["Authorization"] = `Bearer ${bearerToken}`;
   const res = await fetch(url, {
-    headers: { "User-Agent": userAgent, "Accept": accept },
+    headers,
     signal,
   });
   if (res.status === 429) {
@@ -515,7 +622,13 @@ async function httpGet(
 async function cachedFetch(
   ctx: MethodContext,
   url: string,
-  opts: { maxAgeMs?: number; forceRefresh?: boolean },
+  opts: {
+    maxAgeMs?: number;
+    forceRefresh?: boolean;
+    bearerTokenFile?: string;
+    budgetId?: string;
+    maxFetches?: number;
+  },
   signal?: AbortSignal,
 ): Promise<
   {
@@ -523,6 +636,7 @@ async function cachedFetch(
     entry: CacheEntry | null;
     fromCache: boolean;
     refreshed: boolean;
+    capped: boolean;
   }
 > {
   const dir = expandHome(ctx.globalArgs.cacheDir);
@@ -541,13 +655,44 @@ async function cachedFetch(
         key,
         freshness: Math.round(freshness),
       });
-      return { body, entry: existing, fromCache: true, refreshed: false };
+      return {
+        body,
+        entry: existing,
+        fromCache: true,
+        refreshed: false,
+        capped: false,
+      };
     }
     ctx.logger.debug?.("Cache stale {key} ({freshness}ms)", {
       key,
       freshness: Math.round(freshness),
     });
   }
+
+  const budget = await consumeFetchBudget(
+    ctx,
+    dir,
+    opts.budgetId,
+    opts.maxFetches,
+  );
+  if (!budget.allowed) {
+    ctx.logger.info(
+      "Fetch budget exhausted for {url}; leaving it for a later run",
+      { url },
+    );
+    const body = existing ? await loadCacheBody(dir, key) : null;
+    return {
+      body,
+      entry: existing,
+      fromCache: existing != null,
+      refreshed: false,
+      capped: true,
+    };
+  }
+
+  const bearerToken = opts.bearerTokenFile
+    ? await readBearerToken(opts.bearerTokenFile)
+    : "";
 
   const maxRetries = ctx.globalArgs.maxRetries;
   const retryDelayMs = ctx.globalArgs.retryDelayMs;
@@ -566,6 +711,7 @@ async function cachedFetch(
         url,
         ctx.globalArgs.userAgent,
         ctx.globalArgs.acceptHeader,
+        bearerToken,
         signal,
       );
       await markRequestAt(dir);
@@ -575,7 +721,13 @@ async function cachedFetch(
           status: res.status,
           url,
         });
-        return { body: null, entry: null, fromCache: false, refreshed: false };
+        return {
+          body: null,
+          entry: null,
+          fromCache: false,
+          refreshed: false,
+          capped: false,
+        };
       }
       const entry = await storeCacheEntry(dir, key, url, res, body);
       ctx.logger.debug?.("Fetched + cached {key}", { key });
@@ -584,6 +736,7 @@ async function cachedFetch(
         entry,
         fromCache: false,
         refreshed: existing != null,
+        capped: false,
       };
     } catch (err) {
       await markRequestAt(dir);
@@ -611,9 +764,21 @@ async function cachedFetch(
       });
       if (existing) {
         const body = await loadCacheBody(dir, key);
-        return { body, entry: existing, fromCache: true, refreshed: false };
+        return {
+          body,
+          entry: existing,
+          fromCache: true,
+          refreshed: false,
+          capped: false,
+        };
       }
-      return { body: null, entry: null, fromCache: false, refreshed: false };
+      return {
+        body: null,
+        entry: null,
+        fromCache: false,
+        refreshed: false,
+        capped: false,
+      };
     }
   }
 }
@@ -625,7 +790,7 @@ async function cachedFetch(
 /** A managed, disk-backed HTTP GET cache with pacing and retry. */
 export const model = {
   type: "@svendowideit/web-cache",
-  version: "2026.10.23.1",
+  version: "2026.10.24.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -661,6 +826,13 @@ export const model = {
       toVersion: "2026.10.23.1",
       description:
         "Honour SWAMP_HOME when resolving ~/.swamp-relative cache paths.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.24.1",
+      description:
+        "Add a generic bearer-token file header and a run-scoped fetch budget " +
+        "(budgetId + maxFetches) shared across get/get-json/get-many calls.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -707,15 +879,18 @@ export const model = {
           headers: res.entry?.headers ?? {},
           fromCache: res.fromCache,
           refreshed: res.refreshed,
+          capped: res.capped,
         };
         const handle = await context.writeResource(
           "fetch",
-          webCacheKey(args.url),
+          args.resultName || webCacheKey(args.url),
           result,
         );
         context.logger.info("GET {url} ({src})", {
           url: args.url,
-          src: res.fromCache
+          src: res.capped
+            ? "capped"
+            : res.fromCache
             ? "cache"
             : res.refreshed
             ? "refreshed"
@@ -745,15 +920,18 @@ export const model = {
           status: res.entry?.status ?? null,
           fromCache: res.fromCache,
           refreshed: res.refreshed,
+          capped: res.capped,
         };
         const handle = await context.writeResource(
           "json",
-          webCacheKey(args.url),
+          args.resultName || webCacheKey(args.url),
           result,
         );
         context.logger.info("GET JSON {url} ({src})", {
           url: args.url,
-          src: res.fromCache
+          src: res.capped
+            ? "capped"
+            : res.fromCache
             ? "cache"
             : res.refreshed
             ? "refreshed"
@@ -812,6 +990,7 @@ export const model = {
                 headers: peek.entry.headers,
                 fromCache: true,
                 refreshed: false,
+                capped: false,
               } satisfies FetchResult,
             );
             handles.push(handle);
@@ -833,6 +1012,7 @@ export const model = {
             headers: res.entry?.headers ?? {},
             fromCache: res.fromCache,
             refreshed: res.refreshed,
+            capped: res.capped,
           };
           const handle = await context.writeResource(
             "fetch",
@@ -840,6 +1020,10 @@ export const model = {
             result,
           );
           handles.push(handle);
+          if (res.capped) {
+            capped = true;
+            break;
+          }
           if (res.fromCache) cached += 1;
           else fetched += 1;
         }

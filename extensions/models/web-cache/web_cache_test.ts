@@ -609,3 +609,88 @@ Deno.test("get-many serves a cached URL that follows a fetch which hit the cap",
     await Deno.remove(dir, { recursive: true });
   }
 });
+
+Deno.test("get reads a bearer token from a file and sends it as Authorization", async () => {
+  const dir = await newCacheDir();
+  const original = globalThis.fetch;
+  let authorization = "";
+  try {
+    // deno-lint-ignore no-explicit-any
+    (globalThis as any).fetch = (input: string | URL | Request, init?: RequestInit) => {
+      const headers = new Headers(init?.headers as HeadersInit);
+      authorization = headers.get("authorization") ?? "";
+      return Promise.resolve(new Response("ok", { status: 200 }));
+    };
+    const tokenFile = `${dir}/token`;
+    await Deno.writeTextFile(tokenFile, "secret-token\n");
+    const { context, written } = makeContext({
+      cacheDir: dir,
+      requestDelayMs: 0,
+    });
+    await model.methods.get.execute({
+      url: "https://api.example.test/v2/articles/Foo",
+      bearerTokenFile: tokenFile,
+      forceRefresh: false,
+    }, context);
+    assertEquals(authorization, "Bearer secret-token");
+    assertEquals(written[0].data.capped, false);
+  } finally {
+    // deno-lint-ignore no-explicit-any
+    (globalThis as any).fetch = original;
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("a shared budgetId caps origin fetches across get calls", async () => {
+  const dir = await newCacheDir();
+  try {
+    await withFetch([{ status: 200, body: "ok" }], async (calls) => {
+      const { context, written } = makeContext({
+        cacheDir: dir,
+        requestDelayMs: 0,
+      });
+      await model.methods.get.execute({
+        url: "https://e.com/a",
+        budgetId: "run-1",
+        maxFetches: 1,
+        forceRefresh: false,
+      }, context);
+      await model.methods.get.execute({
+        url: "https://e.com/b",
+        budgetId: "run-1",
+        maxFetches: 1,
+        forceRefresh: false,
+      }, context);
+      assertEquals(calls.length, 1);
+      assertEquals(written[1].data.capped, true);
+      assertEquals(written[1].data.body, null);
+    });
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("a shared budgetId caps get-many and reports truncation", async () => {
+  const dir = await newCacheDir();
+  try {
+    await withFetch([{ status: 200, body: "ok" }], async (calls) => {
+      const { context, written } = makeContext({
+        cacheDir: dir,
+        requestDelayMs: 0,
+      });
+      await model.methods["get-many"].execute({
+        urls: ["https://e.com/a", "https://e.com/b", "https://e.com/c"],
+        budgetId: "run-2",
+        maxFetches: 1,
+        forceRefresh: false,
+      }, context);
+      assertEquals(calls.length, 1);
+      const batch = written.find((w) => w.specName === "batch")!;
+      assertEquals(batch.data.fetched, 1);
+      assertEquals(batch.data.truncated, true);
+      assertEquals(batch.data.remaining, 2);
+    });
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});

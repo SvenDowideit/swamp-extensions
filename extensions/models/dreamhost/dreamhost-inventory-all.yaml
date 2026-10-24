@@ -35,7 +35,8 @@ inputs:
   - host
   - usernames
 reports:
-  require: []
+  require:
+    - '@svendowideit/dreamhost-inventory-report'
 jobs:
 - name: main
   description: Inventory every listed username.

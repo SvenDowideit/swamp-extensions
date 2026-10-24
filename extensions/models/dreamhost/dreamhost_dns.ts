@@ -578,7 +578,7 @@ function desiredRecord(
 /** Swamp model definition for DreamHost DNS management. */
 export const model = {
   type: "@svendowideit/dreamhost/dns",
-  version: "2026.10.23.1",
+  version: "2026.10.23.5",
   globalArguments: GlobalArgsSchema,
   checks: {
     "valid-api-key": {
@@ -856,7 +856,7 @@ export const model = {
   },
   upgrades: [
     {
-      toVersion: "2026.10.23.1",
+      toVersion: "2026.10.23.5",
       description:
         "Version alignment with DreamHost extension release. Schema unchanged.",
       upgradeAttributes: (old: Record<string, unknown>) => old,

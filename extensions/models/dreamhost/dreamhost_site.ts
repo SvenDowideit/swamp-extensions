@@ -474,12 +474,18 @@ type CheckContext = {
 
 /** Build the ssh transport options from global arguments. */
 export function transport(g: GlobalArgs, identityFile?: string): SshOptions {
+  // Automated runs (including inventory-all) must never hang on an interactive
+  // password prompt; non-password auth keeps BatchMode enabled. Explicit
+  // password authentication still supplies its own password via sshpass.
+  const sshOptions = g.password
+    ? g.sshOptions
+    : ["BatchMode=yes", ...g.sshOptions];
   return {
     host: g.host,
     user: g.user,
     port: g.port,
     identityFile: identityFile ?? g.identityFile,
-    sshOptions: g.sshOptions,
+    sshOptions,
   };
 }
 
@@ -729,7 +735,7 @@ export async function executeInspect(
 /** Swamp model definition for DreamHost site publishing over SSH/rsync. */
 export const model = {
   type: "@svendowideit/dreamhost/site",
-  version: "2026.10.23.1",
+  version: "2026.10.23.5",
   globalArguments: GlobalArgsSchema,
   checks: {
     "valid-target": {
@@ -841,7 +847,7 @@ export const model = {
   },
   upgrades: [
     {
-      toVersion: "2026.10.23.1",
+      toVersion: "2026.10.23.5",
       description:
         "Adds exported SSH helpers used by the inventory model, plus inventory-capable DNS/version alignment. Existing web publishing schema unchanged.",
       upgradeAttributes: (old: Record<string, unknown>) => old,

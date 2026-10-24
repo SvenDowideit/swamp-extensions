@@ -82,6 +82,7 @@ export const HomeManifestSchema = z.object({
   fileCount: z.number(),
   symlinkCount: z.number(),
   totalBytes: z.number(),
+  permissionDeniedCount: z.number(),
   truncated: z.boolean(),
   entries: z.array(HomeEntrySchema),
   exitCode: z.number(),
@@ -378,6 +379,8 @@ export async function executeHomeManifest(
     fileCount,
     symlinkCount,
     totalBytes,
+    permissionDeniedCount:
+      (result.stderr.match(/Permission denied/g) ?? []).length,
     truncated: all.length > capped.length,
     entries: capped,
     exitCode: result.code,
@@ -865,7 +868,7 @@ export async function executeVerifyBackup(
 
 export const model = {
   type: "@svendowideit/dreamhost/inventory",
-  version: "2026.10.23.1",
+  version: "2026.10.23.5",
   globalArguments: GlobalArgsSchema,
   resources: {
     accountInfo: {
@@ -1053,9 +1056,10 @@ export const model = {
           runCmd,
           context.logger,
         );
+        const manifestUser = targetGlobalArgs(context.globalArgs, args).user;
         const handle = await context.writeResource(
           "homeManifest",
-          "homeManifest",
+          `homeManifest-${manifestUser}`,
           outcome,
         );
         return { dataHandles: [handle] };
@@ -1230,7 +1234,7 @@ export const model = {
   },
   upgrades: [
     {
-      toVersion: "2026.10.23.1",
+      toVersion: "2026.10.23.5",
       description:
         "Relaxes per-method argument validation that rejected global arguments, plus documentation corrections.",
       upgradeAttributes: (old: Record<string, unknown>) => old,

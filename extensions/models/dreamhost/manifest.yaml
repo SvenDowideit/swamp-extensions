@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/dreamhost"
-version: "2026.10.23.1"
+version: "2026.10.23.5"
 description: >-
   Inventory and back up DreamHost shared-hosting accounts over SSH, and manage
   DreamHost DNS records through the official API.
@@ -88,9 +88,11 @@ license: MIT
 
 dependencies: []
 
+reports:
+  - dreamhost_inventory_report.ts
+
 workflows:
   - dreamhost-inventory-all.yaml
-
 paths:
   base: manifest
 
@@ -105,5 +107,7 @@ additionalFiles:
   - dreamhost_dns_test.ts
   - dreamhost_site_test.ts
   - dreamhost_inventory_test.ts
+  - dreamhost_inventory_report.ts
+  - dreamhost_inventory_report_test.ts
 
 platforms: []

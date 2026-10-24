@@ -1,62 +1,85 @@
 manifestVersion: 1
 name: "@svendowideit/wikipedia"
-version: "2026.10.23.1"
+version: "2026.10.24.1"
 description: |
-  A Wikipedia domain parser that reads cached responses from the shared cache
-  owned by @svendowideit/web-cache. It fetches nothing itself — fetch, cache,
-  pacing and rate-limit retry are web-cache's job.
+  A fetch-free Wikipedia/Wikidata domain client. It builds URLs and request
+  plans, reads the shared web cache, and parses the result; it never opens an
+  HTTPS connection itself. A page can be cached under either the public
+  MediaWiki URL or the synthetic Wikimedia Enterprise article URL, and every
+  read method checks both.
 
   WHAT IT DOES
 
-    Parses cached MediaWiki responses into structured swamp data: opensearch
-    search, a page's wikitext/HTML/Parsoid/summary/JSON, and an infobox
-    extracted as key/value pairs. Markdown output extensions and URL-only
-    cache-key scheme make it composable with the fetch seam.
+    Solves the "Wikipedia data, with or without an Enterprise account" problem.
+    Public-API misses are fetched by @svendowideit/web-cache. When the
+    `enterprise-wikimedia` vault holds credentials and the local monthly quota
+    has room, the wikipedia-page/infobox workflows prefer Enterprise: curl
+    performs the one-off login/refresh POST, web-cache GETs the Enterprise
+    article URL with a 0600 bearer-token file, and the parser converts the
+    Enterprise payload into the public response shape. All HTTPS still goes
+    through the existing fetch primitives; this extension makes no requests.
 
   INSTALL
 
-      swamp extension pull @svendowideit/web-cache
       swamp extension pull @svendowideit/wikipedia
 
   DEPENDENCIES
 
-    @svendowideit/web-cache (hard dependency, declared in this manifest). No
-    host packages are installed.
+    @svendowideit/web-cache (declared; pulled automatically) for every public
+    and Enterprise GET and for the shared run-level fetch budget.
+    @svendowideit/curl is used only for the Enterprise login/refresh POST.
+    No host packages are installed.
 
   RUN
 
-      # Fetch + cache a page.
-      swamp model @svendowideit/web-cache method run get cache \
-        --input url="https://en.wikipedia.org/w/api.php?action=parse&page=Alfred+Bester&prop=wikitext&format=json"
-
-      # Parse the cached page's wikitext.
-      swamp model @svendowideit/wikipedia method run get-page wiki \
+      # Fetch + parse a page through the normal workflow. With no Enterprise
+      # credentials the miss is fetched from the public API via web-cache.
+      swamp workflow run @svendowideit/wikipedia-page \
         --input title="Alfred Bester" --input format=wikitext
 
-      # Search cached opensearch results.
+      # The same workflow with a run-level budget: at most five origin fetches
+      # across its steps, shared through web-cache. Cached hits do not count.
+      swamp workflow run @svendowideit/wikipedia-page \
+        --input title="Alfred Bester" --input format=wikitext \
+        --input maxFetches=5
+
+      # Search is public-only: Enterprise On-demand has no search endpoint.
       swamp model @svendowideit/wikipedia method run search wiki \
-        --input query="Alfred Bester"
+        --input query="Alfred Bester" --input limit=5
+
+      # Confirm which source is ready and how much local quota remains. This
+      # makes no request and prints no secret.
+      swamp model @svendowideit/wikipedia method run enterprise-status wiki
+
+      # Optional: add Enterprise credentials. Swamp vault names cannot contain
+      # underscores, so the default vault is enterprise-wikimedia.
+      swamp vault create local_encryption enterprise-wikimedia
+      swamp vault put enterprise-wikimedia username
+      swamp vault put enterprise-wikimedia password
 
   CONFIGURE
 
-    All optional global arguments: cacheDir (default ~/.swamp/web-cache), apiUrl
-    (default en.wikipedia.org), restUrl
-    (default en.wikipedia.org). See the README for the full argument tables.
+    All arguments are optional global arguments:
+      cacheDir                  Shared cache dir          (default ~/.swamp/web-cache)
+      apiUrl / restUrl          Public API bases          (default en.wikipedia.org)
+      enterpriseVaultName       Vault checked for creds   (default enterprise-wikimedia)
+      enterpriseUsernameKey     Vault username key        (default username)
+      enterprisePasswordKey     Vault password key        (default password)
+      enterpriseAccessTokenKey  Vault access-token key    (default access_token)
+      enterpriseRefreshTokenKey Vault refresh-token key   (default refresh_token)
+      enterpriseProject         Enterprise project        (default enwiki)
+      enterpriseMonthlyQuota    Local monthly budget      (default 50000; 0 = no local cap)
 
-  UPGRADE
-
-    This extension installs nothing on the host, so an upgrade is:
-
-        swamp extension update
-
-    Model definitions record the version they were created with; the model's
-    bundled upgrades entry migrates them on the next method run. Swamp data is
-    preserved.
+    The page/infobox workflows also take maxFetches (run-level origin budget),
+    budgetId (the run id that shares it with web-cache) and runId (namespaces
+    the private Enterprise plan/token files).
 
   WHAT IT INSTALLS
 
-    Nothing on the host — no services, triggers, or webhooks. Only pulled
-    extension files and swamp data resources.
+    Nothing on the host — no services, daemons, cron triggers, or webhooks. It
+    reads the shared cache directory, writes swamp data resources (including the
+    optional Enterprise session and usage counters), and uses curl/web-cache for
+    all HTTPS.
 
 repository: https://github.com/svendowideit/swamp-extensions
 
@@ -65,8 +88,11 @@ paths:
 
 models:
   - wikipedia.ts
+  - wikipedia_http.ts
+  - wikipedia_enterprise.ts
 
 workflows:
+  - wikipedia-fetch-page.yaml
   - wikipedia-search.yaml
   - wikipedia-page.yaml
   - wikipedia-infobox.yaml
@@ -74,6 +100,7 @@ workflows:
 
 dependencies:
   - "@svendowideit/web-cache"
+  - "@svendowideit/curl"
 
 additionalFiles:
   - README.md

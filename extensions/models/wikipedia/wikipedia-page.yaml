@@ -1,15 +1,21 @@
 id: 99bfa21c-c791-46c3-9799-20a3404e9146
 name: "@svendowideit/wikipedia-page"
 description: |
-  Fetch + parse a Wikipedia page through the shared cache, transparently. The
-  caller does not care whether a network fetch happened or a cache hit was used.
+  Fetch + parse a Wikipedia page, transparently. The fetch step chooses
+  Wikimedia Enterprise when the `enterprise-wikimedia` vault and local quota
+  allow it, otherwise the public API. Both land in the shared cache under
+  different URLs; `get-page` reads whichever entry exists.
 
-  Steps: build the page URL → web-cache-fetch → parse the cached body.
+  All HTTPS goes through @svendowideit/web-cache (and @svendowideit/curl for the
+  Enterprise login/refresh POST).
 
   Inputs:
-    title    — page title
-    format   — wikitext | html | parsoid | summary | json (default wikitext)
-    cacheDir — shared cache dir (default ~/.swamp/web-cache)
+    title      — page title
+    format     — wikitext | html | parsoid | summary | json (default wikitext)
+    cacheDir   — shared cache dir (default ~/.swamp/web-cache)
+    maxFetches — run-level origin-fetch budget (shared via web-cache)
+    budgetId   — workflow run id that shares that budget
+    runId      — namespaces private Enterprise plan/token files
 tags: {}
 inputs:
   properties:
@@ -24,41 +30,43 @@ inputs:
       type: string
       default: "~/.swamp/web-cache"
       description: Shared cache directory
+    maxFetches:
+      type: number
+      default: 20
+      description: Run-level origin-fetch budget
+    budgetId:
+      type: string
+      default: ""
+      description: Run id that shares the fetch budget across fetch steps
+    runId:
+      type: string
+      default: ""
+      description: Run id used to namespace private Enterprise plan files
   required:
     - title
 jobs:
   - name: main
-    description: Fetch + parse a Wikipedia page.
+    description: Fetch (Enterprise or public) and parse a Wikipedia page.
     steps:
-      - name: build-url
-        description: Build the page URL for the title/format.
+      - name: fetch-page
+        guard: ${{ inputs.title == null || inputs.title == "" }}
+        description: Populate the public or Enterprise cache entry.
         task:
-          type: model_method
-          modelType: "@svendowideit/wikipedia"
-          modelName: wiki
-          methodName: page-url
+          type: workflow
+          workflowIdOrName: "@svendowideit/wikipedia-fetch-page"
           inputs:
             title: ${{ inputs.title }}
             format: ${{ inputs.format }}
-        dependsOn: []
-        weight: 0
-        allowFailure: false
-      - name: fetch
-        description: Fetch + cache the page URL.
-        task:
-          type: workflow
-          workflowIdOrName: "@svendowideit/web-cache-fetch"
-          inputs:
-            urls: ${{ data.latest("wiki", "page-url").attributes.urls }}
             cacheDir: ${{ inputs.cacheDir }}
-        dependsOn:
-          - step: build-url
-            condition:
-              type: succeeded
+            maxFetches: ${{ inputs.maxFetches }}
+            budgetId: ${{ inputs.budgetId }}
+            runId: ${{ inputs.runId }}
+        dependsOn: []
         weight: 0
         allowFailure: true
       - name: parse
-        description: Parse the cached page body into content.
+        guard: ${{ inputs.title == null || inputs.title == "" }}
+        description: Parse whichever cache entry exists (public first, then Enterprise).
         task:
           type: model_method
           modelType: "@svendowideit/wikipedia"
@@ -70,7 +78,7 @@ jobs:
             title: ${{ inputs.title }}
             format: ${{ inputs.format }}
         dependsOn:
-          - step: fetch
+          - step: fetch-page
             condition:
               type: always
         weight: 0

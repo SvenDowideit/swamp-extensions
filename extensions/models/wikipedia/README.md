@@ -1,124 +1,170 @@
 # @svendowideit/wikipedia
 
-A Wikipedia/Wikidata domain client layered on top of the shared web cache owned
-by [`@svendowideit/web-cache`](../web-cache). It **fetches nothing itself** — it
-parses responses that `web-cache` has already fetched and cached.
+A **fetch-free** Wikipedia/Wikidata domain client. It builds URLs and request
+plans, reads the shared web cache, and parses the result. It never opens an
+HTTPS connection itself.
+
+A page can be cached in **two** places:
+
+- the **public MediaWiki URL** (opensearch, action=parse, REST, query), or
+- the synthetic **Wikimedia Enterprise article URL**
+  (`/v2/articles/{name}?limit=1&filters=…`).
+
+Every read method checks the public cache first, then the Enterprise cache, and
+parses whichever shape it finds.
 
 ## What it does
 
-- **Parses many formats** — raw **wikitext** (default), rendered **html**,
-  **parsoid** HTML, the REST **summary**, and raw action-API **json**.
-- **Searches** — parses a cached `opensearch` response into corrected titles,
-  short descriptions and URLs.
-- **Extracts infoboxes** — pulls cached wikitext and parses the page's infobox
-  template into `key → value` pairs, optionally restricted to a specific
-  template name (`writer`, `book`, `person`, …).
+- **Works without an account.** Public-API misses are fetched and cached by
+  [`@svendowideit/web-cache`](../web-cache).
+- **Upgrades to Wikimedia Enterprise.** When the `enterprise-wikimedia` vault
+  holds credentials and the local monthly quota has room,
+  `@svendowideit/wikipedia-fetch-page` gets an enterprise article through
+  `web-cache` using a 0600 bearer-token file. The login/refresh POST goes
+  through [`@svendowideit/curl`](../curl).
+- **Knows both cache locations.** `get-page`, `get-infobox` and
+  `get-page-props` read the public URL first and fall back to the Enterprise
+  URL, converting the Enterprise payload into the public response shape.
+- **Respects a run budget.** `web-cache` shares one `budgetId`/`maxFetches`
+  budget across every public and Enterprise fetch in an ebook-scan run.
+- **Parses many formats.** Wikitext (default), HTML, Parsoid, REST summary,
+  action-API JSON, opensearch results, page-props and infoboxes.
 
-## How it works with web-cache
-
-Fetching, caching, pacing and retry are `@svendowideit/web-cache`'s
-responsibility. This model only *reads* entries from the shared cache directory
-(default `~/.swamp/web-cache`), keyed by URL. On a cache miss it returns an empty
-result with `cached: false` — it never makes a network request.
-
-The intended seam is a workflow:
-
-```yaml
-jobs:
-  - name: main
-    steps:
-      - name: fetch
-        task:
-          type: model_method
-          modelType: "@svendowideit/web-cache"
-          modelName: cache
-          methodName: get
-          inputs:
-            url: ${{ inputs.url }}
-        dependsOn: []
-      - name: parse
-        task:
-          type: model_method
-          modelType: "@svendowideit/wikipedia"
-          modelName: wiki
-          methodName: get-page
-          inputs:
-            title: ${{ inputs.title }}
-            format: wikitext
-        dependsOn:
-          - step: fetch
-            condition:
-              type: always
-```
-
-## Models
-
-### @svendowideit/wikipedia
-
-| Method          | Description |
-| --------------- | ----------- |
-| `search`        | Parse a cached opensearch response into titles, descriptions, URLs. |
-| `get-page`      | Parse a cached page in a chosen format (wikitext default). |
-| `get-infobox`   | Extract an infobox as key/value pairs from cached wikitext. |
-
-## Quick start
+## Install
 
 ```bash
-swamp extension pull @svendowideit/web-cache
 swamp extension pull @svendowideit/wikipedia
-
-# 1. Fetch + cache the wikitext (web-cache):
-swamp model @svendowideit/web-cache method run get cache \
-  --input url="https://en.wikipedia.org/w/api.php?action=parse&page=Alfred+Bester&prop=wikitext&format=json"
-
-# 2. Parse it (wikipedia reads the cache):
-swamp model @svendowideit/wikipedia method run get-page wiki \
-  --input title="Alfred Bester" --input format=wikitext
-
-# Extract an infobox (from cached wikitext):
-swamp model @svendowideit/wikipedia method run get-infobox wiki \
-  --input title="Alfred Bester"
 ```
 
-> **Note:** the URL passed to `web-cache.get` must match the URL `wikipedia`
-> derives for the same `(title, format)`. Both use the same `apiUrl`/`restUrl`
-> global arguments (defaults: en.wikipedia.org), so the two steps line up.
+`@svendowideit/web-cache` is a declared dependency and is pulled automatically.
+`@svendowideit/curl` is needed only for Enterprise login/refresh.
 
-### Formats (`get-page`)
+## Examples
 
-| `format`   | Source                         | Notes |
-| ---------- | ------------------------------ | ----- |
-| `wikitext` | action API `parse`             | **default** — raw markup |
-| `html`     | action API `parse`             | rendered HTML of the page |
-| `parsoid`  | REST v1 `/page/{title}/html`   | Parsoid HTML |
-| `summary`  | REST v1 `/page/summary/{title}` | short summary JSON |
-| `json`     | action API `query`             | raw query response |
+```bash
+# 1. Read a page that is already in the shared cache (public or Enterprise).
+swamp model @svendowideit/wikipedia method run get-page wiki \
+  --input title="Alfred Bester" --input format=wikitext
+```
 
-## Global arguments
+```bash
+# 2. Fetch + parse through the normal workflow. With no Enterprise credentials
+#    the miss is fetched from the public API through web-cache.
+swamp workflow run @svendowideit/wikipedia-page \
+  --input title="Alfred Bester" --input format=wikitext
+```
 
-| Key        | Default                           | Description |
-| ---------- | --------------------------------- | ----------- |
-| `cacheDir` | `~/.swamp/web-cache`              | Shared cache dir to read from (must match web-cache) |
-| `apiUrl`   | `https://en.wikipedia.org/w/api.php` | MediaWiki action API base |
-| `restUrl`  | `https://en.wikipedia.org/api/rest_v1` | Wikipedia REST v1 base |
+```bash
+# 3. Check whether Enterprise is ready and how much local quota remains.
+#    This makes no request and prints no secret.
+swamp model @svendowideit/wikipedia method run enterprise-status wiki
+```
 
-## Data
+```bash
+# 4. Store Enterprise credentials in the default vault. The values are prompted
+#    for (or piped on stdin); swamp vault names cannot contain underscores.
+swamp vault create local_encryption enterprise-wikimedia
+swamp vault put enterprise-wikimedia username
+swamp vault put enterprise-wikimedia password
+```
 
-- `page` — parsed page content (from the shared cache).
-- `search` — parsed search results.
-- `infobox` — extracted infobox key/value pairs.
-- `page-props` — canonical title → url, shortdesc and wikidataId (from `get-page-props`).
-- `url` — a built MediaWiki URL (`search-url` / `page-url` / `page-props-url`) for the web-cache fetch seam.
+```bash
+# 5. The same page workflow now prefers Enterprise on a cache miss, but never
+#    fetches directly: web-cache GETs the Enterprise URL with a bearer token,
+#    and curl performs the one-off login POST when needed.
+swamp workflow run @svendowideit/wikipedia-page \
+  --input title="Alfred Bester" --input format=wikitext \
+  --input maxFetches=5
+```
+
+## Configuration
+
+| Key | Default | Description |
+| --- | --- | --- |
+| `cacheDir` | `~/.swamp/web-cache` | Shared cache dir (web-cache compatible) |
+| `apiUrl` | `https://en.wikipedia.org/w/api.php` | Public MediaWiki action API |
+| `restUrl` | `https://en.wikipedia.org/api/rest_v1` | Public REST v1 base |
+| `enterpriseVaultName` | `enterprise-wikimedia` | Vault checked for credentials |
+| `enterpriseUsernameKey` | `username` | Vault key for the username |
+| `enterprisePasswordKey` | `password` | Vault key for the password |
+| `enterpriseAccessTokenKey` | `access_token` | Vault key for a JWT access token |
+| `enterpriseRefreshTokenKey` | `refresh_token` | Vault key for a refresh token |
+| `enterpriseApiUrl` | `https://api.enterprise.wikimedia.com` | Enterprise On-demand API |
+| `enterpriseAuthUrl` | `https://auth.enterprise.wikimedia.com` | Enterprise auth API |
+| `enterpriseProject` | `enwiki` | Enterprise project filter |
+| `enterpriseMonthlyQuota` | `50000` | Local monthly lookup budget; `0` = no local cap |
+
+The `wikipedia-page` and `wikipedia-infobox` workflows also take `maxFetches`
+(run-level origin budget), `budgetId` (the workflow run id that shares it), and
+`runId` (namespaces private plan files).
+
+## Enterprise flow
+
+`@svendowideit/wikipedia-fetch-page` performs:
+
+1. `enterprise-plan` — reads the vault, session and quota; writes a public or
+   Enterprise plan. If a login/refresh is needed it writes a 0600 JSON request
+   body; if a token is already available it writes a 0600 token file.
+2. `curl.request` — POSTs the login/refresh request (request body supplied via
+   `dataFile`, so it is not recorded; response body written to a private file).
+3. `enterprise-session` — parses the response, updates the sensitive session
+   resource and writes the 0600 bearer-token file.
+4. `web-cache.get` — GETs the Enterprise article URL with
+   `bearerTokenFile`, caching the raw article under the Enterprise URL.
+5. `enterprise-record` — counts the successful lookup against the monthly quota.
+6. `cleanup` — removes the private plan/token directory.
+
+The public fallback is also a `web-cache.get`. Auth failures and Enterprise
+fetch failures set short cooldowns so the next plan backs off.
+
+## Details
+
+### Model: `@svendowideit/wikipedia`
+
+| Method | Description |
+| --- | --- |
+| `get-page` | Parse a page from the public or Enterprise cache. |
+| `get-infobox` | Extract an infobox from either cached wikitext. |
+| `get-page-props` | Resolve titles from the public batch cache or a single-title Enterprise entry. |
+| `search` | Parse a cached public opensearch response. |
+| `page-url` / `search-url` / `page-props-url` | Build public URLs without fetching. |
+| `enterprise-plan` | Write a public/Enterprise plan; no request. |
+| `enterprise-session` | Persist a login/refresh response and token file. |
+| `enterprise-record` | Record one successful Enterprise lookup. |
+| `enterprise-failure` | Record an auth or rate-limit cooldown. |
+| `enterprise-cleanup` | Remove private plan files. |
+| `enterprise-status` | Read-only credential/quota readiness report. |
+
+Results include `source`: `public-cache`, `enterprise-cache`, or `none`.
+
+### Data resources
+
+- `page`, `search`, `infobox`, `page-props` — parsed outputs.
+- `url` — a built public URL.
+- `enterprise-plan` — the public/Enterprise plan and private file paths.
+- `enterprise-session` — JWT session; token fields are sensitive.
+- `enterprise-session-result` — login/refresh outcome.
+- `enterprise-usage` — monthly counter and cooldown state.
+- `enterprise-status` — the readiness report.
+
+### Web-cache compatibility
+
+The cache layout is `@svendowideit/web-cache`'s: `<cacheDir>/<url-slug>-<fnv1a>/`
+with `body` and `meta.json`. Public and Enterprise URLs are separate entries.
+The run budget lives at `<cacheDir>/.fetch-budget-<budgetId>.json` and is
+consumed only by origin fetches, never by cache hits.
 
 ## Testing
 
 ```bash
-~/.swamp/deno/deno test --allow-read --allow-write \
-  extensions/models/wikipedia/wikipedia_test.ts
+~/.swamp/deno/deno test --allow-read --allow-write --allow-env \
+  extensions/models/wikipedia/
 ```
 
-Coverage includes the infobox helpers, the shared cache-key helpers, every URL
-builder (all `get-page` format branches + search + page-props), `extractContent`
-format handling, `parsePageProps` (including redirects), and every method
-execute path against seeded temp cache dirs — `search`, `get-page`,
-`get-infobox`, and `get-page-props`, for both cache hits and misses.
+Coverage includes URL builders, parsers, both cache locations, Enterprise
+planning (access token/login/refresh), quota/cooldowns, session persistence,
+and the `maxFetches` budget in `web-cache`. Tests make no network requests.
+
+## License
+
+MIT — see [LICENSE.txt](LICENSE.txt).

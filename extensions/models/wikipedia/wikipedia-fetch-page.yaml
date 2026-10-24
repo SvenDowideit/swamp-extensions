@@ -1,0 +1,306 @@
+id: 42f10dd7-4c84-40cc-9004-efbf952dbe44
+name: "@svendowideit/wikipedia-fetch-page"
+description: |
+  Populate the shared cache for one Wikipedia page from Wikimedia Enterprise
+  (when the vault + quota allow it) or the public MediaWiki API. No parsing is
+  done here: the caller runs `get-page` / `get-infobox`, which read whichever
+  cache entry exists.
+
+  All HTTPS goes through existing primitives:
+    - @svendowideit/curl for the Enterprise login/refresh POST;
+    - @svendowideit/web-cache for the Enterprise/public GET (with a 0600
+      bearer-token file for Enterprise).
+
+  Inputs:
+    title     — page title
+    format    — public URL format (wikitext | html | parsoid | summary | json)
+    cacheDir  — shared cache dir (default ~/.swamp/web-cache)
+    maxFetches— run-level fetch budget (shared through web-cache)
+    budgetId  — workflow run id used to share that budget across child steps
+    runId     — namespaces the private Enterprise plan/token files
+tags: {}
+inputs:
+  properties:
+    title:
+      type: string
+      description: Page title
+    format:
+      type: string
+      default: "wikitext"
+      description: Public URL format (wikitext | html | parsoid | summary | json)
+    cacheDir:
+      type: string
+      default: "~/.swamp/web-cache"
+      description: Shared cache directory
+    maxFetches:
+      type: number
+      default: 20
+      description: Run-level origin-fetch budget
+    budgetId:
+      type: string
+      default: ""
+      description: Run id that shares the fetch budget across fetch steps
+    runId:
+      type: string
+      default: ""
+      description: Run id used to namespace private Enterprise plan files
+    publicUrl:
+      type: string
+      default: ""
+      description: >-
+        Optional explicit public cache/request URL (page-props uses this to
+        point at the batched page-props URL)
+  required:
+    - title
+jobs:
+  - name: main
+    description: Plan, authenticate if needed, and fetch into the shared cache.
+    steps:
+      - name: plan
+        description: Choose Enterprise or public and write private request plans.
+        task:
+          type: model_method
+          modelType: "@svendowideit/wikipedia"
+          modelName: wiki
+          methodName: enterprise-plan
+          globalArgs:
+            cacheDir: ${{ inputs.cacheDir }}
+          inputs:
+            title: ${{ inputs.title }}
+            format: ${{ inputs.format }}
+            runId: ${{ run.id }}
+            instanceKey: ${{ run.id }}
+            publicUrl: ${{ inputs.publicUrl }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: auth
+        description: POST the Enterprise login/refresh request through curl.
+        guard: >-
+          ${{ !(data.latest("wiki", "enterprise-plan-" + run.id).?attributes.?provider.orValue("") == "enterprise" &&
+          data.latest("wiki", "enterprise-plan-" + run.id).?attributes.?auth.orValue(null) != null) }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/curl"
+          modelName: wiki-enterprise-auth
+          methodName: request
+          inputs:
+            url: ${{ data.latest("wiki", "enterprise-plan-" + run.id).attributes.auth.url }}
+            method: POST
+            headers:
+              - "Content-Type: application/json"
+            dataFile: ${{ data.latest("wiki", "enterprise-plan-" + run.id).attributes.auth.bodyFile }}
+            outputFile: ${{ data.latest("wiki", "enterprise-plan-" + run.id).attributes.auth.responseFile }}
+            maxBodyBytes: 0
+            label: enterprise-auth
+        dependsOn:
+          - step: plan
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+      - name: session
+        description: Persist the JWT session and write the 0600 bearer-token file.
+        guard: >-
+          ${{ !(data.latest("wiki", "enterprise-plan-" + run.id).?attributes.?provider.orValue("") == "enterprise" &&
+          data.latest("wiki", "enterprise-plan-" + run.id).?attributes.?auth.orValue(null) != null) }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/wikipedia"
+          modelName: wiki
+          methodName: enterprise-session
+          globalArgs:
+            cacheDir: ${{ inputs.cacheDir }}
+          inputs:
+            responseFile: ${{ data.latest("wiki", "enterprise-plan-" + run.id).attributes.auth.responseFile }}
+            tokenFile: ${{ data.latest("wiki", "enterprise-plan-" + run.id).attributes.tokenFile }}
+            bodyFile: ${{ data.latest("wiki", "enterprise-plan-" + run.id).attributes.auth.bodyFile }}
+            instanceKey: ${{ run.id }}
+        dependsOn:
+          - step: auth
+            condition:
+              type: always
+        weight: 0
+        allowFailure: true
+      - name: enterprise-fetch
+        description: GET the Enterprise article URL through web-cache with the bearer token.
+        guard: >-
+          ${{ !(data.latest("wiki", "enterprise-plan-" + run.id).?attributes.?provider.orValue("") == "enterprise" &&
+          (data.latest("wiki", "enterprise-plan-" + run.id).?attributes.?auth.orValue(null) == null ||
+          data.latest("wiki", "enterprise-session-result-" + run.id).?attributes.?ok.orValue(false))) }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/web-cache"
+          modelName: cache
+          methodName: get
+          globalArgs:
+            cacheDir: ${{ inputs.cacheDir }}
+          inputs:
+            url: ${{ data.latest("wiki", "enterprise-plan-" + run.id).attributes.enterpriseUrl }}
+            bearerTokenFile: ${{ data.latest("wiki", "enterprise-plan-" + run.id).attributes.tokenFile }}
+            maxFetches: ${{ inputs.maxFetches }}
+            budgetId: ${{ inputs.budgetId }}
+            resultName: enterprise-fetch
+        dependsOn:
+          - step: plan
+            condition:
+              type: succeeded
+          - step: session
+            condition:
+              type: always
+        weight: 0
+        allowFailure: true
+      - name: public-fetch
+        description: GET the public MediaWiki URL through web-cache.
+        guard: ${{ !(data.latest("wiki", "enterprise-plan-" + run.id).?attributes.?provider.orValue("") == "public") }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/web-cache"
+          modelName: cache
+          methodName: get
+          globalArgs:
+            cacheDir: ${{ inputs.cacheDir }}
+          inputs:
+            url: ${{ data.latest("wiki", "enterprise-plan-" + run.id).attributes.publicUrl }}
+            maxFetches: ${{ inputs.maxFetches }}
+            budgetId: ${{ inputs.budgetId }}
+            resultName: public-fetch
+        dependsOn:
+          - step: plan
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+      - name: public-fallback-auth
+        description: Fetch the public URL when the Enterprise login/refresh failed.
+        guard: >-
+          ${{ !(data.latest("wiki", "enterprise-plan-" + run.id).?attributes.?provider.orValue("") == "enterprise" &&
+          data.latest("wiki", "enterprise-plan-" + run.id).?attributes.?auth.orValue(null) != null &&
+          !data.latest("wiki", "enterprise-session-result-" + run.id).?attributes.?ok.orValue(false)) }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/web-cache"
+          modelName: cache
+          methodName: get
+          globalArgs:
+            cacheDir: ${{ inputs.cacheDir }}
+          inputs:
+            url: ${{ data.latest("wiki", "enterprise-plan-" + run.id).attributes.publicUrl }}
+            maxFetches: ${{ inputs.maxFetches }}
+            budgetId: ${{ inputs.budgetId }}
+            resultName: public-fallback-auth
+        dependsOn:
+          - step: session
+            condition:
+              type: always
+        weight: 0
+        allowFailure: true
+      - name: public-fallback-fetch
+        description: Fetch the public URL when the Enterprise article GET failed.
+        guard: ${{ !(data.latest("wiki", "enterprise-plan-" + run.id).?attributes.?provider.orValue("") == "enterprise") }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/web-cache"
+          modelName: cache
+          methodName: get
+          globalArgs:
+            cacheDir: ${{ inputs.cacheDir }}
+          inputs:
+            url: ${{ data.latest("wiki", "enterprise-plan-" + run.id).attributes.publicUrl }}
+            maxFetches: ${{ inputs.maxFetches }}
+            budgetId: ${{ inputs.budgetId }}
+            resultName: public-fallback-fetch
+        dependsOn:
+          - step: enterprise-fetch
+            condition:
+              type: failed
+        weight: 0
+        allowFailure: true
+      - name: record
+        description: Count a successful Enterprise lookup against the monthly budget.
+        guard: >-
+          ${{ !(data.latest("wiki", "enterprise-plan-" + run.id).?attributes.?provider.orValue("") == "enterprise" &&
+          !data.latest("cache", "enterprise-fetch").?attributes.?capped.orValue(false) &&
+          !data.latest("cache", "enterprise-fetch").?attributes.?fromCache.orValue(true)) }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/wikipedia"
+          modelName: wiki
+          methodName: enterprise-record
+          globalArgs:
+            cacheDir: ${{ inputs.cacheDir }}
+          inputs: {}
+        dependsOn:
+          - step: enterprise-fetch
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+      - name: auth-failure
+        description: Record an auth cooldown when the login/refresh response was unusable.
+        guard: >-
+          ${{ !(data.latest("wiki", "enterprise-plan-" + run.id).?attributes.?provider.orValue("") == "enterprise" &&
+          data.latest("wiki", "enterprise-plan-" + run.id).?attributes.?auth.orValue(null) != null &&
+          !data.latest("wiki", "enterprise-session-result-" + run.id).?attributes.?ok.orValue(false)) }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/wikipedia"
+          modelName: wiki
+          methodName: enterprise-failure
+          globalArgs:
+            cacheDir: ${{ inputs.cacheDir }}
+          inputs:
+            kind: auth
+        dependsOn:
+          - step: session
+            condition:
+              type: always
+        weight: 0
+        allowFailure: true
+      - name: rate-failure
+        description: Record a short cooldown when the Enterprise fetch failed.
+        guard: ${{ !(data.latest("wiki", "enterprise-plan-" + run.id).?attributes.?provider.orValue("") == "enterprise") }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/wikipedia"
+          modelName: wiki
+          methodName: enterprise-failure
+          globalArgs:
+            cacheDir: ${{ inputs.cacheDir }}
+          inputs:
+            kind: rate
+        dependsOn:
+          - step: enterprise-fetch
+            condition:
+              type: failed
+        weight: 0
+        allowFailure: true
+      - name: cleanup
+        description: Remove the private plan/token directory now the fetch is done.
+        task:
+          type: model_method
+          modelType: "@svendowideit/wikipedia"
+          modelName: wiki
+          methodName: enterprise-cleanup
+          globalArgs:
+            cacheDir: ${{ inputs.cacheDir }}
+          inputs:
+            workDir: ${{ data.latest("wiki", "enterprise-plan-" + run.id).attributes.workDir }}
+        dependsOn:
+          - step: enterprise-fetch
+            condition:
+              type: always
+          - step: public-fetch
+            condition:
+              type: always
+          - step: public-fallback-auth
+            condition:
+              type: always
+          - step: public-fallback-fetch
+            condition:
+              type: always
+        weight: 0
+        allowFailure: true
+    dependsOn: []
+    weight: 0
+version: 1

@@ -2,15 +2,18 @@ id: 2ccc92c6-546a-417d-8c47-50a1b6ac3508
 name: "@svendowideit/wikipedia-page-props"
 description: |
   Resolve candidate page titles to canonical title, URL, short description and
-  Wikidata QID via a batched page-props query, through the shared cache. The
-  caller does not care whether a fetch happened or a cache hit was used.
-
-  Steps: build the page-props URL → web-cache-fetch → parse the cached body.
+  Wikidata QID. Several titles use one public batch request through
+  @svendowideit/web-cache. A single title uses the page fetch plan, which
+  prefers the Enterprise article (and that article is then reused by the
+  infobox step). `get-page-props` reads the public batch cache or the
+  single-title Enterprise cache.
 
   Inputs:
-    titles   — array of candidate page titles
-    key      — optional data name for the result (defaults to joined titles)
-    cacheDir — shared cache dir (default ~/.swamp/web-cache)
+    titles     — array of candidate page titles
+    key        — optional data name for the result (defaults to joined titles)
+    cacheDir   — shared cache dir (default ~/.swamp/web-cache)
+    maxFetches — run-level origin-fetch budget (shared via web-cache)
+    budgetId   — workflow run id that shares that budget
 tags: {}
 inputs:
   properties:
@@ -27,11 +30,19 @@ inputs:
       type: string
       default: "~/.swamp/web-cache"
       description: Shared cache directory
+    maxFetches:
+      type: number
+      default: 20
+      description: Run-level origin-fetch budget
+    budgetId:
+      type: string
+      default: ""
+      description: Run id that shares the fetch budget across fetch steps
   required:
     - titles
 jobs:
   - name: main
-    description: Resolve candidate titles via page-props.
+    description: Fetch the batched page-props response and parse it.
     steps:
       - name: build-url
         description: Build the batched page-props query URL.
@@ -45,14 +56,42 @@ jobs:
         dependsOn: []
         weight: 0
         allowFailure: false
-      - name: fetch
-        description: Fetch + cache the page-props URL.
+      - name: fetch-single
+        description: >-
+          For one title, let the page fetch plan choose Enterprise (reusing the
+          article the infobox step needs) or the public page-props URL.
+        guard: ${{ size(inputs.titles) != 1 }}
         task:
           type: workflow
-          workflowIdOrName: "@svendowideit/web-cache-fetch"
+          workflowIdOrName: "@svendowideit/wikipedia-fetch-page"
           inputs:
-            urls: ${{ data.latest("wiki", "page-props-url").attributes.urls }}
+            title: ${{ inputs.titles[0] }}
+            format: json
+            publicUrl: ${{ data.latest("wiki", "page-props-url").attributes.url }}
             cacheDir: ${{ inputs.cacheDir }}
+            maxFetches: ${{ inputs.maxFetches }}
+            budgetId: ${{ inputs.budgetId }}
+        dependsOn:
+          - step: build-url
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+      - name: fetch-batch
+        description: For several titles, fetch the public batch page-props URL.
+        guard: ${{ size(inputs.titles) == 1 }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/web-cache"
+          modelName: cache
+          methodName: get
+          globalArgs:
+            cacheDir: ${{ inputs.cacheDir }}
+          inputs:
+            url: ${{ data.latest("wiki", "page-props-url").attributes.url }}
+            maxFetches: ${{ inputs.maxFetches }}
+            budgetId: ${{ inputs.budgetId }}
+            resultName: page-props-fetch
         dependsOn:
           - step: build-url
             condition:
@@ -60,7 +99,7 @@ jobs:
         weight: 0
         allowFailure: true
       - name: parse
-        description: Parse the cached page-props body.
+        description: Parse the public or single-title Enterprise cache entry.
         task:
           type: model_method
           modelType: "@svendowideit/wikipedia"
@@ -71,8 +110,12 @@ jobs:
           inputs:
             titles: ${{ inputs.titles }}
             key: ${{ inputs.key }}
+            url: ${{ data.latest("wiki", "page-props-url").attributes.url }}
         dependsOn:
-          - step: fetch
+          - step: fetch-single
+            condition:
+              type: always
+          - step: fetch-batch
             condition:
               type: always
         weight: 0

@@ -1,18 +1,19 @@
 id: 624cd7eb-0e2d-4c8a-83b3-1f9975220a9e
 name: "@svendowideit/wikipedia-infobox"
 description: |
-  Extract a page's infobox as key/value pairs through the shared cache,
-  transparently. The caller does not care whether a fetch happened or a cache
-  hit was used.
-
-  Steps: build the wikitext page URL → web-cache-fetch → parse + extract the
-  infobox.
+  Extract a page's infobox as key/value pairs, transparently. The fetch step
+  chooses Wikimedia Enterprise when the `enterprise-wikimedia` vault and local
+  quota allow it, otherwise the public API; `get-infobox` reads whichever cache
+  entry exists.
 
   Inputs:
-    title    — page title
-    template — optional infobox template name to restrict to (e.g. writer, book)
-    key      — optional data name for the result (defaults to title)
-    cacheDir — shared cache dir (default ~/.swamp/web-cache)
+    title      — page title
+    template   — optional infobox template name to restrict to
+    key        — optional data name for the result
+    cacheDir   — shared cache dir (default ~/.swamp/web-cache)
+    maxFetches — run-level origin-fetch budget (shared via web-cache)
+    budgetId   — workflow run id that shares that budget
+    runId      — namespaces private Enterprise plan/token files
 tags: {}
 inputs:
   properties:
@@ -31,41 +32,43 @@ inputs:
       type: string
       default: "~/.swamp/web-cache"
       description: Shared cache directory
+    maxFetches:
+      type: number
+      default: 20
+      description: Run-level origin-fetch budget
+    budgetId:
+      type: string
+      default: ""
+      description: Run id that shares the fetch budget across fetch steps
+    runId:
+      type: string
+      default: ""
+      description: Run id used to namespace private Enterprise plan files
   required:
     - title
 jobs:
   - name: main
-    description: Extract an infobox from a page.
+    description: Fetch the wikitext and extract an infobox.
     steps:
-      - name: build-url
-        description: Build the wikitext page URL.
+      - name: fetch-page
+        guard: ${{ inputs.title == null || inputs.title == "" }}
+        description: Populate the public or Enterprise wikitext cache entry.
         task:
-          type: model_method
-          modelType: "@svendowideit/wikipedia"
-          modelName: wiki
-          methodName: page-url
+          type: workflow
+          workflowIdOrName: "@svendowideit/wikipedia-fetch-page"
           inputs:
             title: ${{ inputs.title }}
             format: wikitext
-        dependsOn: []
-        weight: 0
-        allowFailure: false
-      - name: fetch
-        description: Fetch + cache the wikitext URL.
-        task:
-          type: workflow
-          workflowIdOrName: "@svendowideit/web-cache-fetch"
-          inputs:
-            urls: ${{ data.latest("wiki", "page-url").attributes.urls }}
             cacheDir: ${{ inputs.cacheDir }}
-        dependsOn:
-          - step: build-url
-            condition:
-              type: succeeded
+            maxFetches: ${{ inputs.maxFetches }}
+            budgetId: ${{ inputs.budgetId }}
+            runId: ${{ inputs.runId }}
+        dependsOn: []
         weight: 0
         allowFailure: true
       - name: parse
-        description: Extract the infobox from the cached wikitext.
+        guard: ${{ inputs.title == null || inputs.title == "" }}
+        description: Extract the infobox from whichever cache entry exists.
         task:
           type: model_method
           modelType: "@svendowideit/wikipedia"
@@ -78,7 +81,7 @@ jobs:
             template: ${{ inputs.template }}
             key: ${{ inputs.key }}
         dependsOn:
-          - step: fetch
+          - step: fetch-page
             condition:
               type: always
         weight: 0

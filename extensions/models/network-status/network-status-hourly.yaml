@@ -1,0 +1,83 @@
+id: 8c6bc0b1-7349-488e-99af-f2e1fd0a656d
+name: "@svendowideit/network-status"
+description: |
+  Hourly Debian-family package and security audit, followed by the idempotent
+  Caddy serving setup.
+
+  The audit step probes every configured host and writes one HTML page. The
+  serve step then declares the page's file_server route via
+  @svendowideit/caddy's normal additive reconcile: it reads the caddy model that
+  already owns this machine, creates/updates a dedicated status-caddy model
+  carrying only that model's baseDomain and serviceName, and lets caddy derive
+  the TLS subject and A record from the route. It never creates a second Caddy
+  service and never runs the caddy commands in isolation.
+
+  The serve step is safe to run every hour: it no-ops once the route and DNS are
+  correct, and skips with a log when @svendowideit/caddy is not installed or no
+  single source caddy model can be chosen. DNS/TLS reconciliation can take a
+  while on the first run; that is expected.
+
+trigger:
+  schedule: "0 * * * *"
+  inputs: {}
+inputs:
+  properties:
+    statusModel:
+      type: string
+      default: status
+      description: The @svendowideit/network-status model holding the host list.
+    caddyModelName:
+      type: string
+      default: ""
+      description: >-
+        Source @svendowideit/caddy model to read baseDomain/serviceName from.
+        Empty auto-discovers the model that owns this machine.
+    statusHostname:
+      type: string
+      default: ""
+      description: >-
+        Override the served hostname. Empty uses the model's statusHostname
+        global, else status.<host>.<domain> from the source caddy model.
+    caddyServeModel:
+      type: string
+      default: status-caddy
+      description: Dedicated @svendowideit/caddy model that carries the status route.
+  required: []
+jobs:
+  - name: audit-and-serve
+    description: Audit the fleet, then idempotently declare the status page route.
+    steps:
+      - name: audit
+        description: Probe every configured Debian-family host and render index.html.
+        task:
+          type: model_method
+          modelType: "@svendowideit/network-status"
+          modelName: ${{ inputs.statusModel }}
+          methodName: audit
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: serve
+        description: >-
+          Declare the Caddy file_server route and let caddy derive DNS/TLS.
+          Runs after the audit; skips with a log when caddy is absent. The
+          route and DNS are idempotent, so this is the setup path as well as
+          the hourly refresh.
+        task:
+          type: model_method
+          modelType: "@svendowideit/network-status"
+          modelName: ${{ inputs.statusModel }}
+          methodName: ensure-caddy-serve
+          inputs:
+            model: ${{ inputs.caddyModelName }}
+            hostname: ${{ inputs.statusHostname }}
+            serveModel: ${{ inputs.caddyServeModel }}
+        dependsOn:
+          - step: audit
+            condition:
+              type: always
+        weight: 0
+        allowFailure: true
+    dependsOn: []
+    weight: 0
+version: 1

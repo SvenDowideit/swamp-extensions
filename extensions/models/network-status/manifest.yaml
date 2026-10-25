@@ -1,0 +1,121 @@
+manifestVersion: 1
+name: "@svendowideit/network-status"
+version: "2026.10.25.1"
+description: |
+  One hourly HTML status page for a mixed Debian-family fleet: it audits pending
+  package updates on every host over SSH, separates security updates from normal
+  ones, adds Ubuntu Pro security counts and Debian debsecan CVEs where the host
+  provides them, and writes a single static page that Caddy serves at
+  status.<host>.<zone>.
+
+  WHAT IT DOES
+
+    Turns "what needs patching on my network?" into one page. For every
+    configured host it runs a read-only probe (no root, no package changes):
+    `apt-get -s -qq dist-upgrade` for pending updates, the apt security origin
+    for security classification, `pro security-status --format json` on Ubuntu
+    for standard/ESM security counts, and `debsecan --format detail` on Debian
+    when it is installed for CVE detail. Hosts that are not Debian-family are
+    reported as skipped instead of failing the sweep. Results are stored as
+    swamp data and rendered into one self-contained `index.html`.
+
+    The page is deliberately extensible: a `tasks.json` action list and the
+    addTask/removeTask methods let any other workflow add "other things I need to
+    do on the network" without changing this extension. The Debian audit is the
+    first provider, not a hard-coded one-off.
+
+    Serving is the last step of the bundled hourly workflow, following the same
+    pattern as @svendowideit/ebooks and @svendowideit/news: `ensure-caddy-serve`
+    reads the caddy model that already owns this machine, creates/updates a
+    dedicated status-caddy model carrying only its baseDomain and serviceName,
+    and calls serveSettings. Caddy derives the TLS subject and A record from the
+    route, so the route is idempotent and no caddy command is run in isolation.
+    It never starts a second Caddy service.
+
+    Prefer it over a local-only apt reporter when the targets are remote: the
+    existing @aaronge/apt-inventory is the right tool for one host's local apt
+    state, while this extension adds the fleet fan-out and the one-page status
+    surface. It reuses @svendowideit/fleet-inventory for host discovery and
+    @svendowideit/caddy for serving, so it does not invent another inventory or
+    web server.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/network-status
+
+  DEPENDENCIES
+
+    @svendowideit/caddy is an optional dependency for the static file_server
+    route and TLS/DNS; pull it separately to enable the workflow's serve step
+    (the step skips with a log when it is absent). @svendowideit/fleet-inventory
+    is optional and recommended: use its inventory as the host source. Every
+    target needs an OpenSSH server and a key or agent the swamp host can use; no
+    swamp install is required on the targets. Ubuntu Pro (`pro`) and debsecan are
+    optional per host and only add security detail; without them the apt
+    security-origin list is still shown.
+
+  RUN
+
+      # The whole pipeline: audit the fleet, render the page, then idempotently
+      # declare the Caddy route (setup and hourly refresh in one run).
+      swamp workflow run @svendowideit/network-status
+
+      # Audit this machine first. `local: true` skips SSH for the host running
+      # swamp, so a fresh install can prove the collector end to end.
+      swamp model @svendowideit/network-status method run audit status \
+        --input 'hosts:json=[{"name":"localhost","address":"localhost","local":true}]'
+
+      # Record a network-wide action item. Other workflows call this too; it
+      # re-renders the page immediately so the item is visible on the next load.
+      swamp model @svendowideit/network-status method run addTask status \
+        --input title="Renew the UPS battery" --input severity=medium \
+        --input detail="Runtime is below 10 minutes."
+
+      # Rebuild the page after changing the template or tasks.json without
+      # re-running the network sweep.
+      swamp model @svendowideit/network-status method run render status
+
+  CONFIGURE
+
+    Global arguments: hosts (array of {name,address,user,port,os,local} or
+    user@host strings), sshUser, identityFile, connectTimeoutSec,
+    commandTimeoutSec, parallel, securityOrigin (default `-security`),
+    outputDir, outputFile, tasksFile, pageTitle, statusHostname,
+    staleAfterHours, cveCheck, static tasks, caddyModelName (source caddy model;
+    empty auto-discovers the one that owns this machine), caddyRouteHostname and
+    caddyServeModel. Method arguments: audit takes hosts/cveCheck/parallel
+    overrides; ensure-caddy-serve takes model/hostname/serveRoot/serveModel;
+    addTask takes id/title/detail/severity/link/source/due; removeTask takes id;
+    clearTasks requires confirm=true. Precedence is per-call --input > model
+    global > schema default.
+
+  WHAT IT INSTALLS
+
+    Nothing on any target. The probe is read-only and runs without sudo; it
+    writes no package state. On the swamp host it writes the HTML page and
+    tasks file under outputDir and writes swamp resources. Serving is Caddy's
+    existing file_server route declared by `ensure-caddy-serve` -- this
+    extension starts no second web server, daemon or webhook. The hourly
+    schedule is the bundled workflow trigger evaluated by `swamp serve`. On the
+    first run caddy may take a while to reconcile the new DNS record and
+    certificate; that is expected.
+repository: https://github.com/svendowideit/swamp-extensions
+license: MIT
+paths:
+  base: manifest
+models:
+  - network_status.ts
+workflows:
+  - network-status-hourly.yaml
+dependencies: []
+optionalDependencies:
+  - "@svendowideit/caddy"
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - network_status_test.ts
+platforms:
+  - linux-x86_64
+  - linux-aarch64
+  - darwin-x86_64
+  - darwin-aarch64

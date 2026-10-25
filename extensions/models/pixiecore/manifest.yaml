@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/pixiecore"
-version: "2026.10.24.2"
+version: "2026.10.24.4"
 description: >
   Run pixiecore as a managed container, auto-configured to serve netboot.xyz
   to any host that netboots on the LAN.
@@ -49,7 +49,7 @@ description: >
       serviceBackend direct | systemd (default direct)
       binary         docker | podman | container (default docker)
       listenAddr     IPv4 address to listen on (default 0.0.0.0)
-      httpPort       HTTP port for the netboot payload (default 80)
+      httpPort       HTTP port for the netboot payload (default 0 = auto-pick a free port)
       statusPort     optional separate status port (default 0 = disabled)
       dhcpNoBind     handle DHCP without binding (default true)
       debug          enable pixiecore debug logging (default false)

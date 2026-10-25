@@ -9,7 +9,7 @@ function safeValue(label: string): z.ZodString {
 }
 
 export const MODEL_TYPE = "@svendowideit/pixiecore";
-export const MODEL_VERSION = "2026.10.24.2";
+export const MODEL_VERSION = "2026.10.24.4";
 export const CONTAINER_SERVICE_TYPE = "@svendowideit/container-service";
 
 export const GlobalArgsSchema = z.object({
@@ -28,7 +28,10 @@ export const GlobalArgsSchema = z.object({
   listenAddr: safeValue("listenAddr").default("0.0.0.0").describe(
     "Listen address.",
   ),
-  httpPort: z.number().int().positive().default(80).describe("HTTP port."),
+  httpPort: z.number().int().nonnegative().default(0).describe(
+    "HTTP port for the netboot payload. 0 (default) picks a free " +
+      "non-privileged port automatically.",
+  ),
   statusPort: z.number().int().nonnegative().default(0).describe(
     "Status port.",
   ),
@@ -60,11 +63,29 @@ export function serviceModelName(modelName: string, override: string): string {
   return `${containerNameFor(modelName, override)}-svc`;
 }
 
-export function buildPixiecoreCommand(g: GlobalArgs): string[] {
+export function pickFreePort(): number {
+  for (let attempt = 0; attempt < 25; attempt++) {
+    const port = 10000 + Math.floor(Math.random() * 55000);
+    try {
+      const listener = Deno.listen({ hostname: "0.0.0.0", port });
+      listener.close();
+      return port;
+    } catch {
+      continue;
+    }
+  }
+  return 18080;
+}
+
+export function buildPixiecoreCommand(
+  g: GlobalArgs,
+  httpPort?: number,
+): string[] {
+  const port = httpPort ?? (g.httpPort > 0 ? g.httpPort : pickFreePort());
   const argv = ["quick", "xyz"];
   if (g.dhcpNoBind) argv.push("--dhcp-no-bind");
   argv.push("--listen-addr", g.listenAddr);
-  argv.push("--port", String(g.httpPort));
+  argv.push("--port", String(port));
   if (g.statusPort > 0) argv.push("--status-port", String(g.statusPort));
   if (g.debug) argv.push("--debug");
   return argv;
@@ -134,6 +155,7 @@ const ImageResultSchema = z.object({
   image: z.string(),
   command: z.array(z.string()),
   listenAddr: z.string(),
+  httpPort: z.number(),
   hostNetwork: z.boolean(),
 });
 const StatusResultSchema = z.object({
@@ -150,7 +172,7 @@ const RemoveResultSchema = z.object({
 
 export const model = {
   type: "@svendowideit/pixiecore",
-  version: "2026.10.24.2",
+  version: "2026.10.24.4",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -189,8 +211,9 @@ export const model = {
         const modelName = ctx.definition?.name ?? "";
         const containerName = containerNameFor(modelName, g.containerName);
         const serviceName = serviceModelName(modelName, g.containerName);
+        const httpPort = g.httpPort > 0 ? g.httpPort : pickFreePort();
         const image = resolveImage(g, args.image);
-        const command = buildPixiecoreCommand(g);
+        const command = buildPixiecoreCommand(g, httpPort);
         await callService(ctx, serviceName, "service", {
           containerName,
           action: "ensure",
@@ -206,6 +229,7 @@ export const model = {
           image,
           command,
           listenAddr: g.listenAddr,
+          httpPort,
           hostNetwork: true,
         });
         return { dataHandles: [handle] };

@@ -1,0 +1,133 @@
+manifestVersion: 1
+name: "@svendowideit/s3-archive-planner"
+version: "2026.10.25.1"
+description: >
+  Plan an Australian photo/video archive on Amazon S3 — compare hot, warm,
+  Glacier and Deep Archive tiers, lifecycle ladders, hybrid hot/cold splits and
+  access profiles, then cost the initial transfer and a verification strategy
+  that proves the S3 copy is byte-for-byte correct.
+
+  WHAT IT DOES
+
+    Answers "what will it cost, and what do we lose in access?" before you
+    upload a single photo. It fetches current AWS USD prices and a live USD/AUD
+    rate, then models S3 Standard, Standard-IA, One Zone-IA,
+    Intelligent-Tiering, Glacier Instant/Flexible Retrieval and Deep Archive for
+    Sydney or Melbourne — including per-object minimums, 40 KiB Glacier
+    metadata, transition/restore requests, retrieval and internet egress. It
+    compares direct-to-Deep-Archive against lifecycle ladders and hot/cold
+    splits, prices Google/NAS/optical transfer, and produces a SHA-256
+    verification plan with a restore drill. Inputs accept 1.2b / 500m / 90k. No
+    AWS credentials and no uploads — a planning model, not an ingest tool.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/s3-archive-planner
+
+  DEPENDENCIES
+
+    None beyond the bundled Deno runtime and swamp data. At run time it makes
+    outbound HTTPS requests to the AWS Price List API (USD) and a public
+    USD/AUD rate source; it needs no AWS credentials. Network failure falls back
+    to cached or bundled prices and records a warning. Regions:
+    `ap-southeast-2` (Sydney) and `ap-southeast-4` (Melbourne).
+
+    AWS publishes its Price List API in USD only; there is no AWS AUD price list
+    for this partition. AUD is a live conversion of the USD catalog using a
+    current public USD/AUD rate — not an AWS-published AUD price. It can differ
+    slightly from an AWS Australia invoice where AWS applies its own exchange
+    rate and GST treatment.
+
+  RUN
+
+      # 1. Create the planner. AUD is the default; live FX is fetched on use.
+      swamp model create @svendowideit/s3-archive-planner family-photos \
+        --global-arg region=ap-southeast-2 --global-arg currency=aud
+
+      # 2. Record what you have. bytes and objectCount accept plain numbers or
+      #    k/m/b strings. duplicateFraction removes bytes already in another source.
+      swamp model method run family-photos inventory \
+        --input 'sources:json=[{"name":"Google Photos","kind":"google","bytes":"1200b","objectCount":"450k"},{"name":"NAS","kind":"nas","bytes":"2500b","objectCount":"800k"},{"name":"DVD archive","kind":"optical","bytes":"180b","objectCount":"90k"}]'
+
+      # 3. Compare every tier/ladder for occasional access (1%/year restored)
+      #    and a 48h restore limit. Live AWS prices and FX are fetched if stale.
+      swamp model method run family-photos analyse \
+        --input accessProfile=occasional --input maxRestoreHours=48 --input years=10
+
+      # 4. Re-run the same inventory for a family-browsing profile that needs
+      #    12h restores and restores 5%/year.
+      swamp model method run family-photos analyse \
+        --input accessProfile=family --input maxRestoreHours=12 --input years=10
+
+      # 5. Force a fresh AWS/FX fetch and show the effective catalog/rate.
+      swamp model method run family-photos pricing --input refresh=true
+
+      # 6. Read the human-readable report, including transfer and verification.
+      swamp report get @svendowideit/s3-archive-report \
+        --model family-photos --markdown
+
+  CONFIGURE
+
+    Global arguments, set with `--global-arg`:
+
+      region                  ap-southeast-2 (default) or ap-southeast-4
+      currency                aud (default) or usd. AUD is a live conversion of
+                              the AWS USD list, not an AWS-published AUD price.
+      pricingRefresh          auto (default), always or never
+      pricingMaxAgeHours      reuse a cached live catalog for this long (24)
+      audPerUsd               optional manual AUD/USD override; omit for live FX
+      taxPercent              optional tax/GST percent added to totals (0)
+      uploadBandwidthMbps     upload speed for transfer-time estimates (100)
+      transferEfficiency      fraction of nominal bandwidth achieved (0.7)
+      multipartThresholdBytes objects above this use multipart (100 MiB)
+      multipartPartSizeBytes  assumed multipart part size (64 MiB)
+      multipartObjectFraction fraction of objects that are multipart (0)
+      priceOverrides          flat JSON path -> selected-currency overrides (empty)
+
+    Per-run `analyse` inputs: `accessProfile` (cold, occasional, family,
+    frequent, custom), `restoreFractionPerYear`, `restoreTier` (bulk, standard,
+    expedited), `restoreRetentionDays`, `extraEgressGbPerMonth`,
+    `getRequestsPerMonth`, `maxRestoreHours`, `years`, `planIds`, `egress`,
+    `verificationSampleFraction`, `verificationSampleMinBytes`,
+    `s3ComputesChecksum`, `useBatchOperations`, `priceOverrides` and
+    `inventoryOverride` (one-off totals/sources without re-recording).
+
+  UPGRADE
+
+    This extension installs nothing on the host, so updating the package is the
+    whole upgrade:
+
+        swamp extension update @svendowideit/s3-archive-planner
+
+    Re-run `analyse` afterwards; `pricingRefresh=auto` fetches current AWS
+    prices when the cache is stale.
+
+  WHAT IT INSTALLS
+
+    Nothing on the host — no services, daemons, cron triggers, webhooks or AWS
+    resources. It reads and writes swamp data (`inventory`, `analysis`,
+    `pricing`, `pricing-cache`), writes the report output, and makes outbound
+    HTTPS calls to the AWS Price List API and a public USD/AUD rate source.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - s3_archive_planner.ts
+
+reports:
+  - s3_archive_planner_report.ts
+
+dependencies: []
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - s3_archive_planner_test.ts
+  - s3_archive_planner_report_test.ts
+
+platforms: []

@@ -1,0 +1,129 @@
+# IMPORTANT: inventorying a NAS disk can take a long time (minutes to hours).
+# The default tree scan (du per volume) is the safe starting point.
+manifestVersion: 1
+name: "@svendowideit/synology-disk-usage"
+version: "2026.10.25.1"
+description: >
+  IMPORTANT — LONG-RUNNING SCAN
+
+    Inventorying a NAS disk can take a long time: minutes on a small volume,
+    hours on a large one. The default `tree` mode runs one `du` per volume and
+    is the safest starting point. Use `--input mode=shares` for a quick
+    share-level answer, and reserve `--input mode=files` for when you need
+    exact per-file categories.
+
+  Answers "what is using my Synology NAS space?" and separates Docker images,
+  Synology app data, Google Drive/Photos backups, ordinary backups, recycle
+  bins, user files, and media — instead of showing one opaque volume total.
+
+  WHAT IT DOES
+
+    SSHes into a Synology DSM host, auto-discovers its volumes and top-level
+    shares, then runs a fast `du` directory-tree scan (or an optional
+    per-file walk) and groups usage into Synology-specific buckets. It
+    understands `@docker` (Container Manager), `@appstore`/`@synologydrive`/
+    `@cloudsync` and other `@` app-data directories, Google Drive and Google
+    Photos sync folders, Hyper Backup / Active Backup / Time Machine
+    destinations, `#recycle` bins, `homes`, and media libraries. The default
+    `du -d3` scan runs on the NAS and sends one line per directory, so a 100 TB
+    volume does not stream millions of file paths over SSH. Prefer it over a
+    generic `du` report: it tells you *which category* owns the bytes, not just
+    which folder.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/synology-disk-usage
+
+  DEPENDENCIES
+
+    An OpenSSH client on the machine running swamp, and key/agent SSH access to
+    the NAS (password prompts are disabled). No DSM admin API account, no
+    package installed on the NAS, and no other swamp extension is required.
+
+  RUN
+
+      # Create the model once with the NAS SSH target.
+      swamp model create @svendowideit/synology-disk-usage nas \
+        --global-arg host=admin@diskstation
+
+      # Verify SSH, persist the settings, and discover volumes.
+      swamp model method run nas setup
+
+      # Default tree audit: one du -d3 per volume, classifying large dirs.
+      swamp model method run nas audit
+
+      # Exact per-file walk when you need file-extension/content categories.
+      swamp model method run nas audit --input mode=files
+
+      # Lightest audit: one du per top-level share.
+      swamp model method run nas audit --input mode=shares
+
+      # Read root-only @docker/@appstore data via sudo -n (NOPASSWD required).
+      swamp model method run nas audit --input useSudo=true
+
+  CONFIGURE
+
+    Global arguments (set with `--global-arg`): `host`, `sshUser`,
+    `identityFile`, `sshPort`, `volumes` (empty auto-detects `/volume[0-9]*`),
+    `categories` (custom path rules; empty uses the Synology defaults),
+    `excludePatterns` (regexes to skip), `minNotableBytes` (default 1 GiB),
+    `maxFiles` (0 = unlimited), `timeoutMs` (0 = none), `useSudo`
+    (default false; run remote `find`/`du` through `sudo -n` to read root-only
+    app data and Docker storage; needs NOPASSWD for those two binaries and the
+    error prints the exact sudoers line and install command), and
+    `oneFilesystem` (default false; cross Synology shared-folder
+    subvolumes/mounts so `homes`, `photo`, and `GoogleDrive` are measured;
+    true adds `-x`/`-xdev`), and `treeDepth` (default 3; directory depth for
+    the `du` tree scan).
+
+    Every audit also reports scanned-vs-used coverage and lists discovered
+    shares with no readable files, so a permission-limited scan is visible
+    instead of looking like the whole NAS. Override scan settings per run with
+    `--input` (for example `mode`, `treeDepth`, `useSudo`, `oneFilesystem`,
+    `categories`, `excludePatterns`, `minNotableBytes`, `maxFiles`,
+    `timeoutMs`).
+
+  SETUP
+
+    `setup` persists every supplied value, reads the saved config back before
+    asking again, verifies the real SSH connection, and records the detected
+    model, DSM version, and volumes. Supplied values are saved even when
+    incomplete; a failed connection is written to the `config` resource and the
+    method stops with the SSH error rather than claiming success.
+
+  UPGRADE
+
+    This extension installs nothing on the host, so the upgrade is automated in
+    place by updating the package:
+
+        swamp extension update @svendowideit/synology-disk-usage
+
+  WHAT IT INSTALLS
+
+    Nothing on the host — no services, daemons, cron jobs, or webhooks. It opens
+    SSH sessions, runs read-only `find`/`du`/`df` commands, and writes swamp
+    resources.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - synology_disk_usage.ts
+
+reports:
+  - synology_disk_usage_report.ts
+
+dependencies: []
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - synology_disk_usage_shared.ts
+  - synology_disk_usage_test.ts
+  - synology_disk_usage_report_test.ts
+
+platforms: []

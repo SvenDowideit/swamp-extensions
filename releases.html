@@ -367,7 +367,57 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261022.192303.0-sha.6bcd132d" rel="noopener">release v20261022.192303.0-sha.6bcd132d</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6bcd132d6dffd479a182d9b141ba42abf07e659a" rel="noopener">6bcd132d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3303" rel="noopener">#3303</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3294" rel="noopener">#3294</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261024-185121-0-sha-03e347b9">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261024-212546-0-sha-9c4005ab">
+<h2><span class="tier A">A</span>terminal log lines use the run renderers&#39; gutter and pipe layout instead of LogTape&#39;s pretty format (swamp-club#3888) (#3362)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-24T21:31:57Z">2026-10-24T21:31:57Z</time></span><span>logging</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(logging): terminal log lines use the run renderers&#39; gutter and pipe layout instead of LogTape&#39;s pretty format (swamp-club#3888) (#3362)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>In a terminal, LogTape records printed in the <code>@logtape/pretty</code> layout: an RFC3339 timestamp, level and category on every line, word-wrapped with a hanging indent, and interpolated strings quoted. A path in a warning could not be copied, and the lines looked nothing like <code>model method run</code> / <code>workflow run</code> output (which moved off LogTape in #1963):</p>
+<p>```</p>
+<p>2026-10-24T18:56:42.059Z   warning swamp·model·loader   Using discovered deno config for</p>
+<p>                                                        &quot;tailworm.ts&quot;:</p>
+<p>                                                        &quot;/Users/…/tailworm/deno.json&quot;</p>
+<p>```</p>
+<p>Terminal log records now use the run renderers&#39; layout:</p>
+<p>```</p>
+<p>    Deleted 6 version(s) of result for hi (command/shell)</p>
+<p>    Warning   Using discovered deno config for tailworm.ts: /Users/…/tailworm/deno.json</p>
+<p>      Error   Cannot read properties of undefined (reading &#39;id&#39;)</p>
+<p>              at run (file:///…)</p>
+<p> system │ Debug Acquiring lock for datastore · datastore.lock      ← during a workflow run</p>
+<p>```</p>
+<ul>
+<li><strong>Formatter:</strong> <code>interactiveFormatter</code> in <code>log_format.ts</code> replaces <code>@logtape/pretty</code>, which is removed from <code>deno.json</code> and <code>deno.lock</code>.</li>
+<li><strong>Gutter:</strong> a Cargo-style status gutter: <code>Warning</code>, <code>Error</code>, <code>Debug</code>.</li>
+<li>Info records carry no label and start where <code>Warning</code> starts, so command results read as plain text.</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/terminal-output/SKILL.md" rel="noopener">.claude/skills/terminal-output/SKILL.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/terminal-output/references/logtape.md" rel="noopener">.claude/skills/terminal-output/references/logtape.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261024.212546.0-sha.9c4005ab" rel="noopener">release v20261024.212546.0-sha.9c4005ab</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9c4005ab3056032b2565d6786b5543e2eef9dbf0" rel="noopener">9c4005ab</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3362" rel="noopener">#3362</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/1963" rel="noopener">#1963</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261024-204655-0-sha-5261164f">
+<h2><span class="tier A">A</span>a step&#39;s dirty marks survive its siblings&#39; pushes — the CLI run gates its own syncs, repositories mark after each write as well as before, and conformance pins clear-only-handled marks (swamp-club#3860, swamp-club#2421, swamp-club#2907) (#3361)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-24T20:52:36Z">2026-10-24T20:52:36Z</time></span><span>datastore</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(datastore): a step&#39;s dirty marks survive its siblings&#39; pushes — the CLI run gates its own syncs, repositories mark after each write as well as before, and conformance pins clear-only-handled marks (swamp-club#3860, swamp-club#2421, swamp-club#2907) (#3361)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>On a v2 S3 datastore about 4–5% of serial <code>swamp workflow run</code>s failed with <code>datastore_unpublished_data_version</code>, blaming &quot;a concurrent run or the serve poller&quot; when neither existed (swamp-club#3860). The parallel steps of one run share one sync service, and a sibling step&#39;s push wiped the dirty marks another step had just staged — on every publish attempt, because the CLI never gated the &quot;push alone&quot; last attempt. Two related issues share the cause: repositories marked a path dirty *before* writing it, so a concurrent push could upload old bytes and clear the mark (swamp-club#2421); and a failed push lost its recorded deletes (swamp-club#2907).</p>
+<p>This PR is the swamp half. The extension half (S3/GCS clear only the marks a push handled) follows in swamp-extensions as <code>2026.10.24.2</code>, after this merges and swamp-testing publishes.</p>
+<p><strong>What changes</strong></p>
+<ul>
+<li><strong>CLI run gate.</strong> <code>workflow run</code> and <code>workflow resume</code> build their step lock hook with <code>workflowStepLockHook</code>, which gives the command one in-process sync gate through serve&#39;s <code>createStepLockHook</code> (new optional <code>progressWriter</code>). A lock&#39;s last publish attempt now runs alone, as it does in serve. Fitness rules pin the wiring.</li>
+<li>**Marks before a</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261024.204655.0-sha.5261164f" rel="noopener">release v20261024.204655.0-sha.5261164f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/5261164f9680cfaffb0045ec0c9b2480237153f8" rel="noopener">5261164f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3361" rel="noopener">#3361</a>𝗔 <a href="https://swamp-club.com/lab/3860" rel="noopener">lab#3860</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261024-185121-0-sha-03e347b9">
 <h2><span class="tier A">A</span>behavior validate gives pre-flight checks the global arguments parsed by the schema, so a defaulted field a check reads is no longer undefined (swamp-club#3851) (#3360)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-24T18:57:26Z">2026-10-24T18:57:26Z</time></span><span>validation</span><span>fix</span></div>
@@ -12342,56 +12392,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.222935.0-sha.852243ed" rel="noopener">release v20261015.222935.0-sha.852243ed</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/852243edf2e7c999e8f4f08c9f54f4e18575c9ff" rel="noopener">852243ed</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3152" rel="noopener">#3152</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20261024-212546-0-sha-9c4005ab">
-<h2><span class="tier C">C</span>swamp 20261024.212546.0-sha.9c4005ab</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-24T21:31:57Z">2026-10-24T21:31:57Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>feat(logging): terminal log lines use the run renderers&#39; gutter and pipe layout instead of LogTape&#39;s pretty format (swamp-club#3888) (#3362)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>In a terminal, LogTape records printed in the <code>@logtape/pretty</code> layout: an RFC3339 timestamp, level and category on every line, word-wrapped with a hanging indent, and interpolated strings quoted. A path in a warning could not be copied, and the lines looked nothing like <code>model method run</code> / <code>workflow run</code> output (which moved off LogTape in #1963):</p>
-<p>```</p>
-<p>2026-10-24T18:56:42.059Z   warning swamp·model·loader   Using discovered deno config for</p>
-<p>                                                        &quot;tailworm.ts&quot;:</p>
-<p>                                                        &quot;/Users/…/tailworm/deno.json&quot;</p>
-<p>```</p>
-<p>Terminal log records now use the run renderers&#39; layout:</p>
-<p>```</p>
-<p>    Deleted 6 version(s) of result for hi (command/shell)</p>
-<p>    Warning   Using discovered deno config for tailworm.ts: /Users/…/tailworm/deno.json</p>
-<p>      Error   Cannot read properties of undefined (reading &#39;id&#39;)</p>
-<p>              at run (file:///…)</p>
-<p> system │ Debug Acquiring lock for datastore · datastore.lock      ← during a workflow run</p>
-<p>```</p>
-<ul>
-<li><strong>Formatter:</strong> <code>interactiveFormatter</code> in <code>log_format.ts</code> replaces <code>@logtape/pretty</code>, which is removed from <code>deno.json</code> and <code>deno.lock</code>.</li>
-<li><strong>Gutter:</strong> a Cargo-style status gutter: <code>Warning</code>, <code>Error</code>, <code>Debug</code>.</li>
-<li>Info records carry no label and start where <code>Warning</code> starts, so command results read as plain text.</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261024.212546.0-sha.9c4005ab" rel="noopener">release v20261024.212546.0-sha.9c4005ab</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9c4005ab" rel="noopener">9c4005ab</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3362" rel="noopener">#3362</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/1963" rel="noopener">#1963</a></div>
-</article>
-<article class="item" id="release-swamp-club-swamp-v20261024-204655-0-sha-5261164f">
-<h2><span class="tier C">C</span>swamp 20261024.204655.0-sha.5261164f</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-24T20:52:36Z">2026-10-24T20:52:36Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(datastore): a step&#39;s dirty marks survive its siblings&#39; pushes — the CLI run gates its own syncs, repositories mark after each write as well as before, and conformance pins clear-only-handled marks (swamp-club#3860, swamp-club#2421, swamp-club#2907) (#3361)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>On a v2 S3 datastore about 4–5% of serial <code>swamp workflow run</code>s failed with <code>datastore_unpublished_data_version</code>, blaming &quot;a concurrent run or the serve poller&quot; when neither existed (swamp-club#3860). The parallel steps of one run share one sync service, and a sibling step&#39;s push wiped the dirty marks another step had just staged — on every publish attempt, because the CLI never gated the &quot;push alone&quot; last attempt. Two related issues share the cause: repositories marked a path dirty *before* writing it, so a concurrent push could upload old bytes and clear the mark (swamp-club#2421); and a failed push lost its recorded deletes (swamp-club#2907).</p>
-<p>This PR is the swamp half. The extension half (S3/GCS clear only the marks a push handled) follows in swamp-extensions as <code>2026.10.24.2</code>, after this merges and swamp-testing publishes.</p>
-<p><strong>What changes</strong></p>
-<ul>
-<li><strong>CLI run gate.</strong> <code>workflow run</code> and <code>workflow resume</code> build their step lock hook with <code>workflowStepLockHook</code>, which gives the command one in-process sync gate through serve&#39;s <code>createStepLockHook</code> (new optional <code>progressWriter</code>). A lock&#39;s last publish attempt now runs alone, as it does in serve. Fitness rules pin the wiring.</li>
-<li>**Marks before a</li>
-</ul></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261024.204655.0-sha.5261164f" rel="noopener">release v20261024.204655.0-sha.5261164f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/5261164f" rel="noopener">5261164f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3361" rel="noopener">#3361</a>𝗔 <a href="https://swamp-club.com/lab/3860" rel="noopener">lab#3860</a></div>
-</article>
 <article class="item" id="release-swamp-club-swamp-v20261024-183449-0-sha-77d44ab6">
 <h2><span class="tier C">C</span>record the solo v3 dogfood results as the Real-bucket check, and move the real-bucket timings to the team-mode dogfood (swamp-club#3756) (#3359)</h2>
 <p class="lede">`docs` change · swamp-club/swamp</p>
@@ -13396,12 +13396,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>551 items across 1 source(s) in this window:
-25 critical, 471 notable, 15 routine,
-40 minor.</p>
-<ul><li><strong>fix</strong> — 358</li><li><strong>feat</strong> — 135</li><li><strong>test</strong> — 22</li><li><strong>docs</strong> — 18</li><li><strong>refactor</strong> — 12</li><li><strong>perf</strong> — 3</li></ul></section>
+25 critical, 473 notable, 15 routine,
+38 minor.</p>
+<ul><li><strong>fix</strong> — 359</li><li><strong>feat</strong> — 136</li><li><strong>test</strong> — 22</li><li><strong>docs</strong> — 18</li><li><strong>refactor</strong> — 12</li><li><strong>perf</strong> — 3</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-25T00:05:13.896Z">2026-10-25T00:05:13.896Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-25T01:04:59.944Z">2026-10-25T01:04:59.944Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

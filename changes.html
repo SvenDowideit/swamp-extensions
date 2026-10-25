@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html" class="active">Changes</a><a href="releases.html">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#commit-swamp-club-swamp-extensions-fad59d81fa3d055572f1de37e4f5c8bf81cd4272"><span class="tier S">S</span>keep the issue&#39;s type in fast_forward; guard leaving securit</a><a href="#commit-swamp-club-swamp-extensions-2bfe8153c98a047a4cd08642d85732e6dc95a115"><span class="tier S">S</span>add @swamp/cve/http2shell for the Brotli decoder RCE (CVE-20</a><a href="#commit-swamp-club-swamp-8030932cc9bf355a6948fb620c77319940ba6be7"><span class="tier S">S</span>the data-plane bytes route is held to the dispatch&#39;s behavio</a><a href="#commit-swamp-club-swamp-a7fc9351b57485cb86ac3fa7c6da50c7758b2773"><span class="tier S">S</span>method run masks sensitive argument values, and run and vali</a><a href="#commit-swamp-club-swamp-extensions-6d6aa9aa0062362ef1fc08cd28b19c44864769cc"><span class="tier A">A</span>opt-in reachability matrix from each node&#39;s packet filter (s</a><a href="#commit-swamp-club-swamp-extensions-0159bab55b04bdd760d7a0d23faa1f3f599deb7b"><span class="tier A">A</span>remote studio polls serve only while a page listens, backing</a><a href="#commit-swamp-club-swamp-extensions-2b5923a3b0bc304c9c0c955ee4caa7b5d31d8bbf"><span class="tier A">A</span>gradeFleet grades many hosts&#39; probe output in one call (swam</a><a href="#commit-swamp-club-swamp-extensions-c9092d7d2d40337b0b3178fe59ee28427291a59d"><span class="tier A">A</span>unverified serve targets, CRLF output and RESOLVE pairing (s</a><a href="#commit-swamp-club-swamp-extensions-ddb2f6dcdbd9adfcc482cc7e0ce812ccb05bc9a6"><span class="tier A">A</span>clearer externalsecret not-found and unique force-sync value</a><a href="#commit-swamp-club-swamp-extensions-c732eb27c6f2ea70039325ba33599080001f420f"><span class="tier A">A</span>grade probe output from other exec channels (swamp-club #390</a><a href="#commit-swamp-club-swamp-extensions-1202b3d94d7dd1bb8d7f1d301b4083660d5ccc24"><span class="tier A">A</span>externalsecret model with forceSync; stop storing last-appli</a><a href="#commit-swamp-club-swamp-b4dd513df4f2a833a54923760ac03b4161adf7a3"><span class="tier A">A</span>lock, sync and v3 recovery progress lines are written in log</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#commit-swamp-club-swamp-extensions-fad59d81fa3d055572f1de37e4f5c8bf81cd4272"><span class="tier S">S</span>keep the issue&#39;s type in fast_forward; guard leaving securit</a><a href="#commit-swamp-club-swamp-extensions-2bfe8153c98a047a4cd08642d85732e6dc95a115"><span class="tier S">S</span>add @swamp/cve/http2shell for the Brotli decoder RCE (CVE-20</a><a href="#commit-swamp-club-swamp-8030932cc9bf355a6948fb620c77319940ba6be7"><span class="tier S">S</span>the data-plane bytes route is held to the dispatch&#39;s behavio</a><a href="#commit-swamp-club-swamp-a7fc9351b57485cb86ac3fa7c6da50c7758b2773"><span class="tier S">S</span>method run masks sensitive argument values, and run and vali</a><a href="#commit-swamp-club-swamp-extensions-c24e369fc9da432f09b37d940cf717aab1f8a420"><span class="tier A">A</span>S3 and GCS clear only the dirty marks a push handled, and sk</a><a href="#commit-swamp-club-swamp-a62742e297751ff445f39da040fb3228fafd80d0"><span class="tier A">A</span>--server search and list commands print a plain list instead</a><a href="#commit-swamp-club-swamp-1f57d2b71aec5763f64b3e2c87f58a1d93c61fc3"><span class="tier A">A</span>serve&#39;s datastore API for team mode: forwarded v3 commits au</a><a href="#commit-swamp-club-swamp-extensions-6d6aa9aa0062362ef1fc08cd28b19c44864769cc"><span class="tier A">A</span>opt-in reachability matrix from each node&#39;s packet filter (s</a><a href="#commit-swamp-club-swamp-extensions-0159bab55b04bdd760d7a0d23faa1f3f599deb7b"><span class="tier A">A</span>remote studio polls serve only while a page listens, backing</a><a href="#commit-swamp-club-swamp-extensions-2b5923a3b0bc304c9c0c955ee4caa7b5d31d8bbf"><span class="tier A">A</span>gradeFleet grades many hosts&#39; probe output in one call (swam</a><a href="#commit-swamp-club-swamp-extensions-c9092d7d2d40337b0b3178fe59ee28427291a59d"><span class="tier A">A</span>unverified serve targets, CRLF output and RESOLVE pairing (s</a><a href="#commit-swamp-club-swamp-extensions-ddb2f6dcdbd9adfcc482cc7e0ce812ccb05bc9a6"><span class="tier A">A</span>clearer externalsecret not-found and unique force-sync value</a></aside><div>
 
 <article class="item" id="commit-swamp-club-swamp-extensions-fad59d81fa3d055572f1de37e4f5c8bf81cd4272">
 <h2><span class="tier S">S</span>keep the issue&#39;s type in fast_forward; guard leaving security (swamp-club #3899) (#564)</h2>
@@ -100,6 +100,30 @@ footer .ver{color:var(--acc)}
 <div class="body"><p>fix(security): method run masks sensitive argument values, and run and validate refuse a stored literal sensitive global (swamp-club#3555) (#3207)</p></div>
 
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a7fc9351b57485cb86ac3fa7c6da50c7758b2773" rel="noopener">a7fc9351</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3207" rel="noopener">#3207</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-extensions-c24e369fc9da432f09b37d940cf717aab1f8a420">
+<h2><span class="tier A">A</span>S3 and GCS clear only the dirty marks a push handled, and skip files that vanish mid-walk instead of failing the push or deleting their siblings (swamp-club #3941, #3860, #2421, #2907) (#569)</h2>
+<p class="lede">`fix` change · swamp-club/swamp-extensions</p>
+<div class="meta"><span><time datetime="2026-10-25T21:44:05Z">2026-10-25T21:44:05Z</time></span><span>datastore</span><span>fix</span></div>
+<div class="body"><p>fix(datastore): S3 and GCS clear only the dirty marks a push handled, and skip files that vanish mid-walk instead of failing the push or deleting their siblings (swamp-club #3941, #3860, #2421, #2907) (#569)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/c24e369fc9da432f09b37d940cf717aab1f8a420" rel="noopener">c24e369f</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/569" rel="noopener">#569</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/3941" rel="noopener">#3941</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/3860" rel="noopener">#3860</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/2421" rel="noopener">#2421</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/2907" rel="noopener">#2907</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-a62742e297751ff445f39da040fb3228fafd80d0">
+<h2><span class="tier A">A</span>--server search and list commands print a plain list instead of the picker, and local workflow history search waits for its picker (swamp-club#3917) (#3369)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-25T21:34:10Z">2026-10-25T21:34:10Z</time></span><span>cli</span><span>fix</span></div>
+<div class="body"><p>fix(cli): --server search and list commands print a plain list instead of the picker, and local workflow history search waits for its picker (swamp-club#3917) (#3369)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a62742e297751ff445f39da040fb3228fafd80d0" rel="noopener">a62742e2</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3369" rel="noopener">#3369</a>𝗔 <a href="https://swamp-club.com/lab/3917" rel="noopener">lab#3917</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-1f57d2b71aec5763f64b3e2c87f58a1d93c61fc3">
+<h2><span class="tier A">A</span>serve&#39;s datastore API for team mode: forwarded v3 commits authorised op by op on their intents, admin-only writes until #3922, commits.db schema 8 and group commit (swamp-club#3915) (#3368)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-25T21:31:34Z">2026-10-25T21:31:34Z</time></span><span>serve</span><span>feat</span></div>
+<div class="body"><p>feat(serve): serve&#39;s datastore API for team mode: forwarded v3 commits authorised op by op on their intents, admin-only writes until #3922, commits.db schema 8 and group commit (swamp-club#3915) (#3368)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1f57d2b71aec5763f64b3e2c87f58a1d93c61fc3" rel="noopener">1f57d2b7</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3368" rel="noopener">#3368</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3922" rel="noopener">#3922</a>𝗔 <a href="https://swamp-club.com/lab/3915" rel="noopener">lab#3915</a></div>
 </article>
 <article class="item" id="commit-swamp-club-swamp-extensions-6d6aa9aa0062362ef1fc08cd28b19c44864769cc">
 <h2><span class="tier A">A</span>opt-in reachability matrix from each node&#39;s packet filter (swamp-club #3919, #3923) (#568)</h2>
@@ -141,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/ddb2f6dcdbd9adfcc482cc7e0ce812ccb05bc9a6" rel="noopener">ddb2f6dc</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/562" rel="noopener">#562</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/3909" rel="noopener">#3909</a></div>
 </article>
-<article class="item" id="commit-swamp-club-swamp-extensions-c732eb27c6f2ea70039325ba33599080001f420f">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="commit-swamp-club-swamp-extensions-c732eb27c6f2ea70039325ba33599080001f420f">
 <h2><span class="tier A">A</span>grade probe output from other exec channels (swamp-club #3908) (#561)</h2>
 <p class="lede">`feat` change · swamp-club/swamp-extensions</p>
 <div class="meta"><span><time datetime="2026-10-25T12:27:06Z">2026-10-25T12:27:06Z</time></span><span>cve/tailworm</span><span>feat</span></div>
@@ -165,7 +189,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b4dd513df4f2a833a54923760ac03b4161adf7a3" rel="noopener">b4dd513d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3365" rel="noopener">#3365</a>𝗔 <a href="https://swamp-club.com/lab/3902" rel="noopener">lab#3902</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="commit-swamp-club-swamp-extensions-a9c489a4712b04ce54a6e04e912317380e101d0f">
+<article class="item" id="commit-swamp-club-swamp-extensions-a9c489a4712b04ce54a6e04e912317380e101d0f">
 <h2><span class="tier A">A</span>review follow-ups and headscale advice (swamp-club #3898, #3900) (#558)</h2>
 <p class="lede">`fix` change · swamp-club/swamp-extensions</p>
 <div class="meta"><span><time datetime="2026-10-25T01:42:37Z">2026-10-25T01:42:37Z</time></span><span>cve/tailworm</span><span>fix</span></div>
@@ -4814,13 +4838,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214ef9980daf68e919a43f6db3cff17da608" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>593 items across 2 source(s) in this window:
-4 critical, 516 notable, 38 routine,
+<p>596 items across 2 source(s) in this window:
+4 critical, 519 notable, 38 routine,
 35 minor.</p>
-<ul><li><strong>fix</strong> — 355</li><li><strong>feat</strong> — 165</li><li><strong>chore</strong> — 25</li><li><strong>test</strong> — 17</li><li><strong>docs</strong> — 16</li><li><strong>refactor</strong> — 10</li></ul></section>
+<ul><li><strong>fix</strong> — 357</li><li><strong>feat</strong> — 166</li><li><strong>chore</strong> — 25</li><li><strong>test</strong> — 17</li><li><strong>docs</strong> — 16</li><li><strong>refactor</strong> — 10</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-25T21:04:42.838Z">2026-10-25T21:04:42.838Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-25T22:04:50.890Z">2026-10-25T22:04:50.890Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

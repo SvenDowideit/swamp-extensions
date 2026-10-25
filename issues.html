@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3889"><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli deco</a><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3932"><span class="tier A">A</span>Disable the inbox notification email (&quot;You have received a n</a><a href="#issue-3931"><span class="tier A">A</span>Award grants (showcase approval, admin award points) skip ca</a><a href="#issue-3923"><span class="tier A">A</span>@swamp/cve/tailworm: reachability follow-ups from #3919 revi</a><a href="#issue-3919"><span class="tier A">A</span>@swamp/cve/tailworm: opt-in reachability matrix from each no</a><a href="#issue-3892"><span class="tier A">A</span>WS handshake drops the port from the Origin, so a --trusted-</a><a href="#issue-3900"><span class="tier A">A</span>@swamp/cve/tailworm: after mitigate caps headscale, the resc</a><a href="#issue-3910"><span class="tier A">A</span>@swamp/cve/tailworm grade: unix serve targets the probe coul</a><a href="#issue-3909"><span class="tier A">A</span>kubernetes: externalsecret and normalizeMeta follow-ups from</a><a href="#issue-3902"><span class="tier A">A</span>v3 crash recovery&#39;s progress line breaks --json stderr: a fa</a><a href="#issue-3877"><span class="tier A">A</span>Docs: vaults reference should say a wide local_encryption ke</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3889"><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli deco</a><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-2907"><span class="tier A">A</span>S3/GCS datastore: a push that fails after uploading drops it</a><a href="#issue-3860"><span class="tier A">A</span>v2 S3: about 4-5% of serial workflow runs fail with datastor</a><a href="#issue-3917"><span class="tier A">A</span>`swamp workflow list --server` TUI picker exits immediately </a><a href="#issue-3915"><span class="tier A">A</span>Datastore rework Phase 5 (team mode) 1/3: serve&#39;s datastore </a><a href="#issue-3932"><span class="tier A">A</span>Disable the inbox notification email (&quot;You have received a n</a><a href="#issue-3931"><span class="tier A">A</span>Award grants (showcase approval, admin award points) skip ca</a><a href="#issue-3923"><span class="tier A">A</span>@swamp/cve/tailworm: reachability follow-ups from #3919 revi</a><a href="#issue-3919"><span class="tier A">A</span>@swamp/cve/tailworm: opt-in reachability matrix from each no</a><a href="#issue-3892"><span class="tier A">A</span>WS handshake drops the port from the Origin, so a --trusted-</a><a href="#issue-3900"><span class="tier A">A</span>@swamp/cve/tailworm: after mitigate caps headscale, the resc</a></aside><div>
 
 <article class="item" id="issue-3889">
 <h2><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli decoder RCE (CVE-2026-111497, Node2Shell/HTTP2Shell)</h2>
@@ -84,6 +84,38 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3576" rel="noopener">lab#3576</a></div>
+</article>
+<article class="item" id="issue-2907">
+<h2><span class="tier A">A</span>S3/GCS datastore: a push that fails after uploading drops its recorded deletes, so the retry brings deleted data back</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-25T21:46:54.505Z">2026-10-25T21:46:54.505Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2907" rel="noopener">lab#2907</a></div>
+</article>
+<article class="item" id="issue-3860">
+<h2><span class="tier A">A</span>v2 S3: about 4-5% of serial workflow runs fail with datastore_unpublished_data_version (&#39;a concurrent run or the serve poller synced&#39;) when nothing else is running (found by #3756)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-25T21:46:54.119Z">2026-10-25T21:46:54.119Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3860" rel="noopener">lab#3860</a></div>
+</article>
+<article class="item" id="issue-3917">
+<h2><span class="tier A">A</span>`swamp workflow list --server` TUI picker exits immediately in an interactive terminal</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-25T21:37:42.760Z">2026-10-25T21:37:42.760Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3917" rel="noopener">lab#3917</a></div>
+</article>
+<article class="item" id="issue-3915">
+<h2><span class="tier A">A</span>Datastore rework Phase 5 (team mode) 1/3: serve&#39;s datastore API — commit, chunk and catch-up endpoints, authorisation on each op&#39;s intent, principal stamping and actionable conflicts</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-25T21:32:33.360Z">2026-10-25T21:32:33.360Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3915" rel="noopener">lab#3915</a></div>
 </article>
 <article class="item" id="issue-3932">
 <h2><span class="tier A">A</span>Disable the inbox notification email (&quot;You have received a notification in Swamp Club&quot;)</h2>
@@ -133,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3900" rel="noopener">lab#3900</a></div>
 </article>
-<article class="item" id="issue-3910">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3910">
 <h2><span class="tier A">A</span>@swamp/cve/tailworm grade: unix serve targets the probe could not resolve are graded as ordinary sockets</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-25T13:20:56.889Z">2026-10-25T13:20:56.889Z</time></span></div>
@@ -165,7 +197,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3877" rel="noopener">lab#3877</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3859">
+<article class="item" id="issue-3859">
 <h2><span class="tier A">A</span>Docs: manual states the old pre-flight check rule and scores fast-check by deno doc --lint</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-25T01:33:47.765Z">2026-10-25T01:33:47.765Z</time></span></div>
@@ -228,22 +260,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3818" rel="noopener">lab#3818</a></div>
-</article>
-<article class="item" id="issue-2907">
-<h2><span class="tier A">A</span>S3/GCS datastore: a push that fails after uploading drops its recorded deletes, so the retry brings deleted data back</h2>
-<p class="lede">Shipped bug fix</p>
-<div class="meta"><span><time datetime="2026-10-24T20:48:01.883Z">2026-10-24T20:48:01.883Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/2907" rel="noopener">lab#2907</a></div>
-</article>
-<article class="item" id="issue-3860">
-<h2><span class="tier A">A</span>v2 S3: about 4-5% of serial workflow runs fail with datastore_unpublished_data_version (&#39;a concurrent run or the serve poller synced&#39;) when nothing else is running (found by #3756)</h2>
-<p class="lede">Shipped bug fix</p>
-<div class="meta"><span><time datetime="2026-10-24T20:48:01.457Z">2026-10-24T20:48:01.457Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3860" rel="noopener">lab#3860</a></div>
 </article>
 <article class="item" id="issue-3851">
 <h2><span class="tier A">A</span>behavior validate gives pre-flight checks unparsed global arguments (no zod defaults), unlike behavior run</h2>
@@ -5893,21 +5909,53 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-3915">
-<h2><span class="tier B">B</span>Datastore rework Phase 5 (team mode) 1/3: serve&#39;s datastore API — commit, chunk and catch-up endpoints, authorisation on each op&#39;s intent, principal stamping and actionable conflicts</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-25T21:00:59.520Z">2026-10-25T21:00:59.520Z</time></span></div>
+<article class="item" id="issue-3901">
+<h2><span class="tier B">B</span>swamp-club.com/cve/tailworm states two things its sources do not say: finding 5&#39;s memory growth and no exploitation in the wild</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-25T22:02:27.772Z">2026-10-25T22:02:27.772Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3915" rel="noopener">lab#3915</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3901" rel="noopener">lab#3901</a></div>
 </article>
-<article class="item" id="issue-3917">
-<h2><span class="tier B">B</span>`swamp workflow list --server` TUI picker exits immediately in an interactive terminal</h2>
+<article class="item" id="issue-3942">
+<h2><span class="tier B">B</span>swamp-extensions GCS storage test &#39;put: an abort mid-upload leaves no object and no resumable session&#39; fails about 1 run in 5 (fixed 50 ms sleeps)</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-25T22:02:01.702Z">2026-10-25T22:02:01.702Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3942" rel="noopener">lab#3942</a></div>
+</article>
+<article class="item" id="issue-3944">
+<h2><span class="tier B">B</span>AWS codegen treats nested primaryIdentifier pointers as top-level fields</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-25T20:39:31.742Z">2026-10-25T20:39:31.742Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-25T21:53:14.297Z">2026-10-25T21:53:14.297Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3917" rel="noopener">lab#3917</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3944" rel="noopener">lab#3944</a></div>
+</article>
+<article class="item" id="issue-3943">
+<h2><span class="tier B">B</span>AWS codegen collapses nested createOnly/readOnly paths to their last segment</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-25T21:53:14.113Z">2026-10-25T21:53:14.113Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3943" rel="noopener">lab#3943</a></div>
+</article>
+<article class="item" id="issue-3936">
+<h2><span class="tier B">B</span>budget type has no Budget argument, so it cannot create a budget</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-25T21:53:13.926Z">2026-10-25T21:53:13.926Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3936" rel="noopener">lab#3936</a></div>
+</article>
+<article class="item" id="issue-3924">
+<h2><span class="tier B">B</span>@swamp/cve/tailworm: check the reachability matrix against a Tailscale-hosted tailnet</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-25T21:37:58.844Z">2026-10-25T21:37:58.844Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3924" rel="noopener">lab#3924</a></div>
 </article>
 <article class="item" id="issue-3935">
 <h2><span class="tier B">B</span>v3 on S3/GCS: a replica restore yields a corrupt commits.db (fails SQLite&#39;s integrity check), so fresh clones and restores of the datastore fail; reproduces with Litestream alone from its first compacted L1 file (found by #3916)</h2>
@@ -6045,13 +6093,13 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3936">
-<h2><span class="tier C">C</span>budget type has no Budget argument, so it cannot create a budget</h2>
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3939">
+<h2><span class="tier C">C</span>v3 read model: guard against aliased key spellings on case-insensitive filesystems, without slowing replay</h2>
 <p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-25T20:03:29.991Z">2026-10-25T20:03:29.991Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-25T21:28:35.951Z">2026-10-25T21:28:35.951Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3936" rel="noopener">lab#3936</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3939" rel="noopener">lab#3939</a></div>
 </article>
 <article class="item" id="issue-3929">
 <h2><span class="tier C">C</span>Showcase reward backfill can double-pay 5,000,000 points when replicas start together</h2>
@@ -6101,14 +6149,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3925" rel="noopener">lab#3925</a></div>
 </article>
-<article class="item" id="issue-3924">
-<h2><span class="tier C">C</span>@swamp/cve/tailworm: check the reachability matrix against a Tailscale-hosted tailnet</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-25T18:21:41.640Z">2026-10-25T18:21:41.640Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3924" rel="noopener">lab#3924</a></div>
-</article>
 <article class="item" id="issue-3922">
 <h2><span class="tier C">C</span>Datastore rework Phase 5: content-level authorisation for forwarded definition and evaluated-file writes</h2>
 <p class="lede">Open issue</p>
@@ -6156,14 +6196,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3913" rel="noopener">lab#3913</a></div>
-</article>
-<article class="item" id="issue-3901">
-<h2><span class="tier C">C</span>swamp-club.com/cve/tailworm states two things its sources do not say: finding 5&#39;s memory growth and no exploitation in the wild</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-25T01:26:33.700Z">2026-10-25T01:26:33.700Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3901" rel="noopener">lab#3901</a></div>
 </article>
 <article class="item" id="issue-3887">
 <h2><span class="tier C">C</span>A workflow step&#39;s method output is invisible to `data query` and `data list`, and the method summary&#39;s retrieval command returns an older run&#39;s data</h2>
@@ -8022,13 +8054,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>994 items across 1 source(s) in this window:
-2 critical, 726 notable, 19 routine,
-247 minor.</p>
-<ul><li><strong>issues</strong> — 994</li></ul></section>
+<p>998 items across 1 source(s) in this window:
+2 critical, 728 notable, 23 routine,
+245 minor.</p>
+<ul><li><strong>issues</strong> — 998</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-25T21:04:42.838Z">2026-10-25T21:04:42.838Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-25T22:04:50.890Z">2026-10-25T22:04:50.890Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

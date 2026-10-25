@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3889"><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli deco</a><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3772"><span class="tier A">A</span>cve/emudhra page: Windows and macOS support, and shared CVE </a><a href="#issue-3886"><span class="tier A">A</span>studio: no favicon — /favicon.ico 404s and the page declares</a><a href="#issue-3891"><span class="tier A">A</span>extension_tarball_analyzer_test fails on macOS: tar --mode i</a><a href="#issue-3775"><span class="tier A">A</span>@swamp/cve/php-rce-2026-10: match RHEL fixes for the PHP RCE</a><a href="#issue-3818"><span class="tier A">A</span>scanFleet: support a different SSH user per host (user@host </a><a href="#issue-2907"><span class="tier A">A</span>S3/GCS datastore: a push that fails after uploading drops it</a><a href="#issue-3860"><span class="tier A">A</span>v2 S3: about 4-5% of serial workflow runs fail with datastor</a><a href="#issue-3851"><span class="tier A">A</span>behavior validate gives pre-flight checks unparsed global ar</a><a href="#issue-3756"><span class="tier A">A</span>Datastore rework Phase 4 I: dogfood and benchmark solo v3 (f</a><a href="#issue-3832"><span class="tier A">A</span>workflow validate reports a string-form dependsOn as an [FTL</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3889"><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli deco</a><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3877"><span class="tier A">A</span>Docs: vaults reference should say a wide local_encryption ke</a><a href="#issue-3859"><span class="tier A">A</span>Docs: manual states the old pre-flight check rule and scores</a><a href="#issue-3821"><span class="tier A">A</span>Docs: define the sensitive-output fallback vault order and d</a><a href="#issue-3893"><span class="tier A">A</span>v3 long silent waits: crash recovery runs ~24 s with no outp</a><a href="#issue-3772"><span class="tier A">A</span>cve/emudhra page: Windows and macOS support, and shared CVE </a><a href="#issue-3886"><span class="tier A">A</span>studio: no favicon — /favicon.ico 404s and the page declares</a><a href="#issue-3891"><span class="tier A">A</span>extension_tarball_analyzer_test fails on macOS: tar --mode i</a><a href="#issue-3775"><span class="tier A">A</span>@swamp/cve/php-rce-2026-10: match RHEL fixes for the PHP RCE</a><a href="#issue-3818"><span class="tier A">A</span>scanFleet: support a different SSH user per host (user@host </a><a href="#issue-2907"><span class="tier A">A</span>S3/GCS datastore: a push that fails after uploading drops it</a></aside><div>
 
 <article class="item" id="issue-3889">
 <h2><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli decoder RCE (CVE-2026-111497, Node2Shell/HTTP2Shell)</h2>
@@ -84,6 +84,38 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3576" rel="noopener">lab#3576</a></div>
+</article>
+<article class="item" id="issue-3877">
+<h2><span class="tier A">A</span>Docs: vaults reference should say a wide local_encryption key file gets a warning</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-25T01:33:47.953Z">2026-10-25T01:33:47.953Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3877" rel="noopener">lab#3877</a></div>
+</article>
+<article class="item" id="issue-3859">
+<h2><span class="tier A">A</span>Docs: manual states the old pre-flight check rule and scores fast-check by deno doc --lint</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-25T01:33:47.765Z">2026-10-25T01:33:47.765Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3859" rel="noopener">lab#3859</a></div>
+</article>
+<article class="item" id="issue-3821">
+<h2><span class="tier A">A</span>Docs: define the sensitive-output fallback vault order and document the doctor vaults fallback warning</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-25T01:33:47.575Z">2026-10-25T01:33:47.575Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3821" rel="noopener">lab#3821</a></div>
+</article>
+<article class="item" id="issue-3893">
+<h2><span class="tier A">A</span>v3 long silent waits: crash recovery runs ~24 s with no output, data prune is silent 6-10 s in log mode, and a lagging read hangs ~112 s when Litestream&#39;s listing is cut (found by #3756)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-25T01:07:59.271Z">2026-10-25T01:07:59.271Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3893" rel="noopener">lab#3893</a></div>
 </article>
 <article class="item" id="issue-3772">
 <h2><span class="tier A">A</span>cve/emudhra page: Windows and macOS support, and shared CVE layer fixes (follow-up to #3710 and #3766)</h2>
@@ -133,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2907" rel="noopener">lab#2907</a></div>
 </article>
-<article class="item" id="issue-3860">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3860">
 <h2><span class="tier A">A</span>v2 S3: about 4-5% of serial workflow runs fail with datastore_unpublished_data_version (&#39;a concurrent run or the serve poller synced&#39;) when nothing else is running (found by #3756)</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-24T20:48:01.457Z">2026-10-24T20:48:01.457Z</time></span></div>
@@ -165,7 +197,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3832" rel="noopener">lab#3832</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3882">
+<article class="item" id="issue-3882">
 <h2><span class="tier A">A</span>v3 bucket outage: a command cut off while becoming the writer says its changes are saved locally when nothing was saved (workflow approve), and the suggested recover fails for a run cut mid-step (found by #3756)</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-24T13:00:30.934Z">2026-10-24T13:00:30.934Z</time></span></div>
@@ -5789,38 +5821,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-3877">
-<h2><span class="tier B">B</span>Docs: vaults reference should say a wide local_encryption key file gets a warning</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-25T00:59:30.746Z">2026-10-25T00:59:30.746Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3877" rel="noopener">lab#3877</a></div>
-</article>
-<article class="item" id="issue-3859">
-<h2><span class="tier B">B</span>Docs: manual states the old pre-flight check rule and scores fast-check by deno doc --lint</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-25T00:59:30.558Z">2026-10-25T00:59:30.558Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3859" rel="noopener">lab#3859</a></div>
-</article>
-<article class="item" id="issue-3821">
-<h2><span class="tier B">B</span>Docs: define the sensitive-output fallback vault order and document the doctor vaults fallback warning</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-25T00:59:30.368Z">2026-10-25T00:59:30.368Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3821" rel="noopener">lab#3821</a></div>
-</article>
-<article class="item" id="issue-3893">
-<h2><span class="tier B">B</span>v3 long silent waits: crash recovery runs ~24 s with no output, data prune is silent 6-10 s in log mode, and a lagging read hangs ~112 s when Litestream&#39;s listing is cut (found by #3756)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-25T00:45:59.614Z">2026-10-25T00:45:59.614Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3893" rel="noopener">lab#3893</a></div>
-</article>
 <article class="item" id="issue-3735">
 <h2><span class="tier B">B</span>typed-secrets 4.6: turn the typed path on for every entry point, remove the internal option, and delete the regular-expression rewrite, the value search and the plaintext resolution of tagged fields</h2>
 <p class="lede">Issue in_progress</p>
@@ -5941,7 +5941,31 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3892">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3902">
+<h2><span class="tier C">C</span>v3 crash recovery&#39;s progress line breaks --json stderr: a failing command that recovered prints text before its JSON error (regression from #3363 / #3893)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-25T01:54:56.823Z">2026-10-25T01:54:56.823Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3902" rel="noopener">lab#3902</a></div>
+</article>
+<article class="item" id="issue-3901">
+<h2><span class="tier C">C</span>swamp-club.com/cve/tailworm states two things its sources do not say: finding 5&#39;s memory growth and no exploitation in the wild</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-25T01:26:33.700Z">2026-10-25T01:26:33.700Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3901" rel="noopener">lab#3901</a></div>
+</article>
+<article class="item" id="issue-3900">
+<h2><span class="tier C">C</span>@swamp/cve/tailworm: after mitigate caps headscale, the rescan still tells you to set MemoryMax and Restart=always</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-25T01:04:08.669Z">2026-10-25T01:04:08.669Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3900" rel="noopener">lab#3900</a></div>
+</article>
+<article class="item" id="issue-3892">
 <h2><span class="tier C">C</span>WS handshake drops the port from the Origin, so a --trusted-hosts entry with a port never matches (follow-up to #1840)</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-24T22:13:07.918Z">2026-10-24T22:13:07.918Z</time></span></div>
@@ -7806,13 +7830,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>967 items across 1 source(s) in this window:
-2 critical, 713 notable, 19 routine,
-233 minor.</p>
-<ul><li><strong>issues</strong> — 967</li></ul></section>
+<p>970 items across 1 source(s) in this window:
+2 critical, 717 notable, 15 routine,
+236 minor.</p>
+<ul><li><strong>issues</strong> — 970</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-25T01:04:59.944Z">2026-10-25T01:04:59.944Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-25T02:04:59.223Z">2026-10-25T02:04:59.223Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

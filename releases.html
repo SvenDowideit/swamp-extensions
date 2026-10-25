@@ -367,7 +367,31 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261022.192303.0-sha.6bcd132d" rel="noopener">release v20261022.192303.0-sha.6bcd132d</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6bcd132d6dffd479a182d9b141ba42abf07e659a" rel="noopener">6bcd132d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3303" rel="noopener">#3303</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3294" rel="noopener">#3294</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261024-212546-0-sha-9c4005ab">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261025-010734-0-sha-02a2b20b">
+<h2><span class="tier A">A</span>v3&#39;s long silent waits end: crash recovery keeps files that already hold their committed bytes and says it is recovering, data prune streams its status lines, and a restore whose replica cannot be listed fails the read (swamp-club#3893) (#3363)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-25T01:13:53Z">2026-10-25T01:13:53Z</time></span><span>datastore-v3</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(datastore-v3): v3&#39;s long silent waits end: crash recovery keeps files that already hold their committed bytes and says it is recovering, data prune streams its status lines, and a restore whose replica cannot be listed fails the read (swamp-club#3893) (#3363)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3893: three places where a v3 command went quiet for long enough to look hung.</p>
+<p><strong>1. Crash recovery.</strong> A recovery&#39;s replay used to rewrite every committed file in the checkout. It now keeps a file that already holds its committed inline bytes and access. The check reads the file and compares it, and rejects symlinks and hard-linked files. Kept files stay in the unsynced list that a reboot re-checks.</p>
+<ul>
+<li>Recovery now has its own span, <code>swamp.datastore.v3.readmodel.recover</code>.</li>
+<li>It prints <code>Recovering work an interrupted command left in this checkout…</code> on stderr in both output modes, through the lock-progress writer, so <code>-q</code> silences it. <code>--json</code> stdout is unchanged.</li>
+<li>The recovered warning no longer quotes its interpolated strings.</li>
+</ul>
+<p><strong>2. <code>data prune</code>.</strong> In log mode it now streams its status line (<code>Looking for orphaned data to reclaim</code>) and holds only its result until the root commits, the way #3759 planned. <code>--json</code> is unchanged. <code>runInCoordinatorRoot</code> takes the output-hold mode, and it defaults to <code>held</code>.</p>
+<p><strong>3. A read during a cut of the Litestream listing.</strong> A lagging checkout&#39;s restore is now watched through the provider&#39;s <code>replicaPaths()</code> store.</p>
+<ul>
+<li>After 2 s, swamp list</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastore-litestream.md" rel="noopener">design/enablers/datastore-litestream.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261025.010734.0-sha.02a2b20b" rel="noopener">release v20261025.010734.0-sha.02a2b20b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/02a2b20b571d511161a156e676ad321948197d0b" rel="noopener">02a2b20b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3363" rel="noopener">#3363</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3759" rel="noopener">#3759</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3802" rel="noopener">#3802</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3882" rel="noopener">#3882</a>𝗔 <a href="https://swamp-club.com/lab/3893" rel="noopener">lab#3893</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261024-212546-0-sha-9c4005ab">
 <h2><span class="tier A">A</span>terminal log lines use the run renderers&#39; gutter and pipe layout instead of LogTape&#39;s pretty format (swamp-club#3888) (#3362)</h2>
 <p class="lede">`feat` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-24T21:31:57Z">2026-10-24T21:31:57Z</time></span><span>logging</span><span>feat</span></div>
@@ -11662,6 +11686,38 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.060930.0-sha.ccae15a5" rel="noopener">release v20261001.060930.0-sha.ccae15a5</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ccae15a547ef51d5186e3d21f5492683bea56882" rel="noopener">ccae15a5</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2758" rel="noopener">#2758</a>𝗔 <a href="https://swamp-club.com/lab/2866" rel="noopener">lab#2866</a></div>
 </article>
+<article class="item" id="release-swamp-club-swamp-v20261025-020714-0-sha-6729b8f6">
+<h2><span class="tier B">B</span>bump vite to 6.4.4 for its dev-server file-access fixes (swamp-club#3903) (#3364)</h2>
+<p class="lede">`chore` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-25T02:13:22Z">2026-10-25T02:13:22Z</time></span><span>dashboard</span><span>chore</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>chore(dashboard): bump vite to 6.4.4 for its dev-server file-access fixes (swamp-club#3903) (#3364)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Bumps the dashboard&#39;s vite dev dependency from <code>^6.3.5</code> (locked at 6.4.3) to <code>^6.4.4</code>, locked at <strong>6.4.4</strong> in both lockfiles (swamp-club#3903).</p>
+<p>Vite 6.4.4 is a patch release:</p>
+<ul>
+<li>the dev server checks resolved ids for transform access, and stores ids rather than URLs in <code>safeModulePaths</code></li>
+<li>the filename passed to <code>transformIndexHtml</code> no longer includes queries</li>
+<li><code>launch-editor</code> is updated to 2.14.2</li>
+</ul>
+<p>Changed files:</p>
+<ul>
+<li><code>packages/dashboard/package.json</code>: range <code>^6.3.5</code> → <code>^6.4.4</code></li>
+<li><code>packages/dashboard/package-lock.json</code>: vite 6.4.3 → 6.4.4 (via <code>npm install</code>)</li>
+<li><code>deno.lock</code>: vite 6.4.3 → 6.4.4. The dashboard is a Deno workspace member, so the root lock pins vite too. This lock was pinned by hand, changing only the vite entries and the <code>@tailwindcss/vite</code> / <code>@vitejs/plugin-react</code> entries that reference them. A fresh Deno resolution picks 6.4.5 and also rewrites unrelated entries.</li>
+</ul>
+<p>Vite is a dev dependency. Its only effect on the shipped binary is the dashboard <code>dist/</code> that <code>scripts/compile.ts</code> embeds, so the attestation&#39;s affected commands are <code>all</code> (forced by <code>deno.lock</code> and the dashboard package files).</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li><code>deno install --frozen</code> accepts the pinned <code>deno.lock</code> and downloads vite 6.4.4</li>
+<li><code>deno run build-dashboard</code> builds the dashboard with vite 6.4.4</li>
+<li><code>verify-build</code> passed: lint, fmt, type check, tests, deps audit, compile, binary check</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261025.020714.0-sha.6729b8f6" rel="noopener">release v20261025.020714.0-sha.6729b8f6</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6729b8f632c0f1e667a8227b6161c6dd8f8be52a" rel="noopener">6729b8f6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3364" rel="noopener">#3364</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261024-011325-0-sha-5840c80b">
 <h2><span class="tier B">B</span>v3 first clone and restore replay only what is left at the end of the feed, batch the catalog, and load a compacted base without per-file syncs (swamp-club#3803) (#3352)</h2>
 <p class="lede">`perf` change · swamp-club/swamp</p>
@@ -13395,13 +13451,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.073437.0-sha.acf6214e" rel="noopener">release v20261001.073437.0-sha.acf6214e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214ef9980daf68e919a43f6db3cff17da608" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>551 items across 1 source(s) in this window:
-25 critical, 473 notable, 15 routine,
+<p>553 items across 1 source(s) in this window:
+25 critical, 474 notable, 16 routine,
 38 minor.</p>
-<ul><li><strong>fix</strong> — 359</li><li><strong>feat</strong> — 136</li><li><strong>test</strong> — 22</li><li><strong>docs</strong> — 18</li><li><strong>refactor</strong> — 12</li><li><strong>perf</strong> — 3</li></ul></section>
+<ul><li><strong>fix</strong> — 360</li><li><strong>feat</strong> — 136</li><li><strong>test</strong> — 22</li><li><strong>docs</strong> — 18</li><li><strong>refactor</strong> — 12</li><li><strong>perf</strong> — 3</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-25T04:05:42.532Z">2026-10-25T04:05:42.532Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-25T05:08:24.631Z">2026-10-25T05:08:24.631Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

@@ -360,7 +360,57 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/data-query.md" rel="noopener">design/enablers/data-query.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261022.200604.0-sha.8fa7de2d" rel="noopener">release v20261022.200604.0-sha.8fa7de2d</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8fa7de2d3016c10d1e7fd4ab840b62de93f9cded" rel="noopener">8fa7de2d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3304" rel="noopener">#3304</a>𝗔 <a href="https://swamp-club.com/lab/3732" rel="noopener">lab#3732</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261026-013051-0-sha-c44a03cd">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261026-165331-0-sha-fdab982d">
+<h2><span class="tier A">A</span>a run interrupted at a clean shutdown is settled in the shared datastore when the interrupt push misses its deadline (swamp-club#3958) (#3377)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-26T17:03:27Z">2026-10-26T17:03:27Z</time></span><span>serve</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): a run interrupted at a clean shutdown is settled in the shared datastore when the interrupt push misses its deadline (swamp-club#3958) (#3377)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>On a synced (format 2) datastore, a SIGTERM&#39;d <code>swamp serve</code> marks its aborted workflow runs interrupted locally and pushes them under one 5 s deadline. When that push missed, as it did on AWS S3 in production, the datastore kept the runs <code>running</code> indefinitely. The heartbeat was deleted, so peers never reconciled the instance, and every later reap only changed a local cache.</p>
+<p>The 5 s deadline stays as it is. Every later path now brings the datastore to <code>interrupted</code>:</p>
+<ul>
+<li><strong>Shutdown</strong> (<code>src/serve/shutdown_interrupt.ts</code>)</li>
+<li>Completes each aborted run&#39;s tracker row as <code>interrupted</code>/<code>server_shutdown</code>, so the next boot&#39;s reaper no longer skips the run as still running.</li>
+<li>Records the runs it could not push in <code>.swamp/serve-unpushed-interrupts.json</code> (<code>src/serve/unpushed_interrupts.ts</code>).</li>
+<li>Prints <code>{&quot;status&quot;:&quot;interrupt_push_failed&quot;,&quot;runIds&quot;:[...]}</code> in <code>--json</code> mode.</li>
+<li>Writes those runs&#39; active-run records back, then leaves a stopped heartbeat (<code>stoppedAt</code>) instead of deleting it. Each write is bounded by 5 s. If the heartbeat write fails, the last heartbeat is left to go stale; it is never deleted.</li>
+<li><strong>Boot</strong></li>
+<li>Reads the marked runs by id, because the status index misses a record a pull put back to <code>running</code>.</li>
+<li>Reaps, then pushes once. The marker is cleared only when the push lands.</li>
+<li>**Re</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261026.165331.0-sha.fdab982d" rel="noopener">release v20261026.165331.0-sha.fdab982d</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/fdab982d113097f9fba13d7ba6840f73161531a0" rel="noopener">fdab982d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3377" rel="noopener">#3377</a>𝗔 <a href="https://swamp-club.com/lab/3958" rel="noopener">lab#3958</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261026-153129-0-sha-125be8e0">
+<h2><span class="tier A">A</span>a run-activity or age-out refetch waits for the read in flight and reads once more, so a slow search is shown while runs keep starting (swamp-club#3960) (#3376)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-26T15:37:09Z">2026-10-26T15:37:09Z</time></span><span>dashboard</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(dashboard): a run-activity or age-out refetch waits for the read in flight and reads once more, so a slow search is shown while runs keep starting (swamp-club#3960) (#3376)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<ul>
+<li>The throttled refetch behind run summaries, model output searches and run searches went through <code>runner.send</code>, which superseded the read still in flight. On a serve slower than the 30-second throttle (<code>RUN_ACTIVITY_REFETCH_MS</code>), continued run activity discarded every completed reply until activity stopped. swamp-club#3959 saw this as replies superseded at 56 s and 94 s, and details shown only at 152 s.</li>
+<li>The request runner (<code>packages/dashboard/src/client/request_runner.ts</code>) gains <code>refresh</code>. With a read in flight, it starts nothing: that read&#39;s reply is shown, and one more read is sent once it settles, however many refreshes came meanwhile. A <code>send</code> or <code>invalidate</code> drops the owed read, so a payload or time-range change still supersedes.</li>
+<li><code>useRequest</code> exposes it as <code>refresh</code>. The four callers of <code>useRefetchOnRunActivity</code> and <code>useRefetchOnAgeOut</code> pass it:</li>
+<li><code>model_outputs.ts</code></li>
+<li><code>run_summary.ts</code></li>
+<li><code>trigger_runs.ts</code></li>
+<li><code>Executions.tsx</code></li>
+</ul>
+<p>  Retry buttons stay on <code>refetch</code>.</p>
+<ul>
+<li><code>useRequest</code> now clears <code>error</code>/<code>errorInfo</code> and sets <code>loading</code> when a read actually goes out, rather than when it is asked for. Without this, a failure of the joined read stayed on the hook after the owed read answered. That kept the trigger run lists and the model output search on their legacy</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/local-dashboard.md" rel="noopener">design/surfaces/local-dashboard.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261026.153129.0-sha.125be8e0" rel="noopener">release v20261026.153129.0-sha.125be8e0</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/125be8e0bc4a9b12eb86187fd8798fb3e2126cce" rel="noopener">125be8e0</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3376" rel="noopener">#3376</a>𝗔 <a href="https://swamp-club.com/lab/3960" rel="noopener">lab#3960</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261026-013051-0-sha-c44a03cd">
 <h2><span class="tier A">A</span>swamp subscription start opens the Swamp Club billing page, or a collective&#39;s with --collective, and status points its call to action at it (swamp-club#3951) (#3374)</h2>
 <p class="lede">`feat` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-26T01:36:41Z">2026-10-26T01:36:41Z</time></span><span>cli</span><span>feat</span></div>
@@ -13734,13 +13784,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.073437.0-sha.acf6214e" rel="noopener">release v20261001.073437.0-sha.acf6214e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214ef9980daf68e919a43f6db3cff17da608" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>565 items across 1 source(s) in this window:
-26 critical, 482 notable, 19 routine,
+<p>567 items across 1 source(s) in this window:
+26 critical, 484 notable, 19 routine,
 38 minor.</p>
-<ul><li><strong>fix</strong> — 365</li><li><strong>feat</strong> — 140</li><li><strong>test</strong> — 22</li><li><strong>docs</strong> — 18</li><li><strong>refactor</strong> — 13</li><li><strong>perf</strong> — 5</li></ul></section>
+<ul><li><strong>fix</strong> — 367</li><li><strong>feat</strong> — 140</li><li><strong>test</strong> — 22</li><li><strong>docs</strong> — 18</li><li><strong>refactor</strong> — 13</li><li><strong>perf</strong> — 5</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-26T16:02:56.104Z">2026-10-26T16:02:56.104Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-26T17:06:11.078Z">2026-10-26T17:06:11.078Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

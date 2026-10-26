@@ -1,0 +1,170 @@
+id: c64b27b4-0986-48d1-9448-0e7853cc3d19
+name: '@svendowideit/split-dns-upgrade'
+description: |
+  Bring an existing split-DNS install up to date with this extension.
+
+  Run this on the host that owns the install. It re-runs the host-local stage with no zone,
+  which means "reconcile every zone already stored on the host": it re-reads
+  the host, refreshes the DHCP upstream view, re-renders and validates the
+  dnsmasq config, stages the apply/rollback/verify scripts, and runs the apply
+  script through @svendowideit/sudo's `runScript` operation. The script
+  restarts only when something changed and rolls back on failure. `verify`
+  then checks the live resolver.
+
+  The model's lazy `typeVersion` upgrade runs on the first method call, so the
+  new code is in use before the reconcile. The workflow is safe to re-run and
+  is a no-op when the host is already current.
+
+  The default model instance is `split-dns`; it is auto-registered on first
+  use. If this repo has more than one split-DNS model, `swamp behavior list`
+  shows them and `--input model=<name>` selects one.
+tags:
+  dns: split-horizon
+  upgrade: idempotent
+  elevation: "@svendowideit/sudo"
+inputs:
+  properties:
+    model:
+      type: string
+      default: split-dns
+      description: The @svendowideit/split-dns model instance on this host.
+    sudoModel:
+      type: string
+      default: sudo-split-dns
+      description: "@svendowideit/sudo model instance used for runScript elevation."
+    sudoTimeoutSeconds:
+      type: integer
+      default: 600
+      description: Timeout for the privileged reconcile.
+    stagingDir:
+      type: string
+      default: ~/.cache/split-dns
+      description: Unprivileged directory for the staged scripts.
+    configDir:
+      type: string
+      default: /etc/split-dns
+      description: Managed config, state, original snapshot and backups.
+    listenAddress:
+      type: string
+      default: 127.0.0.1
+      description: Loopback address dnsmasq listens on.
+    listenPort:
+      type: integer
+      default: 53
+      description: dnsmasq port (must be 53 when manageResolver=true).
+    manageResolver:
+      type: boolean
+      default: true
+      description: Keep the host's client resolver pointed at dnsmasq.
+    controlName:
+      type: string
+      default: github.com
+      description: Name outside the zone proving normal DHCP DNS still works.
+    testName:
+      type: string
+      default: ""
+      description: Optional FQDN inside the zone for verification.
+  required: []
+jobs:
+  - name: upgrade
+    description: Reconcile every stored zone and verify the live resolver.
+    steps:
+      - name: plan
+        description: >-
+          Re-read this host and render the existing zone set. Read-only.
+        task:
+          type: model_method
+          modelType: "@svendowideit/split-dns"
+          modelName: ${{ inputs.model }}
+          methodName: plan
+          inputs:
+            hosts: ["local"]
+            zone: ""
+            nameservers: []
+            configDir: ${{ inputs.configDir }}
+            listenAddress: ${{ inputs.listenAddress }}
+            listenPort: ${{ inputs.listenPort }}
+            manageResolver: ${{ inputs.manageResolver }}
+            controlName: ${{ inputs.controlName }}
+            testName: ${{ inputs.testName }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: stage
+        description: >-
+          Stage apply/rollback/remove/verify scripts for the stored zone set.
+        task:
+          type: model_method
+          modelType: "@svendowideit/split-dns"
+          modelName: ${{ inputs.model }}
+          methodName: stage
+          inputs:
+            hosts: ["local"]
+            zone: ""
+            nameservers: []
+            stagingDir: ${{ inputs.stagingDir }}
+            runId: ${{ run.id }}
+            configDir: ${{ inputs.configDir }}
+            listenAddress: ${{ inputs.listenAddress }}
+            listenPort: ${{ inputs.listenPort }}
+            manageResolver: ${{ inputs.manageResolver }}
+            controlName: ${{ inputs.controlName }}
+            testName: ${{ inputs.testName }}
+        dependsOn:
+          - step: plan
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: elevate
+        description: >-
+          Run the staged apply script as root through @svendowideit/sudo.
+          Skipped when the host has no managed zones.
+        guard: ${{ data.latest(inputs.model, "staged").attributes.changed == false }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/sudo"
+          modelName: ${{ inputs.sudoModel }}
+          methodName: run
+          globalArgs:
+            allowedOperations: ["runScript"]
+            containerNetwork: host
+          inputs:
+            operation: runScript
+            args:
+              script: ${{ data.latest(inputs.model, "staged").attributes.applyScript }}
+            timeoutSeconds: ${{ inputs.sudoTimeoutSeconds }}
+        dependsOn:
+          - step: stage
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: verify
+        description: >-
+          Confirm the stored zones still resolve through the live resolver.
+          Skipped when the host has no managed zones.
+        guard: ${{ size(data.latest(inputs.model, "staged").attributes.zones) == 0 }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/split-dns"
+          modelName: ${{ inputs.model }}
+          methodName: verify
+          inputs:
+            hosts: ["local"]
+            expect: configured
+            configDir: ${{ inputs.configDir }}
+            listenAddress: ${{ inputs.listenAddress }}
+            listenPort: ${{ inputs.listenPort }}
+            manageResolver: ${{ inputs.manageResolver }}
+            controlName: ${{ inputs.controlName }}
+            testName: ${{ inputs.testName }}
+        dependsOn:
+          - step: elevate
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

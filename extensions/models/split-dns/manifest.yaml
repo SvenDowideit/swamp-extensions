@@ -1,0 +1,140 @@
+manifestVersion: 1
+name: "@svendowideit/split-dns"
+version: "2026.10.26.1"
+description: >
+  Keep the DNS learned from DHCP for the whole host, but send one zone (or
+  sub-zone) to that zone's authoritative nameservers — or to a pinned list — so
+  records you manage update at the zone's speed instead of the DHCP resolver's
+  cache.
+
+  WHAT IT DOES
+
+    Split-horizon DNS for Debian, Ubuntu and NixOS, run on the host it
+    configures. A managed dnsmasq forwarder listens on loopback and the host
+    resolver points at it. dnsmasq keeps the DHCP nameservers for everything —
+    read live from systemd-resolved or NetworkManager, with
+    `/etc/resolv.conf`/`resolvectl`/`nmcli` fallbacks — and adds
+    `server=/<zone>/<ns>` exceptions for the zones you name. Empty
+    `nameservers` discovers the zone's authoritative NS. The model stages
+    apply, rollback and verification scripts unprivileged; the workflow runs
+    the apply script through `@svendowideit/sudo`'s `runScript` operation, using
+    the host's granted sudo, doas, polkit or container route. Every change is
+    validated, verified live, and rolled back to the previous working snapshot
+    with the failing query and output on error.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/split-dns
+
+  DEPENDENCIES
+
+    `@svendowideit/sudo` is pulled automatically. The target needs systemd
+    (Debian/Ubuntu) or NixOS with `nixos-rebuild`, and at least one elevation
+    route `@svendowideit/sudo` can prove without prompting (`sudo -n`, `doas -n`,
+    `run0`/`systemd-run`, a container runtime group, or a held capability). On
+    Debian/Ubuntu, `dnsmasq-base` and, when `dig` is absent, `bind9-dnsutils` are
+    installed through apt unless `installPackages=false`. The zone's nameservers
+    must be reachable from the target.
+
+  RUN
+
+      # Run this on the host being configured. It stages the scripts and runs
+      # the apply through @svendowideit/sudo on that same host.
+      swamp workflow run @svendowideit/split-dns-apply --input zone=fi.gy
+
+      # Dispatch the worker variant to a host's swamp worker. This is how blue
+      # is configured from x1yoga's orchestrator.
+      swamp workflow run @svendowideit/split-dns-apply-worker \
+        --server wss://swamp.x1yoga.fi.gy \
+        --input worker=figy-blue \
+        --input zone=fi.gy
+
+      # Send a delegated sub-zone to a faster provider instead. Omit
+      # `nameservers` to discover that sub-zone's authoritative NS records.
+      swamp workflow run @svendowideit/split-dns-apply \
+        --input zone=dev.fi.gy \
+        --input 'nameservers:json=["ns-164-a.gandi.net","ns-22-b.gandi.net"]'
+
+      # Plan and stage without running the elevation step.
+      swamp workflow run @svendowideit/split-dns-apply --input dryRun=true
+
+      # Read-only preflight of the fleet in the `split-dns` model's hosts list.
+      swamp model method run split-dns plan --input zone=fi.gy
+
+      # Report configured zones, upstream, service and live queries.
+      swamp model method run split-dns status
+
+      # Remove the forwarder and restore the pre-install resolver.
+      swamp workflow run @svendowideit/split-dns-remove
+
+  CONFIGURE
+
+    The local apply workflow takes `model`, `zone` (default `fi.gy`),
+    `nameservers` (empty discovers authoritative NS), `replaceZones`,
+    `removeZone`, `sudoModel` (default `sudo-split-dns`), `sudoTimeoutSeconds`,
+    `stagingDir` (default `~/.cache/split-dns`), `configDir` (default
+    `/etc/split-dns`), `listenAddress`, `listenPort`, `manageResolver`,
+    `controlName`, `testName` and `dryRun`. The `-worker` variants add a
+    `worker` input (default `figy-blue`) and dispatch every step to it.
+
+    `stage`, `stageRemove` and `verify` are host-local; the workflow's `worker`
+    target places them on the same host as the sudo step. `replaceZones=false`
+    merges, so one run per zone accumulates exceptions. `manageResolver=false`
+    installs and runs the forwarder without touching `/etc/resolv.conf`; with
+    `manageResolver=true`, `listenPort` must be 53 because resolv.conf cannot
+    carry a port. The model's `plan`/`status` methods still accept the `hosts`
+    fan-out for read-only fleet checks over SSH.
+
+  UPGRADE
+
+      swamp workflow run @svendowideit/split-dns-upgrade
+
+    Run after `swamp extension update`, on each host (or with its `worker`).
+    It reconciles every zone already stored on that host, refreshes the DHCP
+    upstream view, stages and applies only when something changed, and verifies
+    the live queries. It is idempotent and safe to re-run.
+
+  WHAT IT INSTALLS
+
+    Debian/Ubuntu: the `split-dns` systemd unit in `/etc/systemd/system`, the
+    managed dnsmasq config and state under `/etc/split-dns`, a NetworkManager
+    drop-in (`rc-manager=unmanaged`) or a resolvconf head fragment, and a
+    static `/etc/resolv.conf` pointing at the forwarder. NixOS: the same
+    `/etc/split-dns` files plus `/etc/nixos/split-dns.nix` and
+    `/etc/nixos/split-dns-configuration.nix`, activated by `nixos-rebuild`.
+    It installs `dnsmasq-base` and, when needed, `bind9-dnsutils` with apt on
+    Debian/Ubuntu. It stages scripts under `~/.cache/split-dns`. Pre-apply
+    snapshots live under `/etc/split-dns/backups`; the first pre-install
+    snapshot lives under `/etc/split-dns/original`. It creates the
+    `sudo-split-dns` model of `@svendowideit/sudo` with `runScript` allowed.
+    No webhooks, cron triggers, or additional services.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - split_dns.ts
+
+workflows:
+  - split-dns-apply.yaml
+  - split-dns-upgrade.yaml
+  - split-dns-remove.yaml
+  - split-dns-apply-worker.yaml
+  - split-dns-upgrade-worker.yaml
+  - split-dns-remove-worker.yaml
+
+dependencies:
+  - "@svendowideit/sudo"
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - split_dns_test.ts
+
+platforms:
+  - linux-x86_64
+  - linux-aarch64

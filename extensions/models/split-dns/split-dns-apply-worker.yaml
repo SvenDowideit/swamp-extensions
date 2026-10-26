@@ -1,0 +1,229 @@
+id: 1e417f9b-51c3-4363-9421-b41abd7cc008
+name: '@svendowideit/split-dns-apply-worker'
+description: |
+  Keep the DHCP-provided DNS for everything, and send one zone (or sub-zone)
+  to that zone's authoritative nameservers — or to an explicit list — so the
+  records you manage update as fast as the zone's nameservers publish them.
+
+  This is the worker variant: every step is dispatched to `worker`, so the
+  staging, @svendowideit/sudo elevation and verification all run on that host.
+  It never calls sudo itself:
+  `stage` writes the apply/rollback/verify scripts into an unprivileged
+  staging dir, and the `elevate` step runs the apply script through
+  @svendowideit/sudo's `runScript` operation, so the extension uses whichever
+  elevation route the host has already granted (sudo/doas/polkit/systemd-run/
+  container). `verify` then checks the live resolver.
+
+  Run it through the orchestrator; every step is dispatched to `worker`:
+
+      swamp workflow run @svendowideit/split-dns-apply-worker \
+        --server wss://swamp.x1yoga.fi.gy \
+        --input worker=figy-blue \
+        --input zone=fi.gy
+
+  Override the zone or pin nameservers:
+
+      swamp workflow run @svendowideit/split-dns-apply-worker \
+        --server wss://swamp.x1yoga.fi.gy \
+        --input worker=figy-blue \
+        --input zone=dev.fi.gy \
+        --input 'nameservers:json=["ns-164-a.gandi.net","ns-22-b.gandi.net"]'
+
+  Set `dryRun=true` to plan and stage without running the elevation step.
+tags:
+  dns: split-horizon
+  elevation: "@svendowideit/sudo"
+inputs:
+  properties:
+    worker:
+      type: string
+      default: figy-blue
+      description: >-
+        Swamp worker that runs the host-local steps (e.g. figy-blue). Every
+        step is dispatched to this worker so @svendowideit/sudo elevates there.
+    model:
+      type: string
+      default: split-dns
+      description: The @svendowideit/split-dns model instance on this host.
+    zone:
+      type: string
+      default: fi.gy
+      description: >-
+        Zone or sub-zone whose records should use faster-updating nameservers.
+        Empty reconciles the zones already stored on the host.
+    nameservers:
+      type: array
+      items:
+        type: string
+      default: []
+      description: >-
+        Nameserver IPs or hostnames for the zone. Empty discovers the zone's
+        authoritative NS records.
+    replaceZones:
+      type: boolean
+      default: false
+      description: Replace every managed zone instead of merging this one in.
+    removeZone:
+      type: boolean
+      default: false
+      description: Remove this zone's override instead of adding/updating it.
+    sudoModel:
+      type: string
+      default: sudo-split-dns
+      description: >-
+        @svendowideit/sudo model instance used for the runScript elevation.
+        It is auto-registered with `allowedOperations: ["runScript"]`.
+    sudoTimeoutSeconds:
+      type: integer
+      default: 600
+      description: Timeout for the privileged apply (nixos-rebuild can be slow).
+    stagingDir:
+      type: string
+      default: ~/.cache/split-dns
+      description: Unprivileged directory for the staged scripts.
+    configDir:
+      type: string
+      default: /etc/split-dns
+      description: Managed config, state, original snapshot and backups.
+    listenAddress:
+      type: string
+      default: 127.0.0.1
+      description: Loopback address dnsmasq listens on.
+    listenPort:
+      type: integer
+      default: 53
+      description: >-
+        dnsmasq port. Must be 53 when manageResolver=true.
+    manageResolver:
+      type: boolean
+      default: true
+      description: Point the host's client resolver at dnsmasq.
+    controlName:
+      type: string
+      default: github.com
+      description: Name outside the zone proving normal DHCP DNS still works.
+    testName:
+      type: string
+      default: ""
+      description: Optional FQDN inside the zone for verification.
+    dryRun:
+      type: boolean
+      default: false
+      description: Plan and stage only; skip the elevation and verification steps.
+  required: []
+jobs:
+  - name: apply
+    description: Plan, stage, elevate through @svendowideit/sudo, and verify.
+    steps:
+      - name: plan
+        description: >-
+          Read this host, discover the zone's authoritative nameservers when
+          none are given, render the config, run dnsmasq --test, and query a
+          temporary resolver. Changes nothing.
+        target: ${{ inputs.worker }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/split-dns"
+          modelName: ${{ inputs.model }}
+          methodName: plan
+          inputs:
+            hosts: ["local"]
+            zone: ${{ inputs.zone }}
+            nameservers: ${{ inputs.nameservers }}
+            replaceZones: ${{ inputs.replaceZones }}
+            removeZone: ${{ inputs.removeZone }}
+            configDir: ${{ inputs.configDir }}
+            listenAddress: ${{ inputs.listenAddress }}
+            listenPort: ${{ inputs.listenPort }}
+            manageResolver: ${{ inputs.manageResolver }}
+            controlName: ${{ inputs.controlName }}
+            testName: ${{ inputs.testName }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: stage
+        description: >-
+          Write apply.sh, rollback.sh, remove.sh and verify.sh into stagingDir.
+          No root is needed and nothing outside stagingDir is changed.
+        target: ${{ inputs.worker }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/split-dns"
+          modelName: ${{ inputs.model }}
+          methodName: stage
+          inputs:
+            hosts: ["local"]
+            zone: ${{ inputs.zone }}
+            nameservers: ${{ inputs.nameservers }}
+            replaceZones: ${{ inputs.replaceZones }}
+            removeZone: ${{ inputs.removeZone }}
+            stagingDir: ${{ inputs.stagingDir }}
+            runId: ${{ run.id }}
+            configDir: ${{ inputs.configDir }}
+            listenAddress: ${{ inputs.listenAddress }}
+            listenPort: ${{ inputs.listenPort }}
+            manageResolver: ${{ inputs.manageResolver }}
+            controlName: ${{ inputs.controlName }}
+            testName: ${{ inputs.testName }}
+        dependsOn:
+          - step: plan
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: elevate
+        description: >-
+          Run the staged apply script as root through @svendowideit/sudo's
+          runScript operation. The script activates the forwarder, verifies the
+          live resolver, and restores the pre-apply snapshot on failure.
+        guard: ${{ inputs.dryRun == true || data.latest(inputs.model, "staged").attributes.changed == false }}
+        target: ${{ inputs.worker }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/sudo"
+          modelName: ${{ inputs.sudoModel }}
+          methodName: run
+          globalArgs:
+            allowedOperations: ["runScript"]
+            containerNetwork: host
+          inputs:
+            operation: runScript
+            args:
+              script: ${{ data.latest(inputs.model, "staged").attributes.applyScript }}
+            timeoutSeconds: ${{ inputs.sudoTimeoutSeconds }}
+        dependsOn:
+          - step: stage
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: verify
+        description: >-
+          Confirm the live resolver returns the managed zone and the control
+          name. Fails with the exact query output if the host did not converge.
+        guard: ${{ inputs.dryRun == true }}
+        target: ${{ inputs.worker }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/split-dns"
+          modelName: ${{ inputs.model }}
+          methodName: verify
+          inputs:
+            hosts: ["local"]
+            zone: ${{ inputs.zone }}
+            expect: configured
+            configDir: ${{ inputs.configDir }}
+            listenAddress: ${{ inputs.listenAddress }}
+            listenPort: ${{ inputs.listenPort }}
+            manageResolver: ${{ inputs.manageResolver }}
+            controlName: ${{ inputs.controlName }}
+            testName: ${{ inputs.testName }}
+        dependsOn:
+          - step: elevate
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

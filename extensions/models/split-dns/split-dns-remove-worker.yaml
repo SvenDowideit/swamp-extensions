@@ -1,0 +1,138 @@
+id: 5023ba7f-7938-4763-9d67-f6058c019006
+name: '@svendowideit/split-dns-remove-worker'
+description: |
+  Remove the split-DNS forwarder from this host and restore the pre-install
+  resolver, with the privileged removal delegated to @svendowideit/sudo.
+
+  This is the worker variant: every step is dispatched to `worker`.
+  `stageRemove` writes remove.sh and its verification gate into an unprivileged
+  staging dir; the `elevate` step runs remove.sh through @svendowideit/sudo's
+  `runScript` operation; `verify` (expect=removed) confirms the service and
+  generated files are gone and normal DNS answers.
+  The remove script restores the first-install snapshot (`original/`), so it is
+  safe to re-run and leaves the host on its previous DHCP resolver.
+
+  If the host has no split-dns install, the staged `changed` flag is false and
+  both privileged steps are skipped.
+tags:
+  dns: split-horizon
+  removal: idempotent
+  elevation: "@svendowideit/sudo"
+inputs:
+  properties:
+    worker:
+      type: string
+      default: figy-blue
+      description: >-
+        Swamp worker that runs the host-local steps (e.g. figy-blue). Every
+        step is dispatched to this worker so @svendowideit/sudo elevates there.
+    model:
+      type: string
+      default: split-dns
+      description: The @svendowideit/split-dns model instance on this host.
+    sudoModel:
+      type: string
+      default: sudo-split-dns
+      description: "@svendowideit/sudo model instance used for runScript elevation."
+    sudoTimeoutSeconds:
+      type: integer
+      default: 600
+      description: Timeout for the privileged removal.
+    stagingDir:
+      type: string
+      default: ~/.cache/split-dns
+      description: Unprivileged directory for the staged scripts.
+    configDir:
+      type: string
+      default: /etc/split-dns
+      description: Managed config, state, original snapshot and backups.
+    listenAddress:
+      type: string
+      default: 127.0.0.1
+      description: Loopback address the forwarder listened on.
+    listenPort:
+      type: integer
+      default: 53
+      description: Port the forwarder listened on.
+    controlName:
+      type: string
+      default: github.com
+      description: Name outside the zone used to prove normal DNS still works.
+  required: []
+jobs:
+  - name: remove
+    description: Stage, elevate through @svendowideit/sudo, and verify removal.
+    steps:
+      - name: stage-remove
+        description: >-
+          Write remove.sh and its verification gate into stagingDir. No root
+          is needed and nothing outside stagingDir is changed.
+        target: ${{ inputs.worker }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/split-dns"
+          modelName: ${{ inputs.model }}
+          methodName: stageRemove
+          inputs:
+            hosts: ["local"]
+            stagingDir: ${{ inputs.stagingDir }}
+            runId: ${{ run.id }}
+            configDir: ${{ inputs.configDir }}
+            listenAddress: ${{ inputs.listenAddress }}
+            listenPort: ${{ inputs.listenPort }}
+            controlName: ${{ inputs.controlName }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: elevate
+        description: >-
+          Run the staged remove script as root through @svendowideit/sudo.
+          Skipped when the host has no split-dns install.
+        guard: ${{ data.latest(inputs.model, "staged").attributes.changed == false }}
+        target: ${{ inputs.worker }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/sudo"
+          modelName: ${{ inputs.sudoModel }}
+          methodName: run
+          globalArgs:
+            allowedOperations: ["runScript"]
+            containerNetwork: host
+          inputs:
+            operation: runScript
+            args:
+              script: ${{ data.latest(inputs.model, "staged").attributes.removeScript }}
+            timeoutSeconds: ${{ inputs.sudoTimeoutSeconds }}
+        dependsOn:
+          - step: stage-remove
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: verify
+        description: >-
+          Confirm the service, config and markers are gone and normal DNS
+          answers. Skipped when there was nothing to remove.
+        guard: ${{ data.latest(inputs.model, "staged").attributes.changed == false }}
+        target: ${{ inputs.worker }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/split-dns"
+          modelName: ${{ inputs.model }}
+          methodName: verify
+          inputs:
+            hosts: ["local"]
+            expect: removed
+            configDir: ${{ inputs.configDir }}
+            listenAddress: ${{ inputs.listenAddress }}
+            listenPort: ${{ inputs.listenPort }}
+            controlName: ${{ inputs.controlName }}
+        dependsOn:
+          - step: elevate
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

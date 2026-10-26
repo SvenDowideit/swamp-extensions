@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/split-dns"
-version: "2026.10.26.1"
+version: "2026.10.26.2"
 description: >
   Keep the DNS learned from DHCP for the whole host, but send one zone (or
   sub-zone) to that zone's authoritative nameservers — or to a pinned list — so
@@ -91,8 +91,8 @@ description: >
 
     Run after `swamp extension update`, on each host (or with its `worker`).
     It reconciles every zone already stored on that host, refreshes the DHCP
-    upstream view, stages and applies only when something changed, and verifies
-    the live queries. It is idempotent and safe to re-run.
+    upstream view, stages and runs the apply (a no-op when unchanged), and
+    verifies the live queries. It is idempotent and safe to re-run.
 
   WHAT IT INSTALLS
 
@@ -101,7 +101,10 @@ description: >
     drop-in (`rc-manager=unmanaged`) or a resolvconf head fragment, and a
     static `/etc/resolv.conf` pointing at the forwarder. NixOS: the same
     `/etc/split-dns` files plus `/etc/nixos/split-dns.nix` and
-    `/etc/nixos/split-dns-configuration.nix`, activated by `nixos-rebuild`.
+    `/etc/nixos/split-dns-configuration.nix`, `networking.resolvconf.enable =
+    false`, `pkgs.dnsmasq` and `pkgs.bind.dnsutils` in systemPackages, and a
+    staged script PATH/NIX_PATH that makes `nixos-rebuild` work from the
+    container route.
     It installs `dnsmasq-base` and, when needed, `bind9-dnsutils` with apt on
     Debian/Ubuntu. It stages scripts under `~/.cache/split-dns`. Pre-apply
     snapshots live under `/etc/split-dns/backups`; the first pre-install

@@ -43,7 +43,8 @@ Supported resolver layouts:
 swamp extension pull @svendowideit/split-dns
 ```
 
-One pull installs the model, all three workflows, the README and the tests.
+One pull installs the model, all six workflows (the three host-local workflows
+plus their worker variants), the README and the tests.
 `@svendowideit/sudo` is pulled automatically as a dependency.
 
 ## Configuration
@@ -78,9 +79,13 @@ Apply workflow arguments add `zone`, `nameservers`, `replaceZones`,
 `dryRun`. The `-worker` variants add a `worker` input (default `figy-blue`) and
 dispatch every step to it. `merge` is the default:
 running once per zone accumulates exceptions. `replaceZones=true` starts from
-an empty set. `removeZone=true` removes only that zone. When
+an empty set. `removeZone=true` removes only that zone; the apply workflow then
+skips its configured-zone check and the staged apply gate verifies a remaining
+zone (or only the control name when none remain). When
 `manageResolver=true`, `listenPort` must be 53 because `/etc/resolv.conf`
 cannot carry a port; use `manageResolver=false` for a high-port test forwarder.
+A zone nameserver equal to `listenAddress` at port 53 is rejected because
+dnsmasq would forward the zone to itself.
 
 ## Examples
 
@@ -138,7 +143,10 @@ swamp model method run split-dns plan --input zone=fi.gy
 swamp model method run split-dns status
 ```
 
-Remove the forwarder and restore the pre-install resolver snapshot:
+Remove the forwarder and restore the pre-install resolver snapshot. The staged
+remove script only deletes `configDir` when it contains nothing but the files
+this extension manages, so a mistaken `configDir` cannot wipe an unrelated
+directory:
 
 ```sh
 # Stage, elevate through @svendowideit/sudo, and verify normal DNS answers.
@@ -166,8 +174,9 @@ swamp workflow run @svendowideit/split-dns-upgrade-worker \
 It re-runs the host-local stage with no zone, which reconciles every zone
 already stored on that host. The model's lazy `typeVersion` upgrade runs on the
 first method call, so the new code is active before the reconcile. It refreshes
-the DHCP-derived upstream view, stages the scripts, runs the apply only when
-something changed, and verifies the live queries. It is safe to re-run.
+the DHCP-derived upstream view, stages the scripts, runs the apply, and verifies
+the live queries. The apply is a no-op when nothing changed and re-applies when
+the live verify gate finds drift. It is safe to re-run.
 
 The default model instance is `split-dns` (auto-registered on first use). If the
 repo has more than one split-DNS model, `swamp behavior list` lists them and
@@ -261,13 +270,21 @@ fleet-wide preflight, because they need no privilege.
 ### NixOS
 
 The module at `/etc/nixos/split-dns.nix` runs dnsmasq from `pkgs.dnsmasq`,
-forces `environment.etc."resolv.conf"` to the loopback nameserver, and sets
-`networking.nameservers`. `/etc/nixos/split-dns-configuration.nix` imports the
-host's normal `configuration.nix` plus that module, so the model does not edit
-the user's configuration. The staged apply script runs `nixosRebuildCommand`;
+forces `environment.etc."resolv.conf"` to the loopback nameserver, sets
+`networking.resolvconf.enable = false` (required by NixOS when another file
+owns resolv.conf), and adds `pkgs.dnsmasq` plus `pkgs.bind.dnsutils` to
+`environment.systemPackages`. `/etc/nixos/split-dns-configuration.nix` imports
+the host's normal `configuration.nix` plus that module, so the model does not
+edit the user's configuration. The staged scripts export a NixOS `PATH`
+(`/run/current-system/sw/bin`, `/run/wrappers/bin`) and a fallback `NIX_PATH`
+pointing at the root channel, so `nixos-rebuild` works from the container
+elevation route. The staged apply script runs `nixosRebuildCommand`;
 the staged remove script builds a rollback wrapper that imports only the
 original configuration. On a flakes-based host, override
-`nixosRebuildCommand`, for example `nixos-rebuild switch --flake /etc/nixos#host`.
+`nixosRebuildCommand`, for example `nixos-rebuild switch --flake /etc/nixos#host`,
+and make the flake's configuration import the generated
+`/etc/nixos/split-dns.nix`; overriding the command alone does not add that
+import.
 
 The generated module keeps `services.resolved` enabled when it is already
 enabled, so `/run/systemd/resolve/resolv.conf` can remain the live DHCP

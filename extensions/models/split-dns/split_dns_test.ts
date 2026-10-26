@@ -5,6 +5,8 @@ import {
   assertThrows,
 } from "jsr:@std/assert@1";
 import {
+  assertLoopbackListenAddress,
+  assertSafeConfigDir,
   chooseUpstream,
   dedupe,
   discoverAuthoritativeNameservers,
@@ -31,10 +33,13 @@ import {
   renderRollbackScript,
   renderSystemdUnit,
   resolveExplicitNameservers,
+  safeRunId,
+  selfForwardingZones,
   shellQuote,
   stateFingerprint,
   toBase64,
   usableUpstream,
+  verificationZone,
   type ZoneRule,
 } from "./split_dns.ts";
 
@@ -200,6 +205,55 @@ Deno.test("mergeZoneRules merges, replaces and removes without losing others", (
   );
 });
 
+Deno.test("verificationZone checks the target unless removing it", () => {
+  const zones: ZoneRule[] = [
+    {
+      zone: "a.example",
+      nameservers: ["1.1.1.1"],
+      source: "explicit",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    },
+    {
+      zone: "b.example",
+      nameservers: ["2.2.2.2"],
+      source: "explicit",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    },
+  ];
+  assertEquals(
+    verificationZone({ zone: "dev.fi.gy", remove: false }, zones),
+    "dev.fi.gy",
+  );
+  assertEquals(
+    verificationZone({ zone: "dev.fi.gy", remove: true }, zones),
+    "a.example",
+  );
+  assertEquals(verificationZone({ zone: "dev.fi.gy", remove: true }, []), "");
+  assertEquals(verificationZone(null, zones), "a.example");
+});
+
+Deno.test("selfForwardingZones rejects the local listener at port 53", () => {
+  const zones: ZoneRule[] = [
+    {
+      zone: "a.example",
+      nameservers: ["127.0.0.1"],
+      source: "explicit",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    },
+    {
+      zone: "b.example",
+      nameservers: ["192.0.2.53"],
+      source: "explicit",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    },
+  ];
+  assertEquals(selfForwardingZones(zones, "127.0.0.1", 53, true), [
+    "a.example",
+  ]);
+  assertEquals(selfForwardingZones(zones, "127.0.0.1", 5353, true), []);
+  assertEquals(selfForwardingZones(zones, "127.0.0.1", 53, false), []);
+});
+
 Deno.test("renderDnsmasqConfig uses DHCP defaults and per-zone servers", () => {
   const zones: ZoneRule[] = [{
     zone: "dev.fi.gy",
@@ -256,7 +310,11 @@ Deno.test("NixOS module only overrides resolv.conf when asked", () => {
   assert(
     enforcing.includes('networking.nameservers = lib.mkForce [ "127.0.0.1" ]'),
   );
+  assert(
+    enforcing.includes("networking.resolvconf.enable = lib.mkForce false"),
+  );
   assert(enforcing.includes("pkgs.dnsmasq"));
+  assert(enforcing.includes("pkgs.bind.dnsutils"));
 
   const passive = renderNixosModule({
     listenAddress: "127.0.0.1",
@@ -265,7 +323,39 @@ Deno.test("NixOS module only overrides resolv.conf when asked", () => {
     manageResolver: false,
   });
   assert(!passive.includes('environment.etc."resolv.conf"'));
+  assert(!passive.includes("networking.resolvconf.enable"));
   assert(passive.includes("systemd.services.split-dns"));
+  assert(passive.includes("pkgs.dnsmasq"));
+  assert(passive.includes("pkgs.bind.dnsutils"));
+});
+
+Deno.test("configDir and run id reject destructive path traversal", () => {
+  assertEquals(assertSafeConfigDir("/etc/split-dns"), "/etc/split-dns");
+  assertEquals(
+    assertSafeConfigDir("/tmp/split-dns-test-config/"),
+    "/tmp/split-dns-test-config",
+  );
+  for (const bad of ["/etc", "/var", "/", "etc/split-dns", "/etc/../tmp"]) {
+    assertThrows(() => assertSafeConfigDir(bad), Error, undefined, bad);
+  }
+  assertEquals(assertLoopbackListenAddress("127.0.0.1"), "127.0.0.1");
+  assertEquals(assertLoopbackListenAddress(" 127.0.0.2 "), "127.0.0.2");
+  assertEquals(assertLoopbackListenAddress("::1"), "::1");
+  for (const bad of ["0.0.0.0", "8.8.8.8", "localhost", "127.0.0.999"]) {
+    assertThrows(
+      () => assertLoopbackListenAddress(bad),
+      Error,
+      undefined,
+      bad,
+    );
+  }
+  assertEquals(safeRunId(".."), "run");
+  assertEquals(safeRunId("."), "run");
+  assertEquals(safeRunId("../../etc"), "..-..-etc");
+  assertEquals(
+    safeRunId("2f6f3e5a-1c9d-4e64-9d8b-1a2b3c4d5e6f"),
+    "2f6f3e5a-1c9d-4e64-9d8b-1a2b3c4d5e6f",
+  );
 });
 
 Deno.test("stateFingerprint ignores timestamps but catches real changes", () => {
@@ -411,6 +501,24 @@ Deno.test("chooseUpstream prefers the live DHCP view then falls back safely", ()
   assertEquals(snapshot.nameservers, ["203.0.113.53"]);
 });
 
+Deno.test("chooseUpstream ignores stale upstream files from inactive daemons", () => {
+  const stale = chooseUpstream(
+    facts({
+      resolvedActive: false,
+      nmActive: false,
+      upstreamResolvConf: "nameserver 192.0.2.10\n",
+      nmResolvConf: "nameserver 192.0.2.11\n",
+      resolvConf: "nameserver 198.51.100.53\n",
+      resolvectlDns: "",
+      nmcliDns: "",
+    }),
+    "127.0.0.1",
+  );
+  assertEquals(stale.upstreamFile, "");
+  assertEquals(stale.source, "/etc/resolv.conf");
+  assertEquals(stale.nameservers, ["198.51.100.53"]);
+});
+
 Deno.test("parseVerifyOutput distinguishes success, failure and resolvectl fallback", () => {
   const success = parseVerifyOutput(
     [
@@ -547,6 +655,19 @@ async function assertShellSyntax(script: string): Promise<void> {
   const err = new TextDecoder().decode(output.stderr);
   assertEquals(output.code, 0, `shell syntax error: ${err}\n${script}`);
 }
+
+Deno.test("apply verifies after activation and remove guards configDir", () => {
+  const apply = renderApplyScript(facts(), { manageResolver: true });
+  const verifyCalls = apply.match(/sh "\$VERIFY_SCRIPT"/g) ?? [];
+  assert(
+    verifyCalls.length >= 2,
+    "apply should verify both unchanged and freshly applied state",
+  );
+
+  const remove = renderRemoveScript(facts());
+  assert(remove.includes("remove_config_dir"));
+  assert(remove.includes("unexpected entry"));
+});
 
 Deno.test("generated apply/rollback/remove scripts are valid shell", async () => {
   const debian = facts({

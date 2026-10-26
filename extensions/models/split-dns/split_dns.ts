@@ -48,6 +48,10 @@ const RESOLVCONF_HEAD_REL = "/etc/resolvconf/resolv.conf.d/head";
 const SECTION_PREFIX = "###SPLITDNS:";
 const SECTION_END = "###SPLITDNS:END";
 const MISSING = "__MISSING__";
+const NIXOS_PATH =
+  'PATH="/run/current-system/sw/bin:/run/wrappers/bin:/nix/var/nix/profiles/default/bin:$PATH"';
+const NIX_PATH_EXPORT =
+  'if [ -z "${NIX_PATH:-}" ]; then NIX_PATH="nixpkgs=/nix/var/nix/profiles/per-user/root/channels/nixos:/nix/var/nix/profiles/per-user/root/channels"; export NIX_PATH; fi';
 
 // ---------------------------------------------------------------------------
 // Schemas
@@ -147,7 +151,8 @@ const GlobalArgsSchema = z.object({
   ),
   nixosRebuild: z.boolean().default(true).describe(
     "Run `nixos-rebuild switch` on NixOS so the generated module is active. " +
-      "When false, apply writes the files but fails instead of claiming success.",
+      "When false, apply writes the files, then fails and rolls back so " +
+      "nothing stays activated.",
   ),
   nixosRebuildCommand: safeValue("nixosRebuildCommand").default(
     `nixos-rebuild switch -I nixos-config=${DEFAULT_NIXOS_WRAPPER}`,
@@ -665,6 +670,36 @@ export function mergeZoneRules(
   return [...map.values()].sort((a, b) => a.zone.localeCompare(b.zone));
 }
 
+/**
+ * Pick the zone the live gate should query. A normal apply verifies the zone
+ * just configured; a remove verifies a remaining zone (or the control name
+ * only when the last zone was removed).
+ */
+export function verificationZone(
+  target: { zone: string; remove: boolean } | null,
+  zones: ZoneRule[],
+): string {
+  if (target && !target.remove) return target.zone;
+  return zones[0]?.zone ?? "";
+}
+
+/**
+ * Zones whose authoritative server is the local listener itself. With
+ * manageResolver=true and port 53, dnsmasq would forward those zones to
+ * itself and loop.
+ */
+export function selfForwardingZones(
+  zones: ZoneRule[],
+  listenAddress: string,
+  listenPort: number,
+  manageResolver: boolean,
+): string[] {
+  if (!manageResolver || listenPort !== 53) return [];
+  return zones
+    .filter((rule) => rule.nameservers.includes(listenAddress))
+    .map((rule) => rule.zone);
+}
+
 /** Render the managed dnsmasq configuration. */
 export function renderDnsmasqConfig(opts: {
   zones: ZoneRule[];
@@ -799,6 +834,7 @@ export function renderNixosModule(opts: {
     : "[ ]";
   const resolver = opts.manageResolver
     ? `  environment.etc."resolv.conf".source = lib.mkForce splitDnsResolvConf;
+  networking.resolvconf.enable = lib.mkForce false;
   networking.nameservers = lib.mkForce [ ${nixString(opts.listenAddress)} ];
   networking.search = lib.mkForce ${search};
 
@@ -813,7 +849,8 @@ let
   '';
 in
 {
-${resolver}  systemd.services.split-dns = {
+${resolver}  environment.systemPackages = [ pkgs.dnsmasq pkgs.bind.dnsutils ];
+  systemd.services.split-dns = {
     description = "split-dns conditional DNS forwarder";
     wantedBy = [ "multi-user.target" ];
     wants = [ "network-online.target" ];
@@ -968,6 +1005,77 @@ export function expandHome(path: string): string {
   if (path === "~") return home;
   if (path.startsWith("~/")) return `${home}${path.slice(1)}`;
   return path;
+}
+
+const UNSAFE_TOP_LEVEL_DIRS = new Set([
+  "/etc",
+  "/usr",
+  "/var",
+  "/home",
+  "/root",
+  "/bin",
+  "/sbin",
+  "/lib",
+  "/lib64",
+  "/boot",
+  "/dev",
+  "/proc",
+  "/sys",
+  "/run",
+  "/tmp",
+  "/opt",
+  "/srv",
+  "/mnt",
+  "/media",
+]);
+
+/**
+ * Validate a managed config directory before any root script can remove it.
+ * The directory must be a dedicated subdirectory (not `/etc`, `/var`, ...)
+ * and must not contain `.` or `..` components.
+ */
+export function assertSafeConfigDir(value: string): string {
+  const raw = value.trim();
+  if (!raw.startsWith("/")) {
+    throw new Error("configDir must be an absolute path");
+  }
+  const parts = raw.split("/").filter((part) => part.length > 0);
+  if (parts.length < 2) {
+    throw new Error(
+      "configDir must be a dedicated subdirectory, not a top-level " +
+        "directory such as /etc or /var",
+    );
+  }
+  if (parts.some((part) => part === "." || part === "..")) {
+    throw new Error("configDir must not contain '.' or '..' path components");
+  }
+  const normalized = `/${parts.join("/")}`;
+  if (UNSAFE_TOP_LEVEL_DIRS.has(normalized)) {
+    throw new Error(
+      `configDir ${normalized} is a system directory; use a dedicated ` +
+        "subdirectory such as /etc/split-dns",
+    );
+  }
+  return normalized;
+}
+
+/** Sanitize a workflow run id so it can only name a directory, never escape it. */
+export function safeRunId(value: string): string {
+  const clean = value.replace(/[^a-zA-Z0-9_.-]/g, "-");
+  return clean === "" || clean === "." || clean === ".." ? "run" : clean;
+}
+
+/**
+ * dnsmasq must listen on loopback only: the host resolver points at it and a
+ * wildcard listener would expose the forwarder to the network.
+ */
+export function assertLoopbackListenAddress(value: string): string {
+  const address = value.trim().toLowerCase();
+  if (address === "::1" || address.startsWith("::ffff:127.")) return address;
+  if (isIpAddress(address) && address.startsWith("127.")) return address;
+  throw new Error(
+    "listenAddress must be a loopback address (127.0.0.0/8 or ::1)",
+  );
 }
 
 interface CommandResult {
@@ -1128,6 +1236,8 @@ function buildInspectScript(paths: {
   const statePath = `${paths.configDir}/state.json`;
   const upstreamPath = `${paths.configDir}/upstream-resolv.conf`;
   return `set -u
+${NIXOS_PATH}
+export PATH
 sec() { printf '${SECTION_PREFIX}%s\\n' "$1"; }
 end() { printf '\\n${SECTION_END}\\n'; }
 b64() {
@@ -1311,10 +1421,12 @@ export function chooseUpstream(
   facts: HostFacts,
   listenAddress: string,
 ): { upstreamFile: string; nameservers: string[]; source: string } {
-  const fromUpstream = usableUpstream(
-    parseResolvConf(facts.upstreamResolvConf).nameservers,
-    listenAddress,
-  );
+  const fromUpstream = facts.resolvedActive
+    ? usableUpstream(
+      parseResolvConf(facts.upstreamResolvConf).nameservers,
+      listenAddress,
+    )
+    : [];
   if (fromUpstream.length > 0) {
     return {
       upstreamFile: "/run/systemd/resolve/resolv.conf",
@@ -1322,10 +1434,12 @@ export function chooseUpstream(
       source: "/run/systemd/resolve/resolv.conf",
     };
   }
-  const fromNm = usableUpstream(
-    parseResolvConf(facts.nmResolvConf).nameservers,
-    listenAddress,
-  );
+  const fromNm = facts.nmActive
+    ? usableUpstream(
+      parseResolvConf(facts.nmResolvConf).nameservers,
+      listenAddress,
+    )
+    : [];
   if (fromNm.length > 0) {
     return {
       upstreamFile: "/run/NetworkManager/resolv.conf",
@@ -1397,6 +1511,8 @@ function buildTransientValidationScript(opts: {
   const control = shellQuote(opts.controlName);
   const testName = shellQuote(opts.testName);
   return `set -u
+${NIXOS_PATH}
+export PATH
 TMPD=$(mktemp -d /tmp/split-dns-test.XXXXXX 2>/dev/null || mktemp -d)
 PID=""
 cleanup() {
@@ -1492,6 +1608,8 @@ fi
 end`
     : "";
   return `set -u
+${NIXOS_PATH}
+export PATH
 sec() { printf '${SECTION_PREFIX}%s\\n' "$1"; }
 end() { printf '\\n${SECTION_END}\\n'; }
 DNSMASQ=${dnsmasq}
@@ -1682,6 +1800,7 @@ interface HostPlan {
   state: ManagedState | null;
   zones: ZoneRule[];
   currentZone: string;
+  verifyZone: string;
   currentNameservers: string[];
   currentNameserverSource: string;
   upstreamFile: string;
@@ -1810,8 +1929,10 @@ function resolveOptions(g: GlobalArgs, args: AnyArgs): RunOptionsResolved {
     connectTimeoutSec: g.connectTimeoutSec,
     commandTimeoutSec: g.commandTimeoutSec,
     parallel: args.parallel ?? g.parallel,
-    configDir: args.configDir ?? g.configDir,
-    listenAddress: args.listenAddress ?? g.listenAddress,
+    configDir: assertSafeConfigDir(args.configDir ?? g.configDir),
+    listenAddress: assertLoopbackListenAddress(
+      args.listenAddress ?? g.listenAddress,
+    ),
     listenPort: args.listenPort ?? g.listenPort,
     manageResolver: args.manageResolver ?? g.manageResolver,
     installPackages: args.installPackages ?? g.installPackages,
@@ -1903,6 +2024,8 @@ function restoreSnapshotScript(opts: {
   serviceWasActive: boolean;
 }): string {
   return `set -eu
+${NIXOS_PATH}
+export PATH
 SNAP=${shellQuote(opts.snapshotDir)}
 if [ ! -f "$SNAP/.ready" ]; then
   printf 'no snapshot at %s; nothing to restore\\n' "$SNAP"
@@ -1964,12 +2087,14 @@ function buildVerifyGateScript(
   const configPath = `${opts.configDir}/dnsmasq.conf`;
   const dnsmasq = plan.facts.dnsmasqPath || "";
   return `set -eu
+${NIXOS_PATH}
+export PATH
 fail() { echo "split-dns verify: $*" >&2; exit 1; }
 DNSMASQ=${shellQuote(dnsmasq)}
 CONFIG=${shellQuote(configPath)}
 LISTEN=${shellQuote(opts.listenAddress)}
 PORT=${opts.listenPort}
-ZONE=${shellQuote(plan.currentZone)}
+ZONE=${shellQuote(plan.verifyZone)}
 CONTROL=${shellQuote(opts.controlName)}
 TESTNAME=${shellQuote(opts.testName)}
 MANAGE=${opts.manageResolver ? "true" : "false"}
@@ -2039,6 +2164,8 @@ function buildVerifyRemovedScript(
     `if [ -e ${shellQuote(path)} ]; then fail "still present: ${path}"; fi`
   ).join("\n");
   return `set -eu
+${NIXOS_PATH}
+export PATH
 fail() { echo "split-dns remove verify: $*" >&2; exit 1; }
 ${checks}
 if systemctl is-active --quiet ${SERVICE_NAME}; then fail "${SERVICE_NAME} is still active"; fi
@@ -2083,6 +2210,9 @@ function buildApplyScript(
   const dnsmasq = plan.facts.dnsmasqPath || "/usr/sbin/dnsmasq";
   const lines: string[] = [
     "set -eu",
+    NIXOS_PATH,
+    "export PATH",
+    NIX_PATH_EXPORT,
     `APPLY_SCRIPT=${shellQuote(paths.applyScript)}`,
     `ROLLBACK_SCRIPT=${shellQuote(paths.rollbackScript)}`,
     `VERIFY_SCRIPT=${shellQuote(paths.verifyScript)}`,
@@ -2253,6 +2383,7 @@ function buildApplyScript(
       shellQuote(`${opts.configDir}/backups`)
     }/*/ 2>/dev/null | tail -n +$((keep + 1)) | xargs -r rm -rf 2>/dev/null || true`,
     "fi",
+    'sh "$VERIFY_SCRIPT"',
     "printf '###SPLITDNS:APPLY_OK\\n'",
   );
   return lines.join("\n") + "\n";
@@ -2267,6 +2398,9 @@ function buildRollbackScript(
   const originalDir = `${opts.configDir}/original`;
   const lines: string[] = [
     "set -eu",
+    NIXOS_PATH,
+    "export PATH",
+    NIX_PATH_EXPORT,
     `BACKUP_DIR=${shellQuote(backupDir)}`,
     "printf '###SPLITDNS:ROLLBACK_BEGIN\\n'",
   ];
@@ -2475,7 +2609,7 @@ async function runTransientValidation(
   const port = 40000 + Math.floor(Math.random() * 10000);
   const script = buildTransientValidationScript({
     config: plan.desiredConfig,
-    zone: plan.currentZone,
+    zone: plan.verifyZone,
     controlName: opts.controlName,
     testName: opts.testName,
     dnsmasqPath: dnsmasq,
@@ -2573,6 +2707,7 @@ async function buildPlan(
       state,
       zones: [],
       currentZone: "",
+      verifyZone: "",
       currentNameservers: [],
       currentNameserverSource: "",
       upstreamFile: "",
@@ -2602,6 +2737,7 @@ async function buildPlan(
     ? zones.find((rule) => rule.zone === zoneInput.zone)
     : zones[0];
   const currentZone = zoneInput?.zone ?? currentRule?.zone ?? "";
+  const verifyZone = verificationZone(zoneInput, zones);
   const currentNameservers = currentRule?.nameservers ?? [];
   const currentNameserverSource = currentRule?.source ??
     zoneInput?.source ?? "";
@@ -2674,6 +2810,7 @@ async function buildPlan(
     state,
     zones,
     currentZone,
+    verifyZone,
     currentNameservers,
     currentNameserverSource,
     upstreamFile: upstream.upstreamFile,
@@ -2710,6 +2847,19 @@ async function buildPlan(
     plan.ok = false;
     plan.error = "no zone rules would remain; pass a zone to configure";
   }
+  const selfForwarded = selfForwardingZones(
+    plan.zones,
+    opts.listenAddress,
+    opts.listenPort,
+    opts.manageResolver,
+  );
+  if (selfForwarded.length > 0) {
+    plan.ok = false;
+    plan.error =
+      `zone ${selfForwarded.join(", ")} points at the local listener ` +
+      `${opts.listenAddress}:${opts.listenPort}; that would loop. Use a ` +
+      "different nameserver or manageResolver=false with a high port";
+  }
   if (
     !plan.facts.nixos && !plan.facts.dnsmasqPath && !opts.installPackages
   ) {
@@ -2738,6 +2888,9 @@ function buildRemoveScript(
   const unitPath = `/etc/systemd/system/${SERVICE_NAME}`;
   const lines: string[] = [
     "set -eu",
+    NIXOS_PATH,
+    "export PATH",
+    NIX_PATH_EXPORT,
     "write_file() {",
     '  path="$1"; mode="$2"; b64="$3"',
     '  dir=$(dirname "$path")',
@@ -2748,6 +2901,18 @@ function buildRemoveScript(
     "  fi",
     '  chmod "$mode" "$tmp"',
     '  mv -f "$tmp" "$path"',
+    "}",
+    "remove_config_dir() {",
+    '  dir="$1"',
+    '  [ -d "$dir" ] || return 0',
+    '  for entry in "$dir"/* "$dir"/.[!.]* "$dir"/..?*; do',
+    '    [ -e "$entry" ] || continue',
+    '    case "$(basename "$entry")" in',
+    "      dnsmasq.conf|state.json|upstream-resolv.conf|original|backups) ;;",
+    '      *) echo "refusing to remove $dir: unexpected entry $entry" >&2; return 1 ;;',
+    "    esac",
+    "  done",
+    '  rm -rf "$dir"',
     "}",
   ];
   if (facts.nixos) {
@@ -2767,7 +2932,7 @@ function buildRemoveScript(
       `rm -f ${shellQuote(DEFAULT_NIXOS_MODULE)} ${
         shellQuote(DEFAULT_NIXOS_WRAPPER)
       }`,
-      `rm -rf ${shellQuote(opts.configDir)}`,
+      `remove_config_dir ${shellQuote(opts.configDir)}`,
     );
   } else {
     lines.push(
@@ -2841,7 +3006,7 @@ function buildRemoveScript(
     }
     lines.push("fi");
     lines.push(
-      `rm -rf ${shellQuote(opts.configDir)}`,
+      `remove_config_dir ${shellQuote(opts.configDir)}`,
     );
   }
   lines.push("printf '###SPLITDNS:REMOVE_OK\\n'");
@@ -2981,6 +3146,7 @@ function syntheticPlan(
     state: parseState(facts.stateText),
     zones: [zone],
     currentZone: zone.zone,
+    verifyZone: zone.zone,
     currentNameservers: zone.nameservers,
     currentNameserverSource: zone.source,
     upstreamFile,
@@ -3197,7 +3363,7 @@ function stagedPaths(
   verifyScript: string;
   backupDir: string;
 } {
-  const runId = (opts.runId || now).replace(/[^a-zA-Z0-9_.-]/g, "-");
+  const runId = safeRunId(opts.runId || now);
   const stagingDir = `${expandHome(opts.stagingDir)}/${runId}`;
   return {
     runId,
@@ -3330,7 +3496,7 @@ function failResult(
 /** A model that maintains per-zone DNS exceptions on Linux hosts. */
 export const model = {
   type: "@svendowideit/split-dns",
-  version: "2026.10.26.1",
+  version: "2026.10.26.2",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -3344,6 +3510,22 @@ export const model = {
         "them through @svendowideit/sudo's runScript operation, and validation, " +
         "live verification and rollback to the previous working snapshot are " +
         "part of the staged apply script.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.26.2",
+      description:
+        "NixOS fixes: the generated module now disables resolvconf when it " +
+        "owns resolv.conf and always installs dnsmasq plus bind.dnsutils; the " +
+        "staged scripts get a NixOS PATH and NIX_PATH so nixos-rebuild works " +
+        "from the container elevation route. The apply script now runs the " +
+        "live verification gate after activation and rolls back on failure. " +
+        "configDir, run ids and listenAddress are validated so a bad path " +
+        "cannot make the root remove step delete an unrelated directory and " +
+        "dnsmasq cannot listen off loopback; upstream files from inactive " +
+        "resolved/NetworkManager daemons are ignored; removeZone verifies a " +
+        "remaining zone instead of the removed one; a zone nameserver that " +
+        "points at the local port-53 listener is rejected as a loop.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

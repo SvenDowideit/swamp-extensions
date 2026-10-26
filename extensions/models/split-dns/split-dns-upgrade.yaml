@@ -8,8 +8,8 @@ description: |
   the host, refreshes the DHCP upstream view, re-renders and validates the
   dnsmasq config, stages the apply/rollback/verify scripts, and runs the apply
   script through @svendowideit/sudo's `runScript` operation. The script
-  restarts only when something changed and rolls back on failure. `verify`
-  then checks the live resolver.
+  restarts only when something changed (or when the live verify gate finds
+  drift) and rolls back on failure. `verify` then checks the live resolver.
 
   The model's lazy `typeVersion` upgrade runs on the first method call, so the
   new code is in use before the reconcile. The workflow is safe to re-run and
@@ -120,7 +120,7 @@ jobs:
         description: >-
           Run the staged apply script as root through @svendowideit/sudo.
           Skipped when the host has no managed zones.
-        guard: ${{ data.latest(inputs.model, "staged").attributes.changed == false }}
+        guard: ${{ size(data.latest(inputs.model, "staged").attributes.zones) == 0 && data.latest(inputs.model, "staged").attributes.changed == false }}
         task:
           type: model_method
           modelType: "@svendowideit/sudo"

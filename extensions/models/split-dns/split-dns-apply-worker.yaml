@@ -176,7 +176,7 @@ jobs:
           Run the staged apply script as root through @svendowideit/sudo's
           runScript operation. The script activates the forwarder, verifies the
           live resolver, and restores the pre-apply snapshot on failure.
-        guard: ${{ inputs.dryRun == true || data.latest(inputs.model, "staged").attributes.changed == false }}
+        guard: ${{ inputs.dryRun == true || (size(data.latest(inputs.model, "staged").attributes.zones) == 0 && data.latest(inputs.model, "staged").attributes.changed == false) }}
         target: ${{ inputs.worker }}
         task:
           type: model_method
@@ -201,7 +201,7 @@ jobs:
         description: >-
           Confirm the live resolver returns the managed zone and the control
           name. Fails with the exact query output if the host did not converge.
-        guard: ${{ inputs.dryRun == true }}
+        guard: ${{ inputs.dryRun == true || inputs.removeZone == true || (size(data.latest(inputs.model, "staged").attributes.zones) == 0 && data.latest(inputs.model, "staged").attributes.changed == false) }}
         target: ${{ inputs.worker }}
         task:
           type: model_method

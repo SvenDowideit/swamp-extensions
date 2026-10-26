@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3889"><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli deco</a><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3958"><span class="tier A">A</span>swamp serve: a workflow run interrupted at a clean shutdown </a><a href="#issue-3966"><span class="tier A">A</span>Flaky test: v3 compaction &#39;stopped between batches&#39; test tim</a><a href="#issue-3921"><span class="tier A">A</span>stagecraft remote studio poll: follow-ups from #3658 review </a><a href="#issue-3918"><span class="tier A">A</span>stagecraft remote studio: one long-lived connection to serve</a><a href="#issue-3965"><span class="tier A">A</span>docs(manual): the manual documents swamp subscription status</a><a href="#issue-3960"><span class="tier A">A</span>Dashboard output-search refetch on run activity supersedes i</a><a href="#issue-3828"><span class="tier A">A</span>stagecraft studio: show a factory&#39;s open tickets that have n</a><a href="#issue-3725"><span class="tier A">A</span>Docs: dependency trust across push, quality, fmt and the reg</a><a href="#issue-3959"><span class="tier A">A</span>Behavior history search rescans all definitions for each mis</a><a href="#issue-3735"><span class="tier A">A</span>typed-secrets 4.6: turn the typed path on for every entry po</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3889"><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli deco</a><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3954"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-3956"><span class="tier A">A</span>`swamp issue` redaction treats a four-part version number as</a><a href="#issue-3958"><span class="tier A">A</span>swamp serve: a workflow run interrupted at a clean shutdown </a><a href="#issue-3966"><span class="tier A">A</span>Flaky test: v3 compaction &#39;stopped between batches&#39; test tim</a><a href="#issue-3921"><span class="tier A">A</span>stagecraft remote studio poll: follow-ups from #3658 review </a><a href="#issue-3918"><span class="tier A">A</span>stagecraft remote studio: one long-lived connection to serve</a><a href="#issue-3965"><span class="tier A">A</span>docs(manual): the manual documents swamp subscription status</a><a href="#issue-3960"><span class="tier A">A</span>Dashboard output-search refetch on run activity supersedes i</a><a href="#issue-3828"><span class="tier A">A</span>stagecraft studio: show a factory&#39;s open tickets that have n</a><a href="#issue-3725"><span class="tier A">A</span>Docs: dependency trust across push, quality, fmt and the reg</a></aside><div>
 
 <article class="item" id="issue-3889">
 <h2><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli decoder RCE (CVE-2026-111497, Node2Shell/HTTP2Shell)</h2>
@@ -84,6 +84,22 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3576" rel="noopener">lab#3576</a></div>
+</article>
+<article class="item" id="issue-3954">
+<h2><span class="tier A">A</span>Scheduled flaky-test detection is failing</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-26T18:29:19.460Z">2026-10-26T18:29:19.460Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3954" rel="noopener">lab#3954</a></div>
+</article>
+<article class="item" id="issue-3956">
+<h2><span class="tier A">A</span>`swamp issue` redaction treats a four-part version number as an IP address</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-26T18:13:02.234Z">2026-10-26T18:13:02.234Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3956" rel="noopener">lab#3956</a></div>
 </article>
 <article class="item" id="issue-3958">
 <h2><span class="tier A">A</span>swamp serve: a workflow run interrupted at a clean shutdown stays `running` in the shared S3 datastore when the 5 s interrupt push misses its deadline; boot and peer reapers do not settle it there</h2>
@@ -149,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3725" rel="noopener">lab#3725</a></div>
 </article>
-<article class="item" id="issue-3959">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3959">
 <h2><span class="tier A">A</span>Behavior history search rescans all definitions for each missing ID, causing severe latency and dashboard refresh starvation</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-26T14:54:38.061Z">2026-10-26T14:54:38.061Z</time></span></div>
@@ -165,7 +181,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3735" rel="noopener">lab#3735</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3793">
+<article class="item" id="issue-3793">
 <h2><span class="tier A">A</span>extension push (package.json mode): two installed copies under one declared range are audited once, so the second shipped version goes unaudited</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-26T14:11:04.967Z">2026-10-26T14:11:04.967Z</time></span></div>
@@ -6109,34 +6125,58 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-3956">
-<h2><span class="tier B">B</span>`swamp issue` redaction treats a four-part version number as an IP address</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-26T17:53:45.321Z">2026-10-26T17:53:45.321Z</time></span></div>
+<article class="item" id="issue-3846">
+<h2><span class="tier B">B</span>invalid-acceptance refuses an apostrophe in a swamp-quality-ignore reason and leaves the finding unresolved</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-26T18:59:46.661Z">2026-10-26T18:59:46.661Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3956" rel="noopener">lab#3956</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3846" rel="noopener">lab#3846</a></div>
+</article>
+<article class="item" id="issue-3153">
+<h2><span class="tier B">B</span>extension push: a swamp-quality-ignore directive after a comment holding an apostrophe is silently ignored</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-26T18:58:01.917Z">2026-10-26T18:58:01.917Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3153" rel="noopener">lab#3153</a></div>
 </article>
 <article class="item" id="issue-3939">
 <h2><span class="tier B">B</span>v3 read model: guard against aliased key spellings on case-insensitive filesystems, without slowing replay</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-26T17:53:33.467Z">2026-10-26T17:53:33.467Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-26T18:54:34.031Z">2026-10-26T18:54:34.031Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3939" rel="noopener">lab#3939</a></div>
 </article>
-<article class="item" id="issue-3954">
-<h2><span class="tier B">B</span>Scheduled flaky-test detection is failing</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-26T17:51:44.845Z">2026-10-26T17:51:44.845Z</time></span></div>
+<article class="item" id="issue-3968">
+<h2><span class="tier B">B</span>serve: workflow.history.get rescans every behavior definition (incl. auto-definitions) per request to authorize step outputs; latency grows with catalog size, multiplies under overlap, and cancel does not stop it</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-26T18:53:44.836Z">2026-10-26T18:53:44.836Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3954" rel="noopener">lab#3954</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3968" rel="noopener">lab#3968</a></div>
+</article>
+<article class="item" id="issue-3969">
+<h2><span class="tier B">B</span>Extension dependencies: one resolver for push, quality and fmt (no behaviour change)</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-26T18:53:01.461Z">2026-10-26T18:53:01.461Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3969" rel="noopener">lab#3969</a></div>
+</article>
+<article class="item" id="issue-3967">
+<h2><span class="tier B">B</span>typed-secrets: element and union values that are not strings reach CEL as JSON text, not with their type</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-26T18:52:31.006Z">2026-10-26T18:52:31.006Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3967" rel="noopener">lab#3967</a></div>
 </article>
 <article class="item" id="issue-3781">
 <h2><span class="tier B">B</span>Share the extension quality rubric between the swamp CLI and swamp-club instead of mirroring it</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-26T17:11:45.927Z">2026-10-26T17:11:45.927Z</time></span></div>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-26T18:18:42.502Z">2026-10-26T18:18:42.502Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3781" rel="noopener">lab#3781</a></div>
@@ -6237,7 +6277,47 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3964">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3974">
+<h2><span class="tier C">C</span>Manual: the supported extension dependency categories, the canonical form and the lock rule, rewritten once against the final design</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-26T18:50:35.014Z">2026-10-26T18:50:35.014Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3974" rel="noopener">lab#3974</a></div>
+</article>
+<article class="item" id="issue-3973">
+<h2><span class="tier C">C</span>Registry audits v2 extension archives as written, and a range costs the loose point only without a valid lock</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-26T18:50:33.509Z">2026-10-26T18:50:33.509Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3973" rel="noopener">lab#3973</a></div>
+</article>
+<article class="item" id="issue-3972">
+<h2><span class="tier C">C</span>Extension consumers keep the publisher&#39;s bundle: pull, update and auto-resolve stop rebuilding (direction A for #3634)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-26T18:50:31.832Z">2026-10-26T18:50:31.832Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3972" rel="noopener">lab#3972</a></div>
+</article>
+<article class="item" id="issue-3971">
+<h2><span class="tier C">C</span>Extension push: inputs that open up (workspace root lock, ancestor config refused by name, JSR dist-tags) and the skill docs rewritten once</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-26T18:50:30.242Z">2026-10-26T18:50:30.242Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3971" rel="noopener">lab#3971</a></div>
+</article>
+<article class="item" id="issue-3970">
+<h2><span class="tier C">C</span>Extension push ships the canonical form: every npm:/jsr: import pinned exact, and a v2 dependency-audit.json</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-26T18:50:28.594Z">2026-10-26T18:50:28.594Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3970" rel="noopener">lab#3970</a></div>
+</article>
+<article class="item" id="issue-3964">
 <h2><span class="tier C">C</span>stagecraft studio ticket columns: round-5 review lows from #3828 (source watch cost, relationText lookup, cross-instance claim)</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-26T15:06:59.988Z">2026-10-26T15:06:59.988Z</time></span></div>
@@ -6484,14 +6564,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3065" rel="noopener">lab#3065</a></div>
-</article>
-<article class="item" id="issue-3846">
-<h2><span class="tier C">C</span>invalid-acceptance refuses an apostrophe in a swamp-quality-ignore reason and leaves the finding unresolved</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-23T17:22:57.667Z">2026-10-23T17:22:57.667Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3846" rel="noopener">lab#3846</a></div>
 </article>
 <article class="item" id="issue-3845">
 <h2><span class="tier C">C</span>extension quality --json reports percentage but not the grade that extension info and the registry show</h2>
@@ -7685,14 +7757,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3169" rel="noopener">lab#3169</a></div>
 </article>
-<article class="item" id="issue-3153">
-<h2><span class="tier C">C</span>extension push: a swamp-quality-ignore directive after a comment holding an apostrophe is silently ignored</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-07T19:51:52.284Z">2026-10-07T19:51:52.284Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3153" rel="noopener">lab#3153</a></div>
-</article>
 <article class="item" id="issue-3142">
 <h2><span class="tier C">C</span>Docs: extension push content hash no longer depends on the swamp repo location (Match CI&#39;s content hash section)</h2>
 <p class="lede">Open issue</p>
@@ -8222,13 +8286,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>1019 items across 1 source(s) in this window:
-2 critical, 753 notable, 16 routine,
-248 minor.</p>
-<ul><li><strong>issues</strong> — 1019</li></ul></section>
+<p>1027 items across 1 source(s) in this window:
+2 critical, 755 notable, 19 routine,
+251 minor.</p>
+<ul><li><strong>issues</strong> — 1027</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-26T18:02:51.592Z">2026-10-26T18:02:51.592Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-26T19:03:35.286Z">2026-10-26T19:03:35.286Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

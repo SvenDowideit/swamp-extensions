@@ -360,7 +360,96 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/data-query.md" rel="noopener">design/enablers/data-query.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261022.200604.0-sha.8fa7de2d" rel="noopener">release v20261022.200604.0-sha.8fa7de2d</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8fa7de2d3016c10d1e7fd4ab840b62de93f9cded" rel="noopener">8fa7de2d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3304" rel="noopener">#3304</a>𝗔 <a href="https://swamp-club.com/lab/3732" rel="noopener">lab#3732</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261026-165331-0-sha-fdab982d">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261026-182207-0-sha-b170e3f6">
+<h2><span class="tier A">A</span>vault sensitive resource fields inside arrays, records and unions (swamp-club#3038) (#3382)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-26T18:27:45Z">2026-10-26T18:27:45Z</time></span><span>models</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(models): vault sensitive resource fields inside arrays, records and unions (swamp-club#3038) (#3382)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3038. A resource field marked <code>{ sensitive: true }</code> was only vaulted when it sat in nested objects. One inside an array element, record value or union member was persisted in cleartext, such as <code>spec.services[].image.registry_credentials</code> in the generated DigitalOcean models.</p>
+<p><strong>Write side</strong></p>
+<ul>
+<li><code>processSensitiveResourceData</code> finds marked values by walking the schema and the data together (<code>findValuesWithMetadata</code>).</li>
+<li>Each array element or record value gets its own stable vault key. A declared <code>vaultKey</code> becomes a prefix (<code>my-key.users.0.password</code>).</li>
+<li>A record key that isn&#39;t all lowercase letters, digits, <code>_</code> and <code>-</code> is reduced and given a SHA-256 suffix. That keeps quotes and <code>..</code> out of the key, and keeps <code>Token</code> and <code>token</code> apart in a case-insensitive vault.</li>
+<li>Keys over 200 characters are cut and end in a hash of the whole key.</li>
+<li>Any two fields that would share a key refuse the write before anything is stored.</li>
+<li>Fields nested only in objects keep their existing keys and tag paths.</li>
+<li>A sensitive container that holds a marked field, outside array elements, record values and <code>sensitiveOutput</code> specs, keeps its existing shape: an object of the marked fields&#39; references, plus the whole container under its own key. So <code>readResource</code> returns <code>{ apiKey }</code>, and CEL reads <code>credentials.apiKey</code> as a Secret.</li>
+</ul>
+<p><strong>Tags.</strong> All three tags s</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261026.182207.0-sha.b170e3f6" rel="noopener">release v20261026.182207.0-sha.b170e3f6</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b170e3f627e7bbaf058cb510d17049ba624aeb65" rel="noopener">b170e3f6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3382" rel="noopener">#3382</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3479" rel="noopener">#3479</a>𝗔 <a href="https://swamp-club.com/lab/3967" rel="noopener">lab#3967</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261026-181156-0-sha-76b41c7c">
+<h2><span class="tier A">A</span>keep four-part versions such as WSL2 kernel releases out of IP address redaction (swamp-club#3956) (#3381)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-26T18:19:26Z">2026-10-26T18:19:26Z</time></span><span>issues</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(issues): keep four-part versions such as WSL2 kernel releases out of IP address redaction (swamp-club#3956) (#3381)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3956. <code>swamp issue bug</code> redacted a WSL2 kernel release (<code>6.18.33.2-microsoft-standard-WSL2</code>) as <code>[IP-1]-microsoft-standard-WSL2</code>, so bug reports lost the environment data maintainers need.</p>
+<ul>
+<li><code>IPV4_RE</code> refuses a dotted quad followed by a hyphen and a letter (a release suffix), or by a dot and a digit (a fifth version group, an OID such as <code>1.3.6.1.4.1.2021</code>).</li>
+<li>A quad with any group above 255 (<code>1.2.3.400</code>) is kept, since it cannot be an address.</li>
+<li>Still redacted: address ranges (<code>10.0.0.1-10.0.0.5</code>), wildcard DNS names (<code>10.0.0.5.nip.io</code>), ports, commas, parentheses and sentence-ending addresses.</li>
+</ul>
+<p>Accepted trade-off: a real address written with a hyphen-and-letter suffix (<code>10.0.0.5-eth0</code>) is no longer redacted. Interactive log mode still shows every redaction before posting.</p>
+<h4 class="body-h">Testing</h4>
+<ul>
+<li>Unit tests for the reporter&#39;s string, kept versions and every still-redacted continuation; two fast-check properties (real addresses never survive whole; four-part versions with a release suffix survive untouched). New tests fail on the old code; each half of the lookahead, an over-wide lookahead and the 255 check were mutation-checked.</li>
+<li>Compiled branch binary vs released binary, reporter&#39;s command against a local stub: released posts <code>Kernel: [IP-1]-microsoft-standard-WSL2 and peer [IP-2]</code>, branch posts `Kernel: 6.18.33.</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261026.181156.0-sha.76b41c7c" rel="noopener">release v20261026.181156.0-sha.76b41c7c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/76b41c7cc70de1095ff6dcd0ad4980e2decb5e41" rel="noopener">76b41c7c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3381" rel="noopener">#3381</a>𝗔 <a href="https://swamp-club.com/lab/3956" rel="noopener">lab#3956</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261026-180358-0-sha-86448d23">
+<h2><span class="tier A">A</span>the elastic-queueing remote test waits for the queue records a queued step writes before removing its repo (swamp-club#3954) (#3380)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-26T18:10:24Z">2026-10-26T18:10:24Z</time></span><span>tests</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(tests): the elastic-queueing remote test waits for the queue records a queued step writes before removing its repo (swamp-club#3954) (#3380)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3954. The scheduled flaky-test run failed on Linux in <code>integration/remote_execution_test.ts</code> (&quot;elastic queueing — empty pool queues, worker enrolls, step dispatches&quot;): removing the test&#39;s temp dir failed with <code>Directory not empty (os error 39)</code>.</p>
+<p><strong>Cause:</strong> <code>DispatchService</code> records a queued step&#39;s pending-dispatch bookkeeping (<code>enqueue</code>, <code>mark_dispatched</code>, <code>cancel</code>, <code>timeout</code>) without waiting, on its own transition tail. The test orchestrator&#39;s <code>shutdown</code> waited only for <code>WorkerGateway.settled()</code>, so a <code>mark_dispatched</code> write could still be running when the test removed the repo. This is the only remote test that queues a step, so the only one that writes these records. It surfaced after swamp-club#3854 stopped swallowing temp-dir removal errors outside Windows.</p>
+<p><strong>Fix</strong></p>
+<ul>
+<li><code>DispatchService.settled()</code> resolves once every pending-dispatch and step-lease transition queued so far has settled, as <code>WorkerGateway.settled()</code> does.</li>
+<li>The test orchestrator&#39;s <code>shutdown</code> awaits it after <code>gateway.settled()</code>.</li>
+</ul>
+<p><strong>Out of scope:</strong> <code>swamp serve</code> shutdown has the same un-awaited dispatch tail; that belongs with swamp-club#3865.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>New unit test in <code>src/serve/dispatch_service_test.ts</code>: holds the <code>enqueue</code> transition on a gate, cancels the queued step, and asserts <code>settled()</code> resolves only</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261026.180358.0-sha.86448d23" rel="noopener">release v20261026.180358.0-sha.86448d23</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/86448d23cf6dd72e9def8f6b3a73aea8327e6492" rel="noopener">86448d23</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3380" rel="noopener">#3380</a>𝗔 <a href="https://swamp-club.com/lab/3954" rel="noopener">lab#3954</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261026-170342-0-sha-4c4327b4">
+<h2><span class="tier A">A</span>datastore API uploads are reserved before they are read, never evict a lighter principal&#39;s, and need admin; catch-up and chunk reads of a behavior definition&#39;s partition are decided per record (swamp-club#3938) (#3379)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-26T17:10:09Z">2026-10-26T17:10:09Z</time></span><span>serve</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): datastore API uploads are reserved before they are read, never evict a lighter principal&#39;s, and need admin; catch-up and chunk reads of a behavior definition&#39;s partition are decided per record (swamp-club#3938) (#3379)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Hardens serve&#39;s datastore API (added in swamp-club#3915, #3368). These are the six findings swamp-club#3938 collected from that PR&#39;s verification reviews.</p>
+<p>1. <strong>Entry cap counts only unreferenced uploads.</strong> Once a commit references a chunk, it stops counting toward the principal&#39;s 20,000-entry cap, so a busy CI token is no longer locked out for the 24-hour grace window.</p>
+<p>2. <strong>No cross-principal eviction.</strong> At the 200,000-entry global cap, room comes first from the oldest entry a commit already references, because that commit&#39;s partition still vouches for the chunk. Failing that, it comes from the oldest upload of the principal holding the most unreferenced uploads. If that principal is the caller, or ties with another, the caller is refused with <code>429 upload_quota_exceeded</code>.</p>
+<p>3. <strong>Reserve on admit, settle on record.</strong> Every upload, a <code>PUT</code> or a chunk a commit carries, reserves room before its bytes are read and is recorded against that reservation once stored. Reservations count toward every cap, so concurrent requests can&#39;t overshoot the quota, and every exit path cancels them. <code>record()</code> refuses an upload without a live reservation.</p>
+<p>4. <strong><code>PUT chunks/{sha256}</code> needs admin until swamp-club#3922</strong>, the same rule as ever</p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261026.170342.0-sha.4c4327b4" rel="noopener">release v20261026.170342.0-sha.4c4327b4</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4c4327b42a7271c3f5837807b60e4679e8f5709a" rel="noopener">4c4327b4</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3379" rel="noopener">#3379</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3368" rel="noopener">#3368</a>𝗔 <a href="https://swamp-club.com/lab/3915" rel="noopener">lab#3915</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261026-165331-0-sha-fdab982d">
 <h2><span class="tier A">A</span>a run interrupted at a clean shutdown is settled in the shared datastore when the interrupt push misses its deadline (swamp-club#3958) (#3377)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-26T17:03:27Z">2026-10-26T17:03:27Z</time></span><span>serve</span><span>fix</span></div>
@@ -13784,13 +13873,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.073437.0-sha.acf6214e" rel="noopener">release v20261001.073437.0-sha.acf6214e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214ef9980daf68e919a43f6db3cff17da608" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>567 items across 1 source(s) in this window:
-26 critical, 484 notable, 19 routine,
+<p>571 items across 1 source(s) in this window:
+26 critical, 488 notable, 19 routine,
 38 minor.</p>
-<ul><li><strong>fix</strong> — 367</li><li><strong>feat</strong> — 140</li><li><strong>test</strong> — 22</li><li><strong>docs</strong> — 18</li><li><strong>refactor</strong> — 13</li><li><strong>perf</strong> — 5</li></ul></section>
+<ul><li><strong>fix</strong> — 371</li><li><strong>feat</strong> — 140</li><li><strong>test</strong> — 22</li><li><strong>docs</strong> — 18</li><li><strong>refactor</strong> — 13</li><li><strong>perf</strong> — 5</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-26T18:02:51.592Z">2026-10-26T18:02:51.592Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-26T19:03:35.286Z">2026-10-26T19:03:35.286Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

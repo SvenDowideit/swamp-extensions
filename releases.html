@@ -382,7 +382,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Installs take their turn with serve&#39;s refresh.</strong> In serve, the auto-install&#39;s inspect, install and hot-load run inside <code>withExtensionMutation</code>, the queue the per-run local-model refresh and hot-reload already share. Before, a run&#39;s refresh saw the new lockfile entry and rebundled the half-installed extension beside the install (every bundle written twice, interleaved, non-atomically), and registered its types first, so the install&#39;s hot-load counted 0. Trade-off: runs that start during an install wait for it in their refresh pass (bounded by the 150s install deadline).</li>
 <li>**Hon</li>
 </ul></div>
-
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/extensions.md" rel="noopener">design/primitives/extensions.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261025.171252.0-sha.b6a26393" rel="noopener">release v20261025.171252.0-sha.b6a26393</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b6a26393702d7cdf2067383854cebdbae4df7de7" rel="noopener">b6a26393</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3367" rel="noopener">#3367</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261025-155547-0-sha-4f7649ed">
@@ -405,7 +405,7 @@ footer .ver{color:var(--acc)}
 <ul>
 <li>New</li>
 </ul></div>
-
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261025.155547.0-sha.4f7649ed" rel="noopener">release v20261025.155547.0-sha.4f7649ed</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4f7649ed1d84b281b3b63032292973241843cfc5" rel="noopener">4f7649ed</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3366" rel="noopener">#3366</a>𝗔 <a href="https://swamp-club.com/lab/3892" rel="noopener">lab#3892</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261025-114930-0-sha-b4dd513d">
@@ -450,7 +450,7 @@ footer .ver{color:var(--acc)}
 <ul>
 <li>After 2 s, swamp list</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastore-litestream.md" rel="noopener">design/enablers/datastore-litestream.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261025.010734.0-sha.02a2b20b" rel="noopener">release v20261025.010734.0-sha.02a2b20b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/02a2b20b571d511161a156e676ad321948197d0b" rel="noopener">02a2b20b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3363" rel="noopener">#3363</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3759" rel="noopener">#3759</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3802" rel="noopener">#3802</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3882" rel="noopener">#3882</a>𝗔 <a href="https://swamp-club.com/lab/3893" rel="noopener">lab#3893</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261024-212546-0-sha-9c4005ab">
@@ -636,7 +636,7 @@ footer .ver{color:var(--acc)}
 <p><strong>Linux (aarch64):</strong></p>
 <p>```bash</p>
 <p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20261024.013409.0-sha.a58e3221" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20261024.013409.0-sha.a58e3221</a></p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261024.013409.0-sha.a58e3221" rel="noopener">release v20261024.013409.0-sha.a58e3221</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a58e32212e4e203acbce8ffe54c0f746b825b414" rel="noopener">a58e3221</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3354" rel="noopener">#3354</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261024-012734-0-sha-13a21dbb">
@@ -1034,7 +1034,7 @@ footer .ver{color:var(--acc)}
 <li>The package cache hash now covers the <code>deno.lock</code> the bundler runs <code>--frozen</code> against, so a lock bump no longer reuses a bundle built against the old lock. Extensions without a lock keep their hash.</li>
 <li><code>testdata/dependency_audit_vectors.json</code> gains an <code>installed</code> resolution case, a `record</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/extensions.md" rel="noopener">design/primitives/extensions.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261023.145026.0-sha.37cdfc6c" rel="noopener">release v20261023.145026.0-sha.37cdfc6c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/37cdfc6cb4c9d216cd87a91f45f0d833de222c78" rel="noopener">37cdfc6c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3327" rel="noopener">#3327</a>𝗔 <a href="https://swamp-club.com/lab/3662" rel="noopener">lab#3662</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261023-144040-0-sha-61d1aa5f">
@@ -3103,7 +3103,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Two ways to close the hole:</strong></li>
 <li><code>--tag-requires-explicit-grant</code> (config <code>auth.tag-requires-explicit-grant</code>, env `SWAMP_TAG_REQUIRES_EX</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/access-control.md" rel="noopener">design/enablers/access-control.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261016.164633.0-sha.398d9408" rel="noopener">release v20261016.164633.0-sha.398d9408</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/398d9408746820b6626968960380eab8f0fab447" rel="noopener">398d9408</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3165" rel="noopener">#3165</a>𝗔 <a href="https://swamp-club.com/lab/3547" rel="noopener">lab#3547</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261016-163909-0-sha-fcf98aa1">
@@ -13519,7 +13519,7 @@ footer .ver{color:var(--acc)}
 <ul><li><strong>fix</strong> — 363</li><li><strong>feat</strong> — 136</li><li><strong>test</strong> — 22</li><li><strong>docs</strong> — 18</li><li><strong>refactor</strong> — 12</li><li><strong>perf</strong> — 3</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-26T01:05:41.712Z">2026-10-26T01:05:41.712Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-26T02:13:43.922Z">2026-10-26T02:13:43.922Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

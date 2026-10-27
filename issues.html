@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3889"><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli deco</a><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3997"><span class="tier A">A</span>Inbox notice policy and local inbox cache: when to poll, whe</a><a href="#issue-3976"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-3990"><span class="tier A">A</span>Inbox API contract and SwampClubClient inbox methods: summar</a><a href="#issue-3383"><span class="tier A">A</span>extension pull: safety analysis scans the bundle the extensi</a><a href="#issue-3979"><span class="tier A">A</span>Extension scoring queue: two replicas can claim the same pen</a><a href="#issue-3922"><span class="tier A">A</span>Datastore rework Phase 5: content-level authorisation for fo</a><a href="#issue-3863"><span class="tier A">A</span>Registry rescore: secret-safe-docs passes a secret README li</a><a href="#issue-3845"><span class="tier A">A</span>extension quality --json reports percentage but not the grad</a><a href="#issue-3977"><span class="tier A">A</span>Score extensions with @swamp-club/extension-scoring (rubric </a><a href="#issue-3969"><span class="tier A">A</span>Extension dependencies: one resolver for push, quality and f</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3889"><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli deco</a><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3639"><span class="tier A">A</span>bundleExtension &#39;bundles on different caches do not wait for</a><a href="#issue-3997"><span class="tier A">A</span>Inbox notice policy and local inbox cache: when to poll, whe</a><a href="#issue-3976"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-3990"><span class="tier A">A</span>Inbox API contract and SwampClubClient inbox methods: summar</a><a href="#issue-3383"><span class="tier A">A</span>extension pull: safety analysis scans the bundle the extensi</a><a href="#issue-3979"><span class="tier A">A</span>Extension scoring queue: two replicas can claim the same pen</a><a href="#issue-3922"><span class="tier A">A</span>Datastore rework Phase 5: content-level authorisation for fo</a><a href="#issue-3863"><span class="tier A">A</span>Registry rescore: secret-safe-docs passes a secret README li</a><a href="#issue-3845"><span class="tier A">A</span>extension quality --json reports percentage but not the grad</a><a href="#issue-3977"><span class="tier A">A</span>Score extensions with @swamp-club/extension-scoring (rubric </a></aside><div>
 
 <article class="item" id="issue-3889">
 <h2><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli decoder RCE (CVE-2026-111497, Node2Shell/HTTP2Shell)</h2>
@@ -84,6 +84,14 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3576" rel="noopener">lab#3576</a></div>
+</article>
+<article class="item" id="issue-3639">
+<h2><span class="tier A">A</span>bundleExtension &#39;bundles on different caches do not wait for each other&#39; test fails under CPU load</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-27T12:56:58.361Z">2026-10-27T12:56:58.361Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3639" rel="noopener">lab#3639</a></div>
 </article>
 <article class="item" id="issue-3997">
 <h2><span class="tier A">A</span>Inbox notice policy and local inbox cache: when to poll, when the post-command notice shows and retires, and a cache file per API-key fingerprint, with no wiring yet</h2>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3977" rel="noopener">lab#3977</a></div>
 </article>
-<article class="item" id="issue-3969">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3969">
 <h2><span class="tier A">A</span>Extension dependencies: one resolver for push, quality and fmt (no behaviour change)</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-26T21:58:11.130Z">2026-10-26T21:58:11.130Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3969" rel="noopener">lab#3969</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3984">
+<article class="item" id="issue-3984">
 <h2><span class="tier A">A</span>serve: enrolling a new worker name scans every stored worker definition twice inside the serialized gateway tail, so bursts of new workers time out and block existing workers&#39; status, re-enrollment and dispatch</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-26T21:55:32.353Z">2026-10-26T21:55:32.353Z</time></span></div>
@@ -6261,6 +6269,46 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
+<article class="item" id="issue-3983">
+<h2><span class="tier B">B</span>Extension dependencies: the shared import scan reads Babel syntax, not tokens (follow-up to #3969)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-27T12:59:59.995Z">2026-10-27T12:59:59.995Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3983" rel="noopener">lab#3983</a></div>
+</article>
+<article class="item" id="issue-3272">
+<h2><span class="tier B">B</span>swamp-extensions: use explicit npm:/jsr: specifiers in root extensions/models</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-27T12:59:53.827Z">2026-10-27T12:59:53.827Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3272" rel="noopener">lab#3272</a></div>
+</article>
+<article class="item" id="issue-3869">
+<h2><span class="tier B">B</span>extension fmt (and any command) creates or rewrites deno.lock when the extension lives in the repo&#39;s loaded extensions/ dir</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-27T12:58:22.605Z">2026-10-27T12:58:22.605Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3869" rel="noopener">lab#3869</a></div>
+</article>
+<article class="item" id="issue-3970">
+<h2><span class="tier B">B</span>Extension push ships the canonical form: every npm:/jsr: import pinned exact, and a v2 dependency-audit.json</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-27T12:53:02.715Z">2026-10-27T12:53:02.715Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3970" rel="noopener">lab#3970</a></div>
+</article>
+<article class="item" id="issue-3989">
+<h2><span class="tier B">B</span>Docs: extension quality scores with the registry formula and reports grade (swamp-club#3845)</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-27T12:23:40.733Z">2026-10-27T12:23:40.733Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3989" rel="noopener">lab#3989</a></div>
+</article>
 <article class="item" id="issue-3985">
 <h2><span class="tier B">B</span>Datastore rework Phase 5 (team mode) 2/3: the CLI&#39;s serve upstream — with serverAddress, a v3 checkout commits, reads chunks and catches up through serve&#39;s datastore API, with no storage credentials</h2>
 <p class="lede">Issue in_progress</p>
@@ -6268,14 +6316,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3985" rel="noopener">lab#3985</a></div>
-</article>
-<article class="item" id="issue-3983">
-<h2><span class="tier B">B</span>Extension dependencies: the shared import scan reads Babel syntax, not tokens (follow-up to #3969)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-27T01:11:58.501Z">2026-10-27T01:11:58.501Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3983" rel="noopener">lab#3983</a></div>
 </article>
 <article class="item" id="issue-3986">
 <h2><span class="tier B">B</span>Add Axiom-queryable phase telemetry for enrollment, run outputs, worker deletion, output retention and access polling</h2>
@@ -6381,13 +6421,21 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3989">
-<h2><span class="tier C">C</span>Docs: extension quality scores with the registry formula and reports grade (swamp-club#3845)</h2>
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3999">
+<h2><span class="tier C">C</span>Support search and filters as URL query parameters on /extensions</h2>
 <p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-27T07:58:49.322Z">2026-10-27T07:58:49.322Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-27T12:59:11.822Z">2026-10-27T12:59:11.822Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3989" rel="noopener">lab#3989</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3999" rel="noopener">lab#3999</a></div>
+</article>
+<article class="item" id="issue-3998">
+<h2><span class="tier C">C</span>bundleExtension same-cache test can pass with a broken first-bundle gate under CPU load</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-27T12:56:46.241Z">2026-10-27T12:56:46.241Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3998" rel="noopener">lab#3998</a></div>
 </article>
 <article class="item" id="issue-3993">
 <h2><span class="tier C">C</span>Docs: run-workflows-on-a-schedule tells readers to curl /health for queue state, which no longer lists schedules</h2>
@@ -6500,14 +6548,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3971" rel="noopener">lab#3971</a></div>
-</article>
-<article class="item" id="issue-3970">
-<h2><span class="tier C">C</span>Extension push ships the canonical form: every npm:/jsr: import pinned exact, and a v2 dependency-audit.json</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-26T18:50:28.594Z">2026-10-26T18:50:28.594Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3970" rel="noopener">lab#3970</a></div>
 </article>
 <article class="item" id="issue-3964">
 <h2><span class="tier C">C</span>stagecraft studio ticket columns: round-5 review lows from #3828 (source watch cost, relationText lookup, cross-instance claim)</h2>
@@ -6692,14 +6732,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3870" rel="noopener">lab#3870</a></div>
-</article>
-<article class="item" id="issue-3869">
-<h2><span class="tier C">C</span>extension fmt (and any command) creates or rewrites deno.lock when the extension lives in the repo&#39;s loaded extensions/ dir</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-23T21:09:00.150Z">2026-10-23T21:09:00.150Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3869" rel="noopener">lab#3869</a></div>
 </article>
 <article class="item" id="issue-3865">
 <h2><span class="tier C">C</span>serve shutdown does not wait for worker status writes, and its listener accepts workers after the gateway is disposed</h2>
@@ -7004,14 +7036,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3641" rel="noopener">lab#3641</a></div>
-</article>
-<article class="item" id="issue-3639">
-<h2><span class="tier C">C</span>bundleExtension &#39;bundles on different caches do not wait for each other&#39; test fails under CPU load</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-19T20:34:16.044Z">2026-10-19T20:34:16.044Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3639" rel="noopener">lab#3639</a></div>
 </article>
 <article class="item" id="issue-3634">
 <h2><span class="tier C">C</span>extension install and extension pull leave different bundles for the same extension version</h2>
@@ -7692,14 +7716,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3280" rel="noopener">lab#3280</a></div>
-</article>
-<article class="item" id="issue-3272">
-<h2><span class="tier C">C</span>swamp-extensions: use explicit npm:/jsr: specifiers in root extensions/models</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-12T01:31:16.280Z">2026-10-12T01:31:16.280Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3272" rel="noopener">lab#3272</a></div>
 </article>
 <article class="item" id="issue-3270">
 <h2><span class="tier C">C</span>Windows: extension rm joins repo dir with already-absolute bundle path</h2>
@@ -8430,13 +8446,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>1045 items across 1 source(s) in this window:
-2 critical, 772 notable, 15 routine,
-256 minor.</p>
-<ul><li><strong>issues</strong> — 1045</li></ul></section>
+<p>1047 items across 1 source(s) in this window:
+2 critical, 773 notable, 19 routine,
+253 minor.</p>
+<ul><li><strong>issues</strong> — 1047</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-27T12:24:12.303Z">2026-10-27T12:24:12.303Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-27T13:05:00.283Z">2026-10-27T13:05:00.283Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

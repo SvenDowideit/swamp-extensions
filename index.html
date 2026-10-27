@@ -77,6 +77,58 @@ footer .ver{color:var(--acc)}
 <p class="lede">Documentation changed in the This month window, newest first. The activity leaderboard is on the
 <a href="leaderboard.html">Leaderboard</a> page.</p>
 <article class="item doc-item">
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/extensions.md" rel="noopener">design/primitives/extensions.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>8 changes</span><span>updated <time datetime="2026-10-27T02:21:44Z">2026-10-27T02:21:44Z</time></span><span><a href="https://swamp-club.com/manual/reference/extensions" rel="noopener">published manual</a></span></div>
+<ul class="doc-changes"><li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-10-27T02:21:44Z">2026-10-27T02:21:44Z</time></span>
+<span class="doc-title">pull scans the bundles an extension runs, not only its source copy (swamp-club#3383) (#3399)</span>
+<span class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261027.021509.0-sha.f96841b5" rel="noopener">release v20261027.021509.0-sha.f96841b5</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/f96841b582e738aa36606de918154e6b7cf9364e" rel="noopener">f96841b5</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3399" rel="noopener">#3399</a>𝗔 <a href="https://swamp-club.com/lab/3383" rel="noopener">lab#3383</a></span>
+</li>
+<li class="doc-change">
+<span class="tier B">B</span>
+<span class="doc-date"><time datetime="2026-10-26T21:34:06Z">2026-10-26T21:34:06Z</time></span>
+<span class="doc-title">one dependency resolver for push, quality, fmt and the loader (swamp-club#3969) (#3393)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7f5e501c4e945aea67b8ca186a4dcb34dc5fe93f" rel="noopener">7f5e501c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3393" rel="noopener">#3393</a>𝗔 <a href="https://swamp-club.com/lab/3969" rel="noopener">lab#3969</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-10-23T14:50:03Z">2026-10-23T14:50:03Z</time></span>
+<span class="doc-title">push records each dependency&#39;s audited version in the archive, so the registry audits what ships (swamp-club#3662) (#3327)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/37cdfc6cb4c9d216cd87a91f45f0d833de222c78" rel="noopener">37cdfc6c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3327" rel="noopener">#3327</a>𝗔 <a href="https://swamp-club.com/lab/3662" rel="noopener">lab#3662</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-10-20T17:01:53Z">2026-10-20T17:01:53Z</time></span>
+<span class="doc-title">push ships each bare import as its deno.json import-map target (swamp-club#3637) (#3231)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b5ef0fea65697a4805ee402bdfe3db5625ac1e8a" rel="noopener">b5ef0fea</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3231" rel="noopener">#3231</a>𝗔 <a href="https://swamp-club.com/lab/3637" rel="noopener">lab#3637</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-10-19T23:42:47Z">2026-10-19T23:42:47Z</time></span>
+<span class="doc-title">push and quality never rewrite the extension&#39;s deno.lock; a stale lock is refused with the command that fixes it (swamp-club#3613) (#3216)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/270eb2fe6aa031eab6589d7c0dff7201ef9b7bf8" rel="noopener">270eb2fe</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3216" rel="noopener">#3216</a>𝗔 <a href="https://swamp-club.com/lab/3613" rel="noopener">lab#3613</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-10-15T23:56:51Z">2026-10-15T23:56:51Z</time></span>
+<span class="doc-title">extension push --private follows the registry&#39;s privateExtensions verdict and never calls a standing a Free plan (swamp-club#3311) (#3156)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7d3a03c069541283d421282a7ce3c08fbf31ec50" rel="noopener">7d3a03c0</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3156" rel="noopener">#3156</a>𝗔 <a href="https://swamp-club.com/lab/3311" rel="noopener">lab#3311</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-10-15T17:30:45Z">2026-10-15T17:30:45Z</time></span>
+<span class="doc-title">fix the flaky and platform-specific test failures, and probe extension bundles in a killable process (swamp-club#3494, swamp-club#3497) (#3144)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/95cd23184f8b0e596c0f91388d277325cb23f77e" rel="noopener">95cd2318</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3144" rel="noopener">#3144</a>𝗔 <a href="https://swamp-club.com/lab/3494" rel="noopener">lab#3494</a></span>
+</li>
+<li class="doc-change">
+<span class="tier C">C</span>
+<span class="doc-date"><time datetime="2026-10-14T03:48:42Z">2026-10-14T03:48:42Z</time></span>
+<span class="doc-title">Layout Migration describes the re-pull and sweep that repo upgrade runs for gen-1 and gen-2 extensions (swamp-club#3273) (#3098)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/110977e91f76cf6c7657eee5eed7f3658ffb9f74" rel="noopener">110977e9</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3098" rel="noopener">#3098</a>𝗔 <a href="https://swamp-club.com/lab/3273" rel="noopener">lab#3273</a></span>
+</li></ul>
+</article>
+<article class="item doc-item">
 <h2><a href="https://github.com/swamp-club/swamp/blob/main/design/README.md" rel="noopener">design/README.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>3 changes</span><span>updated <time datetime="2026-10-27T00:52:48Z">2026-10-27T00:52:48Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
@@ -368,58 +420,6 @@ footer .ver{color:var(--acc)}
 <span class="doc-date"><time datetime="2026-10-13T21:52:16Z">2026-10-13T21:52:16Z</time></span>
 <span class="doc-title">a running serve picks up edits to repo-local models, in its own steps and on workers (swamp-club#3284) (#3080)</span>
 <span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/68e0ed7d51a9043dc1d7ec75dbabf57c7cf421ae" rel="noopener">68e0ed7d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3080" rel="noopener">#3080</a>𝗔 <a href="https://swamp-club.com/lab/3284" rel="noopener">lab#3284</a></span>
-</li></ul>
-</article>
-<article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/extensions.md" rel="noopener">design/primitives/extensions.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>8 changes</span><span>updated <time datetime="2026-10-26T21:42:17Z">2026-10-26T21:42:17Z</time></span><span><a href="https://swamp-club.com/manual/reference/extensions" rel="noopener">published manual</a></span></div>
-<ul class="doc-changes"><li class="doc-change">
-<span class="tier B">B</span>
-<span class="doc-date"><time datetime="2026-10-26T21:42:17Z">2026-10-26T21:42:17Z</time></span>
-<span class="doc-title">one dependency resolver for push, quality, fmt and the loader (swamp-club#3969) (#3393)</span>
-<span class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261026.213432.0-sha.7f5e501c" rel="noopener">release v20261026.213432.0-sha.7f5e501c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7f5e501c4e945aea67b8ca186a4dcb34dc5fe93f" rel="noopener">7f5e501c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3393" rel="noopener">#3393</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3781" rel="noopener">#3781</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3793" rel="noopener">#3793</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3980" rel="noopener">#3980</a>𝗔 <a href="https://swamp-club.com/lab/3969" rel="noopener">lab#3969</a></span>
-</li>
-<li class="doc-change">
-<span class="tier B">B</span>
-<span class="doc-date"><time datetime="2026-10-26T21:34:06Z">2026-10-26T21:34:06Z</time></span>
-<span class="doc-title">one dependency resolver for push, quality, fmt and the loader (swamp-club#3969) (#3393)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7f5e501c4e945aea67b8ca186a4dcb34dc5fe93f" rel="noopener">7f5e501c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3393" rel="noopener">#3393</a>𝗔 <a href="https://swamp-club.com/lab/3969" rel="noopener">lab#3969</a></span>
-</li>
-<li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-23T14:50:03Z">2026-10-23T14:50:03Z</time></span>
-<span class="doc-title">push records each dependency&#39;s audited version in the archive, so the registry audits what ships (swamp-club#3662) (#3327)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/37cdfc6cb4c9d216cd87a91f45f0d833de222c78" rel="noopener">37cdfc6c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3327" rel="noopener">#3327</a>𝗔 <a href="https://swamp-club.com/lab/3662" rel="noopener">lab#3662</a></span>
-</li>
-<li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-20T17:01:53Z">2026-10-20T17:01:53Z</time></span>
-<span class="doc-title">push ships each bare import as its deno.json import-map target (swamp-club#3637) (#3231)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b5ef0fea65697a4805ee402bdfe3db5625ac1e8a" rel="noopener">b5ef0fea</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3231" rel="noopener">#3231</a>𝗔 <a href="https://swamp-club.com/lab/3637" rel="noopener">lab#3637</a></span>
-</li>
-<li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-19T23:42:47Z">2026-10-19T23:42:47Z</time></span>
-<span class="doc-title">push and quality never rewrite the extension&#39;s deno.lock; a stale lock is refused with the command that fixes it (swamp-club#3613) (#3216)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/270eb2fe6aa031eab6589d7c0dff7201ef9b7bf8" rel="noopener">270eb2fe</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3216" rel="noopener">#3216</a>𝗔 <a href="https://swamp-club.com/lab/3613" rel="noopener">lab#3613</a></span>
-</li>
-<li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-15T23:56:51Z">2026-10-15T23:56:51Z</time></span>
-<span class="doc-title">extension push --private follows the registry&#39;s privateExtensions verdict and never calls a standing a Free plan (swamp-club#3311) (#3156)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7d3a03c069541283d421282a7ce3c08fbf31ec50" rel="noopener">7d3a03c0</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3156" rel="noopener">#3156</a>𝗔 <a href="https://swamp-club.com/lab/3311" rel="noopener">lab#3311</a></span>
-</li>
-<li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-10-15T17:30:45Z">2026-10-15T17:30:45Z</time></span>
-<span class="doc-title">fix the flaky and platform-specific test failures, and probe extension bundles in a killable process (swamp-club#3494, swamp-club#3497) (#3144)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/95cd23184f8b0e596c0f91388d277325cb23f77e" rel="noopener">95cd2318</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3144" rel="noopener">#3144</a>𝗔 <a href="https://swamp-club.com/lab/3494" rel="noopener">lab#3494</a></span>
-</li>
-<li class="doc-change">
-<span class="tier C">C</span>
-<span class="doc-date"><time datetime="2026-10-14T03:48:42Z">2026-10-14T03:48:42Z</time></span>
-<span class="doc-title">Layout Migration describes the re-pull and sweep that repo upgrade runs for gen-1 and gen-2 extensions (swamp-club#3273) (#3098)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/110977e91f76cf6c7657eee5eed7f3658ffb9f74" rel="noopener">110977e9</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3098" rel="noopener">#3098</a>𝗔 <a href="https://swamp-club.com/lab/3273" rel="noopener">lab#3273</a></span>
 </li></ul>
 </article>
 <article class="item doc-item">
@@ -2560,7 +2560,7 @@ footer .ver{color:var(--acc)}
 </article>
 </main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-27T03:05:35.875Z">2026-10-27T03:05:35.875Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-27T04:06:08.192Z">2026-10-27T04:06:08.192Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

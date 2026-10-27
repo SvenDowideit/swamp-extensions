@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3889"><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli deco</a><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3970"><span class="tier A">A</span>Extension push ships the canonical form: every npm:/jsr: imp</a><a href="#issue-3983"><span class="tier A">A</span>Extension dependencies: the shared import scan reads Babel s</a><a href="#issue-2814"><span class="tier A">A</span>sensitive_data_delivery_test fails where /bin/sh is bash: th</a><a href="#issue-3272"><span class="tier A">A</span>swamp-extensions: use explicit npm:/jsr: specifiers in root </a><a href="#issue-3639"><span class="tier A">A</span>bundleExtension &#39;bundles on different caches do not wait for</a><a href="#issue-3997"><span class="tier A">A</span>Inbox notice policy and local inbox cache: when to poll, whe</a><a href="#issue-3976"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-3990"><span class="tier A">A</span>Inbox API contract and SwampClubClient inbox methods: summar</a><a href="#issue-3383"><span class="tier A">A</span>extension pull: safety analysis scans the bundle the extensi</a><a href="#issue-3979"><span class="tier A">A</span>Extension scoring queue: two replicas can claim the same pen</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3889"><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli deco</a><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3869"><span class="tier A">A</span>extension fmt (and any command) creates or rewrites deno.loc</a><a href="#issue-3986"><span class="tier A">A</span>Add Axiom-queryable phase telemetry for worker enrollment pr</a><a href="#issue-3970"><span class="tier A">A</span>Extension push ships the canonical form: every npm:/jsr: imp</a><a href="#issue-3983"><span class="tier A">A</span>Extension dependencies: the shared import scan reads Babel s</a><a href="#issue-2814"><span class="tier A">A</span>sensitive_data_delivery_test fails where /bin/sh is bash: th</a><a href="#issue-3272"><span class="tier A">A</span>swamp-extensions: use explicit npm:/jsr: specifiers in root </a><a href="#issue-3639"><span class="tier A">A</span>bundleExtension &#39;bundles on different caches do not wait for</a><a href="#issue-3997"><span class="tier A">A</span>Inbox notice policy and local inbox cache: when to poll, whe</a><a href="#issue-3976"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-3990"><span class="tier A">A</span>Inbox API contract and SwampClubClient inbox methods: summar</a></aside><div>
 
 <article class="item" id="issue-3889">
 <h2><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli decoder RCE (CVE-2026-111497, Node2Shell/HTTP2Shell)</h2>
@@ -84,6 +84,22 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3576" rel="noopener">lab#3576</a></div>
+</article>
+<article class="item" id="issue-3869">
+<h2><span class="tier A">A</span>extension fmt (and any command) creates or rewrites deno.lock when the extension lives in the repo&#39;s loaded extensions/ dir</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-27T15:48:37.718Z">2026-10-27T15:48:37.718Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3869" rel="noopener">lab#3869</a></div>
+</article>
+<article class="item" id="issue-3986">
+<h2><span class="tier A">A</span>Add Axiom-queryable phase telemetry for worker enrollment preparation</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-27T15:23:13.737Z">2026-10-27T15:23:13.737Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3986" rel="noopener">lab#3986</a></div>
 </article>
 <article class="item" id="issue-3970">
 <h2><span class="tier A">A</span>Extension push ships the canonical form: every npm:/jsr: import pinned exact, and a v2 dependency-audit.json</h2>
@@ -149,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3990" rel="noopener">lab#3990</a></div>
 </article>
-<article class="item" id="issue-3383">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3383">
 <h2><span class="tier A">A</span>extension pull: safety analysis scans the bundle the extension runs</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-27T02:15:47.621Z">2026-10-27T02:15:47.621Z</time></span></div>
@@ -165,7 +181,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3979" rel="noopener">lab#3979</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3922">
+<article class="item" id="issue-3922">
 <h2><span class="tier A">A</span>Datastore rework Phase 5: content-level authorisation for forwarded definition and evaluated-file writes</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-27T00:12:51.300Z">2026-10-27T00:12:51.300Z</time></span></div>
@@ -6301,6 +6317,110 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
+<article class="item" id="issue-4017">
+<h2><span class="tier B">B</span>Filesystem datastore (v2): data-version writes are not fsynced, so a power cut can publish zero-byte versions</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-27T16:06:54.657Z">2026-10-27T16:06:54.657Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4017" rel="noopener">lab#4017</a></div>
+</article>
+<article class="item" id="issue-3389">
+<h2><span class="tier B">B</span>literal() output is refused in a direct step globalArgs, so foreign ${{ }} text has no escape there</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-27T16:04:18.845Z">2026-10-27T16:04:18.845Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3389" rel="noopener">lab#3389</a></div>
+</article>
+<article class="item" id="issue-4002">
+<h2><span class="tier B">B</span>Add Axiom-queryable phase telemetry for workflow run-detail output resolution</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-27T16:03:36.371Z">2026-10-27T16:03:36.371Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4002" rel="noopener">lab#4002</a></div>
+</article>
+<article class="item" id="issue-3971">
+<h2><span class="tier B">B</span>Extension push: inputs that open up (workspace root lock, ancestor config refused by name, JSR dist-tags) and the skill docs rewritten once</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-27T15:58:44.670Z">2026-10-27T15:58:44.670Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3971" rel="noopener">lab#3971</a></div>
+</article>
+<article class="item" id="issue-4003">
+<h2><span class="tier B">B</span>Add Axiom-queryable phase telemetry for worker definition deletion and prune</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-27T15:56:11.516Z">2026-10-27T15:56:11.516Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4003" rel="noopener">lab#4003</a></div>
+</article>
+<article class="item" id="issue-4018">
+<h2><span class="tier B">B</span>Extension scoring audits v2 archives exact-only and charges unaudited code, in the package and the CLI alike</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-27T15:50:38.997Z">2026-10-27T15:50:38.997Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4018" rel="noopener">lab#4018</a></div>
+</article>
+<article class="item" id="issue-3995">
+<h2><span class="tier B">B</span>Registry: bump @swamp-club/extension-scoring to the version carrying #3983 (and #3845) before the v5 rescore</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-27T15:44:59.097Z">2026-10-27T15:44:59.097Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3995" rel="noopener">lab#3995</a></div>
+</article>
+<article class="item" id="issue-3973">
+<h2><span class="tier B">B</span>Registry audits v2 extension archives as written, and a range costs the loose point only without a valid lock</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-27T15:44:58.934Z">2026-10-27T15:44:58.934Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3973" rel="noopener">lab#3973</a></div>
+</article>
+<article class="item" id="issue-4005">
+<h2><span class="tier B">B</span>Add Axiom-queryable phase telemetry for access-data polling</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-27T15:43:52.247Z">2026-10-27T15:43:52.247Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4005" rel="noopener">lab#4005</a></div>
+</article>
+<article class="item" id="issue-3972">
+<h2><span class="tier B">B</span>Extension consumers keep the publisher&#39;s bundle: pull, update and auto-resolve stop rebuilding (direction A for #3634)</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-27T15:38:48.699Z">2026-10-27T15:38:48.699Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3972" rel="noopener">lab#3972</a></div>
+</article>
+<article class="item" id="issue-4004">
+<h2><span class="tier B">B</span>Add Axiom-queryable phase telemetry for output retention</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-27T15:37:30.646Z">2026-10-27T15:37:30.646Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4004" rel="noopener">lab#4004</a></div>
+</article>
+<article class="item" id="issue-3955">
+<h2><span class="tier B">B</span>Filesystem datastore: an unclean shutdown leaves zero-byte data versions as the latest version, and `doctor datastores --repair` does not detect them</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-27T15:36:15.589Z">2026-10-27T15:36:15.589Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3955" rel="noopener">lab#3955</a></div>
+</article>
+<article class="item" id="issue-3989">
+<h2><span class="tier B">B</span>Docs: extension quality scores with the registry formula and reports grade (swamp-club#3845)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-27T15:19:45.179Z">2026-10-27T15:19:45.179Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3989" rel="noopener">lab#3989</a></div>
+</article>
 <article class="item" id="issue-4000">
 <h2><span class="tier B">B</span>Scheduled flaky-test detection is failing</h2>
 <p class="lede">Issue in_progress</p>
@@ -6309,14 +6429,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4000" rel="noopener">lab#4000</a></div>
 </article>
-<article class="item" id="issue-3869">
-<h2><span class="tier B">B</span>extension fmt (and any command) creates or rewrites deno.lock when the extension lives in the repo&#39;s loaded extensions/ dir</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-27T14:56:51.330Z">2026-10-27T14:56:51.330Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3869" rel="noopener">lab#3869</a></div>
-</article>
 <article class="item" id="issue-4001">
 <h2><span class="tier B">B</span>Swamp Club inbox: the four inbox API endpoints from design/surfaces/inbox.md, a per-user message store, and admin and automatic sending (broadcast, targeted, issue fixed, points)</h2>
 <p class="lede">Issue in_progress</p>
@@ -6324,70 +6436,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4001" rel="noopener">lab#4001</a></div>
-</article>
-<article class="item" id="issue-3955">
-<h2><span class="tier B">B</span>Filesystem datastore: an unclean shutdown leaves zero-byte data versions as the latest version, and `doctor datastores --repair` does not detect them</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-27T14:56:30.376Z">2026-10-27T14:56:30.376Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3955" rel="noopener">lab#3955</a></div>
-</article>
-<article class="item" id="issue-4004">
-<h2><span class="tier B">B</span>Add Axiom-queryable phase telemetry for output retention</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-27T14:40:46.177Z">2026-10-27T14:40:46.177Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4004" rel="noopener">lab#4004</a></div>
-</article>
-<article class="item" id="issue-4003">
-<h2><span class="tier B">B</span>Add Axiom-queryable phase telemetry for worker definition deletion and prune</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-27T14:30:04.587Z">2026-10-27T14:30:04.587Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4003" rel="noopener">lab#4003</a></div>
-</article>
-<article class="item" id="issue-4005">
-<h2><span class="tier B">B</span>Add Axiom-queryable phase telemetry for access-data polling</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-27T14:29:08.098Z">2026-10-27T14:29:08.098Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4005" rel="noopener">lab#4005</a></div>
-</article>
-<article class="item" id="issue-4002">
-<h2><span class="tier B">B</span>Add Axiom-queryable phase telemetry for workflow run-detail output resolution</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-27T14:29:03.398Z">2026-10-27T14:29:03.398Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4002" rel="noopener">lab#4002</a></div>
-</article>
-<article class="item" id="issue-3389">
-<h2><span class="tier B">B</span>literal() output is refused in a direct step globalArgs, so foreign ${{ }} text has no escape there</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-27T13:59:22.098Z">2026-10-27T13:59:22.098Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3389" rel="noopener">lab#3389</a></div>
-</article>
-<article class="item" id="issue-3986">
-<h2><span class="tier B">B</span>Add Axiom-queryable phase telemetry for worker enrollment preparation</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-27T13:45:36.009Z">2026-10-27T13:45:36.009Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3986" rel="noopener">lab#3986</a></div>
-</article>
-<article class="item" id="issue-3989">
-<h2><span class="tier B">B</span>Docs: extension quality scores with the registry formula and reports grade (swamp-club#3845)</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-27T12:23:40.733Z">2026-10-27T12:23:40.733Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3989" rel="noopener">lab#3989</a></div>
 </article>
 <article class="item" id="issue-3985">
 <h2><span class="tier B">B</span>Datastore rework Phase 5 (team mode) 2/3: the CLI&#39;s serve upstream — with serverAddress, a v3 checkout commits, reads chunks and catches up through serve&#39;s datastore API, with no storage credentials</h2>
@@ -6485,13 +6533,29 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-3995">
-<h2><span class="tier C">C</span>Registry: bump @swamp-club/extension-scoring to the version carrying #3983 (and #3845) before the v5 rescore</h2>
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4015">
+<h2><span class="tier C">C</span>extension quality: a collective-attested private repository scores provisional, and --json omits ifProvisionalEarned</h2>
 <p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-27T15:01:37.857Z">2026-10-27T15:01:37.857Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-27T15:33:06.334Z">2026-10-27T15:33:06.334Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3995" rel="noopener">lab#3995</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4015" rel="noopener">lab#4015</a></div>
+</article>
+<article class="item" id="issue-4016">
+<h2><span class="tier C">C</span>Docs: doctor datastores reference — unreadable data version check and repair (swamp-club#3955)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-27T15:27:47.560Z">2026-10-27T15:27:47.560Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4016" rel="noopener">lab#4016</a></div>
+</article>
+<article class="item" id="issue-3974">
+<h2><span class="tier C">C</span>Manual: the supported extension dependency categories, the canonical form and the lock rule, rewritten once against the final design</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-27T15:18:48.824Z">2026-10-27T15:18:48.824Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3974" rel="noopener">lab#3974</a></div>
 </article>
 <article class="item" id="issue-4011">
 <h2><span class="tier C">C</span>doctor datastores --repair --json prints two JSON documents instead of one</h2>
@@ -6636,38 +6700,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3980" rel="noopener">lab#3980</a></div>
-</article>
-<article class="item" id="issue-3974">
-<h2><span class="tier C">C</span>Manual: the supported extension dependency categories, the canonical form and the lock rule, rewritten once against the final design</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-26T18:50:35.014Z">2026-10-26T18:50:35.014Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3974" rel="noopener">lab#3974</a></div>
-</article>
-<article class="item" id="issue-3973">
-<h2><span class="tier C">C</span>Registry audits v2 extension archives as written, and a range costs the loose point only without a valid lock</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-26T18:50:33.509Z">2026-10-26T18:50:33.509Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3973" rel="noopener">lab#3973</a></div>
-</article>
-<article class="item" id="issue-3972">
-<h2><span class="tier C">C</span>Extension consumers keep the publisher&#39;s bundle: pull, update and auto-resolve stop rebuilding (direction A for #3634)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-26T18:50:31.832Z">2026-10-26T18:50:31.832Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3972" rel="noopener">lab#3972</a></div>
-</article>
-<article class="item" id="issue-3971">
-<h2><span class="tier C">C</span>Extension push: inputs that open up (workspace root lock, ancestor config refused by name, JSR dist-tags) and the skill docs rewritten once</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-26T18:50:30.242Z">2026-10-26T18:50:30.242Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3971" rel="noopener">lab#3971</a></div>
 </article>
 <article class="item" id="issue-3964">
 <h2><span class="tier C">C</span>stagecraft studio ticket columns: round-5 review lows from #3828 (source watch cost, relationText lookup, cross-instance claim)</h2>
@@ -8558,13 +8590,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>1061 items across 1 source(s) in this window:
-2 critical, 777 notable, 23 routine,
-259 minor.</p>
-<ul><li><strong>issues</strong> — 1061</li></ul></section>
+<p>1065 items across 1 source(s) in this window:
+2 critical, 779 notable, 27 routine,
+257 minor.</p>
+<ul><li><strong>issues</strong> — 1065</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-27T15:05:42.458Z">2026-10-27T15:05:42.458Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-27T16:25:01.524Z">2026-10-27T16:25:01.524Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

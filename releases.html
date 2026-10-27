@@ -104,7 +104,7 @@ footer .ver{color:var(--acc)}
 <li>Validation reports &quot;Secret usage&quot; findings with file, path, line and column, including literal containers carrying a <code>vault.get</code> result that are interpolated into text. Whole-field containers remain structured arguments.</li>
 <li>Persisted sensitive form moves to version 3 with relia</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/vault/guide.md" rel="noopener">.claude/skills/swamp/references/vault/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/expressions.md" rel="noopener">design/enablers/expressions.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/vault/guide.md" rel="noopener">.claude/skills/swamp/references/vault/guide.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261026.145245.0-sha.1f1eafa6" rel="noopener">release v20261026.145245.0-sha.1f1eafa6</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1f1eafa6816cc777c2688e668a74a522c2599af5" rel="noopener">1f1eafa6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3343" rel="noopener">#3343</a>𝗔 <a href="https://swamp-club.com/lab/3735" rel="noopener">lab#3735</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261023-210157-0-sha-31c253ce">
@@ -438,7 +438,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Each bundle phase 8 rebuilds</strong>, through a new <code>checkBundle</code> hook in <code>ExtensionLoader.bundleAndIndexOne</code>, after the build and before the probe host imports it. A refusal rolls the install back and deletes the rebuilt bundle. Before, any phase-8 fault other than a type collision committed the half-installed state. A source that fails for another reason no longer stops later sources from being scanned, and a refusal anywhere in the install set wins over other failures.</li>
 </ul>
 <p>Findings are attributed to modules through the path comments <code>deno bundle</code> writes (`BundleM</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/extensions.md" rel="noopener">design/primitives/extensions.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261027.021509.0-sha.f96841b5" rel="noopener">release v20261027.021509.0-sha.f96841b5</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/f96841b582e738aa36606de918154e6b7cf9364e" rel="noopener">f96841b5</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3399" rel="noopener">#3399</a>𝗔 <a href="https://swamp-club.com/lab/3383" rel="noopener">lab#3383</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261027-004719-0-sha-941c39b9">
@@ -460,7 +460,7 @@ footer .ver{color:var(--acc)}
 <li>A link is kept only if it is <code>https:</code> and carries no credentials.</li>
 <li>A malformed message is dropped and the rest of the page kept. <code>InboxMessagePage.dropped</code> counts the drops, so a server drift</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/README.md" rel="noopener">design/README.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/inbox.md" rel="noopener">design/surfaces/inbox.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261027.004719.0-sha.941c39b9" rel="noopener">release v20261027.004719.0-sha.941c39b9</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/941c39b9109b59dca21ce824092a43d0213a21ea" rel="noopener">941c39b9</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3398" rel="noopener">#3398</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2023" rel="noopener">#2023</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2024" rel="noopener">#2024</a>𝗔 <a href="https://swamp-club.com/lab/3990" rel="noopener">lab#3990</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261027-001847-0-sha-73ff5556">
@@ -484,7 +484,7 @@ footer .ver{color:var(--acc)}
 <li>Clients that check only the 200 or <code>status: &quot;ok&quot;</code> are unaffected. That covers remote run&#39;s probe and Kubernetes <code>httpGet</code> probes. <code>/ready</code> is unchanged.</li>
 <li>Scripts that read <code>scheduling</code>, <code>webhooks</code> or <code>remoteOnly</code> from <code>/health</code> get nothing bac</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/reference.md" rel="noopener">.claude/skills/swamp/references/workflow/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/references/execution-semantics.md" rel="noopener">.claude/skills/swamp/references/workflow/references/execution-semantics.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261027.001847.0-sha.73ff5556" rel="noopener">release v20261027.001847.0-sha.73ff5556</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/73ff5556714b44e7bdb599c3eca4889ddce160eb" rel="noopener">73ff5556</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3397" rel="noopener">#3397</a>𝗔 <a href="https://swamp-club.com/lab/3993" rel="noopener">lab#3993</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261027-000151-0-sha-54f44fe6">
@@ -511,7 +511,7 @@ footer .ver{color:var(--acc)}
 <li>Removal stays <code>admin</code>; a rename&#39;s removal lands only after its rename-to.</li>
 <li><strong>Auto-definitions.</strong> Content shaped as direct execution writes it needs only <code>run</code>. Any</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/access-control.md" rel="noopener">design/enablers/access-control.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261027.000151.0-sha.54f44fe6" rel="noopener">release v20261027.000151.0-sha.54f44fe6</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/54f44fe63405b9018638a63cbf342d06049fa095" rel="noopener">54f44fe6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3396" rel="noopener">#3396</a>𝗔 <a href="https://swamp-club.com/lab/3922" rel="noopener">lab#3922</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261026-222945-0-sha-7011f4ea">
@@ -531,7 +531,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Text output</strong> names the grade and what the pending points would raise the score to: <code>Rubric v5 — 14/16 points (87%, grade B, +2 pending server verification: 100% (A) if the registry verifies them, all factors earned)</code>.</li>
 <li><strong>Skill docs</strong> (<code>quality/rubric.md</code>, <code>extension/reference.md</code>, `extension-publish/refere</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension-publish/reference.md" rel="noopener">.claude/skills/swamp/references/extension-publish/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/reference.md" rel="noopener">.claude/skills/swamp/references/extension/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/quality/rubric.md" rel="noopener">.claude/skills/swamp/references/extension/references/quality/rubric.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261026.222945.0-sha.7011f4ea" rel="noopener">release v20261026.222945.0-sha.7011f4ea</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7011f4ea9151d58b1952f84b0699a4482e1cfd06" rel="noopener">7011f4ea</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3395" rel="noopener">#3395</a>𝗔 <a href="https://swamp-club.com/lab/3845" rel="noopener">lab#3845</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261026-215419-0-sha-470a198a">
@@ -550,7 +550,7 @@ footer .ver{color:var(--acc)}
 <li>The directory is listed again only when its stat moved, or was inside the 2 s racy window, using the same settled/trusted rule as <code>DefinitionIdIndex</code>. A relist reads only files new to the listing.</li>
 <li><code>&lt;name&gt;.yaml</code> files declaring their own name are kept as filenames alone. Everything else (legacy <code>{uuid}.yaml</code>, names that are not filename-safe, mismatched files, broken files, symlinks) is stat&#39;e</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261026.215419.0-sha.470a198a" rel="noopener">release v20261026.215419.0-sha.470a198a</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/470a198adfdc9739a5676655a9f3f069e48bd7d6" rel="noopener">470a198a</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3394" rel="noopener">#3394</a>𝗔 <a href="https://swamp-club.com/lab/3984" rel="noopener">lab#3984</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261026-204502-0-sha-f1fb1542">
@@ -678,7 +678,7 @@ footer .ver{color:var(--acc)}
 <li>The safety analyzer discounts the same directive spans (<code>directiveSpans</code>) from the long-line count.</li>
 <li>Acceptance offers in source are decided from</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension-publish/references/publishing.md" rel="noopener">.claude/skills/swamp/references/extension-publish/references/publishing.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261026.200543.0-sha.4fe6f225" rel="noopener">release v20261026.200543.0-sha.4fe6f225</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4fe6f225d220c0822eaaf6956d2e2cb17409dd1a" rel="noopener">4fe6f225</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3387" rel="noopener">#3387</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3107" rel="noopener">#3107</a>𝗔 <a href="https://swamp-club.com/lab/3846" rel="noopener">lab#3846</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261026-193137-0-sha-2696cfa1">
@@ -763,7 +763,7 @@ footer .ver{color:var(--acc)}
 <li>A sensitive container that holds a marked field, outside array elements, record values and <code>sensitiveOutput</code> specs, keeps its existing shape: an object of the marked fields&#39; references, plus the whole container under its own key. So <code>readResource</code> returns <code>{ apiKey }</code>, and CEL reads <code>credentials.apiKey</code> as a Secret.</li>
 </ul>
 <p><strong>Tags.</strong> All three tags s</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/model/api.md" rel="noopener">.claude/skills/swamp/references/extension/references/model/api.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/vault/reference.md" rel="noopener">.claude/skills/swamp/references/vault/reference.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/vault/reference.md" rel="noopener">.claude/skills/swamp/references/vault/reference.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261026.182207.0-sha.b170e3f6" rel="noopener">release v20261026.182207.0-sha.b170e3f6</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b170e3f627e7bbaf058cb510d17049ba624aeb65" rel="noopener">b170e3f6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3382" rel="noopener">#3382</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3479" rel="noopener">#3479</a>𝗔 <a href="https://swamp-club.com/lab/3967" rel="noopener">lab#3967</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261026-181156-0-sha-76b41c7c">
@@ -1151,7 +1151,7 @@ footer .ver{color:var(--acc)}
 <ul>
 <li>Seven new tests in <code>validation_service_test.ts</code>: defaults delivered (the re</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/behaviors.md" rel="noopener">design/primitives/behaviors.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261024.185121.0-sha.03e347b9" rel="noopener">release v20261024.185121.0-sha.03e347b9</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/03e347b9da2f49388fedae9607fcf46ef82e8273" rel="noopener">03e347b9</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3360" rel="noopener">#3360</a>𝗔 <a href="https://swamp-club.com/lab/3851" rel="noopener">lab#3851</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261024-130516-0-sha-a71ac553">
@@ -1784,7 +1784,7 @@ footer .ver{color:var(--acc)}
 <li>at least one definition relies on the fallback.</li>
 </ul>
 <p>  The warning names the fallback vault, the order it was picked from,</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/repo/reference.md" rel="noopener">.claude/skills/swamp/references/repo/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/doctor-vaults.md" rel="noopener">design/enablers/doctor-vaults.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/doctor-vaults.md" rel="noopener">design/enablers/doctor-vaults.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261023.105159.0-sha.f628860f" rel="noopener">release v20261023.105159.0-sha.f628860f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/f628860fef31c1bc24ddfd2a59d2ad697c0efc4b" rel="noopener">f628860f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3322" rel="noopener">#3322</a>𝗔 <a href="https://swamp-club.com/lab/3805" rel="noopener">lab#3805</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261023-102638-0-sha-c0c00cee">
@@ -1850,7 +1850,7 @@ footer .ver{color:var(--acc)}
 <li>Skills workflow passed (<code>96dd1054-570d-4320-a334-956a93357bae</code>); both skill-specific checks guarded out because no relevant files changed.</li>
 <li>Review fixes include bounded tracker lifetime, cancelled-step cleanup, caller-abort outcome classification, enrollment trace trust boundaries, and m</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution-telemetry-benchmark.md" rel="noopener">design/enablers/remote-execution-telemetry-benchmark.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution-telemetry.md" rel="noopener">design/enablers/remote-execution-telemetry.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/operations.md" rel="noopener">design/operations.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution-telemetry-benchmark.md" rel="noopener">design/enablers/remote-execution-telemetry-benchmark.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261023.090009.0-sha.9a065cc6" rel="noopener">release v20261023.090009.0-sha.9a065cc6</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9a065cc609dded4e10bf0fea34e027d5a00e9401" rel="noopener">9a065cc6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3315" rel="noopener">#3315</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3794" rel="noopener">#3794</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261023-022735-0-sha-cb473655">
@@ -3472,7 +3472,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Cleanup without listing.</strong> <code>cleanupEmptyParentDirs</code> removes each parent directory with a non-recursive remove, which fails on a directory that still has entries, and never lists it. A not-empty error ends the cleanup quietly on every OS, with no error-code matching. A symlinked directory keeps the old read-through check, because a remove unlinks a link whatever its target holds. All ten callers keep their behaviour.</li>
 <li><strong>Full listings before deleting.</strong> <code>deleteOlderThan</code> reads its run listings in full before deleting anything. Without this, step 1 made <code>run gc</code> delete only about 60% of expired runs per call on macOS: a failed remove of a directory makes a walk still open on it skip entries. An audit of <code>src/</code> found no other caller that deletes while lazily walking the directory it cleans.</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/repo.md" rel="noopener">design/surfaces/repo.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261016.205457.0-sha.35b3bcc2" rel="noopener">release v20261016.205457.0-sha.35b3bcc2</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/35b3bcc27752f5b8fd363e9d3f963ff33aaa4d73" rel="noopener">35b3bcc2</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3178" rel="noopener">#3178</a>𝗔 <a href="https://swamp-club.com/lab/3535" rel="noopener">lab#3535</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261016-205012-0-sha-ffd9aa85">
@@ -3548,7 +3548,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Journaled and audited.</strong> Each skipped fire logs <code>Skipped scheduled workflow &quot;&lt;name&gt;&quot;: paused (&quot;&lt;reason&gt;&quot;)</code> and is audited as <code>workflow.schedule.skipped</code> with <code>reason=paused</code>, the reason, and who paused it. Pause and resume requests are audited as <code>admin</code> requests.</li>
 <li><strong>Gated by grants.</strong> With <code>--server</code>, pause and resume need <code>write</code> on the resolved workflow, and the record is stored under the same id that was authorized. <code>list</code> only s</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/serve-audit.md" rel="noopener">design/enablers/serve-audit.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261016.203421.0-sha.9342fd0f" rel="noopener">release v20261016.203421.0-sha.9342fd0f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9342fd0f7aaa7aaaaa6eccf7933ba8c4b9c14796" rel="noopener">9342fd0f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3175" rel="noopener">#3175</a>𝗔 <a href="https://swamp-club.com/lab/3522" rel="noopener">lab#3522</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261016-201341-0-sha-baf46f1f">
@@ -4328,7 +4328,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Kept from #3133:</strong></li>
 <li>push checks the types each source registers when</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/SKILL.md" rel="noopener">.claude/skills/swamp/SKILL.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/model/troubleshooting.md" rel="noopener">.claude/skills/swamp/references/extension/references/model/troubleshooting.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/model/troubleshooting.md" rel="noopener">.claude/skills/swamp/references/extension/references/model/troubleshooting.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.025901.0-sha.153c8137" rel="noopener">release v20261015.025901.0-sha.153c8137</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/153c8137597a43f02d4f67a71226bce78e5f60bf" rel="noopener">153c8137</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3136" rel="noopener">#3136</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3133" rel="noopener">#3133</a>𝗔 <a href="https://swamp-club.com/lab/3456" rel="noopener">lab#3456</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261015-015437-0-sha-380e3c30">
@@ -14765,7 +14765,7 @@ footer .ver{color:var(--acc)}
 <ul><li><strong>fix</strong> — 382</li><li><strong>feat</strong> — 147</li><li><strong>test</strong> — 22</li><li><strong>changes</strong> — 20</li><li><strong>docs</strong> — 18</li><li><strong>refactor</strong> — 14</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-27T20:06:54.928Z">2026-10-27T20:06:54.928Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-27T21:06:26.340Z">2026-10-27T21:06:26.340Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

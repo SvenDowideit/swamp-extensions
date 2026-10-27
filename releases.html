@@ -13291,6 +13291,76 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.222935.0-sha.852243ed" rel="noopener">release v20261015.222935.0-sha.852243ed</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/852243edf2e7c999e8f4f08c9f54f4e18575c9ff" rel="noopener">852243ed</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3152" rel="noopener">#3152</a></div>
 </article>
+<article class="item" id="release-swamp-club-swamp-v20261027-184701-0-sha-a9fef3d0">
+<h2><span class="tier C">C</span>swamp 20261027.184701.0-sha.a9fef3d0</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-27T18:58:20Z">2026-10-27T18:58:20Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(test): worker_enroll_phase_telemetry_test compares lookups and scans by their attributes, not the order the collector received them (swamp-club#4030) (#3422)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>integration/worker_enroll_phase_telemetry_test.ts</code> failed once in verify-build. A lookup&#39;s <code>definition_scan</code> spans came back as <code>name_index</code> then <code>full_listing</code> instead of the expected order. The test&#39;s collector uses a <code>SimpleSpanProcessor</code> over <code>FetchOtlpExporter</code>, so every span is its own concurrent export request. The port-0 collector stores each one after an async <code>request.json()</code>, so the received list is in scheduling order. The product code is sequential and correct, so only the test changes.</p>
+<p>A copy of the test whose collector reversed the received batches failed at three places that depended on order:</p>
+<ul>
+<li><strong>Lookups:</strong> the new worker&#39;s <code>definition_lookup</code> spans were expected as <code>initial</code> then <code>recheck</code>, and <code>lookups[1]</code> was taken to be the recheck that sits under the held lock. They are now sorted by <code>lookup_attempt</code>.</li>
+<li><strong>Scans (the reported failure):</strong> each lookup&#39;s <code>definition_scan</code> children are now sorted by <code>scan_strategy</code>.</li>
+<li><strong>Cancel test:</strong> the initial lookup is now found by its <code>lookup_attempt</code> label instead of taking the first span received.</li>
+</ul>
+<p>The scans run back to back, so their start times can tie. That is why the sort uses attributes, not timestamps.</p>
+<h4 class="body-h">Testing</h4>
+<ul>
+<li>With the fix, the reversed-order copy and a copy that shuffles the received batches randomly both pass</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261027.184701.0-sha.a9fef3d0" rel="noopener">release v20261027.184701.0-sha.a9fef3d0</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a9fef3d0" rel="noopener">a9fef3d0</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3422" rel="noopener">#3422</a>𝗔 <a href="https://swamp-club.com/lab/4030" rel="noopener">lab#4030</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261027-183814-0-sha-0f682899">
+<h2><span class="tier C">C</span>swamp 20261027.183814.0-sha.0f682899</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-27T18:45:33Z">2026-10-27T18:45:33Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(extensions): pull, update and auto-resolve keep the publisher&#39;s bundle, checked against the v2 record&#39;s hashes, rebuilding only for a bundle format this swamp does not run (swamp-club#3972) (#3419)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Step 3 of the extension dependency-forms design (swamp-club#3972), direction A for swamp-club#3634. Every consumer path now runs the bundle the archive ships, as <code>extension install</code> already did, so pull and install of one version leave the same bytes.</p>
+<ul>
+<li><strong>Phase 8 keeps the archive bundle.</strong> The install service indexes the staged bundle through the loader&#39;s trusted-pulled path instead of rebuilding it. <code>extension pull</code>, <code>extension update</code>, auto-resolve and serve&#39;s <code>extension.pull</code>/<code>extension.update</code> all go through it.</li>
+<li><strong>Pull checks bundles against the record.</strong> In <code>prepareInstall</code>, right after the swamp-club#3383 bundle scan and on the same bytes, each bundle&#39;s SHA-256 is compared with the v2 <code>dependency-audit.json</code>. An unlisted bundle, a listed bundle that is missing, a hash mismatch, or a record that is neither v1 nor v2 (or over 1 MB) refuses the pull before anything is written. Record keys are only compared, never opened as paths. An archive with no v2 record keeps its bundle, as install does.</li>
+<li><strong><code>bundleFormat</code> in the v2 record</strong> (<code>BUNDLE_FORMAT_VERSION = 1</code> in <code>bundle.ts</code>: zod 4 from <code>globalThis.__swamp_zod</code>, no zod 3). Push writes it. A record without it reads as format 1. It is separate from <code>BUNDLE_LAYOUT_VERSION</code>, which names the o</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261027.183814.0-sha.0f682899" rel="noopener">release v20261027.183814.0-sha.0f682899</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0f682899" rel="noopener">0f682899</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3419" rel="noopener">#3419</a>𝗔 <a href="https://swamp-club.com/lab/3972" rel="noopener">lab#3972</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261027-182515-0-sha-64be29f6">
+<h2><span class="tier C">C</span>swamp 20261027.182515.0-sha.64be29f6</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-27T18:33:50Z">2026-10-27T18:33:50Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(test): the truncateAfter property test pins each outcome with an example instead of counting random runs (swamp-club#4029) (#3418)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#4029.</p>
+<p><code>SqliteCommitStore.truncateAfter: undoes the appends past the mark exactly</code> asserted that more than 60 of its 150 unseeded fast-check runs truncated. That count depends on the random draw: about half the runs compact first, and most of those take the <code>compacted-past</code> refusal branch. Over 40 unseeded runs it ranged 68–90 (mean about 80), so the reported failure at 57 was rare but bound to recur under CI and <code>deno test --repeats</code>.</p>
+<ul>
+<li>Two fast-check <code>examples</code> now run first on every run, whatever the seed:</li>
+<li><strong>Refused:</strong> the lease partition is compacted through the mark and its only snapshot (seq 3) lands past it.</li>
+<li><strong>Truncated, keeping a version:</strong> nothing is compacted and the suffix records a data version.</li>
+<li>The coverage floors become <code>truncatedRuns &gt; 0</code>, <code>refusedRuns &gt; 0</code> and <code>retainingRuns &gt; 0</code>, which the examples guarantee.</li>
+<li><code>numRuns</code> (150) and the arbitraries are unchanged, so random breadth is the same. This follows the precedent in <code>writer_lease_property_test.ts</code> (swamp-club#3541).</li>
+</ul>
+<p>Test-only change; no production code touched.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li><code>deno test --repeats=50</code> on the file: every repeat passed.</li>
+<li>Examples-only run (<code>numRuns: 2</code>, reverted afterwards): all three floors met, confirming the examples alone reach each outcome.</li>
+<li>verify-build, verify-reviews and verify-skills</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261027.182515.0-sha.64be29f6" rel="noopener">release v20261027.182515.0-sha.64be29f6</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/64be29f6" rel="noopener">64be29f6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3418" rel="noopener">#3418</a>𝗔 <a href="https://swamp-club.com/lab/4029" rel="noopener">lab#4029</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261027-181244-0-sha-0620a62e">
 <h2><span class="tier C">C</span>swamp 20261027.181244.0-sha.0620a62e</h2>
 <p class="lede">Change (untyped) · swamp-club/swamp</p>
@@ -14610,13 +14680,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.073437.0-sha.acf6214e" rel="noopener">release v20261001.073437.0-sha.acf6214e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214ef9980daf68e919a43f6db3cff17da608" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>603 items across 1 source(s) in this window:
+<p>606 items across 1 source(s) in this window:
 27 critical, 505 notable, 20 routine,
-51 minor.</p>
-<ul><li><strong>fix</strong> — 382</li><li><strong>feat</strong> — 147</li><li><strong>test</strong> — 22</li><li><strong>docs</strong> — 18</li><li><strong>refactor</strong> — 14</li><li><strong>changes</strong> — 14</li></ul></section>
+54 minor.</p>
+<ul><li><strong>fix</strong> — 382</li><li><strong>feat</strong> — 147</li><li><strong>test</strong> — 22</li><li><strong>docs</strong> — 18</li><li><strong>changes</strong> — 17</li><li><strong>refactor</strong> — 14</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-27T18:21:56.018Z">2026-10-27T18:21:56.018Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-27T19:06:05.144Z">2026-10-27T19:06:05.144Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

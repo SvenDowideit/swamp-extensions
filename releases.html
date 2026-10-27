@@ -13291,6 +13291,85 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.222935.0-sha.852243ed" rel="noopener">release v20261015.222935.0-sha.852243ed</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/852243edf2e7c999e8f4f08c9f54f4e18575c9ff" rel="noopener">852243ed</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3152" rel="noopener">#3152</a></div>
 </article>
+<article class="item" id="release-swamp-club-swamp-v20261027-195148-0-sha-6baee087">
+<h2><span class="tier C">C</span>swamp 20261027.195148.0-sha.6baee087</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-27T19:56:12Z">2026-10-27T19:56:12Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(extensions): push takes a workspace member&#39;s root lock, refuses what Deno would read from above the repository, and refuses a JSR dist-tag with the fix (swamp-club#3971) (#3420)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Step 3 of the extension dependency-forms design (swamp-club#3971). It builds on #3969 and #3970. Some push inputs were decided only by Deno, or leaked in from outside the repository. Push now decides them itself.</p>
+<ul>
+<li><strong>Workspace members use the root lock.</strong> A workspace member bundles <code>--frozen</code> against the workspace root&#39;s lock: the root&#39;s <code>lock</code> setting, or else the <code>deno.lock</code> beside the root config. The audit reads the same lock.</li>
+<li>Deno ignores a member&#39;s own <code>deno.lock</code> or <code>lock</code> setting. Push now says so, with a <code>workspace-member-lock</code> warning that names it.</li>
+<li>The root is the nearest config with a <code>workspace</code> field, which is how Deno finds it. If that config does not list the member, there is no workspace root.</li>
+<li><strong>Nothing from above the repository applies.</strong> With no Deno config inside the repository, push, quality and the bundle all run with <code>--no-config</code>. Push then refuses, naming the file and the fix, in three cases:</li>
+<li><strong>Ancestor config:</strong> a <code>deno.json</code>, <code>deno.jsonc</code> or <code>package.json</code> above the repository would resolve one of the extension&#39;s bare imports. The fix is a <code>deno.json</code> inside the repository, or writing the specifier in full.</li>
+<li><strong>Ancestor workspace root:</strong> a workspace root above the repository lists the repository&#39;s config. Deno applies i</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261027.195148.0-sha.6baee087" rel="noopener">release v20261027.195148.0-sha.6baee087</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6baee087" rel="noopener">6baee087</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3420" rel="noopener">#3420</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3969" rel="noopener">#3969</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3970" rel="noopener">#3970</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3793" rel="noopener">#3793</a>𝗔 <a href="https://swamp-club.com/lab/3971" rel="noopener">lab#3971</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261027-193254-0-sha-4ac96558">
+<h2><span class="tier C">C</span>swamp 20261027.193254.0-sha.4ac96558</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-27T19:39:12Z">2026-10-27T19:39:12Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(datastore): a v3 checkout with a serve address writes through serve&#39;s datastore API with only a serve token, never its storage (swamp-club#3985) (#3424)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Datastore rework Phase 5 (team mode), client 2/3: a v3 checkout with a serve address writes its datastore through serve&#39;s datastore API. It needs only a serve token and never uses storage credentials (swamp-club#3985).</p>
+<p>In a checkout whose <code>.swamp.yaml</code> datastore says <code>format: 3</code> and that has a serve address (<code>SWAMP_SERVE_URL</code>, <code>SWAMP_SERVER_URL</code> or <code>serverAddress</code>):</p>
+<ul>
+<li><strong>Routing.</strong> Data-plane commands (<code>model</code>/<code>behavior</code>, <code>data</code>, <code>workflow</code>, <code>vault</code>, <code>report</code>, <code>summarise</code>) run locally with serve as the datastore&#39;s upstream.</li>
+<li>An explicit <code>--server</code>, or <code>workflow run --detach</code>, still runs on serve.</li>
+<li>Control-plane commands and v2 checkouts are unchanged.</li>
+<li><strong>Commits</strong> go to <code>POST partitions/{p}/commits</code> through the existing outbox, carrying the chunks serve lacks.</li>
+<li>A stale seq catches up and rebuilds.</li>
+<li>An unreachable serve refuses writes with exit 75 and never falls back to storage.</li>
+<li>Reads use the local copy with a warning.</li>
+<li><strong>Catch-up.</strong> A never-replicated follower copy of serve&#39;s log is filled from <code>GET changes</code>. Partition backfill covers commits serve filters per caller (<code>Partition.appendObserved</code>, follower mode in the commit store and read model).</li>
+<li><strong>Chunks</strong> are cached locally with serve behind them. Uploads always name their partition, so non-admin members work. Ther</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261027.193254.0-sha.4ac96558" rel="noopener">release v20261027.193254.0-sha.4ac96558</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4ac96558" rel="noopener">4ac96558</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3424" rel="noopener">#3424</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3922" rel="noopener">#3922</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3415" rel="noopener">#3415</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3419" rel="noopener">#3419</a>𝗔 <a href="https://swamp-club.com/lab/3985" rel="noopener">lab#3985</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261027-185929-0-sha-64ffc12d">
+<h2><span class="tier C">C</span>swamp 20261027.185929.0-sha.64ffc12d</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-27T19:04:30Z">2026-10-27T19:04:30Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(doctor): doctor datastores --repair --json prints one JSON document, keyed by repair stage (swamp-club#4011) (#3423)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>swamp doctor datastores --repair --json</code> printed one JSON document per v2 repair stage (unmigrated data, catalog index, duplicate latest flags, namespace contamination), back to back, so no JSON parser could read the output (swamp-club#4011).</p>
+<p>The stage renderers now record their result into one <code>DatastoreRepairJsonReport</code>, which the command prints once:</p>
+<p>```json</p>
+<p>{</p>
+<p>  &quot;unmigrated&quot;: null,</p>
+<p>  &quot;catalog&quot;: { &quot;status&quot;: &quot;catalog_not_needed&quot; },</p>
+<p>  &quot;duplicateLatest&quot;: { &quot;status&quot;: &quot;duplicate_latest_not_needed&quot; },</p>
+<p>  &quot;contamination&quot;: null</p>
+<p>}</p>
+<p>```</p>
+<ul>
+<li>Each stage&#39;s object is unchanged; a stage that did not run is <code>null</code>.</li>
+<li>The report prints on success, before an exit 1, and when a stage throws, so finished stages still reach stdout (errors stay on stderr as one JSON document).</li>
+<li>The format-marker and pre-v3-records repairs already printed one document and are untouched.</li>
+<li>Exit codes and log-mode output are unchanged.</li>
+</ul>
+<p><strong>Output change:</strong> anything that parsed the old concatenated stream (e.g. <code>jq -s</code>) now gets a single object. The old stream was not valid JSON.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>Command tests (<code>src/cli/commands/doctor_datastores_test.ts</code>): plain and namespaced filesystem repos parse as one document with and without <code>-y</code>; a stage that throws still leaves one document holding the finished stages; log mode unchanged. The JSON tests fail on the previ</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261027.185929.0-sha.64ffc12d" rel="noopener">release v20261027.185929.0-sha.64ffc12d</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/64ffc12d" rel="noopener">64ffc12d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3423" rel="noopener">#3423</a>𝗔 <a href="https://swamp-club.com/lab/4011" rel="noopener">lab#4011</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261027-184701-0-sha-a9fef3d0">
 <h2><span class="tier C">C</span>swamp 20261027.184701.0-sha.a9fef3d0</h2>
 <p class="lede">Change (untyped) · swamp-club/swamp</p>
@@ -14680,13 +14759,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.073437.0-sha.acf6214e" rel="noopener">release v20261001.073437.0-sha.acf6214e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214ef9980daf68e919a43f6db3cff17da608" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>606 items across 1 source(s) in this window:
+<p>609 items across 1 source(s) in this window:
 27 critical, 505 notable, 20 routine,
-54 minor.</p>
-<ul><li><strong>fix</strong> — 382</li><li><strong>feat</strong> — 147</li><li><strong>test</strong> — 22</li><li><strong>docs</strong> — 18</li><li><strong>changes</strong> — 17</li><li><strong>refactor</strong> — 14</li></ul></section>
+57 minor.</p>
+<ul><li><strong>fix</strong> — 382</li><li><strong>feat</strong> — 147</li><li><strong>test</strong> — 22</li><li><strong>changes</strong> — 20</li><li><strong>docs</strong> — 18</li><li><strong>refactor</strong> — 14</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-27T19:06:05.144Z">2026-10-27T19:06:05.144Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-27T20:06:54.928Z">2026-10-27T20:06:54.928Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

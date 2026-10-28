@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3889"><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli deco</a><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-4007"><span class="tier A">A</span>Show each method&#39;s kind in type describe --json</a><a href="#issue-4065"><span class="tier A">A</span>typed-secrets 5.2: protocol version 6 dispatches references </a><a href="#issue-4088"><span class="tier A">A</span>workflow.approvals and supersede do not pass a cancellation </a><a href="#issue-4087"><span class="tier A">A</span>Flaky test: yaml_output_repository findAllGlobalSince abort </a><a href="#issue-4006"><span class="tier A">A</span>Team mode: serve sends the compacted base, so a serve-mode c</a><a href="#issue-4077"><span class="tier A">A</span>workflow.approvals and supersede read every suspended run at</a><a href="#issue-4068"><span class="tier A">A</span>Expose explicit base-image refresh for build</a><a href="#issue-4076"><span class="tier A">A</span>Workflow-run findAllGlobalSince and findGlobalByStatus scan </a><a href="#issue-4075"><span class="tier A">A</span>report.search walks every data item one at a time on each re</a><a href="#issue-4083"><span class="tier A">A</span>swamp completions holds stdout open ~0.9s after writing outp</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3889"><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli deco</a><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-4089"><span class="tier A">A</span>Team mode: a serve-mode copy resets when the member&#39;s grants</a><a href="#issue-4086"><span class="tier A">A</span>Swamp Club inbox send-time checks match the CLI from #4079: </a><a href="#issue-3523"><span class="tier A">A</span>An env API key&#39;s cached identity is written into auth.json: </a><a href="#issue-4007"><span class="tier A">A</span>Show each method&#39;s kind in type describe --json</a><a href="#issue-4065"><span class="tier A">A</span>typed-secrets 5.2: protocol version 6 dispatches references </a><a href="#issue-4088"><span class="tier A">A</span>workflow.approvals and supersede do not pass a cancellation </a><a href="#issue-4087"><span class="tier A">A</span>Flaky test: yaml_output_repository findAllGlobalSince abort </a><a href="#issue-4006"><span class="tier A">A</span>Team mode: serve sends the compacted base, so a serve-mode c</a><a href="#issue-4077"><span class="tier A">A</span>workflow.approvals and supersede read every suspended run at</a><a href="#issue-4068"><span class="tier A">A</span>Expose explicit base-image refresh for build</a></aside><div>
 
 <article class="item" id="issue-3889">
 <h2><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli decoder RCE (CVE-2026-111497, Node2Shell/HTTP2Shell)</h2>
@@ -84,6 +84,30 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3576" rel="noopener">lab#3576</a></div>
+</article>
+<article class="item" id="issue-4089">
+<h2><span class="tier A">A</span>Team mode: a serve-mode copy resets when the member&#39;s grants change, so a widened or narrowed grant refreshes what it holds</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-28T23:00:43.261Z">2026-10-28T23:00:43.261Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4089" rel="noopener">lab#4089</a></div>
+</article>
+<article class="item" id="issue-4086">
+<h2><span class="tier A">A</span>Swamp Club inbox send-time checks match the CLI from #4079: an allow-list for action commands, no bidi or zero-width characters, and absolute https-only body links</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-28T22:48:26.495Z">2026-10-28T22:48:26.495Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4086" rel="noopener">lab#4086</a></div>
+</article>
+<article class="item" id="issue-3523">
+<h2><span class="tier A">A</span>An env API key&#39;s cached identity is written into auth.json: a key-less login record when no login exists, and another user&#39;s identity over an existing login</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-28T22:47:01.779Z">2026-10-28T22:47:01.779Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3523" rel="noopener">lab#3523</a></div>
 </article>
 <article class="item" id="issue-4007">
 <h2><span class="tier A">A</span>Show each method&#39;s kind in type describe --json</h2>
@@ -141,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4068" rel="noopener">lab#4068</a></div>
 </article>
-<article class="item" id="issue-4076">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4076">
 <h2><span class="tier A">A</span>Workflow-run findAllGlobalSince and findGlobalByStatus scan one listing, stat and read at a time, the shape #4056 and #4058 fixed for outputs</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-28T18:44:22.838Z">2026-10-28T18:44:22.838Z</time></span></div>
@@ -165,7 +189,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4083" rel="noopener">lab#4083</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4080">
+<article class="item" id="issue-4080">
 <h2><span class="tier A">A</span>Expose bounded Amplify production job and domain observations</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-28T17:44:19.271Z">2026-10-28T17:44:19.271Z</time></span></div>
@@ -6837,37 +6861,21 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-3523">
-<h2><span class="tier B">B</span>An env API key&#39;s cached identity is written into auth.json: a key-less login record when no login exists, and another user&#39;s identity over an existing login</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-28T22:18:10.980Z">2026-10-28T22:18:10.980Z</time></span></div>
+<article class="item" id="issue-4095">
+<h2><span class="tier B">B</span>docs(manual): document swamp inbox, inbox read, the picker keys and the inbox notice, and list the background inbox check in the manual&#39;s outbound requests</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-28T23:01:57.066Z">2026-10-28T23:01:57.066Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3523" rel="noopener">lab#3523</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4095" rel="noopener">lab#4095</a></div>
 </article>
 <article class="item" id="issue-4081">
 <h2><span class="tier B">B</span>Support scoped observer identities with vault-backed access keys</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-28T22:16:28.510Z">2026-10-28T22:16:28.510Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-28T22:48:05.069Z">2026-10-28T22:48:05.069Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4081" rel="noopener">lab#4081</a></div>
-</article>
-<article class="item" id="issue-4089">
-<h2><span class="tier B">B</span>Team mode: a serve-mode copy resets when the member&#39;s grants change, so a widened or narrowed grant refreshes what it holds</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-28T22:15:57.152Z">2026-10-28T22:15:57.152Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4089" rel="noopener">lab#4089</a></div>
-</article>
-<article class="item" id="issue-4086">
-<h2><span class="tier B">B</span>Swamp Club inbox send-time checks match the CLI from #4079: an allow-list for action commands, no bidi or zero-width characters, and absolute https-only body links</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-28T22:04:10.009Z">2026-10-28T22:04:10.009Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4086" rel="noopener">lab#4086</a></div>
 </article>
 <article class="item" id="issue-4091">
 <h2><span class="tier B">B</span>v2 datastore: a refused push leaves its data-name directory dirty, so a later push deletes the new lock holder&#39;s versions from the bucket</h2>
@@ -6989,7 +6997,15 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4093">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4094">
+<h2><span class="tier C">C</span>serve daemon enable: add Windows support (service or startup task)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-28T22:22:54.259Z">2026-10-28T22:22:54.259Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4094" rel="noopener">lab#4094</a></div>
+</article>
+<article class="item" id="issue-4093">
 <h2><span class="tier C">C</span>Docs: behavior type describe and model get output now include method kind and kindSource</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-28T21:30:26.322Z">2026-10-28T21:30:26.322Z</time></span></div>
@@ -9086,13 +9102,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>1127 items across 1 source(s) in this window:
-2 critical, 844 notable, 19 routine,
-262 minor.</p>
-<ul><li><strong>issues</strong> — 1127</li></ul></section>
+<p>1129 items across 1 source(s) in this window:
+2 critical, 847 notable, 17 routine,
+263 minor.</p>
+<ul><li><strong>issues</strong> — 1129</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-28T22:22:34.530Z">2026-10-28T22:22:34.530Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-28T23:05:26.615Z">2026-10-28T23:05:26.615Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

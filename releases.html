@@ -397,7 +397,7 @@ footer .ver{color:var(--acc)}
 <p>4. With the datastore&#39;s <code>durable</code> setting on (swamp-club#4017), sync each restored version directory and every directory above it up to <code>data/</code>, once each, deepest first.</p>
 <p>5. Write the markers, synced when durable.</p>
 <p>Every marker read is written, even one naming a version the cache still lacks, and no single failure stops the markers. A marker that cannot be read is skipped. A failed content restore, directory sync or marker write is logged and the restore continues. A marker left removed stays marked dirty, and the next push would delete the da</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261027.221623.0-sha.abfb75f2" rel="noopener">release v20261027.221623.0-sha.abfb75f2</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/abfb75f26ef7b5092e1e7dec6419265ed9c22765" rel="noopener">abfb75f2</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3432" rel="noopener">#3432</a>𝗔 <a href="https://swamp-club.com/lab/4033" rel="noopener">lab#4033</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261027-220922-0-sha-731913b2">
@@ -473,7 +473,7 @@ footer .ver{color:var(--acc)}
 <ul>
 <li>A version&#39;s <code>metadata.yaml</code> and <code>raw</code> are written through the synced atomic write, the version directory and then the data-name and model directories are synced, and only then does the <code>latest</code> marker move (itself written synced) and the catalog row get written. Directories are created one level at a time (`make</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/repo/reference.md" rel="noopener">.claude/skills/swamp/references/repo/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/references/remote-execution.md" rel="noopener">.claude/skills/swamp/references/workflow/references/remote-execution.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/data.md" rel="noopener">design/primitives/data.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/repo/reference.md" rel="noopener">.claude/skills/swamp/references/repo/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/references/remote-execution.md" rel="noopener">.claude/skills/swamp/references/workflow/references/remote-execution.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/data.md" rel="noopener">design/primitives/data.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261027.212412.0-sha.368ddf47" rel="noopener">release v20261027.212412.0-sha.368ddf47</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/368ddf475d4cbc3741c29b4a0b4b8d834543ad30" rel="noopener">368ddf47</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3428" rel="noopener">#3428</a>𝗔 <a href="https://swamp-club.com/lab/4017" rel="noopener">lab#4017</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261027-205713-0-sha-e7f38146">
@@ -858,7 +858,7 @@ footer .ver{color:var(--acc)}
 <li>A batch&#39;s span count does not grow with the number of outputs.</li>
 <li><strong>Commit disposition</strong>: <code>batch_commit</code> records <code>commit</code>, or <code>abandon</code> when the collector threw. A `r</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/repo.md" rel="noopener">design/surfaces/repo.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261027.170921.0-sha.559c9c72" rel="noopener">release v20261027.170921.0-sha.559c9c72</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/559c9c72f1bfd972f3bd767820ec92ef139b1812" rel="noopener">559c9c72</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3409" rel="noopener">#3409</a>𝗔 <a href="https://swamp-club.com/lab/4004" rel="noopener">lab#4004</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261027-170159-0-sha-7ab4c546">
@@ -14941,7 +14941,7 @@ footer .ver{color:var(--acc)}
 <ul><li><strong>fix</strong> — 399</li><li><strong>feat</strong> — 157</li><li><strong>test</strong> — 22</li><li><strong>docs</strong> — 18</li><li><strong>refactor</strong> — 14</li><li><strong>perf</strong> — 5</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-28T04:05:23.696Z">2026-10-28T04:05:23.696Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-28T05:05:48.343Z">2026-10-28T05:05:48.343Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

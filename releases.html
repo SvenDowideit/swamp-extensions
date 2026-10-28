@@ -13982,6 +13982,197 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.222935.0-sha.852243ed" rel="noopener">release v20261015.222935.0-sha.852243ed</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/852243edf2e7c999e8f4f08c9f54f4e18575c9ff" rel="noopener">852243ed</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3152" rel="noopener">#3152</a></div>
 </article>
+<article class="item" id="release-swamp-club-swamp-v20261028-154829-0-sha-b2ac6142">
+<h2><span class="tier C">C</span>swamp 20261028.154829.0-sha.b2ac6142</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-28T15:54:38Z">2026-10-28T15:54:38Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): a cancelled output search gives up its place among the shared scan permits, and replies cancelled (swamp-club#4070) (#3444)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Output scans share one process-wide queue of 16 permits (swamp-club#4058), but <code>withScanPermit</code> asked for a permit without the request&#39;s <code>AbortSignal</code>. A cancelled <code>model.output.search</code> or <code>model.method.history.search</code> kept waiting for permits, and kept holding them, until its scan ended. That delayed requests that were still wanted, and per-type reads such as <code>findLatestByDefinition</code> during a method run (swamp-club#4070).</p>
+<ul>
+<li><strong>Permits honour cancellation.</strong> <code>withScanPermit</code> passes the scan&#39;s signal to <code>scanPermits.acquire</code>, so a cancelled scan leaves the queue without a permit. It checks the signal again inside the <code>try</code> whose <code>finally</code> releases the permit. An abort that lands after a release hands this scan a permit, but before its continuation runs, still gives the permit back.</li>
+<li><strong>No new work after a cancel.</strong> <code>mapBounded</code> starts no further item once the signal aborts. It still waits for started calls to settle, and reports the abort reason whichever call failed first.</li>
+<li><strong>Aborts are not unreadable records.</strong> The per-file <code>catch</code> blocks in <code>readAll</code> and <code>findAllGlobalSince</code> re-throw an abort. Before, <code>skipUnreadableRecord</code> would have logged it as &quot;Skipping unreadable output record&quot; and carried on, once per remaining file.</li>
+<li><strong>Wiring.</strong> <code>YamlOutputRepository.findAllGlobal</code>, <code>findAllGlobalSince</code> and `findHi</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261028.154829.0-sha.b2ac6142" rel="noopener">release v20261028.154829.0-sha.b2ac6142</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b2ac6142" rel="noopener">b2ac6142</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3444" rel="noopener">#3444</a>𝗔 <a href="https://swamp-club.com/lab/4070" rel="noopener">lab#4070</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261028-153017-0-sha-257d6c53">
+<h2><span class="tier C">C</span>swamp 20261028.153017.0-sha.257d6c53</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-28T15:37:19Z">2026-10-28T15:37:19Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(data): honor ephemeral lifetimes in direct runs and omit misleading summary retrieval commands (swamp-club#3887) (#3443)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#3887: a workflow step&#39;s output could not be found by <code>data query</code> or <code>data list</code>, and the step&#39;s method summary printed a retrieval command that returned an older direct run&#39;s data.</p>
+<p>The spec in question (<code>@swamp/git</code> <code>log</code>) is <code>ephemeral</code>. Workflow steps kept it in memory, as declared. Direct runs (<code>swamp behavior run</code> / <code>model method run</code>) never passed the catalog, so they skipped the ephemeral wrapper and wrote it to disk. The summary&#39;s <code>modelName == … &amp;&amp; version == 1</code> command then matched that stale persisted copy.</p>
+<ul>
+<li><strong>Direct runs honor <code>ephemeral</code>.</strong> The CLI and serve now pass <code>catalogStore</code> into the run deps, so direct runs keep ephemeral output in memory the way workflow steps do. Ephemeral writes are left out of the written-versions lists used for publication (<code>run.ts</code>, <code>data_plane.ts</code>).</li>
+<li><strong>Summaries say what is retrievable.</strong> The new <code>src/domain/reports/builtin/data_pointers.ts</code> drives the method, workflow and verification summaries. Each artifact records <code>lifetime</code> and <code>availability</code>. Ephemeral items carry no retrieval command and are labeled as unavailable after the run.</li>
+<li><strong>Persistent retrieval commands are pinned</strong> to the behavior&#39;s type and id, the version, and the workflow run id when recorded, so they can&#39;t match another run&#39;s data.</li>
+<li><strong>Cleanup.</strong> <code>modelRetrievalCommand</code> and `stepRetri</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261028.153017.0-sha.257d6c53" rel="noopener">release v20261028.153017.0-sha.257d6c53</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/257d6c53" rel="noopener">257d6c53</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3443" rel="noopener">#3443</a>𝗔 <a href="https://swamp-club.com/lab/3887" rel="noopener">lab#3887</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261028-151635-0-sha-d39f4206">
+<h2><span class="tier C">C</span>swamp 20261028.151635.0-sha.d39f4206</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-28T15:23:47Z">2026-10-28T15:23:47Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(presentation): the search and inbox pickers act on the row the frame shows when a key arrives right after a redraw (swamp-club#4067) (#3442)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#4067. Under full-suite load, two Ink picker tests from #3434 failed at random. In both, a key pressed right after <code>waitFor</code> saw the new frame was handled against the old state. The cause is in the components, not the tests, so a user who presses a key at that moment hits it too:</p>
+<ul>
+<li><strong>Stale key handler.</strong> Ink 6.8&#39;s <code>useInput</code> re-binds its handler in an effect after the frame is written. A key arriving in between reached the previous render&#39;s handler, so Enter or Ctrl-r acted on the old highlight. <code>SearchPicker</code> now reads results, the highlight and preview detail from a ref set on each render, so a key always acts on what is on screen. The inbox picker is built on <code>SearchPicker</code>, so it gets the same fix.</li>
+<li><strong>Late highlight reset.</strong> <code>useScrollableList</code> reset the highlight in an effect, so the picker first drew a frame with the new query and the old highlight. The reset now happens during render. The first render still keeps <code>initialIndex</code>.</li>
+</ul>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>New deterministic tests send the next key from inside the stdout write of the awaited frame (<code>pressOnFrame</code> helper):</li>
+<li>SearchPicker: query, then Enter → first match</li>
+<li>SearchPicker: down, then Enter → second row</li>
+<li>Inbox picker: down, then Ctrl-r → the highlighted message is marked</li>
+<li><code>useScrollableList</code>: the first frame after th</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261028.151635.0-sha.d39f4206" rel="noopener">release v20261028.151635.0-sha.d39f4206</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d39f4206" rel="noopener">d39f4206</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3442" rel="noopener">#3442</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3434" rel="noopener">#3434</a>𝗔 <a href="https://swamp-club.com/lab/4067" rel="noopener">lab#4067</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261028-144633-0-sha-4ee18289">
+<h2><span class="tier C">C</span>swamp 20261028.144633.0-sha.4ee18289</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-28T14:52:25Z">2026-10-28T14:52:25Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): a model&#39;s output search skips its outputs named outside since and until without reading them, and every output scan shares one bound of 16 open files (swamp-club#4058) (#3441)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>A <code>model.output.search</code> that names a model read <strong>every</strong> output file of that model before applying <code>since</code>/<code>until</code>, so a windowed query cost grew with the model&#39;s whole history: at 10k outputs, <code>model: alpha, since: 2d</code> read 5,000 files to return 200. This applies the window before reading, as #4056 did for the unscoped search (swamp-club#4058).</p>
+<ul>
+<li><strong>Window skip.</strong> <code>YamlOutputRepository.findHistoryByDefinition</code> takes an optional <code>{ since, until }</code> window. It skips the model&#39;s files whose name stamp is outside it, with no stat and no read.</li>
+<li>A file whose name is not in <code>getPath</code> form falls back to its mtime for <code>since</code>, and is always read under <code>until</code>.</li>
+<li>A bound outside years 0000–9999 skips nothing by name.</li>
+<li>Every record read is checked against the window again.</li>
+<li>The unreadable-record warning names only the definition&#39;s records named inside the window.</li>
+<li><strong>Wiring.</strong> <code>modelOutputSearch</code> passes <code>since</code>/<code>until</code> to <code>findOutputsByDefinition</code>, and the serve handler forwards them. The search&#39;s own check after loading remains the authority, so a dependency that ignores the window still gives the same results.</li>
+<li><strong>Concurrent per-type listings.</strong> <code>readAll</code> lists method directories and reads records concurrently through <code>mapBounded</code>, as <code>findAllGlobalSince</code></li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261028.144633.0-sha.4ee18289" rel="noopener">release v20261028.144633.0-sha.4ee18289</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4ee18289" rel="noopener">4ee18289</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3441" rel="noopener">#3441</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4067" rel="noopener">#4067</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4056" rel="noopener">#4056</a>𝗔 <a href="https://swamp-club.com/lab/4058" rel="noopener">lab#4058</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261028-142555-0-sha-3ccf55a9">
+<h2><span class="tier C">C</span>swamp 20261028.142555.0-sha.3ccf55a9</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-28T14:30:18Z">2026-10-28T14:30:18Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(inbox): slow commands poll the inbox in the background, and eligible commands print the pinned inbox notice from the cache when an unread message is waiting (swamp-club#4059) (#3440)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Turns the inbox notice on (swamp-club#4059). This is wiring and one renderer; there is no new policy.</p>
+<ul>
+<li><strong>Poll:</strong> <code>workflow run</code>, <code>behavior run</code> / <code>model method run</code>, <code>extension pull</code> and <code>extension push</code> ask <code>/api/inbox/summary</code> alongside the command, with the cached ETag, for at most 5 s. The poll runs only when it is due (<code>shouldPoll</code>). At teardown the CLI waits at most 250 ms more, aborts a poll still running (saved as a failed poll), and only then writes the per-key cache. It does this on the success path and the error path alike.</li>
+<li><strong>Notice:</strong> after a command that succeeded (exit code 0), eligible commands read only the cache and print the pinned two lines to stderr before the update banner, in log mode without <code>-q</code>. A notice already announced is not written back to the cache.</li>
+<li><strong>Never shown:</strong> gate-exempt commands; <code>inbox</code>, <code>subscription</code>, <code>auth</code>, <code>serve</code>, <code>worker</code>, <code>start</code> and <code>dashboard</code>; nested runs (a swamp started by another swamp); and when <code>CI</code> or <code>SWAMP_NO_INBOX_NOTICE</code> is set to anything but an empty string, <code>0</code> or <code>false</code>.</li>
+<li><strong>Agents launched by <code>swamp start</code>:</strong> they see the notice, because the launcher unsets <code>NESTED_SWAMP_ENV_VARS</code> before starting them. A guard test ties the two together.</li>
+</ul>
+<p>New files:</p>
+<ul>
+<li>`src/presentation/renderers/inbox_n</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261028.142555.0-sha.3ccf55a9" rel="noopener">release v20261028.142555.0-sha.3ccf55a9</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/3ccf55a9" rel="noopener">3ccf55a9</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3440" rel="noopener">#3440</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4043" rel="noopener">#4043</a>𝗔 <a href="https://swamp-club.com/lab/4059" rel="noopener">lab#4059</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261028-141412-0-sha-a083bbe1">
+<h2><span class="tier C">C</span>swamp 20261028.141412.0-sha.a083bbe1</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-28T14:20:48Z">2026-10-28T14:20:48Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): the loose-specifier remediation names the lock rule, commit a valid lock or pin exact versions (swamp-club#4061) (#3439)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>The dependency-trust row&#39;s loose-specifier remediation, printed by <code>swamp extension quality</code>, still told authors to &quot;Pin an exact, published version to earn the second point.&quot; Since swamp-club#3970 a range earns that point too when a valid lock fixes its version. The row now reads:</p>
+<p>&gt; N loose dependency specifier(s) (loose-specifier) cost 1 of 2 points. Commit a valid lock (deno.lock, or a package-lock.json that matches node_modules) or pin exact versions to earn the second point.</p>
+<ul>
+<li>One string in <code>packages/extension-scoring/rubric/score.ts</code> (<code>dependencyTrustRow</code>).</li>
+<li>Text only: no score moves, <code>RUBRIC_VERSION</code> stays 6, <code>vectors/rubric.json</code> is unchanged.</li>
+<li>The registry scorecard does not render this row text (it shows the per-dependency findings, which already name the lock), so no swamp-club change is needed. The package republishes to JSR on merge; a registry re-pin is optional.</li>
+</ul>
+<p>Fixes swamp-club#4061.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>New assertions on the wording in <code>packages/extension-scoring/rubric/score_test.ts</code> and <code>src/domain/extensions/extension_rubric_scorer_test.ts</code>.</li>
+<li>verify-build, verify-reviews and verify-skills pass on this commit; attestation posted.</li>
+<li>UAT: swamp-uat <code>cue/uat-scoring-fix</code> updates the exact-match expectation in <code>tests/cli/extension/quality_test.ts</code>. <code>quality_test.ts</code> passes against this chec</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261028.141412.0-sha.a083bbe1" rel="noopener">release v20261028.141412.0-sha.a083bbe1</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a083bbe1" rel="noopener">a083bbe1</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3439" rel="noopener">#3439</a>𝗔 <a href="https://swamp-club.com/lab/3970" rel="noopener">lab#3970</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261028-133714-0-sha-e25f64e6">
+<h2><span class="tier C">C</span>swamp 20261028.133714.0-sha.e25f64e6</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-28T13:41:38Z">2026-10-28T13:41:38Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): the loader reuses a bundle the startup reconcile indexed on Windows, and three integration tests pass on Windows (swamp-club#4060) (#3438)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Windows CI run 40633875490 failed three integration tests (6 steps). Fixes swamp-club#4060.</p>
+<ul>
+<li><strong>Loader bug (product fix):</strong> <code>ExtensionLoader.isFreshIndexedBundle</code> compared the catalog row&#39;s <code>bundle_path</code> with the native bundle path as raw strings. The startup reconcile records that path canonicalized (lowercased, <code>/</code> separators on Windows) via <code>makeBundleLocation</code>, so on Windows the two never matched. The first command in a repo rebuilt a bundle reconcile had just indexed, and warned a second time about a stale <code>deno.lock</code>. Both sides are now canonicalized before comparing; on POSIX <code>canonicalizePath</code> is a no-op.</li>
+<li><strong><code>dependency_input_vectors_driver.ts</code>:</strong> the root&#39;s file URL is scrubbed to <code>file://&lt;root&gt;</code> before the bare path, so Windows&#39; <code>file:///D:/...</code> reads the same as POSIX&#39;s <code>file:///tmp/...</code>.</li>
+<li><strong><code>serve_upstream_errors_test.ts</code>:</strong> the test proxy splices the hostile key into JSON replies JSON-escaped, so a Windows absolute path&#39;s backslashes keep the reply valid JSON and the record key guard is what refuses it.</li>
+</ul>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>The three affected test files plus <code>extension_loader_test.ts</code> pass on macOS.</li>
+<li>Local verification passed (<code>verify-build</code>, <code>verify-reviews</code>, <code>verify-skills</code>); attestation posted for c8d56a9c6.</li>
+<li>Windows confirmation comes from the Windows CI job on this PR.</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261028.133714.0-sha.e25f64e6" rel="noopener">release v20261028.133714.0-sha.e25f64e6</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/e25f64e6" rel="noopener">e25f64e6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3438" rel="noopener">#3438</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261028-132220-0-sha-489443f2">
+<h2><span class="tier C">C</span>swamp 20261028.132220.0-sha.489443f2</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-28T13:27:22Z">2026-10-28T13:27:22Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(datastore-v3): a serve-mode copy refuses a serve that is not serving the log it follows (swamp-club#4049) (#3437)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>A v3 checkout&#39;s copy of serve&#39;s commit log (swamp-club#3985) was keyed only by address and namespace. Serve re-pointed at another bucket, a fresh deployment, or a serve restored from an older backup mixed silently into it. Reads showed the old log, and writes to the new one were accepted.</p>
+<p><strong>Serve&#39;s log id: another log.</strong></p>
+<ul>
+<li><code>commits.db</code> mints a random id for its log (schema 9; an existing log is given one when it migrates). A failover or restore keeps it; a fresh deployment or another bucket gets a new one.</li>
+<li>Serve sends it on every datastore API reply to an authenticated caller, in <code>x-swamp-datastore-log</code>.</li>
+<li>The copy records the first id it sees and checks every later reply before using it.</li>
+<li>Another id is refused with <code>serve_upstream_diverged</code>.</li>
+<li>A success naming no id is refused with <code>serve_upstream_upgrade_required</code>.</li>
+<li>Only the id can tell a moved serve from a revoked grant. With name-scoped grants, a new serve answers 404 for every partition of the old log, which is the answer a caller who lost access gets.</li>
+</ul>
+<p><strong>Anchor and head checks: the same log rolled back.</strong></p>
+<ul>
+<li>Each feed catch-up first asks serve for the last commit the copy applied.</li>
+<li>Each partition catch-up reads from the copy&#39;s head commit.</li>
+<li>A lower head, or another commit at that seq, is refused.</li>
+</ul>
+<p><strong>Recovery.</strong></p>
+<ul>
+<li>The error names the address and the copy&#39;s direc</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261028.132220.0-sha.489443f2" rel="noopener">release v20261028.132220.0-sha.489443f2</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/489443f2" rel="noopener">489443f2</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3437" rel="noopener">#3437</a>𝗔 <a href="https://swamp-club.com/lab/4049" rel="noopener">lab#4049</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261028-122335-0-sha-ac96ce70">
 <h2><span class="tier C">C</span>swamp 20261028.122335.0-sha.ac96ce70</h2>
 <p class="lede">Change (untyped) · swamp-club/swamp</p>
@@ -15005,13 +15196,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.073437.0-sha.acf6214e" rel="noopener">release v20261001.073437.0-sha.acf6214e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214ef9980daf68e919a43f6db3cff17da608" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>620 items across 1 source(s) in this window:
+<p>628 items across 1 source(s) in this window:
 27 critical, 534 notable, 20 routine,
-39 minor.</p>
-<ul><li><strong>fix</strong> — 400</li><li><strong>feat</strong> — 158</li><li><strong>test</strong> — 22</li><li><strong>docs</strong> — 18</li><li><strong>refactor</strong> — 14</li><li><strong>perf</strong> — 5</li></ul></section>
+47 minor.</p>
+<ul><li><strong>fix</strong> — 400</li><li><strong>feat</strong> — 158</li><li><strong>test</strong> — 22</li><li><strong>docs</strong> — 18</li><li><strong>refactor</strong> — 14</li><li><strong>changes</strong> — 10</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-28T15:06:41.442Z">2026-10-28T15:06:41.442Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-28T16:06:01.228Z">2026-10-28T16:06:01.228Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

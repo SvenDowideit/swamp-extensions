@@ -361,7 +361,57 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261022.201349.0-sha.ac69af15" rel="noopener">release v20261022.201349.0-sha.ac69af15</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ac69af151d21cd26f28b3daa2ff02ecde13bdbfe" rel="noopener">ac69af15</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3305" rel="noopener">#3305</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3294" rel="noopener">#3294</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261028-013214-0-sha-64bc571b">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261028-044313-0-sha-839820e7">
+<h2><span class="tier A">A</span>SWAMP_SERVER_TOKEN_FILE is sent only to the address --server or the environment names, never to a repository&#39;s .swamp.yaml serverAddress alone (swamp-club#4012) (#3435)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-28T04:49:05Z">2026-10-28T04:49:05Z</time></span><span>serve</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): SWAMP_SERVER_TOKEN_FILE is sent only to the address --server or the environment names, never to a repository&#39;s .swamp.yaml serverAddress alone (swamp-club#4012) (#3435)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>resolveServerToken</code> returned the <code>SWAMP_SERVER_TOKEN_FILE</code> token for any server URL. Remote routing resolves the URL from <code>--server</code>, then <code>SWAMP_SERVE_URL</code> and <code>SWAMP_SERVER_URL</code>, then the repository&#39;s <code>.swamp.yaml</code> <code>serverAddress</code>. In a cloned repository whose marker names a host the user never chose, every remotely routed command sent the token file&#39;s token to that host as a bearer. Fixes swamp-club#4012.</p>
+<ul>
+<li><strong>The rule (<code>src/cli/remote_run.ts</code>)</strong></li>
+<li>The token file is read only when the raw <code>--server</code> value, <code>SWAMP_SERVE_URL</code> or <code>SWAMP_SERVER_URL</code> normalizes to the resolved address. Otherwise resolution falls through to <code>SWAMP_SERVER_TOKEN</code> and <code>servers.json</code>, which were already keyed by URL. An unbound token file is never read.</li>
+<li><code>resolveServerTokenFromOptions</code> binds on <code>options.server</code>, so the ~115 call sites need no change.</li>
+<li><code>tokenFileBoundTo</code> moves here from <code>serve_upstream.ts</code>, so the swamp-club#3985 serve-upstream path and the WebSocket path share one rule and one normalizer.</li>
+<li><strong><code>model method run</code> / <code>workflow run</code></strong> pass the resolved URL as its own parameter instead of <code>{ ...options, server }</code>, which would have made a marker address look like a <code>--server</code> flag.</li>
+<li><strong>Saying why</strong></li>
+<li>When the token file is set, not bound, and no other source supplies</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/repo.md" rel="noopener">design/surfaces/repo.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261028.044313.0-sha.839820e7" rel="noopener">release v20261028.044313.0-sha.839820e7</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/839820e767f7ab29ecbabef116fc3b53d991af36" rel="noopener">839820e7</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3435" rel="noopener">#3435</a>𝗔 <a href="https://swamp-club.com/lab/3985" rel="noopener">lab#3985</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261028-035005-0-sha-d07f41f2">
+<h2><span class="tier A">A</span>swamp inbox opens an interactive picker in a terminal to browse, preview and open messages, marking read only what you open; swamp inbox read prints the newest unread outside a terminal (swamp-club#4043) (#3434)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-28T03:55:27Z">2026-10-28T03:55:27Z</time></span><span>inbox</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(inbox): swamp inbox opens an interactive picker in a terminal to browse, preview and open messages, marking read only what you open; swamp inbox read prints the newest unread outside a terminal (swamp-club#4043) (#3434)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Lets people read their Swamp Club inbox (swamp-club#4043). This builds on the <code>swamp inbox</code> list from #4031.</p>
+<p><strong>In a terminal</strong> (log mode, with stdin and stdout both TTYs), <code>swamp inbox</code> and <code>swamp inbox read</code> open the shared search picker over one <code>status=all</code> page of whole messages:</p>
+<ul>
+<li>Each row has the list&#39;s columns. Typing filters on title and kind.</li>
+<li>The preview shows the kind and date, the title, the body (markdown), and the <code>Link:</code> and <code>Next:</code> lines. Previewing makes no request and marks nothing read.</li>
+<li><strong>Enter</strong> opens the message: it is marked read and left in the scrollback. <strong>Ctrl-r</strong> marks the highlighted message read, and <strong>Ctrl-a</strong> marks every unread message on the loaded page read. <strong>Esc</strong> changes nothing.</li>
+<li><code>swamp inbox read</code> starts on the newest unread message.</li>
+<li>An empty inbox opens no picker and prints <code>Your inbox is empty.</code></li>
+<li>The picker never runs a message&#39;s suggested command.</li>
+</ul>
+<p><strong>Outside a terminal, and with <code>--json</code>:</strong></p>
+<ul>
+<li><code>swamp inbox</code> keeps the #4031 list byte-identical.</li>
+<li><code>swamp inbox read</code> prints the newest unread message and marks it read. While more are unread, it ends with <code>To read the next:  swamp inbox read</code>. With nothing unread it prints <code>No unread messages.</code> and exits 0.</li>
+<li><code>--json</code> prints `{</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/SKILL.md" rel="noopener">.claude/skills/swamp/SKILL.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/inbox.md" rel="noopener">design/surfaces/inbox.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261028.035005.0-sha.d07f41f2" rel="noopener">release v20261028.035005.0-sha.d07f41f2</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d07f41f2b7b1049fe533397719470b062192be7f" rel="noopener">d07f41f2</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3434" rel="noopener">#3434</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4031" rel="noopener">#4031</a>𝗔 <a href="https://swamp-club.com/lab/4043" rel="noopener">lab#4043</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261028-013214-0-sha-64bc571b">
 <h2><span class="tier A">A</span>behavior history search skips outputs named before its window and scans with bounded concurrency, with phase telemetry (swamp-club#4056) (#3433)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-28T01:38:53Z">2026-10-28T01:38:53Z</time></span><span>serve</span><span>fix</span></div>
@@ -14935,13 +14985,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.073437.0-sha.acf6214e" rel="noopener">release v20261001.073437.0-sha.acf6214e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214ef9980daf68e919a43f6db3cff17da608" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>617 items across 1 source(s) in this window:
-27 critical, 532 notable, 20 routine,
+<p>619 items across 1 source(s) in this window:
+27 critical, 534 notable, 20 routine,
 38 minor.</p>
-<ul><li><strong>fix</strong> — 399</li><li><strong>feat</strong> — 157</li><li><strong>test</strong> — 22</li><li><strong>docs</strong> — 18</li><li><strong>refactor</strong> — 14</li><li><strong>perf</strong> — 5</li></ul></section>
+<ul><li><strong>fix</strong> — 400</li><li><strong>feat</strong> — 158</li><li><strong>test</strong> — 22</li><li><strong>docs</strong> — 18</li><li><strong>refactor</strong> — 14</li><li><strong>perf</strong> — 5</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-28T06:21:39.897Z">2026-10-28T06:21:39.897Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-28T07:05:38.524Z">2026-10-28T07:05:38.524Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3889"><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli deco</a><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-4056"><span class="tier A">A</span>Bounded behavior history search still sequentially scans fil</a><a href="#issue-4033"><span class="tier A">A</span>Refused-push restore (discardRefusedVersions) writes markers</a><a href="#issue-4048"><span class="tier A">A</span>Pausing a schedule does not stop ordinary fires already queu</a><a href="#issue-4017"><span class="tier A">A</span>Filesystem datastore (v2): data-version writes are not fsync</a><a href="#issue-3815"><span class="tier A">A</span>workflow resume --run refuses workflows with the same step n</a><a href="#issue-4038"><span class="tier A">A</span>Shared dispatch bookkeeping queue delays completed worker re</a><a href="#issue-4037"><span class="tier A">A</span>Serve globally scans definitions twice per new direct-type s</a><a href="#issue-3995"><span class="tier A">A</span>Registry: bump @swamp-club/extension-scoring to the version </a><a href="#issue-3973"><span class="tier A">A</span>Registry audits v2 extension archives as written, and a rang</a><a href="#issue-3971"><span class="tier A">A</span>Extension push: inputs that open up (workspace root lock, an</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3889"><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli deco</a><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-4043"><span class="tier A">A</span>swamp inbox opens an interactive picker in a terminal to bro</a><a href="#issue-4056"><span class="tier A">A</span>Bounded behavior history search still sequentially scans fil</a><a href="#issue-4033"><span class="tier A">A</span>Refused-push restore (discardRefusedVersions) writes markers</a><a href="#issue-4048"><span class="tier A">A</span>Pausing a schedule does not stop ordinary fires already queu</a><a href="#issue-4017"><span class="tier A">A</span>Filesystem datastore (v2): data-version writes are not fsync</a><a href="#issue-3815"><span class="tier A">A</span>workflow resume --run refuses workflows with the same step n</a><a href="#issue-4038"><span class="tier A">A</span>Shared dispatch bookkeeping queue delays completed worker re</a><a href="#issue-4037"><span class="tier A">A</span>Serve globally scans definitions twice per new direct-type s</a><a href="#issue-3995"><span class="tier A">A</span>Registry: bump @swamp-club/extension-scoring to the version </a><a href="#issue-3973"><span class="tier A">A</span>Registry audits v2 extension archives as written, and a rang</a></aside><div>
 
 <article class="item" id="issue-3889">
 <h2><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli decoder RCE (CVE-2026-111497, Node2Shell/HTTP2Shell)</h2>
@@ -84,6 +84,14 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3576" rel="noopener">lab#3576</a></div>
+</article>
+<article class="item" id="issue-4043">
+<h2><span class="tier A">A</span>swamp inbox opens an interactive picker in a terminal to browse, preview and open messages, marking read only what you open; swamp inbox read prints the newest unread outside a terminal</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-28T03:55:55.729Z">2026-10-28T03:55:55.729Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4043" rel="noopener">lab#4043</a></div>
 </article>
 <article class="item" id="issue-4056">
 <h2><span class="tier A">A</span>Bounded behavior history search still sequentially scans filesystem output records before limiting results</h2>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3973" rel="noopener">lab#3973</a></div>
 </article>
-<article class="item" id="issue-3971">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3971">
 <h2><span class="tier A">A</span>Extension push: inputs that open up (workspace root lock, ancestor config refused by name, JSR dist-tags) and the skill docs rewritten once</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-27T19:52:30.168Z">2026-10-27T19:52:30.168Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3971" rel="noopener">lab#3971</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3972">
+<article class="item" id="issue-3972">
 <h2><span class="tier A">A</span>Extension consumers keep the publisher&#39;s bundle: pull, update and auto-resolve stop rebuilding (direction A for #3634)</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-27T19:42:35.446Z">2026-10-27T19:42:35.446Z</time></span></div>
@@ -6549,6 +6557,14 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
+<article class="item" id="issue-4049">
+<h2><span class="tier B">B</span>Team mode: a serve-mode copy refuses a serve that isn&#39;t serving its log (follow-up to #3985)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-28T03:43:28.615Z">2026-10-28T03:43:28.615Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4049" rel="noopener">lab#4049</a></div>
+</article>
 <article class="item" id="issue-4015">
 <h2><span class="tier B">B</span>extension quality: a collective-attested private repository scores provisional, and --json omits ifProvisionalEarned</h2>
 <p class="lede">Issue in_progress</p>
@@ -6557,14 +6573,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4015" rel="noopener">lab#4015</a></div>
 </article>
-<article class="item" id="issue-4049">
-<h2><span class="tier B">B</span>Team mode: a serve-mode copy refuses a serve that isn&#39;t serving its log (follow-up to #3985)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-27T23:00:04.839Z">2026-10-27T23:00:04.839Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4049" rel="noopener">lab#4049</a></div>
-</article>
 <article class="item" id="issue-3974">
 <h2><span class="tier B">B</span>Manual: the supported extension dependency categories, the canonical form and the lock rule, rewritten once against the final design</h2>
 <p class="lede">Issue triaged</p>
@@ -6572,14 +6580,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3974" rel="noopener">lab#3974</a></div>
-</article>
-<article class="item" id="issue-4043">
-<h2><span class="tier B">B</span>swamp inbox opens an interactive picker in a terminal to browse, preview and open messages, marking read only what you open; swamp inbox read prints the newest unread outside a terminal</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-27T22:33:35.204Z">2026-10-27T22:33:35.204Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4043" rel="noopener">lab#4043</a></div>
 </article>
 <article class="item" id="issue-3955">
 <h2><span class="tier B">B</span>Filesystem datastore: an unclean shutdown leaves zero-byte data versions as the latest version, and `doctor datastores --repair` does not detect them</h2>
@@ -8863,12 +8863,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>1099 items across 1 source(s) in this window:
-2 critical, 808 notable, 17 routine,
+2 critical, 809 notable, 16 routine,
 272 minor.</p>
 <ul><li><strong>issues</strong> — 1099</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-28T03:05:28.575Z">2026-10-28T03:05:28.575Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-28T04:05:23.696Z">2026-10-28T04:05:23.696Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

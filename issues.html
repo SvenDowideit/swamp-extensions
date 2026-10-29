@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3889"><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli deco</a><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-4122"><span class="tier A">A</span>Affinity pin overrides a step&#39;s own labels, platform and tar</a><a href="#issue-4107"><span class="tier A">A</span>v3: an edit made through the editor (model, workflow or vaul</a><a href="#issue-4104"><span class="tier A">A</span>@swamp/video/brand: default Swamp Club branded cards and stu</a><a href="#issue-4114"><span class="tier A">A</span>swamp inbox and swamp inbox read get separate jobs: swamp in</a><a href="#issue-3820"><span class="tier A">A</span>&#39;swamp start&#39; launcher overrides configured terminal on maco</a><a href="#issue-4109"><span class="tier A">A</span>swamp inbox read opens the message the notice announced, not</a><a href="#issue-4113"><span class="tier A">A</span>Affinity job: a step failing argument validation fails its v</a><a href="#issue-4041"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-4103"><span class="tier A">A</span>@swamp/video: private extension to turn screen recordings in</a><a href="#issue-3962"><span class="tier A">A</span>swamp serve on a v3 datastore never settles a workflow run l</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3889"><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli deco</a><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3585"><span class="tier A">A</span>Persisted resource redaction masks the vault key inside a se</a><a href="#issue-4123"><span class="tier A">A</span>A job&#39;s affinity: false does not opt it out of workflow-leve</a><a href="#issue-4126"><span class="tier A">A</span>swamp inbox: marks that fail or are cut off at quit leave no</a><a href="#issue-4125"><span class="tier A">A</span>swamp inbox: a mark-all whose later batch fails shows every </a><a href="#issue-4122"><span class="tier A">A</span>Affinity pin overrides a step&#39;s own labels, platform and tar</a><a href="#issue-4107"><span class="tier A">A</span>v3: an edit made through the editor (model, workflow or vaul</a><a href="#issue-4104"><span class="tier A">A</span>@swamp/video/brand: default Swamp Club branded cards and stu</a><a href="#issue-4114"><span class="tier A">A</span>swamp inbox and swamp inbox read get separate jobs: swamp in</a><a href="#issue-3820"><span class="tier A">A</span>&#39;swamp start&#39; launcher overrides configured terminal on maco</a><a href="#issue-4109"><span class="tier A">A</span>swamp inbox read opens the message the notice announced, not</a></aside><div>
 
 <article class="item" id="issue-3889">
 <h2><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli decoder RCE (CVE-2026-111497, Node2Shell/HTTP2Shell)</h2>
@@ -84,6 +84,38 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3576" rel="noopener">lab#3576</a></div>
+</article>
+<article class="item" id="issue-3585">
+<h2><span class="tier A">A</span>Persisted resource redaction masks the vault key inside a sensitive field ref (data name containing a vault-resolved value), so readResource fails with Secret not found</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-29T20:02:10.068Z">2026-10-29T20:02:10.068Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3585" rel="noopener">lab#3585</a></div>
+</article>
+<article class="item" id="issue-4123">
+<h2><span class="tier A">A</span>A job&#39;s affinity: false does not opt it out of workflow-level affinity</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-29T20:01:42.938Z">2026-10-29T20:01:42.938Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4123" rel="noopener">lab#4123</a></div>
+</article>
+<article class="item" id="issue-4126">
+<h2><span class="tier A">A</span>swamp inbox: marks that fail or are cut off at quit leave no trace after the inbox closes, and a cut-off mark skips the cache refresh</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-29T19:55:50.967Z">2026-10-29T19:55:50.967Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4126" rel="noopener">lab#4126</a></div>
+</article>
+<article class="item" id="issue-4125">
+<h2><span class="tier A">A</span>swamp inbox: a mark-all whose later batch fails shows every message unread, though earlier batches were marked</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-29T19:55:50.770Z">2026-10-29T19:55:50.770Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4125" rel="noopener">lab#4125</a></div>
 </article>
 <article class="item" id="issue-4122">
 <h2><span class="tier A">A</span>Affinity pin overrides a step&#39;s own labels, platform and target, so a mismatched step runs on the pinned worker</h2>
@@ -133,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4109" rel="noopener">lab#4109</a></div>
 </article>
-<article class="item" id="issue-4113">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4113">
 <h2><span class="tier A">A</span>Affinity job: a step failing argument validation fails its valid siblings with &quot;Worker &#39;unknown&#39; … is no longer connected&quot;</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-29T17:39:45.261Z">2026-10-29T17:39:45.261Z</time></span></div>
@@ -165,7 +197,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3962" rel="noopener">lab#3962</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4096">
+<article class="item" id="issue-4096">
 <h2><span class="tier A">A</span>Datastore rework Phase 5 (team mode): serve leader election on the v3 writer lease, followers, and serve&#39;s control plane in the bucket</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-29T16:22:05.376Z">2026-10-29T16:22:05.376Z</time></span></div>
@@ -6989,21 +7021,21 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-4125">
-<h2><span class="tier B">B</span>swamp inbox: a mark-all whose later batch fails shows every message unread, though earlier batches were marked</h2>
+<article class="item" id="issue-4120">
+<h2><span class="tier B">B</span>Datastore rework Phase 5 (team mode): followers forward writes to the leader, and commits.subscribe gives followers a live commit feed in place of serve&#39;s pollers</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-29T19:00:25.923Z">2026-10-29T19:00:25.923Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-29T20:03:20.177Z">2026-10-29T20:03:20.177Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4125" rel="noopener">lab#4125</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4120" rel="noopener">lab#4120</a></div>
 </article>
-<article class="item" id="issue-4123">
-<h2><span class="tier B">B</span>A job&#39;s affinity: false does not opt it out of workflow-level affinity</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-29T18:59:28.277Z">2026-10-29T18:59:28.277Z</time></span></div>
+<article class="item" id="issue-4121">
+<h2><span class="tier B">B</span>Datastore rework Phase 5 (team mode): model leases carry a fencing token, a lapsed lease cancels its run, and an outbox resend can never overwrite a newer record</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-29T20:02:30.684Z">2026-10-29T20:02:30.684Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4123" rel="noopener">lab#4123</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4121" rel="noopener">lab#4121</a></div>
 </article>
 <article class="item" id="issue-4112">
 <h2><span class="tier B">B</span>Repos hit by swamp-club#4100 have migrated files stranded in the datastore cache with no safe way to push them</h2>
@@ -7012,30 +7044,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4112" rel="noopener">lab#4112</a></div>
-</article>
-<article class="item" id="issue-4126">
-<h2><span class="tier B">B</span>swamp inbox: marks that fail or are cut off at quit leave no trace after the inbox closes, and a cut-off mark skips the cache refresh</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-29T18:50:17.485Z">2026-10-29T18:50:17.485Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4126" rel="noopener">lab#4126</a></div>
-</article>
-<article class="item" id="issue-4121">
-<h2><span class="tier B">B</span>Datastore rework Phase 5 (team mode): model leases carry a fencing token, a lapsed lease cancels its run, and an outbox resend can never overwrite a newer record</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-29T18:50:05.662Z">2026-10-29T18:50:05.662Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4121" rel="noopener">lab#4121</a></div>
-</article>
-<article class="item" id="issue-4120">
-<h2><span class="tier B">B</span>Datastore rework Phase 5 (team mode): followers forward writes to the leader, and commits.subscribe gives followers a live commit feed in place of serve&#39;s pollers</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-29T18:22:19.502Z">2026-10-29T18:22:19.502Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4120" rel="noopener">lab#4120</a></div>
 </article>
 <article class="item" id="issue-3787">
 <h2><span class="tier B">B</span>Update public OpenTelemetry manual for remote waterfalls and execution metrics (#3786)</h2>
@@ -7084,14 +7092,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3671" rel="noopener">lab#3671</a></div>
-</article>
-<article class="item" id="issue-3585">
-<h2><span class="tier B">B</span>Persisted resource redaction masks the vault key inside a sensitive field ref (data name containing a vault-resolved value), so readResource fails with Secret not found</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-19T16:50:07.980Z">2026-10-19T16:50:07.980Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3585" rel="noopener">lab#3585</a></div>
 </article>
 <article class="item" id="issue-3436">
 <h2><span class="tier B">B</span>Admin corp-app proxy returns ERR_CONTENT_DECODING_FAILED since Deno 2.9.6 bump (Grafana blank)</h2>
@@ -9367,12 +9367,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>1162 items across 1 source(s) in this window:
-2 critical, 863 notable, 19 routine,
+2 critical, 867 notable, 15 routine,
 278 minor.</p>
 <ul><li><strong>issues</strong> — 1162</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-29T19:07:05.127Z">2026-10-29T19:07:05.127Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-29T20:06:05.009Z">2026-10-29T20:06:05.009Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

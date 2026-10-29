@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3889"><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli deco</a><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-4095"><span class="tier A">A</span>docs(manual): document swamp inbox, inbox read, the picker k</a><a href="#issue-4092"><span class="tier A">A</span>v3 restore watch: one network blip cuts a healthy restore, t</a><a href="#issue-4091"><span class="tier A">A</span>v2 datastore: a refused push leaves its data-name directory </a><a href="#issue-4081"><span class="tier A">A</span>Support scoped observer identities with vault-backed access </a><a href="#issue-4089"><span class="tier A">A</span>Team mode: a serve-mode copy resets when the member&#39;s grants</a><a href="#issue-4086"><span class="tier A">A</span>Swamp Club inbox send-time checks match the CLI from #4079: </a><a href="#issue-3523"><span class="tier A">A</span>An env API key&#39;s cached identity is written into auth.json: </a><a href="#issue-4007"><span class="tier A">A</span>Show each method&#39;s kind in type describe --json</a><a href="#issue-4065"><span class="tier A">A</span>typed-secrets 5.2: protocol version 6 dispatches references </a><a href="#issue-4088"><span class="tier A">A</span>workflow.approvals and supersede do not pass a cancellation </a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3889"><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli deco</a><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3958"><span class="tier A">A</span>swamp serve: a workflow run interrupted at a clean shutdown </a><a href="#issue-4095"><span class="tier A">A</span>docs(manual): document swamp inbox, inbox read, the picker k</a><a href="#issue-4092"><span class="tier A">A</span>v3 restore watch: one network blip cuts a healthy restore, t</a><a href="#issue-4091"><span class="tier A">A</span>v2 datastore: a refused push leaves its data-name directory </a><a href="#issue-4081"><span class="tier A">A</span>Support scoped observer identities with vault-backed access </a><a href="#issue-4089"><span class="tier A">A</span>Team mode: a serve-mode copy resets when the member&#39;s grants</a><a href="#issue-4086"><span class="tier A">A</span>Swamp Club inbox send-time checks match the CLI from #4079: </a><a href="#issue-3523"><span class="tier A">A</span>An env API key&#39;s cached identity is written into auth.json: </a><a href="#issue-4007"><span class="tier A">A</span>Show each method&#39;s kind in type describe --json</a><a href="#issue-4065"><span class="tier A">A</span>typed-secrets 5.2: protocol version 6 dispatches references </a></aside><div>
 
 <article class="item" id="issue-3889">
 <h2><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli decoder RCE (CVE-2026-111497, Node2Shell/HTTP2Shell)</h2>
@@ -84,6 +84,14 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3576" rel="noopener">lab#3576</a></div>
+</article>
+<article class="item" id="issue-3958">
+<h2><span class="tier A">A</span>swamp serve: a workflow run interrupted at a clean shutdown stays `running` in the shared S3 datastore when the 5 s interrupt push misses its deadline; boot and peer reapers do not settle it there</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-29T06:31:52.663Z">2026-10-29T06:31:52.663Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3958" rel="noopener">lab#3958</a></div>
 </article>
 <article class="item" id="issue-4095">
 <h2><span class="tier A">A</span>docs(manual): document swamp inbox, inbox read, the picker keys and the inbox notice, and list the background inbox check in the manual&#39;s outbound requests</h2>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4065" rel="noopener">lab#4065</a></div>
 </article>
-<article class="item" id="issue-4088">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4088">
 <h2><span class="tier A">A</span>workflow.approvals and supersede do not pass a cancellation signal to findByStatus, so a cancelled request still reads every suspended run</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-28T20:24:34.839Z">2026-10-28T20:24:34.839Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4088" rel="noopener">lab#4088</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4087">
+<article class="item" id="issue-4087">
 <h2><span class="tier A">A</span>Flaky test: yaml_output_repository findAllGlobalSince abort test sees one read still in flight under load</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-28T19:39:01.183Z">2026-10-28T19:39:01.183Z</time></span></div>
@@ -412,14 +420,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3608" rel="noopener">lab#3608</a></div>
-</article>
-<article class="item" id="issue-3958">
-<h2><span class="tier A">A</span>swamp serve: a workflow run interrupted at a clean shutdown stays `running` in the shared S3 datastore when the 5 s interrupt push misses its deadline; boot and peer reapers do not settle it there</h2>
-<p class="lede">Shipped bug fix</p>
-<div class="meta"><span><time datetime="2026-10-28T12:36:57.617Z">2026-10-28T12:36:57.617Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3958" rel="noopener">lab#3958</a></div>
 </article>
 <article class="item" id="issue-4015">
 <h2><span class="tier A">A</span>extension quality: a collective-attested private repository scores provisional, and --json omits ifProvisionalEarned</h2>
@@ -9140,7 +9140,7 @@ footer .ver{color:var(--acc)}
 <ul><li><strong>issues</strong> — 1133</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-29T06:24:14.265Z">2026-10-29T06:24:14.265Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-29T07:05:29.574Z">2026-10-29T07:05:29.574Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

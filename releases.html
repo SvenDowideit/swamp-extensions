@@ -361,7 +361,51 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261022.201349.0-sha.ac69af15" rel="noopener">release v20261022.201349.0-sha.ac69af15</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ac69af151d21cd26f28b3daa2ff02ecde13bdbfe" rel="noopener">ac69af15</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3305" rel="noopener">#3305</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3294" rel="noopener">#3294</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261029-195412-0-sha-8a9bae2e">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261029-200213-0-sha-c2ed52ab">
+<h2><span class="tier A">A</span>a job&#39;s affinity: false opts it out of workflow-level affinity, so its steps are placed independently instead of pinned to the run&#39;s worker (swamp-club#4123) (#3478)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-29T20:08:08Z">2026-10-29T20:08:08Z</time></span><span>workflows</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(workflows): a job&#39;s affinity: false opts it out of workflow-level affinity, so its steps are placed independently instead of pinned to the run&#39;s worker (swamp-club#4123) (#3478)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#4123. The manual says a job can opt out of workflow-level</p>
+<p><code>affinity: true</code> by setting <code>affinity: false</code>. The code never read the job&#39;s</p>
+<p>value when the workflow set affinity, so an opted-out job&#39;s steps were still</p>
+<p>pinned to the run&#39;s worker.</p>
+<ul>
+<li><strong><code>resolveAffinityKey</code></strong> (<code>src/domain/workflows/placement.ts</code>) now holds the</li>
+</ul>
+<p>  precedence:</p>
+<ul>
+<li>a job&#39;s explicit <code>false</code> opts out (no key);</li>
+<li>workflow <code>true</code> pins to the run, including a job that sets <code>true</code>;</li>
+<li>a job&#39;s own <code>true</code> pins to the job.</li>
+<li><strong>Execution</strong> (<code>execution_service.ts</code>): the step pin and the job-scoped pin</li>
+</ul>
+<p>  release both use it, so they cannot drift apart. The run-wide key and its</p>
+<p>  release are unchanged.</p>
+<ul>
+<li><strong>Validation</strong> (<code>validation_service.ts</code>): opted-out jobs are left out of both</li>
+</ul>
+<p>  workflow-level checks:</p>
+<ul>
+<li>the &quot;affinity without placement&quot; warning;</li>
+<li>the &quot;affinity with mixed placement&quot; group added in #3475 (swamp-club#4122).</li>
+</ul>
+<p>    Without this, an opted-out job with different labels would be wrongly</p>
+<p>    warned that its steps fail.</p>
+<ul>
+<li><strong>Docs</strong>: both swamp skill affinity references and the &quot;Worker affinity&quot;</li>
+</ul>
+<p>  section of <code>design/enablers/remote-execution.md</code> describe the opt-out. The</p>
+<p>  swamp-club manual already describes it.</p>
+<p><strong>Behaviour change:</strong> an existing workflow that sets `affinity:</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261029.200213.0-sha.c2ed52ab" rel="noopener">release v20261029.200213.0-sha.c2ed52ab</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c2ed52ab9c288ba7c8f9ffbc0bbc07ab270e3688" rel="noopener">c2ed52ab</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3478" rel="noopener">#3478</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3475" rel="noopener">#3475</a>𝗔 <a href="https://swamp-club.com/lab/4123" rel="noopener">lab#4123</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261029-195412-0-sha-8a9bae2e">
 <h2><span class="tier A">A</span>a mark-all that fails partway keeps the messages Swamp Club marked, a failed or cut-off mark is reported after the inbox closes, and the cache is refreshed whenever a mark was sent (swamp-club#4125, swamp-club#4126) (#3477)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-29T20:01:31Z">2026-10-29T20:01:31Z</time></span><span>inbox</span><span>fix</span></div>
@@ -15977,13 +16021,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.073437.0-sha.acf6214e" rel="noopener">release v20261001.073437.0-sha.acf6214e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214ef9980daf68e919a43f6db3cff17da608" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>660 items across 1 source(s) in this window:
-27 critical, 573 notable, 20 routine,
+<p>661 items across 1 source(s) in this window:
+27 critical, 574 notable, 20 routine,
 40 minor.</p>
-<ul><li><strong>fix</strong> — 429</li><li><strong>feat</strong> — 168</li><li><strong>test</strong> — 22</li><li><strong>docs</strong> — 19</li><li><strong>refactor</strong> — 14</li><li><strong>perf</strong> — 5</li></ul></section>
+<ul><li><strong>fix</strong> — 430</li><li><strong>feat</strong> — 168</li><li><strong>test</strong> — 22</li><li><strong>docs</strong> — 19</li><li><strong>refactor</strong> — 14</li><li><strong>perf</strong> — 5</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-29T20:06:05.009Z">2026-10-29T20:06:05.009Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-29T21:01:03.719Z">2026-10-29T21:01:03.719Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

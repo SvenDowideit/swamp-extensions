@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3889"><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli deco</a><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-4057"><span class="tier A">A</span>agent-runner: record token usage and cost on runResult (Clau</a><a href="#issue-3585"><span class="tier A">A</span>Persisted resource redaction masks the vault key inside a se</a><a href="#issue-4123"><span class="tier A">A</span>A job&#39;s affinity: false does not opt it out of workflow-leve</a><a href="#issue-4126"><span class="tier A">A</span>swamp inbox: marks that fail or are cut off at quit leave no</a><a href="#issue-4125"><span class="tier A">A</span>swamp inbox: a mark-all whose later batch fails shows every </a><a href="#issue-4122"><span class="tier A">A</span>Affinity pin overrides a step&#39;s own labels, platform and tar</a><a href="#issue-4107"><span class="tier A">A</span>v3: an edit made through the editor (model, workflow or vaul</a><a href="#issue-4104"><span class="tier A">A</span>@swamp/video/brand: default Swamp Club branded cards and stu</a><a href="#issue-4114"><span class="tier A">A</span>swamp inbox and swamp inbox read get separate jobs: swamp in</a><a href="#issue-3820"><span class="tier A">A</span>&#39;swamp start&#39; launcher overrides configured terminal on maco</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3889"><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli deco</a><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-4134"><span class="tier A">A</span>Catalog backfill indexes a crashed, never-published save as </a><a href="#issue-4128"><span class="tier A">A</span>swamp inbox: remove markRead and createMarkReadRenderer now </a><a href="#issue-4057"><span class="tier A">A</span>agent-runner: record token usage and cost on runResult (Clau</a><a href="#issue-3585"><span class="tier A">A</span>Persisted resource redaction masks the vault key inside a se</a><a href="#issue-4123"><span class="tier A">A</span>A job&#39;s affinity: false does not opt it out of workflow-leve</a><a href="#issue-4126"><span class="tier A">A</span>swamp inbox: marks that fail or are cut off at quit leave no</a><a href="#issue-4125"><span class="tier A">A</span>swamp inbox: a mark-all whose later batch fails shows every </a><a href="#issue-4122"><span class="tier A">A</span>Affinity pin overrides a step&#39;s own labels, platform and tar</a><a href="#issue-4107"><span class="tier A">A</span>v3: an edit made through the editor (model, workflow or vaul</a><a href="#issue-4104"><span class="tier A">A</span>@swamp/video/brand: default Swamp Club branded cards and stu</a></aside><div>
 
 <article class="item" id="issue-3889">
 <h2><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli decoder RCE (CVE-2026-111497, Node2Shell/HTTP2Shell)</h2>
@@ -84,6 +84,22 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3576" rel="noopener">lab#3576</a></div>
+</article>
+<article class="item" id="issue-4134">
+<h2><span class="tier A">A</span>Catalog backfill indexes a crashed, never-published save as the latest version, disagreeing with the latest marker</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-29T22:04:07.447Z">2026-10-29T22:04:07.447Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4134" rel="noopener">lab#4134</a></div>
+</article>
+<article class="item" id="issue-4128">
+<h2><span class="tier A">A</span>swamp inbox: remove markRead and createMarkReadRenderer now that the interactive inbox marks through a session, and rename inboxPickerApplies</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-29T21:50:07.620Z">2026-10-29T21:50:07.620Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4128" rel="noopener">lab#4128</a></div>
 </article>
 <article class="item" id="issue-4057">
 <h2><span class="tier A">A</span>agent-runner: record token usage and cost on runResult (Claude --output-format json, Codex --json)</h2>
@@ -149,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4104" rel="noopener">lab#4104</a></div>
 </article>
-<article class="item" id="issue-4114">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4114">
 <h2><span class="tier A">A</span>swamp inbox and swamp inbox read get separate jobs: swamp inbox is a stay-open TUI to browse, swamp inbox read [id] prints one message for people and agents, and agents read messages after a notice</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-29T18:13:21.027Z">2026-10-29T18:13:21.027Z</time></span></div>
@@ -165,7 +181,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3820" rel="noopener">lab#3820</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4109">
+<article class="item" id="issue-4109">
 <h2><span class="tier A">A</span>swamp inbox read opens the message the notice announced, not a newer mention, so reading it clears the notice; a title of only invisible characters falls back to the kind</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-29T17:55:09.193Z">2026-10-29T17:55:09.193Z</time></span></div>
@@ -7021,37 +7037,101 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-4101">
-<h2><span class="tier B">B</span>swamp serve (format 2, S3): the shutdown push of interrupted runs can resolve having sent nothing, so no unpushed-interrupts marker is written and the run stays `running` (follow-up to #3958)</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-29T20:59:38.939Z">2026-10-29T20:59:38.939Z</time></span></div>
+<article class="item" id="issue-4135">
+<h2><span class="tier B">B</span>Flaky test: WalSink flush stops waiting for a hung downstream and keeps its segments in the WAL times out waiting for late delivery</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-29T22:04:37.703Z">2026-10-29T22:04:37.703Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4101" rel="noopener">lab#4101</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4135" rel="noopener">lab#4135</a></div>
+</article>
+<article class="item" id="issue-4093">
+<h2><span class="tier B">B</span>Docs: behavior type describe and model get output now include method kind and kindSource</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-29T21:58:23.400Z">2026-10-29T21:58:23.400Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4093" rel="noopener">lab#4093</a></div>
+</article>
+<article class="item" id="issue-4098">
+<h2><span class="tier B">B</span>Docs: document clearDirty on the datastore sync service and the SWAMP_V3_RESTORE_PROBE_MS variable</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-29T21:58:23.210Z">2026-10-29T21:58:23.210Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4098" rel="noopener">lab#4098</a></div>
+</article>
+<article class="item" id="issue-4099">
+<h2><span class="tier B">B</span>Docs: data-origin values in command/shell run are passed as environment references (swamp-club#3868)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-29T21:58:23.016Z">2026-10-29T21:58:23.016Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4099" rel="noopener">lab#4099</a></div>
+</article>
+<article class="item" id="issue-4108">
+<h2><span class="tier B">B</span>Docs: managedConfig edit conflicts on v3 (config_edit_conflict), how to recover, and that teams run with managedConfig</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-29T21:58:22.583Z">2026-10-29T21:58:22.583Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4108" rel="noopener">lab#4108</a></div>
+</article>
+<article class="item" id="issue-4111">
+<h2><span class="tier B">B</span>Docs: swamp inbox read opens the message the notice announced first (inbox-commands.md)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-29T21:58:22.194Z">2026-10-29T21:58:22.194Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4111" rel="noopener">lab#4111</a></div>
+</article>
+<article class="item" id="issue-4115">
+<h2><span class="tier B">B</span>docs(manual): the inbox commands page describes #4114: swamp inbox is a stay-open TUI to browse, swamp inbox read [id] prints one message for people and agents</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-29T21:58:21.996Z">2026-10-29T21:58:21.996Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4115" rel="noopener">lab#4115</a></div>
 </article>
 <article class="item" id="issue-3955">
 <h2><span class="tier B">B</span>Filesystem datastore: an unclean shutdown leaves zero-byte data versions as the latest version, and `doctor datastores --repair` does not detect them</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-29T20:37:47.459Z">2026-10-29T20:37:47.459Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-29T21:43:15.587Z">2026-10-29T21:43:15.587Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3955" rel="noopener">lab#3955</a></div>
 </article>
-<article class="item" id="issue-4120">
-<h2><span class="tier B">B</span>Datastore rework Phase 5 (team mode): followers forward writes to the leader, and commits.subscribe gives followers a live commit feed in place of serve&#39;s pollers</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-29T20:03:20.177Z">2026-10-29T20:03:20.177Z</time></span></div>
+<article class="item" id="issue-4016">
+<h2><span class="tier B">B</span>Docs: doctor datastores reference — unreadable data version check and repair (swamp-club#3955)</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-29T21:31:07.803Z">2026-10-29T21:31:07.803Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4120" rel="noopener">lab#4120</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4016" rel="noopener">lab#4016</a></div>
 </article>
 <article class="item" id="issue-4121">
 <h2><span class="tier B">B</span>Datastore rework Phase 5 (team mode): model leases carry a fencing token, a lapsed lease cancels its run, and an outbox resend can never overwrite a newer record</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-29T20:02:30.684Z">2026-10-29T20:02:30.684Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-29T21:25:13.770Z">2026-10-29T21:25:13.770Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4121" rel="noopener">lab#4121</a></div>
+</article>
+<article class="item" id="issue-4101">
+<h2><span class="tier B">B</span>swamp serve (format 2, S3): the shutdown push of interrupted runs can resolve having sent nothing, so no unpushed-interrupts marker is written and the run stays `running` (follow-up to #3958)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-29T21:24:13.897Z">2026-10-29T21:24:13.897Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4101" rel="noopener">lab#4101</a></div>
+</article>
+<article class="item" id="issue-4120">
+<h2><span class="tier B">B</span>Datastore rework Phase 5 (team mode): followers forward writes to the leader, and commits.subscribe gives followers a live commit feed in place of serve&#39;s pollers</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-29T21:21:56.937Z">2026-10-29T21:21:56.937Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4120" rel="noopener">lab#4120</a></div>
 </article>
 <article class="item" id="issue-4112">
 <h2><span class="tier B">B</span>Repos hit by swamp-club#4100 have migrated files stranded in the datastore cache with no safe way to push them</h2>
@@ -7205,14 +7285,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4129" rel="noopener">lab#4129</a></div>
 </article>
-<article class="item" id="issue-4128">
-<h2><span class="tier C">C</span>swamp inbox: remove markRead and createMarkReadRenderer now that the interactive inbox marks through a session, and rename inboxPickerApplies</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-29T18:10:28.876Z">2026-10-29T18:10:28.876Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4128" rel="noopener">lab#4128</a></div>
-</article>
 <article class="item" id="issue-4127">
 <h2><span class="tier C">C</span>swamp inbox: with a filter active, sitting on the last row pages through the whole inbox in the background</h2>
 <p class="lede">Open issue</p>
@@ -7236,38 +7308,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4119" rel="noopener">lab#4119</a></div>
-</article>
-<article class="item" id="issue-4115">
-<h2><span class="tier C">C</span>docs(manual): the inbox commands page describes #4114: swamp inbox is a stay-open TUI to browse, swamp inbox read [id] prints one message for people and agents</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-29T16:51:07.389Z">2026-10-29T16:51:07.389Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4115" rel="noopener">lab#4115</a></div>
-</article>
-<article class="item" id="issue-4099">
-<h2><span class="tier C">C</span>Docs: data-origin values in command/shell run are passed as environment references (swamp-club#3868)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-29T15:33:59.211Z">2026-10-29T15:33:59.211Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4099" rel="noopener">lab#4099</a></div>
-</article>
-<article class="item" id="issue-4111">
-<h2><span class="tier C">C</span>Docs: swamp inbox read opens the message the notice announced first (inbox-commands.md)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-29T15:33:40.680Z">2026-10-29T15:33:40.680Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4111" rel="noopener">lab#4111</a></div>
-</article>
-<article class="item" id="issue-4108">
-<h2><span class="tier C">C</span>Docs: managedConfig edit conflicts on v3 (config_edit_conflict), how to recover, and that teams run with managedConfig</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-29T15:33:35.930Z">2026-10-29T15:33:35.930Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4108" rel="noopener">lab#4108</a></div>
 </article>
 <article class="item" id="issue-4106">
 <h2><span class="tier C">C</span>@swamp/video/hyprland: recording hotkeys, retake marker and phone-mirror window rules</h2>
@@ -7293,14 +7333,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4102" rel="noopener">lab#4102</a></div>
 </article>
-<article class="item" id="issue-4098">
-<h2><span class="tier C">C</span>Docs: document clearDirty on the datastore sync service and the SWAMP_V3_RESTORE_PROBE_MS variable</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-28T23:53:34.747Z">2026-10-28T23:53:34.747Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4098" rel="noopener">lab#4098</a></div>
-</article>
 <article class="item" id="issue-4094">
 <h2><span class="tier C">C</span>serve daemon enable: add Windows support (service or startup task)</h2>
 <p class="lede">Open issue</p>
@@ -7308,22 +7340,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4094" rel="noopener">lab#4094</a></div>
-</article>
-<article class="item" id="issue-4093">
-<h2><span class="tier C">C</span>Docs: behavior type describe and model get output now include method kind and kindSource</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-28T21:30:26.322Z">2026-10-28T21:30:26.322Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4093" rel="noopener">lab#4093</a></div>
-</article>
-<article class="item" id="issue-4016">
-<h2><span class="tier C">C</span>Docs: doctor datastores reference — unreadable data version check and repair (swamp-club#3955)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-28T19:41:01.134Z">2026-10-28T19:41:01.134Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4016" rel="noopener">lab#4016</a></div>
 </article>
 <article class="item" id="issue-4082">
 <h2><span class="tier C">C</span>Run the Windows Compatibility CI workflow every 4 hours instead of on every merge</h2>
@@ -9382,13 +9398,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>1164 items across 1 source(s) in this window:
-2 critical, 867 notable, 16 routine,
-279 minor.</p>
-<ul><li><strong>issues</strong> — 1164</li></ul></section>
+<p>1166 items across 1 source(s) in this window:
+2 critical, 869 notable, 24 routine,
+271 minor.</p>
+<ul><li><strong>issues</strong> — 1166</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-29T21:01:03.719Z">2026-10-29T21:01:03.719Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-29T22:06:48.491Z">2026-10-29T22:06:48.491Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

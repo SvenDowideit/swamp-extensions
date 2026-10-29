@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3889"><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli deco</a><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-3962"><span class="tier A">A</span>swamp serve on a v3 datastore never settles a workflow run l</a><a href="#issue-4096"><span class="tier A">A</span>Datastore rework Phase 5 (team mode): serve leader election </a><a href="#issue-4057"><span class="tier A">A</span>agent-runner: record token usage and cost on runResult (Clau</a><a href="#issue-4097"><span class="tier A">A</span>Datastore rework Phase 5 (team mode): config edits name the </a><a href="#issue-3958"><span class="tier A">A</span>swamp serve: a workflow run interrupted at a clean shutdown </a><a href="#issue-4095"><span class="tier A">A</span>docs(manual): document swamp inbox, inbox read, the picker k</a><a href="#issue-4092"><span class="tier A">A</span>v3 restore watch: one network blip cuts a healthy restore, t</a><a href="#issue-4091"><span class="tier A">A</span>v2 datastore: a refused push leaves its data-name directory </a><a href="#issue-4081"><span class="tier A">A</span>Support scoped observer identities with vault-backed access </a><a href="#issue-4089"><span class="tier A">A</span>Team mode: a serve-mode copy resets when the member&#39;s grants</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3889"><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli deco</a><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-4114"><span class="tier A">A</span>swamp inbox and swamp inbox read get separate jobs: swamp in</a><a href="#issue-3820"><span class="tier A">A</span>&#39;swamp start&#39; launcher overrides configured terminal on maco</a><a href="#issue-4109"><span class="tier A">A</span>swamp inbox read opens the message the notice announced, not</a><a href="#issue-4113"><span class="tier A">A</span>Affinity job: a step failing argument validation fails its v</a><a href="#issue-4041"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-4103"><span class="tier A">A</span>@swamp/video: private extension to turn screen recordings in</a><a href="#issue-3962"><span class="tier A">A</span>swamp serve on a v3 datastore never settles a workflow run l</a><a href="#issue-4096"><span class="tier A">A</span>Datastore rework Phase 5 (team mode): serve leader election </a><a href="#issue-4057"><span class="tier A">A</span>agent-runner: record token usage and cost on runResult (Clau</a><a href="#issue-4097"><span class="tier A">A</span>Datastore rework Phase 5 (team mode): config edits name the </a></aside><div>
 
 <article class="item" id="issue-3889">
 <h2><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli decoder RCE (CVE-2026-111497, Node2Shell/HTTP2Shell)</h2>
@@ -84,6 +84,54 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3576" rel="noopener">lab#3576</a></div>
+</article>
+<article class="item" id="issue-4114">
+<h2><span class="tier A">A</span>swamp inbox and swamp inbox read get separate jobs: swamp inbox is a stay-open TUI to browse, swamp inbox read [id] prints one message for people and agents, and agents read messages after a notice</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-29T18:13:21.027Z">2026-10-29T18:13:21.027Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4114" rel="noopener">lab#4114</a></div>
+</article>
+<article class="item" id="issue-3820">
+<h2><span class="tier A">A</span>&#39;swamp start&#39; launcher overrides configured terminal on macos</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-29T18:05:26.533Z">2026-10-29T18:05:26.533Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3820" rel="noopener">lab#3820</a></div>
+</article>
+<article class="item" id="issue-4109">
+<h2><span class="tier A">A</span>swamp inbox read opens the message the notice announced, not a newer mention, so reading it clears the notice; a title of only invisible characters falls back to the kind</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-29T17:55:09.193Z">2026-10-29T17:55:09.193Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4109" rel="noopener">lab#4109</a></div>
+</article>
+<article class="item" id="issue-4113">
+<h2><span class="tier A">A</span>Affinity job: a step failing argument validation fails its valid siblings with &quot;Worker &#39;unknown&#39; … is no longer connected&quot;</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-29T17:39:45.261Z">2026-10-29T17:39:45.261Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4113" rel="noopener">lab#4113</a></div>
+</article>
+<article class="item" id="issue-4041">
+<h2><span class="tier A">A</span>Scheduled flaky-test detection is failing</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-29T17:36:57.615Z">2026-10-29T17:36:57.615Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4041" rel="noopener">lab#4041</a></div>
+</article>
+<article class="item" id="issue-4103">
+<h2><span class="tier A">A</span>@swamp/video: private extension to turn screen recordings into finished demo videos</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-29T17:07:38.627Z">2026-10-29T17:07:38.627Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4103" rel="noopener">lab#4103</a></div>
 </article>
 <article class="item" id="issue-3962">
 <h2><span class="tier A">A</span>swamp serve on a v3 datastore never settles a workflow run left running by a stopped instance: boot reaper skips it as belonging to a remote instance</h2>
@@ -117,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4097" rel="noopener">lab#4097</a></div>
 </article>
-<article class="item" id="issue-3958">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-3958">
 <h2><span class="tier A">A</span>swamp serve: a workflow run interrupted at a clean shutdown stays `running` in the shared S3 datastore when the 5 s interrupt push misses its deadline; boot and peer reapers do not settle it there</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-29T06:31:52.663Z">2026-10-29T06:31:52.663Z</time></span></div>
@@ -165,7 +213,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4089" rel="noopener">lab#4089</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4086">
+<article class="item" id="issue-4086">
 <h2><span class="tier A">A</span>Swamp Club inbox send-time checks match the CLI from #4079: an allow-list for action commands, no bidi or zero-width characters, and absolute https-only body links</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-28T22:48:26.495Z">2026-10-28T22:48:26.495Z</time></span></div>
@@ -1668,14 +1716,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3805" rel="noopener">lab#3805</a></div>
-</article>
-<article class="item" id="issue-3820">
-<h2><span class="tier A">A</span>&#39;swamp start&#39; launcher overrides configured terminal on macos</h2>
-<p class="lede">Shipped bug fix</p>
-<div class="meta"><span><time datetime="2026-10-23T10:37:13.683Z">2026-10-23T10:37:13.683Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3820" rel="noopener">lab#3820</a></div>
 </article>
 <article class="item" id="issue-3801">
 <h2><span class="tier A">A</span>v3 identity on buckets: S3 checkouts with different endpoint spellings fork the datastore silently, and a hostname change blocks every write for ~5 minutes (found by #3756)</h2>
@@ -6925,61 +6965,53 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-4114">
-<h2><span class="tier B">B</span>swamp inbox and swamp inbox read get separate jobs: swamp inbox is a stay-open TUI to browse, swamp inbox read [id] prints one message for people and agents, and agents read messages after a notice</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-29T17:03:55.485Z">2026-10-29T17:03:55.485Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4114" rel="noopener">lab#4114</a></div>
-</article>
-<article class="item" id="issue-4103">
-<h2><span class="tier B">B</span>@swamp/video: private extension to turn screen recordings into finished demo videos</h2>
+<article class="item" id="issue-4104">
+<h2><span class="tier B">B</span>@swamp/video/brand: default Swamp Club branded cards and studio look for @swamp/video</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-29T17:03:04.975Z">2026-10-29T17:03:04.975Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-29T18:12:05.204Z">2026-10-29T18:12:05.204Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4103" rel="noopener">lab#4103</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4104" rel="noopener">lab#4104</a></div>
 </article>
 <article class="item" id="issue-4112">
 <h2><span class="tier B">B</span>Repos hit by swamp-club#4100 have migrated files stranded in the datastore cache with no safe way to push them</h2>
 <p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-29T17:01:21.657Z">2026-10-29T17:01:21.657Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-29T18:11:51.648Z">2026-10-29T18:11:51.648Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4112" rel="noopener">lab#4112</a></div>
 </article>
+<article class="item" id="issue-4122">
+<h2><span class="tier B">B</span>Affinity pin overrides a step&#39;s own labels, platform and target, so a mismatched step runs on the pinned worker</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-29T18:08:44.021Z">2026-10-29T18:08:44.021Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4122" rel="noopener">lab#4122</a></div>
+</article>
+<article class="item" id="issue-4121">
+<h2><span class="tier B">B</span>Datastore rework Phase 5 (team mode): model leases carry a fencing token, a lapsed lease cancels its run, and an outbox resend can never overwrite a newer record</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-29T18:08:35.456Z">2026-10-29T18:08:35.456Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4121" rel="noopener">lab#4121</a></div>
+</article>
+<article class="item" id="issue-4120">
+<h2><span class="tier B">B</span>Datastore rework Phase 5 (team mode): followers forward writes to the leader, and commits.subscribe gives followers a live commit feed in place of serve&#39;s pollers</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-29T18:02:20.963Z">2026-10-29T18:02:20.963Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4120" rel="noopener">lab#4120</a></div>
+</article>
 <article class="item" id="issue-4107">
 <h2><span class="tier B">B</span>v3: an edit made through the editor (model, workflow or vault edit) changes the checkout&#39;s file but is never committed, so other checkouts and serve never see it</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-29T16:56:41.496Z">2026-10-29T16:56:41.496Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-29T17:26:36.734Z">2026-10-29T17:26:36.734Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4107" rel="noopener">lab#4107</a></div>
-</article>
-<article class="item" id="issue-4113">
-<h2><span class="tier B">B</span>Affinity job: a step failing argument validation fails its valid siblings with &quot;Worker &#39;unknown&#39; … is no longer connected&quot;</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-29T16:49:16.798Z">2026-10-29T16:49:16.798Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4113" rel="noopener">lab#4113</a></div>
-</article>
-<article class="item" id="issue-4041">
-<h2><span class="tier B">B</span>Scheduled flaky-test detection is failing</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-29T15:40:23.003Z">2026-10-29T15:40:23.003Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4041" rel="noopener">lab#4041</a></div>
-</article>
-<article class="item" id="issue-4109">
-<h2><span class="tier B">B</span>swamp inbox read opens the message the notice announced, not a newer mention, so reading it clears the notice; a title of only invisible characters falls back to the kind</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-29T15:39:58.080Z">2026-10-29T15:39:58.080Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4109" rel="noopener">lab#4109</a></div>
 </article>
 <article class="item" id="issue-3787">
 <h2><span class="tier B">B</span>Update public OpenTelemetry manual for remote waterfalls and execution metrics (#3786)</h2>
@@ -7085,7 +7117,55 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4119">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4128">
+<h2><span class="tier C">C</span>swamp inbox: remove markRead and createMarkReadRenderer now that the interactive inbox marks through a session, and rename inboxPickerApplies</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-29T18:10:28.876Z">2026-10-29T18:10:28.876Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4128" rel="noopener">lab#4128</a></div>
+</article>
+<article class="item" id="issue-4127">
+<h2><span class="tier C">C</span>swamp inbox: with a filter active, sitting on the last row pages through the whole inbox in the background</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-29T18:10:26.875Z">2026-10-29T18:10:26.875Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4127" rel="noopener">lab#4127</a></div>
+</article>
+<article class="item" id="issue-4126">
+<h2><span class="tier C">C</span>swamp inbox: marks that fail or are cut off at quit leave no trace after the inbox closes, and a cut-off mark skips the cache refresh</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-29T18:10:24.603Z">2026-10-29T18:10:24.603Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4126" rel="noopener">lab#4126</a></div>
+</article>
+<article class="item" id="issue-4125">
+<h2><span class="tier C">C</span>swamp inbox: a mark-all whose later batch fails shows every message unread, though earlier batches were marked</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-29T18:10:22.273Z">2026-10-29T18:10:22.273Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4125" rel="noopener">lab#4125</a></div>
+</article>
+<article class="item" id="issue-4124">
+<h2><span class="tier C">C</span>@swamp/video/brand: follow-ups from the initial review (render hang, odd sizes, Chromium errors)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-29T18:04:19.834Z">2026-10-29T18:04:19.834Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4124" rel="noopener">lab#4124</a></div>
+</article>
+<article class="item" id="issue-4123">
+<h2><span class="tier C">C</span>A job&#39;s affinity: false does not opt it out of workflow-level affinity</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-29T17:47:38.542Z">2026-10-29T17:47:38.542Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4123" rel="noopener">lab#4123</a></div>
+</article>
+<article class="item" id="issue-4119">
 <h2><span class="tier C">C</span>@swamp/video: follow-ups from the initial review (card length, input validation, OCR frames on disk)</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-29T17:00:11.242Z">2026-10-29T17:00:11.242Z</time></span></div>
@@ -7156,14 +7236,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4105" rel="noopener">lab#4105</a></div>
-</article>
-<article class="item" id="issue-4104">
-<h2><span class="tier C">C</span>@swamp/video/brand: default Swamp Club branded cards and studio look for @swamp/video</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-29T14:52:53.680Z">2026-10-29T14:52:53.680Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4104" rel="noopener">lab#4104</a></div>
 </article>
 <article class="item" id="issue-4102">
 <h2><span class="tier C">C</span>Remote worker queryData exceeds the fixed 30 s RPC limit at ~2k record versions after @swamp/s3-datastore 2026.10.24.2 (follow-up to #3361)</h2>
@@ -9270,13 +9342,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>1150 items across 1 source(s) in this window:
-2 critical, 855 notable, 20 routine,
-273 minor.</p>
-<ul><li><strong>issues</strong> — 1150</li></ul></section>
+<p>1159 items across 1 source(s) in this window:
+2 critical, 860 notable, 19 routine,
+278 minor.</p>
+<ul><li><strong>issues</strong> — 1159</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-29T17:07:00.920Z">2026-10-29T17:07:00.920Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-29T18:16:49.257Z">2026-10-29T18:16:49.257Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

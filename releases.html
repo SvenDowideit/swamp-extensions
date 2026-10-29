@@ -376,7 +376,7 @@ footer .ver{color:var(--acc)}
 <li><code>discardRefusedVersions</code> calls it for each data name whose restore matched the datastore throughout. Any failed read, write or sync, or an unreadable <code>latest</code> marker, keeps that name&#39;s marks.</li>
 <li><strong>Not fixed for users yet.</strong> <code>@swamp/s3-datastore</code> and <code>@swamp/gcs-datastore</code> don&#39;t implement <code>clearDirty</code> yet. Until they do, a refusal warns once, naming the data names whose marks stay and saying a later push from this checkout can delete or overwrite the other run&#39;s versions there.</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastore-litestream.md" rel="noopener">design/enablers/datastore-litestream.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261028.234740.0-sha.963e0d28" rel="noopener">release v20261028.234740.0-sha.963e0d28</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/963e0d28f812e81b55ff7d5f968b3ba8cd51dd09" rel="noopener">963e0d28</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3466" rel="noopener">#3466</a>𝗔 <a href="https://swamp-club.com/lab/4091" rel="noopener">lab#4091</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261028-224327-0-sha-95ca4817">
@@ -620,7 +620,7 @@ footer .ver{color:var(--acc)}
 <ul>
 <li>State is kept per key and per server in <code>inbox-v2/</code>. Each file is named from a hash of the server</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/SKILL.md" rel="noopener">.claude/skills/swamp/SKILL.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/inbox.md" rel="noopener">design/surfaces/inbox.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261028.185948.0-sha.689945c4" rel="noopener">release v20261028.185948.0-sha.689945c4</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/689945c4524f9bf6b45bde48ba2188d393f8e78a" rel="noopener">689945c4</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3455" rel="noopener">#3455</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4043" rel="noopener">#4043</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261028-184235-0-sha-eae8afda">
@@ -1131,7 +1131,7 @@ footer .ver{color:var(--acc)}
 <li>New <code>ScheduledExecutionService: fires queued before a pause are skipped when dequeued</code>: a held executor occupies the single slot, two ordinary per-second fires queue for a second workflow, its pause is saved, the blocker is released; the paused workflow never runs and each skip carries a <code>fireTime</code> and no <code>replayed</code> flag. Fails on the old code (the paused workflow starts), passes with the fix and across repeated runs.</li>
 <li>Existing pause tests (fresh skip, lapsed <code>until</code>, unpaused sibling, unreadable store, cold boot, replayed sk</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261027.220922.0-sha.731913b2" rel="noopener">release v20261027.220922.0-sha.731913b2</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/731913b237cf8bfb6d4a048fb4dc337063b899c7" rel="noopener">731913b2</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3431" rel="noopener">#3431</a>𝗔 <a href="https://swamp-club.com/lab/4048" rel="noopener">lab#4048</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261027-214903-0-sha-a07b4e44">
@@ -1182,7 +1182,7 @@ footer .ver{color:var(--acc)}
 <ul>
 <li>A version&#39;s <code>metadata.yaml</code> and <code>raw</code> are written through the synced atomic write, the version directory and then the data-name and model directories are synced, and only then does the <code>latest</code> marker move (itself written synced) and the catalog row get written. Directories are created one level at a time (`make</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/references/remote-execution.md" rel="noopener">.claude/skills/swamp/references/workflow/references/remote-execution.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261027.212412.0-sha.368ddf47" rel="noopener">release v20261027.212412.0-sha.368ddf47</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/368ddf475d4cbc3741c29b4a0b4b8d834543ad30" rel="noopener">368ddf47</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3428" rel="noopener">#3428</a>𝗔 <a href="https://swamp-club.com/lab/4017" rel="noopener">lab#4017</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261027-205713-0-sha-e7f38146">
@@ -2203,7 +2203,7 @@ footer .ver{color:var(--acc)}
 <li>Reaps, then pushes once. The marker is cleared only when the push lands.</li>
 <li>**Re</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/run-tracker.md" rel="noopener">design/enablers/run-tracker.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261026.165331.0-sha.fdab982d" rel="noopener">release v20261026.165331.0-sha.fdab982d</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/fdab982d113097f9fba13d7ba6840f73161531a0" rel="noopener">fdab982d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3377" rel="noopener">#3377</a>𝗔 <a href="https://swamp-club.com/lab/3958" rel="noopener">lab#3958</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261026-153129-0-sha-125be8e0">
@@ -15717,7 +15717,7 @@ footer .ver{color:var(--acc)}
 <ul><li><strong>fix</strong> — 421</li><li><strong>feat</strong> — 165</li><li><strong>test</strong> — 22</li><li><strong>docs</strong> — 19</li><li><strong>refactor</strong> — 14</li><li><strong>perf</strong> — 5</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-29T17:07:00.920Z">2026-10-29T17:07:00.920Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-29T18:16:49.257Z">2026-10-29T18:16:49.257Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

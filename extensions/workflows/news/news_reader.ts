@@ -4479,7 +4479,7 @@ function mobileCard(
 /** Model definition for fetching RSS feeds and generating news summaries. */
 export const model = {
   type: "@svendowideit/news-reader",
-  version: "2026.10.18.1",
+  version: "2026.10.30.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -4522,6 +4522,12 @@ export const model = {
       toVersion: "2026.10.18.1",
       description:
         "Replace entity-only clustering with Jev multi-label category classification: articles are classified into 30+ baseline categories (plus LLM-proposed new categories when Jev requests one); clustering and story absorption now require category overlap in addition to entity/URL matching, reducing false merges.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.30.1",
+      description:
+        "The bundled feedback server now serves any *.html file found in the pages directory (looked up per request, so pages rendered after the server started need no restart) and falls back to index.html for / when news.html is absent. No globalArguments or method changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

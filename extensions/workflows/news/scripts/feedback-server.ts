@@ -27,6 +27,9 @@
  *   DELETE /api/pages?id=ULID  — delete one page
  *   DELETE /api/pages?ids=ULID1,ULID2  — batch delete
  *   GET  /  — serve the HTML page (if --html provided)
+ *   GET  /<name>.html  — serve any HTML file in the pages directory. The
+ *        directory is checked on every request, so a page rendered after the
+ *        server started is served immediately without a restart.
  *   GET  /feeds.html  — serve the feeds listing (if --feeds provided)
  *   GET  /stories.html  — serve the stories page (if --stories provided)
  *   GET  /news-mobile.html  — serve the mobile/tablet news page (if --mobile-html provided)
@@ -50,6 +53,7 @@ const STORIES_PATH = Deno.env.get("FEEDBACK_STORIES_PATH") ??
   `${NEWS_PAGES_DIR}/stories.html`;
 const MOBILE_HTML_PATH = Deno.env.get("FEEDBACK_MOBILE_HTML_PATH") ??
   `${NEWS_PAGES_DIR}/news-mobile.html`;
+const HTML_DIR = Deno.env.get("FEEDBACK_HTML_DIR") ?? "";
 const QUEUE_DIR = Deno.env.get("FEEDBACK_QUEUE_DIR") ?? "";
 const PAGES_DIR = Deno.env.get("FEEDBACK_PAGES_DIR") ?? "";
 const FEED_STATE_DIR = Deno.env.get("FEEDBACK_FEED_STATE_DIR") ?? "";
@@ -58,6 +62,7 @@ function parseArgs(): {
   port: number;
   host: string;
   htmlPath: string;
+  htmlDir: string;
   feedsPath: string;
   storiesPath: string;
   mobileHtmlPath: string;
@@ -72,6 +77,7 @@ function parseArgs(): {
   // network. Pass `--host 0.0.0.0` only when you deliberately want that.
   let host = "127.0.0.1";
   let htmlPath = HTML_PATH;
+  let htmlDir = HTML_DIR;
   let feedsPath = FEEDS_PATH;
   let storiesPath = STORIES_PATH;
   let mobileHtmlPath = MOBILE_HTML_PATH;
@@ -86,6 +92,8 @@ function parseArgs(): {
       host = args[++i];
     } else if (args[i] === "--html" && i + 1 < args.length) {
       htmlPath = args[++i];
+    } else if (args[i] === "--html-dir" && i + 1 < args.length) {
+      htmlDir = args[++i];
     } else if (args[i] === "--feeds" && i + 1 < args.length) {
       feedsPath = args[++i];
     } else if (args[i] === "--stories" && i + 1 < args.length) {
@@ -100,6 +108,9 @@ function parseArgs(): {
       feedStateDir = args[++i];
     }
   }
+  if (!htmlDir) {
+    htmlDir = parentDir(htmlPath);
+  }
   if (!queueDir) {
     queueDir = `${Deno.env.get("HOME") ?? "/tmp"}/.swamp/feedback-queue`;
   }
@@ -113,6 +124,7 @@ function parseArgs(): {
     port,
     host,
     htmlPath,
+    htmlDir,
     feedsPath,
     storiesPath,
     mobileHtmlPath,
@@ -120,6 +132,43 @@ function parseArgs(): {
     pagesDir,
     feedStateDir,
   };
+}
+
+/** Directory portion of a file path, or "." when it has no directory. */
+export function parentDir(path: string): string {
+  const trimmed = path.replace(/[/\\]+$/, "");
+  if (/[/\\]$/.test(path)) return trimmed || "/";
+  const idx = Math.max(
+    trimmed.lastIndexOf("/"),
+    trimmed.lastIndexOf("\\"),
+  );
+  if (idx > 0) return trimmed.slice(0, idx);
+  if (idx === 0) return "/";
+  return ".";
+}
+
+/**
+ * Resolve a request pathname to a safe HTML basename, or `null` if it is not a
+ * plain `*.html` file name. Rejects any path separator, traversal segment, or
+ * percent-encoded separator so a request can never escape the pages
+ * directory.
+ */
+export function htmlBasenameFromPath(pathname: string): string | null {
+  if (!pathname.toLowerCase().endsWith(".html")) return null;
+  let name: string;
+  try {
+    name = decodeURIComponent(pathname.replace(/^\/+/, ""));
+  } catch {
+    return null;
+  }
+  if (!name || name === "." || name === "..") return null;
+  if (
+    name.includes("/") || name.includes("\\") || name.includes("\0")
+  ) {
+    return null;
+  }
+  if (!name.toLowerCase().endsWith(".html")) return null;
+  return name;
 }
 
 interface FeedbackEntry {
@@ -223,9 +272,19 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-async function handleRequest(
+function htmlResponse(html: string): Response {
+  return new Response(html, {
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+      ...corsHeaders(),
+    },
+  });
+}
+
+export async function handleRequest(
   req: Request,
   htmlPath: string,
+  htmlDir: string,
   feedsPath: string,
   storiesPath: string,
   mobileHtmlPath: string,
@@ -320,17 +379,36 @@ async function handleRequest(
     }
     try {
       const html = await Deno.readTextFile(htmlPath);
-      return new Response(html, {
-        headers: {
-          "Content-Type": "text/html; charset=utf-8",
-          ...corsHeaders(),
-        },
-      });
+      return htmlResponse(html);
     } catch {
-      return new Response("HTML file not found", {
-        status: 404,
-        headers: corsHeaders(),
-      });
+      // Fall back to an index.html rendered into the pages directory.
+      try {
+        const html = await Deno.readTextFile(`${htmlDir}/index.html`);
+        return htmlResponse(html);
+      } catch {
+        return new Response("HTML file not found", {
+          status: 404,
+          headers: corsHeaders(),
+        });
+      }
+    }
+  }
+
+  // Serve any other *.html file that exists in the pages directory. The lookup
+  // happens per request (not once at startup), so a page rendered after the
+  // server started is served immediately without a restart.
+  if (req.method === "GET") {
+    const name = htmlBasenameFromPath(url.pathname);
+    if (name) {
+      try {
+        const html = await Deno.readTextFile(`${htmlDir}/${name}`);
+        return htmlResponse(html);
+      } catch {
+        return new Response("HTML file not found", {
+          status: 404,
+          headers: corsHeaders(),
+        });
+      }
     }
   }
 
@@ -645,52 +723,63 @@ async function handleRequest(
   return new Response("Not found", { status: 404, headers: corsHeaders() });
 }
 
-const {
-  port,
-  host,
-  htmlPath,
-  feedsPath,
-  storiesPath,
-  mobileHtmlPath,
-  queueDir,
-  pagesDir,
-  feedStateDir,
-} = parseArgs();
+async function main(): Promise<void> {
+  const {
+    port,
+    host,
+    htmlPath,
+    htmlDir,
+    feedsPath,
+    storiesPath,
+    mobileHtmlPath,
+    queueDir,
+    pagesDir,
+    feedStateDir,
+  } = parseArgs();
 
-await ensureQueueDir(queueDir);
-await ensureQueueDir(pagesDir);
-await ensureQueueDir(feedStateDir);
+  await ensureQueueDir(queueDir);
+  await ensureQueueDir(pagesDir);
+  await ensureQueueDir(feedStateDir);
 
-Deno.serve(
-  { port, hostname: host },
-  (req) =>
-    handleRequest(
-      req,
-      htmlPath,
-      feedsPath,
-      storiesPath,
-      mobileHtmlPath,
-      queueDir,
-      pagesDir,
-      feedStateDir,
-    ),
-);
-
-console.error(`Feedback server listening on http://${host}:${port}`);
-console.error(`Queue directory: ${queueDir}`);
-console.error(`Pages directory: ${pagesDir}`);
-console.error(`Feed state directory: ${feedStateDir}`);
-if (htmlPath) {
-  console.error(`Serving HTML from: ${htmlPath} (at /)`);
-}
-if (feedsPath) {
-  console.error(`Serving feeds HTML from: ${feedsPath} (at /feeds.html)`);
-}
-if (storiesPath) {
-  console.error(`Serving stories HTML from: ${storiesPath} (at /stories.html)`);
-}
-if (mobileHtmlPath) {
-  console.error(
-    `Serving mobile HTML from: ${mobileHtmlPath} (at /news-mobile.html)`,
+  Deno.serve(
+    { port, hostname: host },
+    (req) =>
+      handleRequest(
+        req,
+        htmlPath,
+        htmlDir,
+        feedsPath,
+        storiesPath,
+        mobileHtmlPath,
+        queueDir,
+        pagesDir,
+        feedStateDir,
+      ),
   );
+
+  console.error(`Feedback server listening on http://${host}:${port}`);
+  console.error(`Queue directory: ${queueDir}`);
+  console.error(`Pages directory: ${pagesDir}`);
+  console.error(`Feed state directory: ${feedStateDir}`);
+  console.error(`Serving any *.html from: ${htmlDir} (at /<name>.html)`);
+  if (htmlPath) {
+    console.error(`Serving HTML from: ${htmlPath} (at /)`);
+  }
+  if (feedsPath) {
+    console.error(`Serving feeds HTML from: ${feedsPath} (at /feeds.html)`);
+  }
+  if (storiesPath) {
+    console.error(
+      `Serving stories HTML from: ${storiesPath} (at /stories.html)`,
+    );
+  }
+  if (mobileHtmlPath) {
+    console.error(
+      `Serving mobile HTML from: ${mobileHtmlPath} (at /news-mobile.html)`,
+    );
+  }
+}
+
+if (import.meta.main) {
+  await main();
 }

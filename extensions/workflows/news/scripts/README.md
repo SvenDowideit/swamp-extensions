@@ -36,6 +36,7 @@ swamp workflow run @svendowideit/news-fetch
 | GET    | `/api/feedback`   | Dequeue oldest N entries (`?limit=N`, default 20) |
 | DELETE | `/api/feedback`   | Delete one entry (`?id=ULID`) or batch (`?ids=ULID1,ULID2`) |
 | GET    | `/`               | Serve the HTML page (if `--html` flag provided)  |
+| GET    | `/<name>.html`    | Serve any HTML file in the pages directory (checked per request, so new files are served without a restart) |
 | GET    | `/feeds.html`     | Serve the feeds listing (if `--feeds` flag provided) |
 
 ### POST body
@@ -89,6 +90,11 @@ after import, the next run will safely re-process the same entry.
 # Start the server (serves HTML page at / and feedback API at /api/feedback)
 # If `deno` is not on your PATH, swamp installs it at ~/.swamp/deno/deno
 deno run --allow-net --allow-read --allow-write --allow-env scripts/feedback-server.ts --html news.html
+
+# Every *.html file in the pages directory is served by name, including files
+# rendered after the server started — no restart needed.
+deno run --allow-net --allow-read --allow-write --allow-env scripts/feedback-server.ts \
+  --html ~/.swamp/news-pages/news.html --html-dir ~/.swamp/news-pages
 
 # Start with HTML page and feeds listing served at / and /feeds.html
 deno run --allow-net --allow-read --allow-write --allow-env scripts/feedback-server.ts \

@@ -433,6 +433,7 @@ The server exposes the following endpoints:
 | `GET /api/feed` | Dequeue feed state changes. |
 | `DELETE /api/feed` | Remove processed feed state entries. |
 | `GET /` | Serve the generated `news.html`. |
+| `GET /<name>.html` | Serve any HTML file in the pages directory (`--html-dir`, defaulting to the directory of `--html`). Looked up per request, so a page rendered after the server started is served without a restart. |
 | `GET /feeds.html` | Serve the feeds catalog listing. |
 | `GET /stories.html` | Serve the standalone fused-stories page. |
 | `GET /news-mobile.html` | Serve the mobile/tablet swipe news page. |

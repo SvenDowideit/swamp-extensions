@@ -361,7 +361,88 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261022.201349.0-sha.ac69af15" rel="noopener">release v20261022.201349.0-sha.ac69af15</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ac69af151d21cd26f28b3daa2ff02ecde13bdbfe" rel="noopener">ac69af15</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3305" rel="noopener">#3305</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3294" rel="noopener">#3294</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261030-201124-0-sha-fc940cc7">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261030-222321-0-sha-709f5920">
+<h2><span class="tier A">A</span>the dashboard&#39;s Behaviors page reads exact usage from a new model.usage.summary request instead of 5,000 raw output rows, so its counts are right at any volume (swamp-club#4144) (#3516)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-30T22:27:58Z">2026-10-30T22:27:58Z</time></span><span>serve</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(serve): the dashboard&#39;s Behaviors page reads exact usage from a new model.usage.summary request instead of 5,000 raw output rows, so its counts are right at any volume (swamp-club#4144) (#3516)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>The Behaviors page asked for up to 5,000 output rows just to count them per behavior on the client. Past the cap every number was a lower bound. On ops.swamp-club.com, 15,151 outputs were readable in the window, so the counts covered only the newest third, and the request took 80 s.</p>
+<p>The page now reads a new <code>model.usage.summary</code> request, which answers with totals and one row per definition: executions, failed, last start, methods and newest outputs. It no longer issues a <code>limit: 5000</code> <code>model.output.search</code>.</p>
+<ul>
+<li><strong>Same outputs and authorization as the search.</strong> Outputs are tallied per model and method, and each pair is authorized once by the search&#39;s rule, so methods-scoped and tag-conditioned grants shape the counts. An unreadable method never reaches them.</li>
+<li><strong>Uses the output summary index (#4145).</strong> Finished outputs are answered from the index with a window or without one, so a warm read opens no records.</li>
+<li><strong>The reply is bounded by definitions, not history.</strong> Cards keep their run history through each row&#39;s newest outputs (<code>recentLimit</code>, default 20, clamped to 0..100). Outputs recorded under a type a definition no longer has keep a row. Outputs of an id with no definition count in the totals only.</li>
+</ul>
+<p>Design: <code>design/primitives/serve.md</code>, `design/s</p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/output-summary-index.md" rel="noopener">design/enablers/output-summary-index.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/serve-phase-telemetry.md" rel="noopener">design/enablers/serve-phase-telemetry.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/local-dashboard.md" rel="noopener">design/surfaces/local-dashboard.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261030.222321.0-sha.709f5920" rel="noopener">release v20261030.222321.0-sha.709f5920</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/709f5920c98a3423b3b44ddac0567cc502c8b0d1" rel="noopener">709f5920</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3516" rel="noopener">#3516</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4145" rel="noopener">#4145</a>𝗔 <a href="https://swamp-club.com/lab/4144" rel="noopener">lab#4144</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261030-214718-0-sha-24be9a5b">
+<h2><span class="tier A">A</span>history reads answer finished outputs from a checkout-local summary index, so a window&#39;s cost stops growing with the outputs in it (swamp-club#4145) (#3514)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-30T21:53:25Z">2026-10-30T21:53:25Z</time></span><span>persistence</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(persistence): history reads answer finished outputs from a checkout-local summary index, so a window&#39;s cost stops growing with the outputs in it (swamp-club#4145) (#3514)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>History reads (<code>model.output.search</code>, method history, <code>swamp summarise</code>) opened one YAML record per run to get about ten fields each. They now list file names as before and answer each finished output from a compact NDJSON shard per type and UTC day, kept under <code>.swamp/_output_summaries</code>. At 75k outputs in the window, 75,000 YAML reads become 0 once the index is warm, and the read is about 3× faster (2.2 s to about 730 ms in the bench).</p>
+<p>The YAML records stay the only truth, and results match reading every record:</p>
+<ul>
+<li><strong>A row answers only for a listed file whose location matches it, and only while the record&#39;s stat still matches the fingerprint on the row.</strong> A damaged, edited or put-back record is read, and left out if it cannot be parsed, as it is without the index.</li>
+<li><strong>Duplicates heal on read.</strong> Cold readers racing each other each add the same rows. A read that finds a shard at least half made of lines no read would use rewrites it, unless the shard grew since it was read.</li>
+<li><strong>A clear cannot fail partway.</strong> Shards are renamed aside before removal, so a backfill racing it costs only disk. Every site that clears the run indexes clears the summaries too, pinned by a rules test.</li>
+<li><strong>Large reads do not hold up serve.</strong> The shard parse and the join of rows to files yield to</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/README.md" rel="noopener">design/README.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261030.214718.0-sha.24be9a5b" rel="noopener">release v20261030.214718.0-sha.24be9a5b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/24be9a5b9b40b265ffdad0b3438c31b0220ac5a5" rel="noopener">24be9a5b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3514" rel="noopener">#3514</a>𝗔 <a href="https://swamp-club.com/lab/4145" rel="noopener">lab#4145</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261030-214058-0-sha-2c815825">
+<h2><span class="tier A">A</span>doctor datastores --repair finds and uploads cache files the s3/gcs remote never received, and refuses the contamination wipe while the cache holds data the remote lacks (swamp-club#4138) (#3513)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-30T21:46:05Z">2026-10-30T21:46:05Z</time></span><span>doctor</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(doctor): doctor datastores --repair finds and uploads cache files the s3/gcs remote never received, and refuses the contamination wipe while the cache holds data the remote lacks (swamp-club#4138) (#3513)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Part 3 of 3 for swamp-club#4112, after the contract (swamp-club#4136) and the s3/gcs release (swamp-club#4137). Fixes swamp-club#4138.</p>
+<p>Repos hit by swamp-club#4100 hold migrated files only in the extension cache, unmarked, so no push sends them. Worse, contamination repair wiped that cache unconditionally, destroying the only copy.</p>
+<ul>
+<li><strong>Advisory:</strong> <code>swamp doctor datastores</code> reports files the remote never received. It never fails the scan, and tells an s3/gcs repo when its extension is too old to check.</li>
+<li><strong>New <code>unpushed</code> stage:</strong> <code>--repair</code> previews these files between <code>duplicateLatest</code> and <code>contamination</code>. With <code>-y</code> it uploads them with create-only writes through <code>repairUnpushedFiles</code>, and leaves pending pushes alone.</li>
+<li><strong>Lock:</strong> with <code>-y</code>, the datastore global lock is held from that stage through contamination repair. Detection, delete and re-pull are bounded by the sync timeout. A failed release warns and never replaces the outcome.</li>
+<li><strong>Wipe gate:</strong> contamination repair checks from a fresh exact dry run before it changes anything. It refuses with <code>repair_refused</code> when the cache holds anything the remote lacks, when a push is pending, when that check fails, when the stage did not pass, or when the extension lacks the method.</li>
+<li>**Minim</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/repo/references/namespaces.md" rel="noopener">.claude/skills/swamp/references/repo/references/namespaces.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/troubleshooting/reference.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/reference.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261030.214058.0-sha.2c815825" rel="noopener">release v20261030.214058.0-sha.2c815825</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/2c815825e78fa35438892c8a042fa0aaf4111fa7" rel="noopener">2c815825</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3513" rel="noopener">#3513</a>𝗔 <a href="https://swamp-club.com/lab/4138" rel="noopener">lab#4138</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261030-212232-0-sha-a014f300">
+<h2><span class="tier A">A</span>data.query sorts by createdAt or a tag and pages by keyset cursor, and a type tag equality pushes down to data_type (swamp-club#4177) (#3512)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-30T21:29:54Z">2026-10-30T21:29:54Z</time></span><span>data</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(data): data.query sorts by createdAt or a tag and pages by keyset cursor, and a type tag equality pushes down to data_type (swamp-club#4177) (#3512)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#4177. <code>data.query</code> took only a predicate, a limit and a select, and returned matches in catalog insertion order, so a page of 50 was the 50 oldest items. The agent sessions page (swamp-club#4155) needs to list thousands of items newest first with a bounded query.</p>
+<ul>
+<li><strong>sort</strong> <code>{ field, direction }</code> orders by <code>createdAt</code> or <code>tags.&lt;key&gt;</code>. Both compare as strings in SQL; a missing tag sorts as the empty string. Ties break on the item identity (namespace, type, model id, data name, version), so the order is total and the same on a serve leader and its follower.</li>
+<li><strong>cursor</strong>: a sorted page that fills its limit returns <code>nextCursor</code>, base64url JSON of the sort and the last returned row&#39;s sort value and identity. Passing it back returns the rows after that row (keyset, not offset). A cursor for another sort, a malformed one, or one without a sort is refused.</li>
+<li><strong>Read access</strong> still applies before the limit, so a page holds only readable rows; a hand-built cursor only moves where a page starts. A sorted query with no limit is capped at <code>MAX_QUERY_RESULTS</code>.</li>
+<li><strong>No bodies</strong>: <code>CatalogStore.iterateSorted</code> reads metadata columns only, in keyset pages that double up to 16,000 rows, so a tags-only sort and select load no record body.</li>
+<li><strong>Type tag pushdown</strong>: a top-level <code>tags.type</code>, `tags[&quot;t</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/data/guide.md" rel="noopener">.claude/skills/swamp/references/data/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/data-query.md" rel="noopener">design/enablers/data-query.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/agent-sessions.md" rel="noopener">design/surfaces/agent-sessions.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261030.212232.0-sha.a014f300" rel="noopener">release v20261030.212232.0-sha.a014f300</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a014f3002a018316b6b85e62a8c2bbf8ac6236db" rel="noopener">a014f300</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3512" rel="noopener">#3512</a>𝗔 <a href="https://swamp-club.com/lab/4177" rel="noopener">lab#4177</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261030-201124-0-sha-fc940cc7">
 <h2><span class="tier A">A</span>workflow cancel --server trusts --ca-cert and SWAMP_CA_CERT, and a certificate failure says so instead of &quot;fetch failed&quot; (swamp-club#3702) (#3511)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-30T20:16:49Z">2026-10-30T20:16:49Z</time></span><span>cli</span><span>fix</span></div>
@@ -536,7 +617,7 @@ footer .ver{color:var(--acc)}
 <li>A commit that misses or fails is reported as unpushed. The marker, the stopped heartbeat and the active-run records follow, as for v2 (swamp-club#3958).</li>
 <li>Boot on v3 reads the marker a</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastore-litestream.md" rel="noopener">design/enablers/datastore-litestream.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastore-litestream.md" rel="noopener">design/enablers/datastore-litestream.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261030.180701.0-sha.9b69d591" rel="noopener">release v20261030.180701.0-sha.9b69d591</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9b69d591f7cf634f239f3e1abac1d3cf34e63023" rel="noopener">9b69d591</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3503" rel="noopener">#3503</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3491" rel="noopener">#3491</a>𝗔 <a href="https://swamp-club.com/lab/3961" rel="noopener">lab#3961</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261030-175803-0-sha-5843e0e3">
@@ -615,7 +696,7 @@ footer .ver{color:var(--acc)}
 <li><strong>The repository decides per record.</strong> In <code>FileSystemUnifiedDataRepository</code>, <code>durableSync(record)</code> syncs unless the bound unit admits all three keys that publish the version: the name&#39;s <code>latest</code> marker, <code>metadata.yaml</code> and <code>raw</code>. One key kept local syncs the whole version. Every write path passes its record: save, deferred save, append, allocate/finalize, marker advance, rename and delete.</li>
 <li>**Directories ar</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/data.md" rel="noopener">design/primitives/data.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261030.170551.0-sha.385d7a31" rel="noopener">release v20261030.170551.0-sha.385d7a31</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/385d7a3194574e6207a79bbd2fa6cea089377c5d" rel="noopener">385d7a31</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3500" rel="noopener">#3500</a>𝗔 <a href="https://swamp-club.com/lab/4019" rel="noopener">lab#4019</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261030-165610-0-sha-a3e34684">
@@ -3231,7 +3312,7 @@ footer .ver{color:var(--acc)}
 <ul>
 <li><code>useRequest</code> now clears <code>error</code>/<code>errorInfo</code> and sets <code>loading</code> when a read actually goes out, rather than when it is asked for. Without this, a failure of the joined read stayed on the hook after the owed read answered. That kept the trigger run lists and the model output search on their legacy</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/local-dashboard.md" rel="noopener">design/surfaces/local-dashboard.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261026.153129.0-sha.125be8e0" rel="noopener">release v20261026.153129.0-sha.125be8e0</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/125be8e0bc4a9b12eb86187fd8798fb3e2126cce" rel="noopener">125be8e0</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3376" rel="noopener">#3376</a>𝗔 <a href="https://swamp-club.com/lab/3960" rel="noopener">lab#3960</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261026-013051-0-sha-c44a03cd">
@@ -14729,6 +14810,44 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.060930.0-sha.ccae15a5" rel="noopener">release v20261001.060930.0-sha.ccae15a5</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ccae15a547ef51d5186e3d21f5492683bea56882" rel="noopener">ccae15a5</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2758" rel="noopener">#2758</a>𝗔 <a href="https://swamp-club.com/lab/2866" rel="noopener">lab#2866</a></div>
 </article>
+<article class="item" id="release-swamp-club-swamp-v20261030-220604-0-sha-f76a1a86">
+<h2><span class="tier B">B</span>durable v2 writes to the default datastore are ordered with F_BARRIERFSYNC on macOS instead of a drive-cache flush (swamp-club#4032) (#3515)</h2>
+<p class="lede">`perf` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-30T22:11:40Z">2026-10-30T22:11:40Z</time></span><span>datastore</span><span>perf</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>perf(datastore): durable v2 writes to the default datastore are ordered with F_BARRIERFSYNC on macOS instead of a drive-cache flush (swamp-club#4032) (#3515)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Implements swamp-club#4032, split out of swamp-club#4017. With <code>durable: true</code></p>
+<p>every v2 data version was synced with <code>FsFile.sync()</code>, which on macOS is</p>
+<p><code>F_FULLFSYNC</code>: a drive-cache flush per file and directory. On the default</p>
+<p>datastore the catalog and the <code>latest</code> markers share the content&#39;s tree and</p>
+<p>nothing replicates it, so ordering is enough, as for v3 chunks</p>
+<p>(swamp-club#3737).</p>
+<ul>
+<li><strong><code>ordered_sync.ts</code></strong>: <code>fullWriteSync</code> and <code>orderedWriteSync</code>. On macOS the</li>
+</ul>
+<p>  ordered policy syncs a path on the catalog&#39;s device with <code>F_BARRIERFSYNC</code></p>
+<p>  and anything else (another device, a failed lookup) in full. A volume that</p>
+<p>  refuses the barrier is remembered and synced in full; nothing falls back to</p>
+<p>  no sync. Linux and Windows are unchanged.</p>
+<ul>
+<li><strong>Selection</strong> (<code>selectDurableWriteSync</code>, once in <code>createRepositoryContext</code>):</li>
+</ul>
+<p>  ordered only for the built-in filesystem datastore on v2 with no namespace</p>
+<p>  whose data directory is the repo&#39;s own <code>.swamp/data</code>. Custom-path,</p>
+<p>  namespaced, extension and v3 datastores, and a context given its own</p>
+<p>  catalog store, sync in full.</p>
+<ul>
+<li><strong>Wiring</strong>: the repository exposes its policy as <code>writeSync</code>;</li>
+</ul>
+<p>  <code>allocateVersion</code> hands streaming writers the policy&#39;s file sync</p>
+<p>  (<code>syncContent</code>, used by <code>DataWriter.writeStream</code>); <code>WorkflowExecutionService</code></p>
+<p>  passes it to every repository</p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/repo/reference.md" rel="noopener">.claude/skills/swamp/references/repo/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/data.md" rel="noopener">design/primitives/data.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261030.220604.0-sha.f76a1a86" rel="noopener">release v20261030.220604.0-sha.f76a1a86</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/f76a1a86e840b0b699a5f560400d3d3528eb6904" rel="noopener">f76a1a86</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3515" rel="noopener">#3515</a>𝗔 <a href="https://swamp-club.com/lab/4032" rel="noopener">lab#4032</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261030-151655-0-sha-81c3e517">
 <h2><span class="tier B">B</span>behavior output and method history search look up the definitions naming their outputs 8 at a time, not one at a time (swamp-club#4150) (#3492)</h2>
 <p class="lede">`perf` change · swamp-club/swamp</p>
@@ -15681,6 +15800,36 @@ footer .ver{color:var(--acc)}
 </ul></div>
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.222935.0-sha.852243ed" rel="noopener">release v20261015.222935.0-sha.852243ed</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/852243edf2e7c999e8f4f08c9f54f4e18575c9ff" rel="noopener">852243ed</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3152" rel="noopener">#3152</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261030-224448-0-sha-725b3e6f">
+<h2><span class="tier C">C</span>tests on main pass on macOS&#39;s symlinked temp dir and on Windows, and an inbox coverage check no longer rests on chance (swamp-club#4209) (#3517)</h2>
+<p class="lede">`test` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-30T22:50:26Z">2026-10-30T22:50:26Z</time></span><span>test</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>test: tests on main pass on macOS&#39;s symlinked temp dir and on Windows, and an inbox coverage check no longer rests on chance (swamp-club#4209) (#3517)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes tests failing on <code>main</code>. Test files only (swamp-club#4209).</p>
+<ul>
+<li><strong><code>integration/doctor_repair_unpushed_cache_files_test.ts</code>:</strong> 15 tests failed whenever <code>TMPDIR</code> sat under a symlink, the macOS default. The harness now resolves its temp dir, since doctor reads the repo at its real path and the in-memory remote keys its index by path.</li>
+<li><strong><code>integration/webhook_payload_inputs_test.ts</code>:</strong> expects <code>${env:__SWAMP_IN_0}</code> on Windows, which is what PowerShell placement correctly emits. Red on Windows since swamp-club#3868.</li>
+<li><strong><code>integration/workflow_resume_provenance_test.ts</code>:</strong> joins with <code>; exit 1</code>, because <code>powershell.exe</code> 5.1 cannot parse <code>&amp;&amp;</code>. Red on Windows since swamp-club#3868.</li>
+<li><strong><code>src/domain/inbox/inbox_policy_property_test.ts</code>:</strong> both coverage-checking properties always play a retry after <code>unsupported</code>, so that check no longer depends on random generation.</li>
+</ul>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li><code>verify-build</code>, <code>verify-reviews</code> and <code>verify-skills</code> pass at this commit on macOS, with the suite running under the symlinked <code>/tmp</code>.</li>
+<li>Not run on Windows: no PowerShell on the verifying host. The first scheduled Windows Compatibility run after merge confirms the two Windows fixes.</li>
+</ul>
+<p>🤖 Generated with <a href="https://claude.com/claude-code" rel="noopener">Claude Code</a></p>
+<p>---</p>
+<h4 class="body-h">Installation</h4>
+<p><strong>macOS (Apple Silicon):</strong></p>
+<p>```bash</p>
+<p>curl -L <a href="https://git" rel="noopener">https://git</a></p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261030.224448.0-sha.725b3e6f" rel="noopener">release v20261030.224448.0-sha.725b3e6f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/725b3e6f90d26f32eba42474583b41fc309315b7" rel="noopener">725b3e6f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3517" rel="noopener">#3517</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261028-200332-0-sha-a5d688ab">
 <h2><span class="tier C">C</span>run the Windows Compatibility workflow every 4 hours instead of on every merge (swamp-club#4082) (#3460)</h2>
@@ -16752,13 +16901,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.073437.0-sha.acf6214e" rel="noopener">release v20261001.073437.0-sha.acf6214e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214ef9980daf68e919a43f6db3cff17da608" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>692 items across 1 source(s) in this window:
-27 critical, 603 notable, 22 routine,
-40 minor.</p>
-<ul><li><strong>fix</strong> — 454</li><li><strong>feat</strong> — 173</li><li><strong>test</strong> — 22</li><li><strong>docs</strong> — 19</li><li><strong>refactor</strong> — 15</li><li><strong>perf</strong> — 6</li></ul></section>
+<p>698 items across 1 source(s) in this window:
+27 critical, 607 notable, 23 routine,
+41 minor.</p>
+<ul><li><strong>fix</strong> — 455</li><li><strong>feat</strong> — 176</li><li><strong>test</strong> — 23</li><li><strong>docs</strong> — 19</li><li><strong>refactor</strong> — 15</li><li><strong>perf</strong> — 7</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-30T22:07:27.778Z">2026-10-30T22:07:27.778Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-30T23:02:54.393Z">2026-10-30T23:02:54.393Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

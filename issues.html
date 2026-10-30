@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3889"><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli deco</a><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-4142"><span class="tier A">A</span>model.output.search reads and parses every candidate output </a><a href="#issue-4164"><span class="tier A">A</span>video: cold-open / hook segment before the music + title scr</a><a href="#issue-4153"><span class="tier A">A</span>v3 serve team follow-ups: throttle peer-key vault reads afte</a><a href="#issue-4121"><span class="tier A">A</span>Datastore rework Phase 5 (team mode): model leases carry a f</a><a href="#issue-4148"><span class="tier A">A</span>v3 serve team follow-ups: queued feed frames survive a leade</a><a href="#issue-4140"><span class="tier A">A</span>@swamp/video: configurable fast-forward bed (minimum length,</a><a href="#issue-4141"><span class="tier A">A</span>model.output.search reads the definition catalog twice per r</a><a href="#issue-4120"><span class="tier A">A</span>Datastore rework Phase 5 (team mode): followers forward writ</a><a href="#issue-4093"><span class="tier A">A</span>Docs: behavior type describe and model get output now includ</a><a href="#issue-4098"><span class="tier A">A</span>Docs: document clearDirty on the datastore sync service and </a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3889"><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli deco</a><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-4152"><span class="tier A">A</span>Flaky: integration/serve_v3_team_mode_test.ts can spin indef</a><a href="#issue-4136"><span class="tier A">A</span>Datastore sync contract: repairUnpushedFiles in the testing </a><a href="#issue-4154"><span class="tier A">A</span>Agent sessions: define the versioned session data contract a</a><a href="#issue-4101"><span class="tier A">A</span>swamp serve (format 2, S3): the shutdown push of interrupted</a><a href="#issue-4150"><span class="tier A">A</span>model.output.search names its outputs with one definition re</a><a href="#issue-4142"><span class="tier A">A</span>model.output.search reads and parses every candidate output </a><a href="#issue-4164"><span class="tier A">A</span>video: cold-open / hook segment before the music + title scr</a><a href="#issue-4153"><span class="tier A">A</span>v3 serve team follow-ups: throttle peer-key vault reads afte</a><a href="#issue-4121"><span class="tier A">A</span>Datastore rework Phase 5 (team mode): model leases carry a f</a><a href="#issue-4148"><span class="tier A">A</span>v3 serve team follow-ups: queued feed frames survive a leade</a></aside><div>
 
 <article class="item" id="issue-3889">
 <h2><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli decoder RCE (CVE-2026-111497, Node2Shell/HTTP2Shell)</h2>
@@ -84,6 +84,46 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3576" rel="noopener">lab#3576</a></div>
+</article>
+<article class="item" id="issue-4152">
+<h2><span class="tier A">A</span>Flaky: integration/serve_v3_team_mode_test.ts can spin indefinitely in verify-build&#39;s run-tests</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-30T15:54:57.470Z">2026-10-30T15:54:57.470Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4152" rel="noopener">lab#4152</a></div>
+</article>
+<article class="item" id="issue-4136">
+<h2><span class="tier A">A</span>Datastore sync contract: repairUnpushedFiles in the testing package and conformance suite (swamp-club#4112, part 1 of 3)</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-30T15:39:44.897Z">2026-10-30T15:39:44.897Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4136" rel="noopener">lab#4136</a></div>
+</article>
+<article class="item" id="issue-4154">
+<h2><span class="tier A">A</span>Agent sessions: define the versioned session data contract and how the dashboard finds it</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-30T15:37:12.272Z">2026-10-30T15:37:12.272Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4154" rel="noopener">lab#4154</a></div>
+</article>
+<article class="item" id="issue-4101">
+<h2><span class="tier A">A</span>swamp serve (format 2, S3): the shutdown push of interrupted runs can resolve having sent nothing, so no unpushed-interrupts marker is written and the run stays `running` (follow-up to #3958)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-10-30T15:33:36.668Z">2026-10-30T15:33:36.668Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4101" rel="noopener">lab#4101</a></div>
+</article>
+<article class="item" id="issue-4150">
+<h2><span class="tier A">A</span>model.output.search names its outputs with one definition read at a time: look them up a few at a time so definition_names drops from about 10s to a few seconds on ops</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-30T15:11:02.087Z">2026-10-30T15:11:02.087Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4150" rel="noopener">lab#4150</a></div>
 </article>
 <article class="item" id="issue-4142">
 <h2><span class="tier A">A</span>model.output.search reads and parses every candidate output before authorizing; 80% of reads (60k of 75k files) are for outputs the principal cannot see</h2>
@@ -125,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4148" rel="noopener">lab#4148</a></div>
 </article>
-<article class="item" id="issue-4140">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4140">
 <h2><span class="tier A">A</span>@swamp/video: configurable fast-forward bed (minimum length, fade, merge)</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-29T22:57:01.353Z">2026-10-29T22:57:01.353Z</time></span></div>
@@ -165,7 +205,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4098" rel="noopener">lab#4098</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4099">
+<article class="item" id="issue-4099">
 <h2><span class="tier A">A</span>Docs: data-origin values in command/shell run are passed as environment references (swamp-club#3868)</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-10-29T22:21:55.766Z">2026-10-29T22:21:55.766Z</time></span></div>
@@ -7165,77 +7205,61 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-4136">
-<h2><span class="tier B">B</span>Datastore sync contract: repairUnpushedFiles in the testing package and conformance suite (swamp-club#4112, part 1 of 3)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-30T15:00:07.167Z">2026-10-30T15:00:07.167Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4136" rel="noopener">lab#4136</a></div>
-</article>
-<article class="item" id="issue-4154">
-<h2><span class="tier B">B</span>Agent sessions: define the versioned session data contract and how the dashboard finds it</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-30T14:59:43.114Z">2026-10-30T14:59:43.114Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4154" rel="noopener">lab#4154</a></div>
-</article>
-<article class="item" id="issue-4101">
-<h2><span class="tier B">B</span>swamp serve (format 2, S3): the shutdown push of interrupted runs can resolve having sent nothing, so no unpushed-interrupts marker is written and the run stays `running` (follow-up to #3958)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-30T14:58:56.329Z">2026-10-30T14:58:56.329Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4101" rel="noopener">lab#4101</a></div>
-</article>
-<article class="item" id="issue-4143">
-<h2><span class="tier B">B</span>model.output.search reads the whole window before applying limit: 75,376 outputs read to return 5,000; read newest-first by name stamp and stop at the limit</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-30T14:56:22.741Z">2026-10-30T14:56:22.741Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4143" rel="noopener">lab#4143</a></div>
-</article>
-<article class="item" id="issue-4166">
-<h2><span class="tier B">B</span>Team-mode lease floor is unpaginated: a behavior with ~13k data names can never take its lock</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-30T13:44:25.694Z">2026-10-30T13:44:25.694Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4166" rel="noopener">lab#4166</a></div>
-</article>
-<article class="item" id="issue-4152">
-<h2><span class="tier B">B</span>Flaky: integration/serve_v3_team_mode_test.ts can spin indefinitely in verify-build&#39;s run-tests</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-30T13:39:09.518Z">2026-10-30T13:39:09.518Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4152" rel="noopener">lab#4152</a></div>
-</article>
 <article class="item" id="issue-4019">
 <h2><span class="tier B">B</span>Datastore v3: data writes the datastore filter keeps local are never fsynced</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-30T13:30:57.001Z">2026-10-30T13:30:57.001Z</time></span></div>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-30T16:03:20.732Z">2026-10-30T16:03:20.732Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4019" rel="noopener">lab#4019</a></div>
 </article>
+<article class="item" id="issue-4143">
+<h2><span class="tier B">B</span>model.output.search reads the whole window before applying limit: 75,376 outputs read to return 5,000; read newest-first by name stamp and stop at the limit</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-30T16:03:16.122Z">2026-10-30T16:03:16.122Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4143" rel="noopener">lab#4143</a></div>
+</article>
 <article class="item" id="issue-3961">
 <h2><span class="tier B">B</span>swamp serve on a v3 datastore: a run interrupted at a clean shutdown is never committed when the bucket is slow, and stays running for every other checkout</h2>
 <p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-30T13:29:54.068Z">2026-10-30T13:29:54.068Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-30T16:01:41.206Z">2026-10-30T16:01:41.206Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3961" rel="noopener">lab#3961</a></div>
 </article>
-<article class="item" id="issue-4150">
-<h2><span class="tier B">B</span>model.output.search names its outputs with one definition read at a time: look them up a few at a time so definition_names drops from about 10s to a few seconds on ops</h2>
+<article class="item" id="issue-4149">
+<h2><span class="tier B">B</span>An aborted workflow run starts its next step when the step in flight succeeds after the abort</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-29T23:34:11.747Z">2026-10-29T23:34:11.747Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-30T16:00:14.699Z">2026-10-30T16:00:14.699Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4150" rel="noopener">lab#4150</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4149" rel="noopener">lab#4149</a></div>
+</article>
+<article class="item" id="issue-4166">
+<h2><span class="tier B">B</span>Team-mode lease floor is unpaginated: a behavior with ~13k data names can never take its lock</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-10-30T15:59:20.500Z">2026-10-30T15:59:20.500Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4166" rel="noopener">lab#4166</a></div>
+</article>
+<article class="item" id="issue-4138">
+<h2><span class="tier B">B</span>doctor datastores --repair finds and uploads cache files the s3/gcs remote never received, and gates the contamination cache wipe on them (swamp-club#4112, part 3 of 3)</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-30T15:54:28.195Z">2026-10-30T15:54:28.195Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4138" rel="noopener">lab#4138</a></div>
+</article>
+<article class="item" id="issue-4155">
+<h2><span class="tier B">B</span>Agent sessions: preview page in the dashboard, shown only when session data exists</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-10-30T15:49:39.620Z">2026-10-30T15:49:39.620Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4155" rel="noopener">lab#4155</a></div>
 </article>
 <article class="item" id="issue-4016">
 <h2><span class="tier B">B</span>Docs: doctor datastores reference — unreadable data version check and repair (swamp-club#3955)</h2>
@@ -7341,13 +7365,77 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4171">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4137">
+<h2><span class="tier C">C</span>s3/gcs datastores: implement repairUnpushedFiles and keep last-synced and commitSeq correct across pulls and index rebuilds (swamp-club#4112, part 2 of 3)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-30T15:55:54.939Z">2026-10-30T15:55:54.939Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4137" rel="noopener">lab#4137</a></div>
+</article>
+<article class="item" id="issue-4175">
+<h2><span class="tier C">C</span>An always-gated job does not run after the job before it succeeded through the abort</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-30T15:52:10.381Z">2026-10-30T15:52:10.381Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4175" rel="noopener">lab#4175</a></div>
+</article>
+<article class="item" id="issue-4156">
+<h2><span class="tier C">C</span>Agent sessions extension: import Claude Code sessions as repo data</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-30T15:48:40.038Z">2026-10-30T15:48:40.038Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4156" rel="noopener">lab#4156</a></div>
+</article>
+<article class="item" id="issue-4174">
+<h2><span class="tier C">C</span>model.output.search with a model filter reads its whole window before applying limit</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-30T15:43:40.275Z">2026-10-30T15:43:40.275Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4174" rel="noopener">lab#4174</a></div>
+</article>
+<article class="item" id="issue-4173">
+<h2><span class="tier C">C</span>Docs: swamp serve manual says idp-group grants match collectives; collectives are admission only</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-30T15:38:48.782Z">2026-10-30T15:38:48.782Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4173" rel="noopener">lab#4173</a></div>
+</article>
+<article class="item" id="issue-4158">
+<h2><span class="tier C">C</span>Agent sessions extension: import Codex sessions</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-30T15:16:35.273Z">2026-10-30T15:16:35.273Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4158" rel="noopener">lab#4158</a></div>
+</article>
+<article class="item" id="issue-4157">
+<h2><span class="tier C">C</span>Agent sessions extension: label calls swamp / bypass / neutral and compute findings</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-30T15:16:33.645Z">2026-10-30T15:16:33.645Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4157" rel="noopener">lab#4157</a></div>
+</article>
+<article class="item" id="issue-4171">
 <h2><span class="tier C">C</span>A run save that passes the shutdown write fence check can still land over the interrupted record after the fence&#39;s 2 s wait</h2>
 <p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-30T14:58:46.079Z">2026-10-30T14:58:46.079Z</time></span></div>
+<div class="meta"><span><time datetime="2026-10-30T15:06:06.742Z">2026-10-30T15:06:06.742Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4171" rel="noopener">lab#4171</a></div>
+</article>
+<article class="item" id="issue-4172">
+<h2><span class="tier C">C</span>Flaky test: DefinitionIdIndex join test assumes two concurrent checks overlap</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-30T15:05:42.384Z">2026-10-30T15:05:42.384Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4172" rel="noopener">lab#4172</a></div>
 </article>
 <article class="item" id="issue-4170">
 <h2><span class="tier C">C</span>CLI command to change an existing extension&#39;s visibility (private → public)</h2>
@@ -7421,46 +7509,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4160" rel="noopener">lab#4160</a></div>
 </article>
-<article class="item" id="issue-4158">
-<h2><span class="tier C">C</span>Agent sessions extension: import Codex sessions</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-30T00:52:05.159Z">2026-10-30T00:52:05.159Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4158" rel="noopener">lab#4158</a></div>
-</article>
-<article class="item" id="issue-4157">
-<h2><span class="tier C">C</span>Agent sessions extension: label calls swamp / bypass / neutral and compute findings</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-30T00:52:03.589Z">2026-10-30T00:52:03.589Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4157" rel="noopener">lab#4157</a></div>
-</article>
-<article class="item" id="issue-4156">
-<h2><span class="tier C">C</span>Agent sessions extension: import Claude Code sessions as repo data</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-30T00:52:01.763Z">2026-10-30T00:52:01.763Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4156" rel="noopener">lab#4156</a></div>
-</article>
-<article class="item" id="issue-4155">
-<h2><span class="tier C">C</span>Agent sessions: preview page in the dashboard, shown only when session data exists</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-30T00:52:00.081Z">2026-10-30T00:52:00.081Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4155" rel="noopener">lab#4155</a></div>
-</article>
-<article class="item" id="issue-4149">
-<h2><span class="tier C">C</span>An aborted workflow run starts its next step when the step in flight succeeds after the abort</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-29T22:43:20.895Z">2026-10-29T22:43:20.895Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4149" rel="noopener">lab#4149</a></div>
-</article>
 <article class="item" id="issue-4147">
 <h2><span class="tier C">C</span>model.output.search response phase takes 3.9s for 5,000 items with no attribution (redaction vs serialization vs send)</h2>
 <p class="lede">Open issue</p>
@@ -7500,22 +7548,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4139" rel="noopener">lab#4139</a></div>
-</article>
-<article class="item" id="issue-4138">
-<h2><span class="tier C">C</span>doctor datastores --repair finds and uploads cache files the s3/gcs remote never received, and gates the contamination cache wipe on them (swamp-club#4112, part 3 of 3)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-29T22:06:34.057Z">2026-10-29T22:06:34.057Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4138" rel="noopener">lab#4138</a></div>
-</article>
-<article class="item" id="issue-4137">
-<h2><span class="tier C">C</span>s3/gcs datastores: implement repairUnpushedFiles and keep last-synced and commitSeq correct across pulls and index rebuilds (swamp-club#4112, part 2 of 3)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-10-29T22:06:27.524Z">2026-10-29T22:06:27.524Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4137" rel="noopener">lab#4137</a></div>
 </article>
 <article class="item" id="issue-4132">
 <h2><span class="tier C">C</span>Docs: v3 serve team mode, followers forward writes and the advertise-address and ca-cert serve flags (swamp-club#4120)</h2>
@@ -9670,13 +9702,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>1200 items across 1 source(s) in this window:
-2 critical, 885 notable, 22 routine,
-291 minor.</p>
-<ul><li><strong>issues</strong> — 1200</li></ul></section>
+<p>1204 items across 1 source(s) in this window:
+2 critical, 890 notable, 20 routine,
+292 minor.</p>
+<ul><li><strong>issues</strong> — 1204</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-30T15:05:24.748Z">2026-10-30T15:05:24.748Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-30T16:06:30.406Z">2026-10-30T16:06:30.406Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

@@ -361,7 +361,28 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261022.201349.0-sha.ac69af15" rel="noopener">release v20261022.201349.0-sha.ac69af15</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ac69af151d21cd26f28b3daa2ff02ecde13bdbfe" rel="noopener">ac69af15</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3305" rel="noopener">#3305</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3294" rel="noopener">#3294</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261030-003603-0-sha-9d68860f">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261030-132349-0-sha-3fc1170f">
+<h2><span class="tier A">A</span>a failing or empty vault is read for the team peer key at most once per 10 s, however many peer tokens are checked (swamp-club#4153) (#3490)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-30T13:28:26Z">2026-10-30T13:28:26Z</time></span><span>serve</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): a failing or empty vault is read for the team peer key at most once per 10 s, however many peer tokens are checked (swamp-club#4153) (#3490)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Follow-ups from swamp-club#4148 (PR #3488), tracked in swamp-club#4153.</p>
+<p><strong>1. Throttle peer-key vault reads (medium).</strong> A <code>swamp-peer.</code> WebSocket upgrade is verified before the IP burst is charged. Once the cached key was older than 10 s, <code>TeamPeerKey</code> recorded nothing after a failed read, or after a read that found no key. So every fake peer token cost a <code>vault.get</code> plus a <code>vault.list</code> against an already failing backend. In the triage repro, 1000 fake verifies made 1000 gets and 1000 lists, both with the vault failing and with the vault holding no key. Now:</p>
+<ul>
+<li>each read records its time and what it found (<code>key</code>, <code>none</code> or <code>failed</code>), and <code>#known()</code> answers from that for <code>PEER_KEY_CACHE_MS</code>. The 60 s stale bound still counts from the last good read.</li>
+<li>concurrent checks share the read in flight. A read that has not answered within the window is left to its own waiters, and later checks start a fresh one, so a hung vault call cannot block peer checks for ever.</li>
+<li>reads are sequenced. A slow older read never overwrites what a newer read found. A newer *failure* does not discard an older read&#39;s key, because a failure says nothing about which key is current.</li>
+<li><code>current()</code> still reads every time, so it still throws on a failing vault and still makes the key when the vault holds none.</li>
+</ul>
+<p>The same repro n</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261030.132349.0-sha.3fc1170f" rel="noopener">release v20261030.132349.0-sha.3fc1170f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/3fc1170fe8e4a8b98152681304d5d5bb755019b3" rel="noopener">3fc1170f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3490" rel="noopener">#3490</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3488" rel="noopener">#3488</a>𝗔 <a href="https://swamp-club.com/lab/4153" rel="noopener">lab#4153</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261030-003603-0-sha-9d68860f">
 <h2><span class="tier A">A</span>team-mode model leases carry a fencing token, a lapsed lease cancels its run, and an outbox resend never overwrites a newer record (swamp-club#4121) (#3489)</h2>
 <p class="lede">`feat` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-30T00:41:57Z">2026-10-30T00:41:57Z</time></span><span>datastore</span><span>feat</span></div>
@@ -15130,27 +15151,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.222935.0-sha.852243ed" rel="noopener">release v20261015.222935.0-sha.852243ed</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/852243edf2e7c999e8f4f08c9f54f4e18575c9ff" rel="noopener">852243ed</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3152" rel="noopener">#3152</a></div>
 </article>
-<article class="item" id="release-swamp-club-swamp-v20261030-132349-0-sha-3fc1170f">
-<h2><span class="tier C">C</span>swamp 20261030.132349.0-sha.3fc1170f</h2>
-<p class="lede">Change (untyped) · swamp-club/swamp</p>
-<div class="meta"><span><time datetime="2026-10-30T13:28:26Z">2026-10-30T13:28:26Z</time></span></div>
-<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
-<ul>
-<li>fix(serve): a failing or empty vault is read for the team peer key at most once per 10 s, however many peer tokens are checked (swamp-club#4153) (#3490)</li>
-</ul>
-<h4 class="body-h">Summary</h4>
-<p>Follow-ups from swamp-club#4148 (PR #3488), tracked in swamp-club#4153.</p>
-<p><strong>1. Throttle peer-key vault reads (medium).</strong> A <code>swamp-peer.</code> WebSocket upgrade is verified before the IP burst is charged. Once the cached key was older than 10 s, <code>TeamPeerKey</code> recorded nothing after a failed read, or after a read that found no key. So every fake peer token cost a <code>vault.get</code> plus a <code>vault.list</code> against an already failing backend. In the triage repro, 1000 fake verifies made 1000 gets and 1000 lists, both with the vault failing and with the vault holding no key. Now:</p>
-<ul>
-<li>each read records its time and what it found (<code>key</code>, <code>none</code> or <code>failed</code>), and <code>#known()</code> answers from that for <code>PEER_KEY_CACHE_MS</code>. The 60 s stale bound still counts from the last good read.</li>
-<li>concurrent checks share the read in flight. A read that has not answered within the window is left to its own waiters, and later checks start a fresh one, so a hung vault call cannot block peer checks for ever.</li>
-<li>reads are sequenced. A slow older read never overwrites what a newer read found. A newer *failure* does not discard an older read&#39;s key, because a failure says nothing about which key is current.</li>
-<li><code>current()</code> still reads every time, so it still throws on a failing vault and still makes the key when the vault holds none.</li>
-</ul>
-<p>The same repro n</p></div>
-
-<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261030.132349.0-sha.3fc1170f" rel="noopener">release v20261030.132349.0-sha.3fc1170f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/3fc1170f" rel="noopener">3fc1170f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3490" rel="noopener">#3490</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3488" rel="noopener">#3488</a>𝗔 <a href="https://swamp-club.com/lab/4153" rel="noopener">lab#4153</a></div>
-</article>
 <article class="item" id="release-swamp-club-swamp-v20261028-200332-0-sha-a5d688ab">
 <h2><span class="tier C">C</span>run the Windows Compatibility workflow every 4 hours instead of on every merge (swamp-club#4082) (#3460)</h2>
 <p class="lede">`ci` change · swamp-club/swamp</p>
@@ -16222,12 +16222,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>671 items across 1 source(s) in this window:
-27 critical, 582 notable, 21 routine,
-41 minor.</p>
-<ul><li><strong>fix</strong> — 436</li><li><strong>feat</strong> — 170</li><li><strong>test</strong> — 22</li><li><strong>docs</strong> — 19</li><li><strong>refactor</strong> — 15</li><li><strong>perf</strong> — 5</li></ul></section>
+27 critical, 583 notable, 21 routine,
+40 minor.</p>
+<ul><li><strong>fix</strong> — 437</li><li><strong>feat</strong> — 170</li><li><strong>test</strong> — 22</li><li><strong>docs</strong> — 19</li><li><strong>refactor</strong> — 15</li><li><strong>perf</strong> — 5</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-30T14:06:02.248Z">2026-10-30T14:06:02.248Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-30T15:05:24.748Z">2026-10-30T15:05:24.748Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

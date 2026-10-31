@@ -725,7 +725,7 @@ footer .ver{color:var(--acc)}
 <li><strong>The repository decides per record.</strong> In <code>FileSystemUnifiedDataRepository</code>, <code>durableSync(record)</code> syncs unless the bound unit admits all three keys that publish the version: the name&#39;s <code>latest</code> marker, <code>metadata.yaml</code> and <code>raw</code>. One key kept local syncs the whole version. Every write path passes its record: save, deferred save, append, allocate/finalize, marker advance, rename and delete.</li>
 <li>**Directories ar</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261030.170551.0-sha.385d7a31" rel="noopener">release v20261030.170551.0-sha.385d7a31</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/385d7a3194574e6207a79bbd2fa6cea089377c5d" rel="noopener">385d7a31</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3500" rel="noopener">#3500</a>𝗔 <a href="https://swamp-club.com/lab/4019" rel="noopener">lab#4019</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261030-165610-0-sha-a3e34684">
@@ -812,7 +812,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Serve guide</strong> (<code>.claude/skills/swamp/references/serve/guide.md</code>): the</li>
 </ul>
 <p>  subjects table reads <code>idp-group:&lt;name&gt;</code>, and &quot;Collectives</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/serve/guide.md" rel="noopener">.claude/skills/swamp/references/serve/guide.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261030.163721.0-sha.384b3980" rel="noopener">release v20261030.163721.0-sha.384b3980</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/384b398034666d4659304a8044bb6617067612a5" rel="noopener">384b3980</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3497" rel="noopener">#3497</a>𝗔 <a href="https://swamp-club.com/lab/4173" rel="noopener">lab#4173</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261030-161501-0-sha-9b4d2cd5">
@@ -1020,7 +1020,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Outbox resend.</strong> Recovery drops a forwarded entry whose head moved instead of rebuilding it on the newer head; rebuilding let a put or tombstone with no <code>expect</code> overwrite another writer&#39;s newer record. An entry records the lease it was built under (outbox schema 5).</li>
 <li>If that lease has ended, th</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/behavior/references/concurrency.md" rel="noopener">.claude/skills/swamp/references/behavior/references/concurrency.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261030.003603.0-sha.9d68860f" rel="noopener">release v20261030.003603.0-sha.9d68860f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9d68860fb1820d2500593d1da1812d8c677e05c0" rel="noopener">9d68860f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3489" rel="noopener">#3489</a>𝗔 <a href="https://swamp-club.com/lab/4121" rel="noopener">lab#4121</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261029-234650-0-sha-482f67ff">
@@ -4150,7 +4150,7 @@ footer .ver{color:var(--acc)}
 <li>Unit tests for <code>globalSkillSyncLine</code> and <code>globalSkillSyncNote</code> in <code>src/cli/commands/update_test.ts</code>.</li>
 <li>End to end: the compiled bran</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/troubleshooting/guide.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/README.md" rel="noopener">README.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/architecture.md" rel="noopener">design/architecture.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/README.md" rel="noopener">README.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/architecture.md" rel="noopener">design/architecture.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261023.144040.0-sha.61d1aa5f" rel="noopener">release v20261023.144040.0-sha.61d1aa5f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/61d1aa5fd5582a578b9dc00548f744bc5315cd9c" rel="noopener">61d1aa5f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3326" rel="noopener">#3326</a>𝗔 <a href="https://swamp-club.com/lab/3823" rel="noopener">lab#3823</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261023-123914-0-sha-8540c1e3">
@@ -14874,7 +14874,7 @@ footer .ver{color:var(--acc)}
 <p>  <code>allocateVersion</code> hands streaming writers the policy&#39;s file sync</p>
 <p>  (<code>syncContent</code>, used by <code>DataWriter.writeStream</code>); <code>WorkflowExecutionService</code></p>
 <p>  passes it to every repository</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/repo/reference.md" rel="noopener">.claude/skills/swamp/references/repo/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/data.md" rel="noopener">design/primitives/data.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/repo/reference.md" rel="noopener">.claude/skills/swamp/references/repo/reference.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261030.220604.0-sha.f76a1a86" rel="noopener">release v20261030.220604.0-sha.f76a1a86</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/f76a1a86e840b0b699a5f560400d3d3528eb6904" rel="noopener">f76a1a86</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3515" rel="noopener">#3515</a>𝗔 <a href="https://swamp-club.com/lab/4032" rel="noopener">lab#4032</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261030-151655-0-sha-81c3e517">
@@ -16936,7 +16936,7 @@ footer .ver{color:var(--acc)}
 <ul><li><strong>fix</strong> — 455</li><li><strong>feat</strong> — 177</li><li><strong>test</strong> — 23</li><li><strong>docs</strong> — 19</li><li><strong>refactor</strong> — 15</li><li><strong>perf</strong> — 7</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-31T06:01:55.612Z">2026-10-31T06:01:55.612Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-31T07:02:32.626Z">2026-10-31T07:02:32.626Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

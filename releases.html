@@ -361,7 +361,125 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261022.201349.0-sha.ac69af15" rel="noopener">release v20261022.201349.0-sha.ac69af15</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ac69af151d21cd26f28b3daa2ff02ecde13bdbfe" rel="noopener">ac69af15</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3305" rel="noopener">#3305</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3294" rel="noopener">#3294</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261031-012334-0-sha-345cd367">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261031-063736-0-sha-e459d219">
+<h2><span class="tier A">A</span>grants can name every member of a swamp-club collective with a collective:&lt;slug&gt; subject (swamp-club#4220) (#3524)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-31T06:41:58Z">2026-10-31T06:41:58Z</time></span><span>access</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(access): grants can name every member of a swamp-club collective with a collective:&lt;slug&gt; subject (swamp-club#4220) (#3524)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#4220. Teams without SSO could not write one grant for their whole swamp-club collective. A serve running <code>--auth-mode oauth --allowed-collectives blaze-commerce</code> admitted every member and then denied them everything: their grant named <code>idp-group:blaze-commerce</code>, which matches only IdP groups from SSO, and a collective without SSO has none. swamp-club#4159 (#3497) corrected the docs that promised a fallback from groups to collectives, but left no subject that covers a collective. The only workaround was a local group or per-user grants kept in step with membership by hand.</p>
+<p>This adds a grant subject kind, <code>collective:&lt;slug&gt;</code>, that matches every member of a swamp-club collective:</p>
+<p>```yaml</p>
+<p>grants:</p>
+<ul>
+<li>subject: collective:blaze-commerce</li>
+</ul>
+<p>    effect: allow</p>
+<p>    actions: [read]</p>
+<p>    resources: [workflow:*, behavior:*, data:*]</p>
+<p>```</p>
+<ul>
+<li><strong>Matching.</strong> For each collective on the session, the decision service, the <code>access.can-i</code> listing and the run-vault key-dependence check add <code>collective:&lt;slug&gt;</code>. The collectives are the list <code>--allowed-collectives</code> already admits by: they come from OAuth userinfo at login and the background refresh keeps them current. A manually minted token, a no-auth session and the service principals carry none.</li>
+<li><strong>Default deny is unchanged.</strong> Admission still grants nothing. Nothing new is a</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/serve/guide.md" rel="noopener">.claude/skills/swamp/references/serve/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/access-control.md" rel="noopener">design/enablers/access-control.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261031.063736.0-sha.e459d219" rel="noopener">release v20261031.063736.0-sha.e459d219</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/e459d219fe4c9b37c4fdd3f4a7611bf1b6880226" rel="noopener">e459d219</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3524" rel="noopener">#3524</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3497" rel="noopener">#3497</a>𝗔 <a href="https://swamp-club.com/lab/4220" rel="noopener">lab#4220</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261031-061007-0-sha-1a4e8b36">
+<h2><span class="tier A">A</span>reconcile externally indexed local extensions (#3523)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-31T06:15:48Z">2026-10-31T06:15:48Z</time></span><span>serve</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): reconcile externally indexed local extensions (#3523)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<ul>
+<li>reconcile local-extension catalog changes when another CLI invocation has already updated the index</li>
+<li>continue serve reload processing after local refresh failures and rebuild audit sinks for the resulting configuration</li>
+<li>add unit and integration coverage for externally indexed changes and failure recovery</li>
+</ul>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>verify-build passed: lint, format, type check, full tests, dependency audit, compile, and binary smoke check</li>
+<li>verify-reviews passed: code and adversarial reviews</li>
+<li>focused local refresh, serve reload, admin handler, and integration tests passed</li>
+</ul>
+<p>---</p>
+<h4 class="body-h">Installation</h4>
+<p><strong>macOS (Apple Silicon):</strong></p>
+<p>```bash</p>
+<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20261031.061007.0-sha.1a4e8b36/swamp-darwin-aarch64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20261031.061007.0-sha.1a4e8b36/swamp-darwin-aarch64</a> -o swamp</p>
+<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
+<p>```</p>
+<p><strong>macOS (Intel):</strong></p>
+<p>```bash</p>
+<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20261031.061007.0-sha.1a4e8b36/swamp-darwin-x86_64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20261031.061007.0-sha.1a4e8b36/swamp-darwin-x86_64</a> -o swamp</p>
+<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
+<p>```</p>
+<p><strong>Linux (x86_64):</strong></p>
+<p>```bash</p>
+<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20261031.061007.0-sha.1a4e8b36/swamp-linux-x86_64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20261031.061007.0-sha.1a4e8b36/swamp-linux-x86_64</a> -o swamp</p>
+<p>chmod +x swamp &amp;&amp; sudo mv swamp /usr/local/bin/</p>
+<p>```</p>
+<p><strong>Linux (aarch64):</strong></p>
+<p>```bash</p>
+<p>curl -L <a href="https://github.com/swamp-club/swamp/releases/download/v20261031.061007.0-sha.1a4e8b36/swamp-linux-aarch64" rel="noopener">https://github.com/swamp-club/swamp/releases/download/v20261031.061007.0-sha.1a4e8b36/swamp-linux-aarch64</a> -o swamp</p>
+<p>chmod +x swamp &amp;&amp; sudo mv swamp /</p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261031.061007.0-sha.1a4e8b36" rel="noopener">release v20261031.061007.0-sha.1a4e8b36</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1a4e8b36d048a10f4997de2a3b1d010ae54ecc1e" rel="noopener">1a4e8b36</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3523" rel="noopener">#3523</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261031-060248-0-sha-8d2591d2">
+<h2><span class="tier A">A</span>a serve-mode checkout works offline under a lease checked out first, flushes and rebases on reconnect, quarantines writes a revoked grant refuses, and explicit leases survive a leader takeover (swamp-club#4195) (#3521)</h2>
+<p class="lede">`feat` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-31T06:08:41Z">2026-10-31T06:08:41Z</time></span><span>datastore</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(datastore): a serve-mode checkout works offline under a lease checked out first, flushes and rebases on reconnect, quarantines writes a revoked grant refuses, and explicit leases survive a leader takeover (swamp-club#4195) (#3521)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Datastore rework Phase 5 (team mode), <code>p5-offline</code>, for swamp-club#4195. A serve-mode v3 checkout keeps working while serve is unreachable, and explicit leases survive a leader takeover.</p>
+<p><strong>Offline rules</strong></p>
+<ul>
+<li>Reads, and <code>read</code>/<code>list</code> methods, run from the checkout&#39;s copy with a stale-read notice.</li>
+<li>A writing method or workflow step runs only on a behavior whose explicit lease the checkout took while online (<code>swamp behavior lease acquire &lt;name&gt; --for &lt;duration&gt;</code>, now up to 24 h). Otherwise it is refused with <code>datastore_v3_offline_lease_required</code>, exit 75. Definition edits are refused with <code>datastore_v3_offline_config_edit</code>.</li>
+<li>Allowed writes go to the outbox (schema 6: <code>offline</code>, <code>rejected</code> and <code>quarantined</code> states), and the command says the work is saved locally and exits 0. In <code>--json</code> mode that notice is a JSON object on stderr; stdout is unchanged.</li>
+<li>A command that started online and lost serve midway still exits 75, as before.</li>
+</ul>
+<p><strong>Flush and rebase on reconnect</strong></p>
+<ul>
+<li>The next writing command flushes queued entries under the writer hold, one commit per entry under its original txnId, so a cut-off flush never lands an entry twice.</li>
+<li>Versions are renumbered after what landed meanwhile; nothing committed is renumbere</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/behavior/references/concurrency.md" rel="noopener">.claude/skills/swamp/references/behavior/references/concurrency.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/data/reference.md" rel="noopener">.claude/skills/swamp/references/data/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/troubleshooting/guide.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/data.md" rel="noopener">design/primitives/data.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261031.060248.0-sha.8d2591d2" rel="noopener">release v20261031.060248.0-sha.8d2591d2</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8d2591d285ae136103340a1b41ec2a6d279837f8" rel="noopener">8d2591d2</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3521" rel="noopener">#3521</a>𝗔 <a href="https://swamp-club.com/lab/4195" rel="noopener">lab#4195</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261031-054141-0-sha-a063141a">
+<h2><span class="tier A">A</span>a v3 follower reloads its access policy after its read model catches up, and a takeover applies its commits before it leads (swamp-club#4219) (#3519)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-31T05:47:27Z">2026-10-31T05:47:27Z</time></span><span>serve</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): a v3 follower reloads its access policy after its read model catches up, and a takeover applies its commits before it leads (swamp-club#4219) (#3519)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#4219. On an S3 or GCS v3 datastore, a follower could finish starting with no grants in its access policy and stay that way until it restarted. It denied reads to its own admin, and its <code>changes</code> feed returned nothing to them.</p>
+<p><code>ServeCommitEffects</code> ran when the follower&#39;s commit store moved. That happens before the read model writes the files the policy and catalog read, so the reload read the old files. The cursor then moved past those commits, and the <code>poke()</code> after catch-up found nothing to do. <code>filesystem-v3</code> doesn&#39;t show this because its nodes share one <code>commits.db</code>.</p>
+<h4 class="body-h">Change</h4>
+<ul>
+<li><strong>A follower applies effects only on <code>poke()</code></strong>, which runs after catch-up, and only up to the read model&#39;s cursor (the new <code>SqliteReadModel.cursor()</code>). A commit landing during catch-up waits for the next poke.</li>
+<li><strong>A replaced copy counts only at a poke</strong>, so a pass queued before a restore can&#39;t use up the restore&#39;s refresh.</li>
+<li><strong>A takeover applies what it restored before it leads.</strong> <code>onLead</code> catches up and pokes while the role is still follower; otherwise those commits&#39; catalog and policy effects would be dropped.</li>
+<li><strong><code>settled()</code> now also waits for a queued pass.</strong></li>
+</ul>
+<p>The revocation case is not reproduced: a grant change reaching a follower took the same path, so it could have been missed</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261031.054141.0-sha.a063141a" rel="noopener">release v20261031.054141.0-sha.a063141a</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a063141aee47f32906c270c6cd4ab91188c89f9f" rel="noopener">a063141a</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3519" rel="noopener">#3519</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261031-012334-0-sha-345cd367">
 <h2><span class="tier A">A</span>an Agent sessions Preview page lists the coding-agent sessions the viewer can read, newest first, with totals, a repo filter, findings, a turn timeline and a call inspector (swamp-club#4155) (#3518)</h2>
 <p class="lede">`feat` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-10-31T01:27:41Z">2026-10-31T01:27:41Z</time></span><span>dashboard</span><span>feat</span></div>
@@ -15830,6 +15948,28 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261015.222935.0-sha.852243ed" rel="noopener">release v20261015.222935.0-sha.852243ed</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/852243edf2e7c999e8f4f08c9f54f4e18575c9ff" rel="noopener">852243ed</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3152" rel="noopener">#3152</a></div>
 </article>
+<article class="item" id="release-swamp-club-swamp-v20261031-055451-0-sha-04445c2c">
+<h2><span class="tier C">C</span>the nested-workflow guide says a parent reads a child&#39;s outputs whether or not the child is gated, and states how grants, vaults, identity, versions and approvals apply to a child run (swamp-club#4218) (#3522)</h2>
+<p class="lede">`docs` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-10-31T06:00:24Z">2026-10-31T06:00:24Z</time></span><span>workflows</span><span>docs</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>docs(workflows): the nested-workflow guide says a parent reads a child&#39;s outputs whether or not the child is gated, and states how grants, vaults, identity, versions and approvals apply to a child run (swamp-club#4218) (#3522)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#4218.</p>
+<p>A user designing a shared audit-and-notify child workflow, called from several parents that keep their own approval gates, read the docs as saying a parent only gets a child&#39;s outputs when the child has an approval gate. The only place the docs said a parent &quot;adopts the child&#39;s outputs&quot; was the section on gates inside a nested workflow. In fact a parent gets them from every child that succeeds (<code>StepOutputResolver.resolveChildOutputs</code>, called from <code>runWorkflowStep</code>).</p>
+<p>The nested-workflows guide also said nothing about how grants, vaults, identity, versions or approvals apply to a child run, and those were the user&#39;s other questions.</p>
+<ul>
+<li><strong><code>nested-workflows.md</code></strong> (bundled <code>swamp</code> skill): new &quot;Reading the Child&#39;s Outputs&quot; section (the <code>steps.&lt;step&gt;.outputs.&lt;child-step&gt;.&lt;attr&gt;</code> form, one level deep, <code>dependsOn</code>, bracket access, ephemeral data on resume) and &quot;Authorization, Identity and Versions&quot; section:</li>
+<li><code>run</code> on the parent covers the child and the behaviors it calls.</li>
+<li>There is no &quot;only callable from&quot; setting; withholding <code>run</code> on a child stops direct starts but not calls from a parent.</li>
+<li>Vault checks use the parent&#39;s triggering principal, and <code>vaults:</code> lists are intersected.</li>
+<li>The child i</li>
+</ul></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/references/nested-workflows.md" rel="noopener">.claude/skills/swamp/references/workflow/references/nested-workflows.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261031.055451.0-sha.04445c2c" rel="noopener">release v20261031.055451.0-sha.04445c2c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/04445c2c3ed930ca44f6b785a6d9881e3c58aeb9" rel="noopener">04445c2c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3522" rel="noopener">#3522</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261030-224448-0-sha-725b3e6f">
 <h2><span class="tier C">C</span>tests on main pass on macOS&#39;s symlinked temp dir and on Windows, and an inbox coverage check no longer rests on chance (swamp-club#4209) (#3517)</h2>
 <p class="lede">`test` change · swamp-club/swamp</p>
@@ -16930,13 +17070,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261001.073437.0-sha.acf6214e" rel="noopener">release v20261001.073437.0-sha.acf6214e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/acf6214ef9980daf68e919a43f6db3cff17da608" rel="noopener">acf6214e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/2762" rel="noopener">#2762</a>𝗔 <a href="https://swamp-club.com/lab/2854" rel="noopener">lab#2854</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>699 items across 1 source(s) in this window:
-27 critical, 608 notable, 23 routine,
-41 minor.</p>
-<ul><li><strong>fix</strong> — 455</li><li><strong>feat</strong> — 177</li><li><strong>test</strong> — 23</li><li><strong>docs</strong> — 19</li><li><strong>refactor</strong> — 15</li><li><strong>perf</strong> — 7</li></ul></section>
+<p>704 items across 1 source(s) in this window:
+27 critical, 612 notable, 23 routine,
+42 minor.</p>
+<ul><li><strong>fix</strong> — 457</li><li><strong>feat</strong> — 179</li><li><strong>test</strong> — 23</li><li><strong>docs</strong> — 20</li><li><strong>refactor</strong> — 15</li><li><strong>perf</strong> — 7</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-31T07:02:32.626Z">2026-10-31T07:02:32.626Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-31T08:02:39.327Z">2026-10-31T08:02:39.327Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

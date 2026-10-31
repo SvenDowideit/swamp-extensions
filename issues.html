@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3889"><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli deco</a><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-4156"><span class="tier A">A</span>Agent sessions extension: import Claude Code sessions as rep</a><a href="#issue-4144"><span class="tier A">A</span>Dashboard Behaviors page fetches 5,000 raw output rows to co</a><a href="#issue-4032"><span class="tier A">A</span>Datastore v2 on macOS: order data-version writes with F_BARR</a><a href="#issue-4185"><span class="tier A">A</span>Swamp Club inbox operations: re-sync the contract fixture, a</a><a href="#issue-4145"><span class="tier A">A</span>Output summary index for the filesystem datastore so history</a><a href="#issue-4138"><span class="tier A">A</span>doctor datastores --repair finds and uploads cache files the</a><a href="#issue-4177"><span class="tier A">A</span>data.query: sort and keyset cursor for bounded newest-first </a><a href="#issue-4192"><span class="tier A">A</span>S3/GCS migrate-index drops newer shard entries when _meta.js</a><a href="#issue-4201"><span class="tier A">A</span>video: kept word clipped when it runs into a fast-forward (n</a><a href="#issue-3702"><span class="tier A">A</span>workflow cancel --server ignores --ca-cert and SWAMP_CA_CERT</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-3889"><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli deco</a><a href="#issue-3576"><span class="tier S">S</span>[nit] swamp issue bug/feature/security: --title without --bo</a><a href="#issue-4211"><span class="tier A">A</span>agent-sessions: import other repos (repos allow-list) and ev</a><a href="#issue-4155"><span class="tier A">A</span>Agent sessions: preview page in the dashboard, shown only wh</a><a href="#issue-4156"><span class="tier A">A</span>Agent sessions extension: import Claude Code sessions as rep</a><a href="#issue-4144"><span class="tier A">A</span>Dashboard Behaviors page fetches 5,000 raw output rows to co</a><a href="#issue-4032"><span class="tier A">A</span>Datastore v2 on macOS: order data-version writes with F_BARR</a><a href="#issue-4185"><span class="tier A">A</span>Swamp Club inbox operations: re-sync the contract fixture, a</a><a href="#issue-4145"><span class="tier A">A</span>Output summary index for the filesystem datastore so history</a><a href="#issue-4138"><span class="tier A">A</span>doctor datastores --repair finds and uploads cache files the</a><a href="#issue-4177"><span class="tier A">A</span>data.query: sort and keyset cursor for bounded newest-first </a><a href="#issue-4192"><span class="tier A">A</span>S3/GCS migrate-index drops newer shard entries when _meta.js</a></aside><div>
 
 <article class="item" id="issue-3889">
 <h2><span class="tier S">S</span>Add @swamp/cve/http2shell: scan and mitigate the Brotli decoder RCE (CVE-2026-111497, Node2Shell/HTTP2Shell)</h2>
@@ -84,6 +84,22 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3576" rel="noopener">lab#3576</a></div>
+</article>
+<article class="item" id="issue-4211">
+<h2><span class="tier A">A</span>agent-sessions: import other repos (repos allow-list) and every session on the machine (all)</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-31T02:04:38.713Z">2026-10-31T02:04:38.713Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4211" rel="noopener">lab#4211</a></div>
+</article>
+<article class="item" id="issue-4155">
+<h2><span class="tier A">A</span>Agent sessions: preview page in the dashboard, shown only when session data exists</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-10-31T01:24:11.095Z">2026-10-31T01:24:11.095Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4155" rel="noopener">lab#4155</a></div>
 </article>
 <article class="item" id="issue-4156">
 <h2><span class="tier A">A</span>Agent sessions extension: import Claude Code sessions as repo data</h2>
@@ -149,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4192" rel="noopener">lab#4192</a></div>
 </article>
-<article class="item" id="issue-4201">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4201">
 <h2><span class="tier A">A</span>video: kept word clipped when it runs into a fast-forward (no PAD/air at the edge; mute starts frame 1)</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-30T21:05:17.769Z">2026-10-30T21:05:17.769Z</time></span></div>
@@ -165,7 +181,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3702" rel="noopener">lab#3702</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4197">
+<article class="item" id="issue-4197">
 <h2><span class="tier A">A</span>The #3961 queued-sync deadline test reads a later probe&#39;s deadline under the full test suite</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-10-30T19:55:29.855Z">2026-10-30T19:55:29.855Z</time></span></div>
@@ -7413,14 +7429,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2680" rel="noopener">lab#2680</a></div>
 </article>
-<article class="item" id="issue-4211">
-<h2><span class="tier B">B</span>agent-sessions: import other repos (repos allow-list) and every session on the machine (all)</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-10-31T00:58:26.188Z">2026-10-31T00:58:26.188Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4211" rel="noopener">lab#4211</a></div>
-</article>
 <article class="item" id="issue-4207">
 <h2><span class="tier B">B</span>v3 team mode on S3/GCS: a follower holds no grants, so it filters every commit out of reads while advancing the caller&#39;s cursor</h2>
 <p class="lede">Issue in_progress</p>
@@ -7460,14 +7468,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4171" rel="noopener">lab#4171</a></div>
-</article>
-<article class="item" id="issue-4155">
-<h2><span class="tier B">B</span>Agent sessions: preview page in the dashboard, shown only when session data exists</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-10-30T19:49:08.384Z">2026-10-30T19:49:08.384Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4155" rel="noopener">lab#4155</a></div>
 </article>
 <article class="item" id="issue-4016">
 <h2><span class="tier B">B</span>Docs: doctor datastores reference — unreadable data version check and repair (swamp-club#3955)</h2>
@@ -7565,7 +7565,15 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2868" rel="noopener">lab#2868</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4210">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4212">
+<h2><span class="tier C">C</span>agent-sessions: follow-ups from the 4211 reviews (repo resolution cache and edge cases)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-10-31T01:57:11.878Z">2026-10-31T01:57:11.878Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4212" rel="noopener">lab#4212</a></div>
+</article>
+<article class="item" id="issue-4210">
 <h2><span class="tier C">C</span>agent-sessions: revisit the import&#39;s remaining review findings (redaction edge cases, import robustness)</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-10-30T22:48:08.855Z">2026-10-30T22:48:08.855Z</time></span></div>
@@ -9950,13 +9958,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/2849" rel="noopener">lab#2849</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>1235 items across 1 source(s) in this window:
-2 critical, 916 notable, 19 routine,
-298 minor.</p>
-<ul><li><strong>issues</strong> — 1235</li></ul></section>
+<p>1236 items across 1 source(s) in this window:
+2 critical, 918 notable, 17 routine,
+299 minor.</p>
+<ul><li><strong>issues</strong> — 1236</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-31T01:01:59.100Z">2026-10-31T01:01:59.100Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-10-31T02:07:58.671Z">2026-10-31T02:07:58.671Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

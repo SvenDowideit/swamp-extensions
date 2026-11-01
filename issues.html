@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4180"><span class="tier A">A</span>Flaky test: access_poll_phase_telemetry_test sees grants_act</a><a href="#issue-4221"><span class="tier A">A</span>Flaky: v3 replica check stall test reads restore.pid before </a><a href="#issue-4228"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-4206"><span class="tier A">A</span>An author can lose all record of a ship when the fixed-in ve</a><a href="#issue-4205"><span class="tier A">A</span>Decide how inbox audit snapshots treat a recipient named in </a><a href="#issue-4204"><span class="tier A">A</span>A failed inbox send can reach people and leave no audit entr</a><a href="#issue-4194"><span class="tier A">A</span>An expired temporary ban still refuses a personal API key un</a><a href="#issue-4207"><span class="tier A">A</span>v3 team mode on S3/GCS: a follower holds no grants, so it fi</a><a href="#issue-4102"><span class="tier B">B</span>Remote worker queryData exceeds the fixed 30 s RPC limit at </a><a href="#issue-4187"><span class="tier C">C</span>swamp serve --groups-field help says group/collective member</a><a href="#issue-4229"><span class="tier C">C</span>Align Caddy reverse-proxy TLS documentation with Kubernetes </a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4246"><span class="tier A">A</span>swamp inbox: mentions leave the CLI inbox, so update the sha</a><a href="#issue-4250"><span class="tier A">A</span>The inbox contract fixture and design doc match swamp-club#4</a><a href="#issue-4028"><span class="tier A">A</span>@swamp/cloudflare/analytics README documents CRUD methods th</a><a href="#issue-4180"><span class="tier A">A</span>Flaky test: access_poll_phase_telemetry_test sees grants_act</a><a href="#issue-4221"><span class="tier A">A</span>Flaky: v3 replica check stall test reads restore.pid before </a><a href="#issue-4228"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-4206"><span class="tier A">A</span>An author can lose all record of a ship when the fixed-in ve</a><a href="#issue-4205"><span class="tier A">A</span>Decide how inbox audit snapshots treat a recipient named in </a><a href="#issue-4204"><span class="tier A">A</span>A failed inbox send can reach people and leave no audit entr</a><a href="#issue-4194"><span class="tier A">A</span>An expired temporary ban still refuses a personal API key un</a><a href="#issue-4207"><span class="tier A">A</span>v3 team mode on S3/GCS: a follower holds no grants, so it fi</a></aside><div>
 
 <article class="item" id="issue-4239">
 <h2><span class="tier S">S</span>swamp issue: file bugs, features and security reports against the platform source</h2>
@@ -76,6 +76,30 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-4246">
+<h2><span class="tier A">A</span>swamp inbox: mentions leave the CLI inbox, so update the shared fixture and docs (companion to swamp-club#4241)</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-01T20:22:48.309Z">2026-11-01T20:22:48.309Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4246" rel="noopener">lab#4246</a></div>
+</article>
+<article class="item" id="issue-4250">
+<h2><span class="tier A">A</span>The inbox contract fixture and design doc match swamp-club#4241: the CLI inbox carries only messages Swamp Club writes</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-01T20:22:47.922Z">2026-11-01T20:22:47.922Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4250" rel="noopener">lab#4250</a></div>
+</article>
+<article class="item" id="issue-4028">
+<h2><span class="tier A">A</span>@swamp/cloudflare/analytics README documents CRUD methods the GraphQL analytics model does not have</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-01T20:05:34.156Z">2026-11-01T20:05:34.156Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4028" rel="noopener">lab#4028</a></div>
 </article>
 <article class="item" id="issue-4180">
 <h2><span class="tier A">A</span>Flaky test: access_poll_phase_telemetry_test sees grants_active 1 where the snapshot build read 2 records</h2>
@@ -141,6 +165,54 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4253">
+<h2><span class="tier B">B</span>serve-mode: two commands starting together in a fresh checkout can fail with &#39;A datastore format marker already exists&#39; (exit 1, no code)</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-01T20:26:27.480Z">2026-11-01T20:26:27.480Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4253" rel="noopener">lab#4253</a></div>
+</article>
+<article class="item" id="issue-4230">
+<h2><span class="tier B">B</span>cfgmgmt firewall: match rules by destination and comment</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-01T20:24:22.995Z">2026-11-01T20:24:22.995Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4230" rel="noopener">lab#4230</a></div>
+</article>
+<article class="item" id="issue-4254">
+<h2><span class="tier B">B</span>serve team: members get serve_upstream_diverged, with advice to move the copy aside, for a few seconds after a takeover on S3/GCS (follow-up to #4049)</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-01T20:23:18.646Z">2026-11-01T20:23:18.646Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4254" rel="noopener">lab#4254</a></div>
+</article>
+<article class="item" id="issue-4187">
+<h2><span class="tier B">B</span>swamp serve --groups-field help says group/collective memberships; it names only the collectives field</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-01T20:16:01.985Z">2026-11-01T20:16:01.985Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4187" rel="noopener">lab#4187</a></div>
+</article>
+<article class="item" id="issue-4252">
+<h2><span class="tier B">B</span>cfgmgmt firewall: iptables and firewalld report compliant from a destination-scoped rule</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-01T20:13:46.061Z">2026-11-01T20:13:46.061Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4252" rel="noopener">lab#4252</a></div>
+</article>
+<article class="item" id="issue-4251">
+<h2><span class="tier B">B</span>cfgmgmt firewall: ufw source with /32 or /128 prefix never matches</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-01T20:13:45.876Z">2026-11-01T20:13:45.876Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4251" rel="noopener">lab#4251</a></div>
+</article>
 <article class="item" id="issue-4102">
 <h2><span class="tier B">B</span>Remote worker queryData exceeds the fixed 30 s RPC limit at ~2k record versions after @swamp/s3-datastore 2026.10.24.2 (follow-up to #3361)</h2>
 <p class="lede">Issue in_progress</p>
@@ -148,30 +220,22 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4102" rel="noopener">lab#4102</a></div>
-</article>
-<article class="item" id="issue-4187">
-<h2><span class="tier C">C</span>swamp serve --groups-field help says group/collective memberships; it names only the collectives field</h2>
+</article></section>
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4249">
+<h2><span class="tier C">C</span>datastore v3: in a serve-mode checkout, a run that reports suspended can leave its record at running, so serve refuses to approve it</h2>
 <p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-01T19:04:54.190Z">2026-11-01T19:04:54.190Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-01T20:17:18.011Z">2026-11-01T20:17:18.011Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4187" rel="noopener">lab#4187</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4249" rel="noopener">lab#4249</a></div>
 </article>
-<article class="item" id="issue-4229">
-<h2><span class="tier C">C</span>Align Caddy reverse-proxy TLS documentation with Kubernetes proxy guidance</h2>
+<article class="item" id="issue-4248">
+<h2><span class="tier C">C</span>Scheduled flaky-test detection is failing</h2>
 <p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-01T19:04:53.988Z">2026-11-01T19:04:53.988Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-01T19:05:45.435Z">2026-11-01T19:05:45.435Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4229" rel="noopener">lab#4229</a></div>
-</article>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4246">
-<h2><span class="tier C">C</span>swamp inbox: mentions leave the CLI inbox, so update the shared fixture and docs (companion to swamp-club#4241)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-01T18:37:46.165Z">2026-11-01T18:37:46.165Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4246" rel="noopener">lab#4246</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4248" rel="noopener">lab#4248</a></div>
 </article>
 <article class="item" id="issue-4244">
 <h2><span class="tier C">C</span>Run the live Mongo tests in CI</h2>
@@ -278,13 +342,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>26 items across 1 source(s) in this window:
-1 critical, 8 notable, 1 routine,
-16 minor.</p>
-<ul><li><strong>issues</strong> — 26</li></ul></section>
+<p>34 items across 1 source(s) in this window:
+1 critical, 11 notable, 7 routine,
+15 minor.</p>
+<ul><li><strong>issues</strong> — 34</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-01T19:08:16.236Z">2026-11-01T19:08:16.236Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-01T20:29:08.611Z">2026-11-01T20:29:08.611Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

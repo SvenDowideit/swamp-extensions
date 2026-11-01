@@ -67,8 +67,90 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261101-180046-0-sha-d1bb1cf2"><span class="tier A">A</span>a v3 bucket follower never pages a cursor past commits its p</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261101-184944-0-sha-30a05f37"><span class="tier S">S</span>swamp issue bug, feature and security can file against the p</a><a href="#release-swamp-club-swamp-v20261101-201640-0-sha-a249247f"><span class="tier A">A</span>dashboard sign-in accepts HTTP/2 requests, and --groups-fiel</a><a href="#release-swamp-club-swamp-v20261101-184250-0-sha-c845069c"><span class="tier A">A</span>the telemetry, property and replica stall tests no longer fl</a><a href="#release-swamp-club-swamp-v20261101-180046-0-sha-d1bb1cf2"><span class="tier A">A</span>a v3 bucket follower never pages a cursor past commits its p</a><a href="#release-swamp-club-swamp-v20261101-202412-0-sha-0500dc35"><span class="tier C">C</span>the inbox contract fixture and design doc match swamp-club#4</a></aside><div>
 
+<article class="item" id="release-swamp-club-swamp-v20261101-184944-0-sha-30a05f37">
+<h2><span class="tier S">S</span>swamp issue bug, feature and security can file against the platform source with --source platform (swamp-club#4239) (#3526)</h2>
+<p class="lede">Security-related change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-01T18:54:01Z">2026-11-01T18:54:01Z</time></span><span>issue</span><span>feat</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(issue): swamp issue bug, feature and security can file against the platform source with --source platform (swamp-club#4239) (#3526)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Any logged-in user can now file a bug, feature or security report against the platform source with <code>--source platform</code>. Without the flag, the commands file with the source they use today.</p>
+<ul>
+<li><code>--source</code> accepts <code>swamp</code> or <code>platform</code>, and is refused with <code>--extension</code> and <code>--email</code>. The check runs before auth, extension lookup and the editor.</li>
+<li>A report with a chosen source never falls back to email, which cannot carry a source. When not logged in it gets the login error with no prompt, and a timeout no longer suggests <code>--email</code>.</li>
+<li>JSON output gains <code>source: &quot;platform&quot;</code> only for platform filings, and log output gains one line.</li>
+<li>The platform source is separate from the admin-only <code>platform</code> type, which still cannot be filed from the CLI. The issue guide in the swamp skill says so.</li>
+</ul>
+<h4 class="body-h">Not in this PR</h4>
+<p>The manual page lives in the swamp-club repo, so it is not updated here.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>Unit tests cover the validator, flag combinations, the request body, the libswamp pass-through, renderers, the not-logged-in refusal and the timeout message.</li>
+<li>The compiled binary refuses each bad flag combination and value before the editor opens.</li>
+<li><code>verify-build</code>, <code>verify-reviews</code> and <code>verify-skills</code> passed on this commit.</li>
+<li>No real issue was filed against the live API.</li>
+</ul>
+<p>🤖 Generated with [Claude Code](https://claude.com/cl</p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/issue/guide.md" rel="noopener">.claude/skills/swamp/references/issue/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/issue/reference.md" rel="noopener">.claude/skills/swamp/references/issue/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/issue/references/output_shapes.md" rel="noopener">.claude/skills/swamp/references/issue/references/output_shapes.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261101.184944.0-sha.30a05f37" rel="noopener">release v20261101.184944.0-sha.30a05f37</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/30a05f374b68c7a91621ceae48d75e6426da73ba" rel="noopener">30a05f37</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3526" rel="noopener">#3526</a>𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261101-201640-0-sha-a249247f">
+<h2><span class="tier A">A</span>dashboard sign-in accepts HTTP/2 requests, and --groups-field help names only the collectives field (swamp-club#4229, swamp-club#4187) (#3527)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-01T20:22:19Z">2026-11-01T20:22:19Z</time></span><span>serve</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): dashboard sign-in accepts HTTP/2 requests, and --groups-field help names only the collectives field (swamp-club#4229, swamp-club#4187) (#3527)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes two <code>swamp serve</code> issues:</p>
+<ul>
+<li><strong>swamp-club#4229:</strong> dashboard sign-in was refused over HTTP/2. <code>validateDashboardSessionOrigin</code> read only the <code>Host</code> header, but Deno exposes the HTTP/2 authority through <code>Request.url</code> and leaves that header null. Every HTTP/2 request to the dashboard session and device endpoints got <code>403 missing host</code>, even with a matching origin and <code>--trusted-hosts</code> set. A proxy re-encrypting to serve hits this, because HTTP/2 is Caddy&#39;s default for an <code>https://</code> upstream. It now falls back to the request URL, as the no-auth API check already does.</li>
+<li><strong>swamp-club#4187:</strong> the <code>--groups-field</code> help said it names the field for group/collective memberships. It names only the collectives field, so the help text and <code>design/primitives/serve.md</code> now say that.</li>
+</ul>
+<p>The manual changes for #4229 are in a companion swamp-club PR, branch <code>4229</code>.</p>
+<h4 class="body-h">Behaviour changes</h4>
+<ul>
+<li>A request with no <code>Host</code> header now uses the authority in the request URL. That includes HTTP/1.0 requests with no <code>Host</code>, which were previously refused. An empty <code>Host</code> header is still refused.</li>
+<li>The exact origin match is unchanged, and foreign origins are still refused.</li>
+</ul>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>[x] Unit tests in <code>serve_test.ts</code> for no <code>Host</code> header (matching origin, foreign origin, trusted host, forwarded host) and an empty</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261101.201640.0-sha.a249247f" rel="noopener">release v20261101.201640.0-sha.a249247f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a249247ff9dac72c2f2bf9c9238a21765379c35d" rel="noopener">a249247f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3527" rel="noopener">#3527</a>𝗔 <a href="https://swamp-club.com/lab/4229" rel="noopener">lab#4229</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261101-184250-0-sha-c845069c">
+<h2><span class="tier A">A</span>the telemetry, property and replica stall tests no longer flake under scheduled repeats (swamp-club#4228, swamp-club#4180, swamp-club#4221) (#3525)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-01T18:48:18Z">2026-11-01T18:48:18Z</time></span><span>test</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(test): the telemetry, property and replica stall tests no longer flake under scheduled repeats (swamp-club#4228, swamp-club#4180, swamp-club#4221) (#3525)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Makes the tests behind the red scheduled flaky-test runs deterministic. Test code only; no product behaviour changes.</p>
+<ul>
+<li><strong>swamp-club#4180:</strong> the local change source telemetry test assumed the first applied poll saw the whole save. A poll can land between a peer&#39;s metadata and content writes, which the loader skips as mid-write. The test now selects the poll that saw the finished write, and a new test pins the partial build and the next poll applying the grant.</li>
+<li><strong>Corrupt-record telemetry test:</strong> the same race, found by reading the code and confirmed by delaying writes.</li>
+<li><strong>swamp-club#4228 (macOS failure):</strong> the base record property test required random draws to hit every putting intent kind, missing one in about 0.3% of executions. It now passes one example per kind, as swamp-club#4029 did.</li>
+<li><strong>swamp-club#4221:</strong> the replica stall test tolerates a stub killed before it recorded its pid, and asserts the rejection is the deadline&#39;s <code>TimeoutError</code> so a stub that never ran cannot pass.</li>
+</ul>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>Verification workflows passed on this commit; attestation posted.</li>
+<li>Forced each window: writes delayed 120 ms and a 1 ms replica deadline. The old tests fail under those conditions and the fixed tests pass.</li>
+<li>Property test run with examples only (24 runs): every kind covered.</li>
+<li>The natural</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261101.184250.0-sha.c845069c" rel="noopener">release v20261101.184250.0-sha.c845069c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c845069cae61baaacc79183d9b1bbafeb6541527" rel="noopener">c845069c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3525" rel="noopener">#3525</a>𝗔 <a href="https://swamp-club.com/lab/4228" rel="noopener">lab#4228</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261101-180046-0-sha-d1bb1cf2">
 <h2><span class="tier A">A</span>a v3 bucket follower never pages a cursor past commits its policy has not covered, refuses reads while a failed reload leaves its policy unknown, and a serve-mode checkout takes serve&#39;s commits while other processes land them (swamp-club#4207) (#3520)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
@@ -97,15 +179,45 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261101.180046.0-sha.d1bb1cf2" rel="noopener">release v20261101.180046.0-sha.d1bb1cf2</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d1bb1cf235d5d603e41b675c97a67b0af50fa980" rel="noopener">d1bb1cf2</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3520" rel="noopener">#3520</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3519" rel="noopener">#3519</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4089" rel="noopener">#4089</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3521" rel="noopener">#3521</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3524" rel="noopener">#3524</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/849" rel="noopener">#849</a>𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
+<article class="item" id="release-swamp-club-swamp-v20261101-202412-0-sha-0500dc35">
+<h2><span class="tier C">C</span>the inbox contract fixture and design doc match swamp-club#4241: the CLI inbox carries only messages Swamp Club writes (swamp-club#4250, swamp-club#4246) (#3528)</h2>
+<p class="lede">`docs` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-01T20:32:58Z">2026-11-01T20:32:58Z</time></span><span>inbox</span><span>docs</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>docs(inbox): the inbox contract fixture and design doc match swamp-club#4241: the CLI inbox carries only messages Swamp Club writes (swamp-club#4250, swamp-club#4246) (#3528)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Matches swamp&#39;s side of the inbox contract to swamp-club#4241, which narrows the CLI inbox to messages Swamp Club writes. Fixes swamp-club#4250 and its duplicate swamp-club#4246. The CLI behaves the same: the server decides which kinds it serves.</p>
+<ul>
+<li>Removes the <code>mention</code> entry from <code>inbox_responses.fixture.json</code>, byte for byte with swamp-club branch <code>4241</code>.</li>
+<li>Updates <code>design/surfaces/inbox.md</code> and the <code>inboxReadNext</code> doc comment.</li>
+<li>Moves the tests that read the mention to inline data or <code>nurture_stalled</code>, and adds a test that a page holding a kind the server no longer sends still parses.</li>
+</ul>
+<p><strong>Merge order:</strong> merge this first, then swamp-club PR 1470 straight after. swamp-club&#39;s <code>check:inbox-fixture</code> compares against swamp <code>main</code>, so open swamp-club PRs without the #4241 fixture fail that step until 1470 lands.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li><code>cmp</code> of the fixture against swamp-club <code>origin/4241</code> shows no difference.</li>
+<li><code>verify-build</code>, <code>verify-reviews</code> and <code>verify-skills</code> pass on this commit (10 passed, 3 skipped by guard).</li>
+<li>All of <code>integration/</code> passes.</li>
+<li>The compiled binary&#39;s <code>swamp inbox --json</code> ran against the real server; the inbox was empty, so no message data was parsed.</li>
+</ul>
+<p>🤖 Generated with <a href="https://claude.com/claude-code" rel="noopener">Claude Code</a></p>
+<p>---</p>
+<h4 class="body-h">Installation</h4>
+<p>**macOS (Apple Silicon):*</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261101.202412.0-sha.0500dc35" rel="noopener">release v20261101.202412.0-sha.0500dc35</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0500dc35534060a870a5998e5dddbcd015dfc2e1" rel="noopener">0500dc35</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3528" rel="noopener">#3528</a>𝗔 <a href="https://swamp-club.com/lab/4250" rel="noopener">lab#4250</a></div>
+</article>
 
 <section class="tail"><h2>Final thoughts</h2>
-<p>1 items across 1 source(s) in this window:
-0 critical, 1 notable, 0 routine,
-0 minor.</p>
-<ul><li><strong>fix</strong> — 1</li></ul></section>
+<p>5 items across 1 source(s) in this window:
+1 critical, 3 notable, 0 routine,
+1 minor.</p>
+<ul><li><strong>fix</strong> — 3</li><li><strong>feat</strong> — 1</li><li><strong>docs</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-01T20:29:08.611Z">2026-11-01T20:29:08.611Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-01T21:06:10.021Z">2026-11-01T21:06:10.021Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

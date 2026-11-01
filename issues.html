@@ -67,55 +67,79 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4207"><span class="tier B">B</span>v3 team mode on S3/GCS: a follower holds no grants, so it fi</a><a href="#issue-4206"><span class="tier B">B</span>An author can lose all record of a ship when the fixed-in ve</a><a href="#issue-4205"><span class="tier B">B</span>Decide how inbox audit snapshots treat a recipient named in </a><a href="#issue-4204"><span class="tier B">B</span>A failed inbox send can reach people and leave no audit entr</a><a href="#issue-4194"><span class="tier B">B</span>An expired temporary ban still refuses a personal API key un</a><a href="#issue-4102"><span class="tier B">B</span>Remote worker queryData exceeds the fixed 30 s RPC limit at </a><a href="#issue-4238"><span class="tier C">C</span>artifacts.swamp-club.com unreachable in Spain during LaLiga </a><a href="#issue-3483"><span class="tier C">C</span>Workflow run cancellation on concurrency-key conflict</a><a href="#issue-2993"><span class="tier C">C</span>Feedback: Swamp as an approval-gated control plane for a sma</a><a href="#issue-4008"><span class="tier C">C</span>access can-i: evaluate a local grants file without --server</a><a href="#issue-3841"><span class="tier C">C</span>trigger.schedule is evaluated in the serve host&#39;s local time</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4206"><span class="tier A">A</span>An author can lose all record of a ship when the fixed-in ve</a><a href="#issue-4205"><span class="tier A">A</span>Decide how inbox audit snapshots treat a recipient named in </a><a href="#issue-4204"><span class="tier A">A</span>A failed inbox send can reach people and leave no audit entr</a><a href="#issue-4194"><span class="tier A">A</span>An expired temporary ban still refuses a personal API key un</a><a href="#issue-4207"><span class="tier A">A</span>v3 team mode on S3/GCS: a follower holds no grants, so it fi</a><a href="#issue-4228"><span class="tier B">B</span>Scheduled flaky-test detection is failing</a><a href="#issue-4180"><span class="tier B">B</span>Flaky test: access_poll_phase_telemetry_test sees grants_act</a><a href="#issue-4221"><span class="tier B">B</span>Flaky: v3 replica check stall test reads restore.pid before </a><a href="#issue-4102"><span class="tier B">B</span>Remote worker queryData exceeds the fixed 30 s RPC limit at </a><a href="#issue-4244"><span class="tier C">C</span>Run the live Mongo tests in CI</a><a href="#issue-4243"><span class="tier C">C</span>Other bulk write handlers may read a lost connection as ever</a></aside><div>
 
 <article class="item" id="issue-4239">
 <h2><span class="tier S">S</span>swamp issue: file bugs, features and security reports against the platform source</h2>
 <p class="lede">Security-related change</p>
-<div class="meta"><span><time datetime="2026-11-01T16:34:13.120Z">2026-11-01T16:34:13.120Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-01T18:31:54.650Z">2026-11-01T18:31:54.650Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
 </article>
-<article class="item" id="issue-4207">
-<h2><span class="tier B">B</span>v3 team mode on S3/GCS: a follower holds no grants, so it filters every commit out of reads while advancing the caller&#39;s cursor</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-01T16:59:41.915Z">2026-11-01T16:59:41.915Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
-</article>
 <article class="item" id="issue-4206">
-<h2><span class="tier B">B</span>An author can lose all record of a ship when the fixed-in version is cleared</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-01T16:49:12.852Z">2026-11-01T16:49:12.852Z</time></span></div>
+<h2><span class="tier A">A</span>An author can lose all record of a ship when the fixed-in version is cleared</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-01T18:25:54.505Z">2026-11-01T18:25:54.505Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4206" rel="noopener">lab#4206</a></div>
 </article>
 <article class="item" id="issue-4205">
-<h2><span class="tier B">B</span>Decide how inbox audit snapshots treat a recipient named in message text after erasure</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-01T16:49:12.559Z">2026-11-01T16:49:12.559Z</time></span></div>
+<h2><span class="tier A">A</span>Decide how inbox audit snapshots treat a recipient named in message text after erasure</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-01T18:25:54.316Z">2026-11-01T18:25:54.316Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4205" rel="noopener">lab#4205</a></div>
 </article>
 <article class="item" id="issue-4204">
-<h2><span class="tier B">B</span>A failed inbox send can reach people and leave no audit entry</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-01T16:49:12.148Z">2026-11-01T16:49:12.148Z</time></span></div>
+<h2><span class="tier A">A</span>A failed inbox send can reach people and leave no audit entry</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-01T18:25:54.124Z">2026-11-01T18:25:54.124Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4204" rel="noopener">lab#4204</a></div>
 </article>
 <article class="item" id="issue-4194">
-<h2><span class="tier B">B</span>An expired temporary ban still refuses a personal API key until the operative next signs in through a browser</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-01T16:49:11.740Z">2026-11-01T16:49:11.740Z</time></span></div>
+<h2><span class="tier A">A</span>An expired temporary ban still refuses a personal API key until the operative next signs in through a browser</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-01T18:25:53.728Z">2026-11-01T18:25:53.728Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4194" rel="noopener">lab#4194</a></div>
+</article>
+<article class="item" id="issue-4207">
+<h2><span class="tier A">A</span>v3 team mode on S3/GCS: a follower holds no grants, so it filters every commit out of reads while advancing the caller&#39;s cursor</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-01T18:03:22.408Z">2026-11-01T18:03:22.408Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
+</article>
+<article class="item" id="issue-4228">
+<h2><span class="tier B">B</span>Scheduled flaky-test detection is failing</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-01T18:27:44.740Z">2026-11-01T18:27:44.740Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4228" rel="noopener">lab#4228</a></div>
+</article>
+<article class="item" id="issue-4180">
+<h2><span class="tier B">B</span>Flaky test: access_poll_phase_telemetry_test sees grants_active 1 where the snapshot build read 2 records</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-01T18:17:48.630Z">2026-11-01T18:17:48.630Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4180" rel="noopener">lab#4180</a></div>
+</article>
+<article class="item" id="issue-4221">
+<h2><span class="tier B">B</span>Flaky: v3 replica check stall test reads restore.pid before the stub writes it</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-01T18:17:48.243Z">2026-11-01T18:17:48.243Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4221" rel="noopener">lab#4221</a></div>
 </article>
 <article class="item" id="issue-4102">
 <h2><span class="tier B">B</span>Remote worker queryData exceeds the fixed 30 s RPC limit at ~2k record versions after @swamp/s3-datastore 2026.10.24.2 (follow-up to #3361)</h2>
@@ -124,6 +148,30 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4102" rel="noopener">lab#4102</a></div>
+</article>
+<article class="item" id="issue-4244">
+<h2><span class="tier C">C</span>Run the live Mongo tests in CI</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-01T18:13:06.572Z">2026-11-01T18:13:06.572Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4244" rel="noopener">lab#4244</a></div>
+</article>
+<article class="item" id="issue-4243">
+<h2><span class="tier C">C</span>Other bulk write handlers may read a lost connection as every row written</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-01T18:13:02.148Z">2026-11-01T18:13:02.148Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4243" rel="noopener">lab#4243</a></div>
+</article>
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4242">
+<h2><span class="tier C">C</span>An inbox send during a database outage can leave no audit entry</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-01T18:12:57.786Z">2026-11-01T18:12:57.786Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4242" rel="noopener">lab#4242</a></div>
 </article>
 <article class="item" id="issue-4238">
 <h2><span class="tier C">C</span>artifacts.swamp-club.com unreachable in Spain during LaLiga matches (ISP blocking of Cloudflare IPs)</h2>
@@ -165,7 +213,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3841" rel="noopener">lab#3841</a></div>
 </article>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4236">
+<article class="item" id="issue-4236">
 <h2><span class="tier C">C</span>Failed remote methods lose named command-result output handles at Serve</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-11-01T11:28:54.117Z">2026-11-01T11:28:54.117Z</time></span></div>
@@ -206,13 +254,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>17 items across 1 source(s) in this window:
-1 critical, 0 notable, 6 routine,
-10 minor.</p>
-<ul><li><strong>issues</strong> — 17</li></ul></section>
+<p>23 items across 1 source(s) in this window:
+1 critical, 5 notable, 4 routine,
+13 minor.</p>
+<ul><li><strong>issues</strong> — 23</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-01T17:06:23.587Z">2026-11-01T17:06:23.587Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-01T18:37:08.227Z">2026-11-01T18:37:08.227Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

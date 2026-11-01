@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html" class="active">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261101-184944-0-sha-30a05f37"><span class="tier S">S</span>swamp issue bug, feature and security can file against the p</a><a href="#release-swamp-club-swamp-v20261101-201640-0-sha-a249247f"><span class="tier A">A</span>dashboard sign-in accepts HTTP/2 requests, and --groups-fiel</a><a href="#release-swamp-club-swamp-v20261101-184250-0-sha-c845069c"><span class="tier A">A</span>the telemetry, property and replica stall tests no longer fl</a><a href="#release-swamp-club-swamp-v20261101-180046-0-sha-d1bb1cf2"><span class="tier A">A</span>a v3 bucket follower never pages a cursor past commits its p</a><a href="#release-swamp-club-swamp-v20261101-202412-0-sha-0500dc35"><span class="tier C">C</span>the inbox contract fixture and design doc match swamp-club#4</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#release-swamp-club-swamp-v20261101-184944-0-sha-30a05f37"><span class="tier S">S</span>swamp issue bug, feature and security can file against the p</a><a href="#release-swamp-club-swamp-v20261101-215230-0-sha-9621bacd"><span class="tier A">A</span>a team follower behind a member&#39;s copy refuses its read as a</a><a href="#release-swamp-club-swamp-v20261101-213635-0-sha-bdaaaa75"><span class="tier A">A</span>a serve-mode checkout&#39;s catch-up never puts a run&#39;s own chec</a><a href="#release-swamp-club-swamp-v20261101-201640-0-sha-a249247f"><span class="tier A">A</span>dashboard sign-in accepts HTTP/2 requests, and --groups-fiel</a><a href="#release-swamp-club-swamp-v20261101-184250-0-sha-c845069c"><span class="tier A">A</span>the telemetry, property and replica stall tests no longer fl</a><a href="#release-swamp-club-swamp-v20261101-180046-0-sha-d1bb1cf2"><span class="tier A">A</span>a v3 bucket follower never pages a cursor past commits its p</a><a href="#release-swamp-club-swamp-v20261101-220815-0-sha-c94227f6"><span class="tier C">C</span>swamp 20261101.220815.0-sha.c94227f6</a><a href="#release-swamp-club-swamp-v20261101-202412-0-sha-0500dc35"><span class="tier C">C</span>the inbox contract fixture and design doc match swamp-club#4</a></aside><div>
 
 <article class="item" id="release-swamp-club-swamp-v20261101-184944-0-sha-30a05f37">
 <h2><span class="tier S">S</span>swamp issue bug, feature and security can file against the platform source with --source platform (swamp-club#4239) (#3526)</h2>
@@ -97,6 +97,49 @@ footer .ver{color:var(--acc)}
 <p>🤖 Generated with [Claude Code](https://claude.com/cl</p></div>
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/issue/guide.md" rel="noopener">.claude/skills/swamp/references/issue/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/issue/reference.md" rel="noopener">.claude/skills/swamp/references/issue/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/issue/references/output_shapes.md" rel="noopener">.claude/skills/swamp/references/issue/references/output_shapes.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261101.184944.0-sha.30a05f37" rel="noopener">release v20261101.184944.0-sha.30a05f37</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/30a05f374b68c7a91621ceae48d75e6426da73ba" rel="noopener">30a05f37</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3526" rel="noopener">#3526</a>𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261101-215230-0-sha-9621bacd">
+<h2><span class="tier A">A</span>a team follower behind a member&#39;s copy refuses its read as a retryable serve_follower_behind, not divergence, and reports /ready only after its first catch-up (swamp-club#4254) (#3529)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-01T21:58:11Z">2026-11-01T21:58:11Z</time></span><span>serve</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): a team follower behind a member&#39;s copy refuses its read as a retryable serve_follower_behind, not divergence, and reports /ready only after its first catch-up (swamp-club#4254) (#3529)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>After a takeover on an S3 or GCS v3 datastore, the old leader restarts as a follower whose copy is restored from the bucket. It counts as fresh at once and goes back into rotation while its copy still trails the members&#39; copies. A member that read through it saw a partition head below its own commit. It then failed with exit 1 and <code>serve_upstream_diverged</code>, and was told to move its copy aside, when waiting was the fix. This was seen in every S3 and GCS run of the swamp-uat#849 pause drill.</p>
+<ul>
+<li><strong>The member names the seq it holds.</strong> Every partition read now sends <code>held</code>, the seq the member&#39;s copy holds in that partition. The member&#39;s divergence checks ask with <code>after = held - 1</code>, so <code>after</code> alone could not show that the caller is past the follower.</li>
+<li><strong>A follower behind the caller refuses with a retryable error.</strong> It first waits for its leader feed, through a new <code>FollowerFeed.caughtUp</code>. Concurrent requests share that one wait, so a burst asks the leader for its head once. If it is still behind and does not hold its leader&#39;s head, it answers <code>503 serve_follower_behind</code> with <code>Retry-After: 1</code>. The member maps that to <code>ServeFollowerBehindError</code>: exit 75, with advice to retry.</li>
+<li>**A node that boots as a follower reports <code>/ready</code> only after its first catch</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261101.215230.0-sha.9621bacd" rel="noopener">release v20261101.215230.0-sha.9621bacd</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9621bacde5403cefdad9e6304bb302b777976994" rel="noopener">9621bacd</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3529" rel="noopener">#3529</a>𝗔 <a href="https://swamp-club.com/lab/4254" rel="noopener">lab#4254</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261101-213635-0-sha-bdaaaa75">
+<h2><span class="tier A">A</span>a serve-mode checkout&#39;s catch-up never puts a run&#39;s own checkpoint back over its later save, so a run that reports suspended commits suspended (swamp-club#4249) (#3530)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-01T21:41:32Z">2026-11-01T21:41:32Z</time></span><span>datastore</span><span>fix</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(datastore): a serve-mode checkout&#39;s catch-up never puts a run&#39;s own checkpoint back over its later save, so a run that reports suspended commits suspended (swamp-club#4249) (#3530)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#4249. A regression from swamp-club#4120 (PR #3483), which added serve&#39;s feed watch: first shipped in <code>v20261029.223622.0-sha.c5b6107b</code>.</p>
+<p><strong>The bug.</strong> In a serve-mode checkout (format 3, <code>serverAddress</code> set), <code>workflow run --json</code> on a workflow with a <code>manual_approval</code> step could print <code>suspended</code> while the run&#39;s record, in the checkout&#39;s copy and at serve, stayed <code>running</code>. Serve then refused to approve the run.</p>
+<p><strong>The cause.</strong></p>
+<ul>
+<li>A workflow run checkpoints its new record to serve mid-run, saves it again as <code>suspended</code>, and commits that last save when its root ends, reading the record&#39;s file.</li>
+<li><code>workflow run</code> watches serve&#39;s feed meanwhile. A frame bringing the run&#39;s own checkpoint ran the checkout&#39;s catch-up between the <code>suspended</code> save and the root&#39;s commit.</li>
+<li>The read model wrote the checkpoint (<code>running</code>) over the file, and the root committed <code>running</code>. A trace of a source build caught this order; serve&#39;s commit log held the root&#39;s commit with the checkpoint&#39;s content.</li>
+<li>Both copies hold <code>running</code>: the wrong record is what serve committed, not a stale local copy.</li>
+</ul>
+<p><strong>The fix.</strong></p>
+<ul>
+<li><strong>Noting own commits.</strong> A serve-mode checkout&#39;s v3 handle notes the txnId of each commit it sends to serve, before sending it, so a feed frame that beats serve&#39;s rep</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261101.213635.0-sha.bdaaaa75" rel="noopener">release v20261101.213635.0-sha.bdaaaa75</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bdaaaa75ada60ee1da327a9132d4edad121573f4" rel="noopener">bdaaaa75</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3530" rel="noopener">#3530</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3483" rel="noopener">#3483</a>𝗔 <a href="https://swamp-club.com/lab/4249" rel="noopener">lab#4249</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261101-201640-0-sha-a249247f">
 <h2><span class="tier A">A</span>dashboard sign-in accepts HTTP/2 requests, and --groups-field help names only the collectives field (swamp-club#4229, swamp-club#4187) (#3527)</h2>
@@ -179,6 +222,26 @@ footer .ver{color:var(--acc)}
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261101.180046.0-sha.d1bb1cf2" rel="noopener">release v20261101.180046.0-sha.d1bb1cf2</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d1bb1cf235d5d603e41b675c97a67b0af50fa980" rel="noopener">d1bb1cf2</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3520" rel="noopener">#3520</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3519" rel="noopener">#3519</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4089" rel="noopener">#4089</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3521" rel="noopener">#3521</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3524" rel="noopener">#3524</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/849" rel="noopener">#849</a>𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
+<article class="item" id="release-swamp-club-swamp-v20261101-220815-0-sha-c94227f6">
+<h2><span class="tier C">C</span>swamp 20261101.220815.0-sha.c94227f6</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-01T22:13:36Z">2026-11-01T22:13:36Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(datastore): two commands that first use a serve-mode checkout at once both set up its copy, instead of one exiting 1 on the other&#39;s format marker (swamp-club#4253) (#3531)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>In a fresh serve-mode checkout, two swamp commands starting together both created the checkout-local v3 copy. The one that lost the format-marker race exited 1 with no code: <code>A datastore format marker already exists at …/_datastore_v3_copies/serve-&lt;hash&gt;/datastore-format.json. Nothing was changed.</code> The failover drill (swamp-uat#849) hit this in most runs.</p>
+<ul>
+<li><code>bindV3ServeUpstream</code> passes the marker state it saw when it decided to create the copy (<code>adoptConcurrentMarker: { markerSeen }</code>). When that look found no marker, a v3 marker found from then on is another creator&#39;s, however far that creator has got (marker only, its temp file not yet removed, or fully bound with <code>serve_upstream.db</code>), and the loser adopts it and finishes <code>commits.db</code> and <code>_blobs</code>.</li>
+<li>A marker the binding already saw is refused as before (exit 1), and <code>swamp datastore setup</code> passes no option and is unchanged.</li>
+<li>A marker not yet readable whole (the exclusive-create fallback on filesystems without hard links) refuses with the new <code>datastore_v3_copy_setup_raced</code> code, exit 75; a retry finds it whole.</li>
+<li><code>design/enablers/datastores.md</code> describes concurrent first use.</li>
+</ul>
+<p>Three review rounds each found a later window when adoption was decided from a look inside <code>initializeV3Datastore</code>; deciding from the binding</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261101.220815.0-sha.c94227f6" rel="noopener">release v20261101.220815.0-sha.c94227f6</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c94227f6" rel="noopener">c94227f6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3531" rel="noopener">#3531</a>𝗔 <a href="https://swamp-club.com/lab/4253" rel="noopener">lab#4253</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261101-202412-0-sha-0500dc35">
 <h2><span class="tier C">C</span>the inbox contract fixture and design doc match swamp-club#4241: the CLI inbox carries only messages Swamp Club writes (swamp-club#4250, swamp-club#4246) (#3528)</h2>
 <p class="lede">`docs` change · swamp-club/swamp</p>
@@ -211,13 +274,13 @@ footer .ver{color:var(--acc)}
 </article>
 
 <section class="tail"><h2>Final thoughts</h2>
-<p>5 items across 1 source(s) in this window:
-1 critical, 3 notable, 0 routine,
-1 minor.</p>
-<ul><li><strong>fix</strong> — 3</li><li><strong>feat</strong> — 1</li><li><strong>docs</strong> — 1</li></ul></section>
+<p>8 items across 1 source(s) in this window:
+1 critical, 5 notable, 0 routine,
+2 minor.</p>
+<ul><li><strong>fix</strong> — 5</li><li><strong>feat</strong> — 1</li><li><strong>changes</strong> — 1</li><li><strong>docs</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-01T22:05:18.218Z">2026-11-01T22:05:18.218Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-01T23:05:13.513Z">2026-11-01T23:05:13.513Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

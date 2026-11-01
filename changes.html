@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html" class="active">Changes</a><a href="releases.html">Releases</a><a href="issues.html">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#commit-swamp-club-swamp-30a05f374b68c7a91621ceae48d75e6426da73ba"><span class="tier S">S</span>swamp issue bug, feature and security can file against the p</a><a href="#commit-swamp-club-swamp-a249247ff9dac72c2f2bf9c9238a21765379c35d"><span class="tier A">A</span>dashboard sign-in accepts HTTP/2 requests, and --groups-fiel</a><a href="#commit-swamp-club-swamp-extensions-d3530cabaf34afe40c33e35ee35db766165961da"><span class="tier A">A</span>analytics README documents its real methods (swamp-club #402</a><a href="#commit-swamp-club-swamp-c845069cae61baaacc79183d9b1bbafeb6541527"><span class="tier A">A</span>the telemetry, property and replica stall tests no longer fl</a><a href="#commit-swamp-club-swamp-extensions-d094b4bccd154ad49c03e96d5a2d5abb2052a33e"><span class="tier B">B</span>regenerate models from upstream schemas (#615)</a><a href="#commit-swamp-club-swamp-0500dc35534060a870a5998e5dddbcd015dfc2e1"><span class="tier C">C</span>the inbox contract fixture and design doc match swamp-club#4</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#commit-swamp-club-swamp-30a05f374b68c7a91621ceae48d75e6426da73ba"><span class="tier S">S</span>swamp issue bug, feature and security can file against the p</a><a href="#commit-swamp-club-swamp-9621bacde5403cefdad9e6304bb302b777976994"><span class="tier A">A</span>a team follower behind a member&#39;s copy refuses its read as a</a><a href="#commit-swamp-club-swamp-bdaaaa75ada60ee1da327a9132d4edad121573f4"><span class="tier A">A</span>a serve-mode checkout&#39;s catch-up never puts a run&#39;s own chec</a><a href="#commit-swamp-club-swamp-extensions-2e470743b63109fefed6553210db50aaa2b6c93f"><span class="tier A">A</span>firewall matches rules by destination and comment (swamp-clu</a><a href="#commit-swamp-club-swamp-a249247ff9dac72c2f2bf9c9238a21765379c35d"><span class="tier A">A</span>dashboard sign-in accepts HTTP/2 requests, and --groups-fiel</a><a href="#commit-swamp-club-swamp-extensions-d3530cabaf34afe40c33e35ee35db766165961da"><span class="tier A">A</span>analytics README documents its real methods (swamp-club #402</a><a href="#commit-swamp-club-swamp-c845069cae61baaacc79183d9b1bbafeb6541527"><span class="tier A">A</span>the telemetry, property and replica stall tests no longer fl</a><a href="#commit-swamp-club-swamp-extensions-d094b4bccd154ad49c03e96d5a2d5abb2052a33e"><span class="tier B">B</span>regenerate models from upstream schemas (#615)</a><a href="#commit-swamp-club-swamp-0500dc35534060a870a5998e5dddbcd015dfc2e1"><span class="tier C">C</span>the inbox contract fixture and design doc match swamp-club#4</a></aside><div>
 
 <article class="item" id="commit-swamp-club-swamp-30a05f374b68c7a91621ceae48d75e6426da73ba">
 <h2><span class="tier S">S</span>swamp issue bug, feature and security can file against the platform source with --source platform (swamp-club#4239) (#3526)</h2>
@@ -76,6 +76,30 @@ footer .ver{color:var(--acc)}
 <div class="body"><p>feat(issue): swamp issue bug, feature and security can file against the platform source with --source platform (swamp-club#4239) (#3526)</p></div>
 <div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/issue/guide.md" rel="noopener">.claude/skills/swamp/references/issue/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/issue/reference.md" rel="noopener">.claude/skills/swamp/references/issue/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/issue/references/output_shapes.md" rel="noopener">.claude/skills/swamp/references/issue/references/output_shapes.md</a></div>
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/30a05f374b68c7a91621ceae48d75e6426da73ba" rel="noopener">30a05f37</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3526" rel="noopener">#3526</a>𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-9621bacde5403cefdad9e6304bb302b777976994">
+<h2><span class="tier A">A</span>a team follower behind a member&#39;s copy refuses its read as a retryable serve_follower_behind, not divergence, and reports /ready only after its first catch-up (swamp-club#4254) (#3529)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-01T21:52:13Z">2026-11-01T21:52:13Z</time></span><span>serve</span><span>fix</span></div>
+<div class="body"><p>fix(serve): a team follower behind a member&#39;s copy refuses its read as a retryable serve_follower_behind, not divergence, and reports /ready only after its first catch-up (swamp-club#4254) (#3529)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9621bacde5403cefdad9e6304bb302b777976994" rel="noopener">9621bacd</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3529" rel="noopener">#3529</a>𝗔 <a href="https://swamp-club.com/lab/4254" rel="noopener">lab#4254</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-bdaaaa75ada60ee1da327a9132d4edad121573f4">
+<h2><span class="tier A">A</span>a serve-mode checkout&#39;s catch-up never puts a run&#39;s own checkpoint back over its later save, so a run that reports suspended commits suspended (swamp-club#4249) (#3530)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-01T21:36:21Z">2026-11-01T21:36:21Z</time></span><span>datastore</span><span>fix</span></div>
+<div class="body"><p>fix(datastore): a serve-mode checkout&#39;s catch-up never puts a run&#39;s own checkpoint back over its later save, so a run that reports suspended commits suspended (swamp-club#4249) (#3530)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bdaaaa75ada60ee1da327a9132d4edad121573f4" rel="noopener">bdaaaa75</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3530" rel="noopener">#3530</a>𝗔 <a href="https://swamp-club.com/lab/4249" rel="noopener">lab#4249</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-extensions-2e470743b63109fefed6553210db50aaa2b6c93f">
+<h2><span class="tier A">A</span>firewall matches rules by destination and comment (swamp-club #4230) (#619)</h2>
+<p class="lede">`feat` change · swamp-club/swamp-extensions</p>
+<div class="meta"><span><time datetime="2026-11-01T20:51:13Z">2026-11-01T20:51:13Z</time></span><span>cfgmgmt</span><span>feat</span></div>
+<div class="body"><p>feat(cfgmgmt): firewall matches rules by destination and comment (swamp-club #4230) (#619)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/2e470743b63109fefed6553210db50aaa2b6c93f" rel="noopener">2e470743</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/619" rel="noopener">#619</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/4230" rel="noopener">#4230</a></div>
 </article>
 <article class="item" id="commit-swamp-club-swamp-a249247ff9dac72c2f2bf9c9238a21765379c35d">
 <h2><span class="tier A">A</span>dashboard sign-in accepts HTTP/2 requests, and --groups-field help names only the collectives field (swamp-club#4229, swamp-club#4187) (#3527)</h2>
@@ -119,13 +143,13 @@ footer .ver{color:var(--acc)}
 </article>
 
 <section class="tail"><h2>Final thoughts</h2>
-<p>6 items across 2 source(s) in this window:
-1 critical, 3 notable, 1 routine,
+<p>9 items across 2 source(s) in this window:
+1 critical, 6 notable, 1 routine,
 1 minor.</p>
-<ul><li><strong>fix</strong> — 3</li><li><strong>feat</strong> — 1</li><li><strong>chore</strong> — 1</li><li><strong>docs</strong> — 1</li></ul></section>
+<ul><li><strong>fix</strong> — 5</li><li><strong>feat</strong> — 2</li><li><strong>chore</strong> — 1</li><li><strong>docs</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-01T21:06:10.021Z">2026-11-01T21:06:10.021Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-01T22:05:18.218Z">2026-11-01T22:05:18.218Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

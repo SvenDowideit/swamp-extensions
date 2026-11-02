@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4307"><span class="tier A">A</span>serve: every new auto-definition makes the definition index </a><a href="#issue-4304"><span class="tier A">A</span>datastore read model: catching up a partition of 7,000 data </a><a href="#issue-4285"><span class="tier A">A</span>Worker set_status writes an output record on every dispatch,</a><a href="#issue-4181"><span class="tier A">A</span>A limited model.output.search copies and sorts the whole lis</a><a href="#issue-4146"><span class="tier A">A</span>A long model.output.search scan starves other serve requests</a><a href="#issue-4291"><span class="tier A">A</span>Small cleanups from the merged-PR audit and #4245 (layering,</a><a href="#issue-4280"><span class="tier A">A</span>Lookup by id of an auto-definition parses every file in its </a><a href="#issue-4119"><span class="tier A">A</span>@swamp/video: follow-ups from the initial review (card lengt</a><a href="#issue-4124"><span class="tier A">A</span>@swamp/video/brand: follow-ups from the initial review (rend</a><a href="#issue-4223"><span class="tier A">A</span>Hot reload can keep an old local behavior registry and memoi</a><a href="#issue-4298"><span class="tier A">A</span>serve_datastore_lease_fence_test: the large-floor lease test</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4179"><span class="tier A">A</span>A lone step in a job still starts under the aborted signal w</a><a href="#issue-4309"><span class="tier A">A</span>serve reload skips the local catalog reconcile when the sour</a><a href="#issue-4184"><span class="tier A">A</span>A step settled after the abort overwrites the expression-con</a><a href="#issue-4300"><span class="tier A">A</span>CLI lookups by id of auto-definitions read every file of the</a><a href="#issue-4183"><span class="tier A">A</span>The extractContentMetadata property test generates invalid s</a><a href="#issue-4307"><span class="tier A">A</span>serve: every new auto-definition makes the definition index </a><a href="#issue-4304"><span class="tier A">A</span>datastore read model: catching up a partition of 7,000 data </a><a href="#issue-4285"><span class="tier A">A</span>Worker set_status writes an output record on every dispatch,</a><a href="#issue-4181"><span class="tier A">A</span>A limited model.output.search copies and sorts the whole lis</a><a href="#issue-4146"><span class="tier A">A</span>A long model.output.search scan starves other serve requests</a><a href="#issue-4291"><span class="tier A">A</span>Small cleanups from the merged-PR audit and #4245 (layering,</a></aside><div>
 
 <article class="item" id="issue-4239">
 <h2><span class="tier S">S</span>swamp issue: file bugs, features and security reports against the platform source</h2>
@@ -76,6 +76,46 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-4179">
+<h2><span class="tier A">A</span>A lone step in a job still starts under the aborted signal when another job has suspended the run</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-02T20:37:10.438Z">2026-11-02T20:37:10.438Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4179" rel="noopener">lab#4179</a></div>
+</article>
+<article class="item" id="issue-4309">
+<h2><span class="tier A">A</span>serve reload skips the local catalog reconcile when the source files are unchanged since serve&#39;s last refresh pass</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-02T20:37:00.855Z">2026-11-02T20:37:00.855Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4309" rel="noopener">lab#4309</a></div>
+</article>
+<article class="item" id="issue-4184">
+<h2><span class="tier A">A</span>A step settled after the abort overwrites the expression-context entry of a same-named step that ran in another job</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-02T20:25:05.930Z">2026-11-02T20:25:05.930Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4184" rel="noopener">lab#4184</a></div>
+</article>
+<article class="item" id="issue-4300">
+<h2><span class="tier A">A</span>CLI lookups by id of auto-definitions read every file of the type; data prune does it once per model</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-02T20:06:45.138Z">2026-11-02T20:06:45.138Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4300" rel="noopener">lab#4300</a></div>
+</article>
+<article class="item" id="issue-4183">
+<h2><span class="tier A">A</span>The extractContentMetadata property test generates invalid source and fails at random</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-02T20:05:51.339Z">2026-11-02T20:05:51.339Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4183" rel="noopener">lab#4183</a></div>
 </article>
 <article class="item" id="issue-4307">
 <h2><span class="tier A">A</span>serve: every new auto-definition makes the definition index re-stat and re-index its whole type directory, so per-run serve CPU still grows with run count (follow-up to #4280)</h2>
@@ -125,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4291" rel="noopener">lab#4291</a></div>
 </article>
-<article class="item" id="issue-4280">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4280">
 <h2><span class="tier A">A</span>Lookup by id of an auto-definition parses every file in its type directory; serve CPU grows with run count</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-02T17:53:31.240Z">2026-11-02T17:53:31.240Z</time></span></div>
@@ -165,7 +205,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4298" rel="noopener">lab#4298</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4288">
+<article class="item" id="issue-4288">
 <h2><span class="tier A">A</span>affected commands: a *_bench.ts file under src/ is unclassified, so changing a bench marks every command affected</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-02T16:48:17.660Z">2026-11-02T16:48:17.660Z</time></span></div>
@@ -525,71 +565,111 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
-<article class="item" id="issue-4183">
-<h2><span class="tier B">B</span>The extractContentMetadata property test generates invalid source and fails at random</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-02T20:02:36.845Z">2026-11-02T20:02:36.845Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4183" rel="noopener">lab#4183</a></div>
-</article>
-<article class="item" id="issue-4300">
-<h2><span class="tier B">B</span>CLI lookups by id of auto-definitions read every file of the type; data prune does it once per model</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-02T20:02:30.924Z">2026-11-02T20:02:30.924Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4300" rel="noopener">lab#4300</a></div>
-</article>
-<article class="item" id="issue-4184">
-<h2><span class="tier B">B</span>A step settled after the abort overwrites the expression-context entry of a same-named step that ran in another job</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-11-02T20:01:20.282Z">2026-11-02T20:01:20.282Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4184" rel="noopener">lab#4184</a></div>
-</article>
-<article class="item" id="issue-4313">
-<h2><span class="tier B">B</span>datastore read model: a 7,000-version catalog commit is still about 45 times slower with 32 isolates in one process than alone, after statement caching</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-11-02T19:57:36.652Z">2026-11-02T19:57:36.652Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4313" rel="noopener">lab#4313</a></div>
-</article>
-<article class="item" id="issue-4292">
-<h2><span class="tier B">B</span>Pending-dispatch transitions write an output record for every queued remote step, so outputs grow without bound</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-02T19:54:35.665Z">2026-11-02T19:54:35.665Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4292" rel="noopener">lab#4292</a></div>
-</article>
 <article class="item" id="issue-4302">
 <h2><span class="tier B">B</span>A data name written as a file in one run and a resource in a later run silently mixes types in its version history</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-02T19:53:55.601Z">2026-11-02T19:53:55.601Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-02T21:02:01.436Z">2026-11-02T21:02:01.436Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4302" rel="noopener">lab#4302</a></div>
 </article>
+<article class="item" id="issue-4294">
+<h2><span class="tier B">B</span>CLI fixes from the team-mode UAT: lock release --force --model regression on direct S3/GCS (#4281), approve/reject --json extra line, member vault/model rename, --ca-cert on non-v3</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-02T20:58:46.621Z">2026-11-02T20:58:46.621Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4294" rel="noopener">lab#4294</a></div>
+</article>
+<article class="item" id="issue-4236">
+<h2><span class="tier B">B</span>Failed remote methods lose named command-result output handles at Serve</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-02T20:48:05.375Z">2026-11-02T20:48:05.375Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4236" rel="noopener">lab#4236</a></div>
+</article>
+<article class="item" id="issue-4234">
+<h2><span class="tier B">B</span>Worker control WebSocket reports Frame too large and aborts small native dispatches</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-02T20:45:36.312Z">2026-11-02T20:45:36.312Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4234" rel="noopener">lab#4234</a></div>
+</article>
+<article class="item" id="issue-4224">
+<h2><span class="tier B">B</span>swamp serve exhausts its heap when a workflow&#39;s run history carries large inputs: every run save parses and rewrites the whole .runs-index.json</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-02T20:42:07.056Z">2026-11-02T20:42:07.056Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4224" rel="noopener">lab#4224</a></div>
+</article>
+<article class="item" id="issue-4235">
+<h2><span class="tier B">B</span>Whole run-index rewrites block serve dispatch as retained inputs grow</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-02T20:42:06.884Z">2026-11-02T20:42:06.884Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4235" rel="noopener">lab#4235</a></div>
+</article>
+<article class="item" id="issue-4292">
+<h2><span class="tier B">B</span>Pending-dispatch transitions write an output record for every queued remote step, so outputs grow without bound</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-02T20:29:32.816Z">2026-11-02T20:29:32.816Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4292" rel="noopener">lab#4292</a></div>
+</article>
 <article class="item" id="issue-4295">
 <h2><span class="tier B">B</span>v3 run lifecycle: a running job cannot reliably be cancelled, and a killed run&#39;s record loses a step&#39;s start (solo v3, no serve)</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-02T19:21:06.565Z">2026-11-02T19:21:06.565Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-02T20:23:57.534Z">2026-11-02T20:23:57.534Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4295" rel="noopener">lab#4295</a></div>
 </article>
-<article class="item" id="issue-4294">
-<h2><span class="tier B">B</span>CLI fixes from the team-mode UAT: lock release --force --model regression on direct S3/GCS (#4281), approve/reject --json extra line, member vault/model rename, --ca-cert on non-v3</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-02T18:58:16.979Z">2026-11-02T18:58:16.979Z</time></span></div>
+<article class="item" id="issue-4158">
+<h2><span class="tier B">B</span>Agent sessions extension: import Codex sessions</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-02T20:21:30.318Z">2026-11-02T20:21:30.318Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4294" rel="noopener">lab#4294</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4158" rel="noopener">lab#4158</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4315">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4318">
+<h2><span class="tier C">C</span>@swamp/video: upload workflow to publish a take to YouTube (video, description, chapters, captions, thumbnail)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-02T20:52:50.817Z">2026-11-02T20:52:50.817Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4318" rel="noopener">lab#4318</a></div>
+</article>
+<article class="item" id="issue-4317">
+<h2><span class="tier C">C</span>agent-sessions: covered-CLI rule never fires; coverage reads .swamp/upstream_extensions.json, swamp writes extensions/models/upstream_extensions.json</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-02T20:31:56.304Z">2026-11-02T20:31:56.304Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4317" rel="noopener">lab#4317</a></div>
+</article>
+<article class="item" id="issue-4316">
+<h2><span class="tier C">C</span>Docs: data kind refusal across runs and the doctor datastores mixed_kind_names check (swamp-club#4302)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-02T20:29:42.474Z">2026-11-02T20:29:42.474Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4316" rel="noopener">lab#4316</a></div>
+</article>
+<article class="item" id="issue-4313">
+<h2><span class="tier C">C</span>datastore read model: a 7,000-version catalog commit is still about 45 times slower with 32 isolates in one process than alone, after statement caching</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-02T20:10:18.572Z">2026-11-02T20:10:18.572Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4313" rel="noopener">lab#4313</a></div>
+</article>
+<article class="item" id="issue-4315">
 <h2><span class="tier C">C</span>@swamp/video/brand: customizable outro card (next steps, headline, per-video CTA)</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-11-02T19:59:29.811Z">2026-11-02T19:59:29.811Z</time></span></div>
@@ -628,14 +708,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4310" rel="noopener">lab#4310</a></div>
-</article>
-<article class="item" id="issue-4309">
-<h2><span class="tier C">C</span>serve reload skips the local catalog reconcile when the source files are unchanged since serve&#39;s last refresh pass</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-02T17:44:51.177Z">2026-11-02T17:44:51.177Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4309" rel="noopener">lab#4309</a></div>
 </article>
 <article class="item" id="issue-4308">
 <h2><span class="tier C">C</span>Warn when a grant with a methods list is a deny: it also refuses requests that name no method</h2>
@@ -837,38 +909,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3841" rel="noopener">lab#3841</a></div>
 </article>
-<article class="item" id="issue-4236">
-<h2><span class="tier C">C</span>Failed remote methods lose named command-result output handles at Serve</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-01T11:28:54.117Z">2026-11-01T11:28:54.117Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4236" rel="noopener">lab#4236</a></div>
-</article>
-<article class="item" id="issue-4235">
-<h2><span class="tier C">C</span>Whole run-index rewrites block serve dispatch as retained inputs grow</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-01T11:22:10.598Z">2026-11-01T11:22:10.598Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4235" rel="noopener">lab#4235</a></div>
-</article>
-<article class="item" id="issue-4234">
-<h2><span class="tier C">C</span>Worker control WebSocket reports Frame too large and aborts small native dispatches</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-01T10:38:47.729Z">2026-11-01T10:38:47.729Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4234" rel="noopener">lab#4234</a></div>
-</article>
-<article class="item" id="issue-4224">
-<h2><span class="tier C">C</span>swamp serve exhausts its heap when a workflow&#39;s run history carries large inputs: every run save parses and rewrites the whole .runs-index.json</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-01T09:10:49.664Z">2026-11-01T09:10:49.664Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4224" rel="noopener">lab#4224</a></div>
-</article>
 <article class="item" id="issue-4233">
 <h2><span class="tier C">C</span>Supported binary file ingestion for remote members of swamp serve, without the bytes landing in run history</h2>
 <p class="lede">Open issue</p>
@@ -878,13 +918,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>101 items across 1 source(s) in this window:
-1 critical, 56 notable, 8 routine,
-36 minor.</p>
-<ul><li><strong>issues</strong> — 101</li></ul></section>
+<p>106 items across 1 source(s) in this window:
+1 critical, 61 notable, 9 routine,
+35 minor.</p>
+<ul><li><strong>issues</strong> — 106</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-02T20:05:43.891Z">2026-11-02T20:05:43.891Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-02T21:07:16.557Z">2026-11-02T21:07:16.557Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

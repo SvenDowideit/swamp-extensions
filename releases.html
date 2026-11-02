@@ -839,7 +839,76 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261102.151815.0-sha.b8f64405" rel="noopener">release v20261102.151815.0-sha.b8f64405</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b8f6440513579d2a9e7c0c68d6c501d584dfd667" rel="noopener">b8f64405</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3546" rel="noopener">#3546</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4150" rel="noopener">#4150</a>𝗔 <a href="https://swamp-club.com/lab/4231" rel="noopener">lab#4231</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261102-204111-0-sha-a33e992d">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261102-213604-0-sha-235f35fd">
+<h2><span class="tier C">C</span>swamp 20261102.213604.0-sha.235f35fd</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-02T21:42:24Z">2026-11-02T21:42:24Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(remote): a failed remote method&#39;s written outputs are recorded on the failed step (swamp-club#4236) (#3570)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#4236. A method run on a worker that wrote data and then threw (for example a <code>command/shell</code> step exiting nonzero) lost those outputs at serve. The worker sent them in its error reply, but the <code>DispatchService</code> error branch threw without them, and <code>MethodExecutionService</code> rebuilt remote handles only on success. A failed remote step listed only its method-summary reports, while the same step run locally also listed <code>result</code> and <code>log</code>.</p>
+<ul>
+<li><strong>Carry the outputs on the error.</strong> <code>withRemoteOutputs</code> / <code>remoteOutputsOf</code> in <code>src/domain/remote/remote_dispatch.ts</code>. A coded <code>UserError</code> keeps its class, code and paths.</li>
+<li><strong>Serve attaches them.</strong> <code>DispatchService</code>&#39;s error branch attaches <code>result.outputs</code>. A lost worker (including write-then-drop) has no result, so it attaches none, and missing diagnostics stay distinguishable from a confirmed exit.</li>
+<li><strong>Rebuild as handles.</strong> <code>MethodExecutionService</code> rebuilds the outputs from the datastore as the error&#39;s <code>dataHandles</code>, the same way an in-process failure&#39;s handles are attached. The failed step&#39;s <code>dataArtifacts</code>, its output record and the failure&#39;s method-summary report now list them. An output that can&#39;t be rebuilt is logged and skipped, so the method&#39;s own error still comes through.</li>
+<li><strong>Publishing is unchanged.</strong> After a failed dispatch, only the data plane&#39;s <code>writtenVersions</code> are p</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261102.213604.0-sha.235f35fd" rel="noopener">release v20261102.213604.0-sha.235f35fd</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/235f35fd" rel="noopener">235f35fd</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3570" rel="noopener">#3570</a>𝗔 <a href="https://swamp-club.com/lab/4236" rel="noopener">lab#4236</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261102-212859-0-sha-38b37f71">
+<h2><span class="tier C">C</span>swamp 20261102.212859.0-sha.38b37f71</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-02T21:34:22Z">2026-11-02T21:34:22Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(datastore): on v3 a cancel stops a live run before it takes the writer, and a step&#39;s start commits before the step runs, so recover never re-runs it unasked (swamp-club#4295) (#3568)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#4295. Two run-lifecycle problems on a directly bound v3 datastore, with no serve involved:</p>
+<ul>
+<li><strong>Cancel couldn&#39;t stop a live run.</strong> A run&#39;s owner holds the v3 writer for the whole run, and <code>workflow cancel</code> and <code>behavior/model cancel</code> took the writer first. They either waited 60 s and exited 75 with <code>datastore_v3_writer_busy</code>, or reached the run only after it had finished (&quot;no running run&quot;, &quot;already terminal&quot;).</li>
+<li><strong>A killed run could lose a step&#39;s start.</strong> Run records checkpoint at most every 2 s, so a step killed within 2 s of starting stayed <code>pending</code>. <code>workflow recover</code> then reported <code>canAutoRecover: true</code> and re-ran the step without <code>--acknowledge-unknown</code>, repeating its side effects.</li>
+</ul>
+<h4 class="body-h">Changes</h4>
+<p><strong>Cancel</strong> (<code>workflow_cancel.ts</code>, <code>model_cancel.ts</code>):</p>
+<ul>
+<li>On a direct v3 binding, cancel first finds its runs through a read-only open.</li>
+<li>It stops the owners the run tracker vouches for (<code>stopOwnersBeforeWriter</code>, <code>stopLocalRunOwners</code>, <code>stopMethodRunOwners</code>).</li>
+<li>Only then does it take the writer and settle the records. The stopped pids are passed on, so no owner is stopped twice.</li>
+<li>Behavior/model cancel takes the writer only when an owner died without saving its method run.</li>
+<li>A cancel never answers <code>writer_busy</code>. If another process holds the writer</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261102.212859.0-sha.38b37f71" rel="noopener">release v20261102.212859.0-sha.38b37f71</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/38b37f71" rel="noopener">38b37f71</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3568" rel="noopener">#3568</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4274" rel="noopener">#4274</a>𝗔 <a href="https://swamp-club.com/lab/4295" rel="noopener">lab#4295</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261102-210513-0-sha-147e2b3a">
+<h2><span class="tier C">C</span>swamp 20261102.210513.0-sha.147e2b3a</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-02T21:09:58Z">2026-11-02T21:09:58Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(data): a version of another kind than a data name&#39;s latest is refused across runs, and doctor datastores reports names already holding both kinds (swamp-club#4302) (#3567)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>A data name written as a file in one run and a resource in a later run (or the reverse) committed both versions. The earlier kind then vanished from <code>swamp data list</code> and <code>dataType ==</code> queries, readable only by version number.</p>
+<ul>
+<li><code>save</code>, <code>saveDeferred</code> and <code>allocateVersion</code> refuse a version whose kind differs from the name&#39;s latest live version, before any version is allocated, in the filesystem and in-memory repositories:</li>
+</ul>
+<p>  <code>Duplicate data instance name &#39;x&#39; (version 1 was written as file &#39;blob&#39;; delete it with swamp data delete &lt;model&gt; x before writing it as a resource)</code></p>
+<ul>
+<li>The kind is the reserved <code>_swamp.kind</code> tag both writers already stamp (since swamp-club#3684), else <code>tags.type</code> when it is exactly <code>file</code> or <code>resource</code>. A spec change within one kind is allowed.</li>
+<li>A delete or rename marker starts a new history, so deleting the name and writing again changes its kind on purpose.</li>
+<li>The check reuses the latest-version read the ownership check already made; no extra read on the common path.</li>
+<li>The composite repository also checks the other store, so a lifetime change cannot switch a name&#39;s kind between the ephemeral and persistent stores within a workflow run.</li>
+<li><code>swamp doctor datastores</code> gains a <code>mixed_kind_names</code> check over the catalog that lists names whose history alre</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261102.210513.0-sha.147e2b3a" rel="noopener">release v20261102.210513.0-sha.147e2b3a</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/147e2b3a" rel="noopener">147e2b3a</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3567" rel="noopener">#3567</a>𝗔 <a href="https://swamp-club.com/lab/4302" rel="noopener">lab#4302</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261102-204111-0-sha-a33e992d">
 <h2><span class="tier C">C</span>swamp 20261102.204111.0-sha.a33e992d</h2>
 <p class="lede">Change (untyped) · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-11-02T20:47:02Z">2026-11-02T20:47:02Z</time></span></div>
@@ -1015,13 +1084,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261101.202412.0-sha.0500dc35" rel="noopener">release v20261101.202412.0-sha.0500dc35</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0500dc35534060a870a5998e5dddbcd015dfc2e1" rel="noopener">0500dc35</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3528" rel="noopener">#3528</a>𝗔 <a href="https://swamp-club.com/lab/4250" rel="noopener">lab#4250</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>40 items across 1 source(s) in this window:
+<p>43 items across 1 source(s) in this window:
 1 critical, 29 notable, 2 routine,
-8 minor.</p>
-<ul><li><strong>fix</strong> — 25</li><li><strong>feat</strong> — 5</li><li><strong>changes</strong> — 5</li><li><strong>test</strong> — 2</li><li><strong>refactor</strong> — 1</li><li><strong>perf</strong> — 1</li></ul></section>
+11 minor.</p>
+<ul><li><strong>fix</strong> — 25</li><li><strong>changes</strong> — 8</li><li><strong>feat</strong> — 5</li><li><strong>test</strong> — 2</li><li><strong>refactor</strong> — 1</li><li><strong>perf</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-02T21:07:16.557Z">2026-11-02T21:07:16.557Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-02T22:06:53.538Z">2026-11-02T22:06:53.538Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

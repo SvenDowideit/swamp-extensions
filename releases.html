@@ -135,7 +135,7 @@ footer .ver{color:var(--acc)}
 <li><code>YamlWorkflowRunRepository.save</code> takes <code>RunSaveOptions { fence, onRefused }</code> and checks <code>isClosed</code> right before <code>atomicWriteTextFile</code>, after <code>beforeSave</code>. A refused save writes, stages, indexes and publishes nothing.</li>
 <li>A run put carries a <code>withdrawn</code> check. <code>appendGroup</code> asks it under the partition lock on every attempt, drops withdrawn ops, and discards an outbox entry an earlier attempt prepar</li>
 </ul></div>
-
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261102.153824.0-sha.36fe5d25" rel="noopener">release v20261102.153824.0-sha.36fe5d25</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/36fe5d258b204d4b528b4e1b1013c9191aa8c3d9" rel="noopener">36fe5d25</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3547" rel="noopener">#3547</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4101" rel="noopener">#4101</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4195" rel="noopener">#4195</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4269" rel="noopener">#4269</a>𝗔 <a href="https://swamp-club.com/lab/4171" rel="noopener">lab#4171</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261102-072830-0-sha-37107c15">
@@ -156,7 +156,7 @@ footer .ver{color:var(--acc)}
 </ul>
 <p>2. <strong><code>datastore status</code></strong> on S3/GCS reported <code>healthy: false</code> (&quot;No provider available&quot;). A member&#39;s health is now serve&#39;s: one authenticated <code>GET locks</code>, classified as reachable (any answer, including an older serve&#39;s 405 and the retryable <code>serve_not_leader</code> during lease adoption), refused (with serve&#39;s code) or unreachable.</p>
 <p>3. <strong><code>extension install</code> / <code>pull</code></strong> ran on serve, so the type never resolved in the member&#39;s check</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261102.072830.0-sha.37107c15" rel="noopener">release v20261102.072830.0-sha.37107c15</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/37107c15647cbedabf901f49a9747fa3ed051483" rel="noopener">37107c15</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3545" rel="noopener">#3545</a>𝗔 <a href="https://swamp-club.com/lab/4281" rel="noopener">lab#4281</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261102-065804-0-sha-14c811ac">
@@ -214,7 +214,7 @@ footer .ver{color:var(--acc)}
 <li>connected: <code>dispatch</code></li>
 </ul>
 <p>  If fewer than <code>minWorkers</code> (default 1, never 0) are dispatc</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261102.061337.0-sha.a50ae304" rel="noopener">release v20261102.061337.0-sha.a50ae304</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a50ae3042a1f8cf752e4651329fb2aee6f72d3bc" rel="noopener">a50ae304</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3543" rel="noopener">#3543</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4271" rel="noopener">#4271</a>𝗔 <a href="https://swamp-club.com/lab/4279" rel="noopener">lab#4279</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261102-060634-0-sha-b9632eef">
@@ -282,7 +282,7 @@ footer .ver{color:var(--acc)}
 <li><strong>A row serve owns</strong> refuses with the <code>--server</code> hint, whatever the record says. A forged record that leaves out <code>instanceId</code> can no longer reach a local serve&#39;s pid.</li>
 <li><strong>A local row under another pid</strong> is either a local resume about to hand its row over (it does so right after releasing the run&#39;s claim), or a run anot</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/run-tracker.md" rel="noopener">design/enablers/run-tracker.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/run-tracker.md" rel="noopener">design/enablers/run-tracker.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261102.042544.0-sha.bb57f7b5" rel="noopener">release v20261102.042544.0-sha.bb57f7b5</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/bb57f7b530b805527a484d024aca1992a0c0c17b" rel="noopener">bb57f7b5</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3539" rel="noopener">#3539</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261102-040151-0-sha-4d9c4b54">
@@ -306,7 +306,7 @@ footer .ver{color:var(--acc)}
 <ul>
 <li>Deliberately emptying an external grant file now takes up to two poll intervals to revoke: about 60 seconds at the default, up from about</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/access-control.md" rel="noopener">design/enablers/access-control.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261102.040151.0-sha.4d9c4b54" rel="noopener">release v20261102.040151.0-sha.4d9c4b54</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4d9c4b54750e4bcc6d8e394e47d9f526355bdd8d" rel="noopener">4d9c4b54</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3538" rel="noopener">#3538</a>𝗔 <a href="https://swamp-club.com/lab/4272" rel="noopener">lab#4272</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261102-032703-0-sha-1338331a">
@@ -516,7 +516,7 @@ footer .ver{color:var(--acc)}
 <ul>
 <li>[x] Unit tests in <code>serve_test.ts</code> for no <code>Host</code> header (matching origin, foreign origin, trusted host, forwarded host) and an empty</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261101.201640.0-sha.a249247f" rel="noopener">release v20261101.201640.0-sha.a249247f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a249247ff9dac72c2f2bf9c9238a21765379c35d" rel="noopener">a249247f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3527" rel="noopener">#3527</a>𝗔 <a href="https://swamp-club.com/lab/4229" rel="noopener">lab#4229</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261101-184250-0-sha-c845069c">
@@ -677,7 +677,7 @@ footer .ver{color:var(--acc)}
 <ul><li><strong>fix</strong> — 17</li><li><strong>feat</strong> — 4</li><li><strong>test</strong> — 2</li><li><strong>perf</strong> — 1</li><li><strong>docs</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-02T18:32:22.028Z">2026-11-02T18:32:22.028Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-02T19:08:09.645Z">2026-11-02T19:08:09.645Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

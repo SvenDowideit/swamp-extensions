@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4276"><span class="tier A">A</span>The CLI warns when a Swamp Club trial ends within 7 days and</a><a href="#issue-4279"><span class="tier A">A</span>feat(remote): fleet fan-out planning core: a worker pool por</a><a href="#issue-4277"><span class="tier A">A</span>v3 solo: a reader can replay into a checkout mid-command, a </a><a href="#issue-4278"><span class="tier A">A</span>Team mode: test that a lease taken through one serve node co</a><a href="#issue-4271"><span class="tier A">A</span>test: pin today&#39;s placement and fleet fan-out behaviour with</a><a href="#issue-4272"><span class="tier A">A</span>serve: a non-atomic edit of a grants file can briefly revoke</a><a href="#issue-4248"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-4270"><span class="tier A">A</span>Flaky test: GrantsDirectoryPoller shared grants-dir test can</a><a href="#issue-4273"><span class="tier A">A</span>@swamp/cve/http2shell: false patched on third-party libbrotl</a><a href="#issue-3928"><span class="tier A">A</span>Showcase editor: caption counter is not announced to screen </a><a href="#issue-4260"><span class="tier A">A</span>Team mode: serve refuses chunks a teammate can read: more th</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4281"><span class="tier A">A</span>Team mode: member-checkout commands that bind storage or mis</a><a href="#issue-4276"><span class="tier A">A</span>The CLI warns when a Swamp Club trial ends within 7 days and</a><a href="#issue-4279"><span class="tier A">A</span>feat(remote): fleet fan-out planning core: a worker pool por</a><a href="#issue-4277"><span class="tier A">A</span>v3 solo: a reader can replay into a checkout mid-command, a </a><a href="#issue-4278"><span class="tier A">A</span>Team mode: test that a lease taken through one serve node co</a><a href="#issue-4271"><span class="tier A">A</span>test: pin today&#39;s placement and fleet fan-out behaviour with</a><a href="#issue-4272"><span class="tier A">A</span>serve: a non-atomic edit of a grants file can briefly revoke</a><a href="#issue-4248"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-4270"><span class="tier A">A</span>Flaky test: GrantsDirectoryPoller shared grants-dir test can</a><a href="#issue-4273"><span class="tier A">A</span>@swamp/cve/http2shell: false patched on third-party libbrotl</a><a href="#issue-3928"><span class="tier A">A</span>Showcase editor: caption counter is not announced to screen </a></aside><div>
 
 <article class="item" id="issue-4239">
 <h2><span class="tier S">S</span>swamp issue: file bugs, features and security reports against the platform source</h2>
@@ -76,6 +76,14 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-4281">
+<h2><span class="tier A">A</span>Team mode: member-checkout commands that bind storage or misroute through serve (datastore lock, datastore status, extension install/pull, gc --older-than 0m, --json inFlight)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-02T07:29:29.173Z">2026-11-02T07:29:29.173Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4281" rel="noopener">lab#4281</a></div>
 </article>
 <article class="item" id="issue-4276">
 <h2><span class="tier A">A</span>The CLI warns when a Swamp Club trial ends within 7 days and shows, with no off switch, that it has ended, from account notices</h2>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3928" rel="noopener">lab#3928</a></div>
 </article>
-<article class="item" id="issue-4260">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4260">
 <h2><span class="tier A">A</span>Team mode: serve refuses chunks a teammate can read: more than 64 referencing partitions, superseded definition records, and while its read model catches up</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-02T03:27:19.621Z">2026-11-02T03:27:19.621Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4260" rel="noopener">lab#4260</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4259">
+<article class="item" id="issue-4259">
 <h2><span class="tier A">A</span>@swamp/cve/http2shell: Ubuntu missing from LIBBROTLI_TRACKER and NODE_TRACKER</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-02T03:23:58.543Z">2026-11-02T03:23:58.543Z</time></span></div>
@@ -373,14 +381,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
-<article class="item" id="issue-4281">
-<h2><span class="tier B">B</span>Team mode: member-checkout commands that bind storage or misroute through serve (datastore lock, datastore status, extension install/pull, gc --older-than 0m, --json inFlight)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-02T06:47:53.955Z">2026-11-02T06:47:53.955Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4281" rel="noopener">lab#4281</a></div>
-</article>
 <article class="item" id="issue-4102">
 <h2><span class="tier B">B</span>Remote worker queryData exceeds the fixed 30 s RPC limit at ~2k record versions after @swamp/s3-datastore 2026.10.24.2 (follow-up to #3361)</h2>
 <p class="lede">Issue in_progress</p>
@@ -543,12 +543,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>59 items across 1 source(s) in this window:
-1 critical, 37 notable, 2 routine,
+1 critical, 38 notable, 1 routine,
 19 minor.</p>
 <ul><li><strong>issues</strong> — 59</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-02T07:07:04.127Z">2026-11-02T07:07:04.127Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-02T08:09:18.346Z">2026-11-02T08:09:18.346Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

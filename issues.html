@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4369"><span class="tier A">A</span>serve: the schedule catch-up pass misreports a slot claimed </a><a href="#issue-4312"><span class="tier A">A</span>stagecraft studio: low-severity follow-ups from the #3380 la</a><a href="#issue-4311"><span class="tier A">A</span>stagecraft studio: a factory &#39;could not be checked&#39; over pla</a><a href="#issue-4364"><span class="tier A">A</span>serve: a slow or hung control plane delays startup, the boot</a><a href="#issue-4345"><span class="tier A">A</span>serve: one IP-burst bucket guards session restore, WebSocket</a><a href="#issue-4354"><span class="tier A">A</span>verify-reviews: decide fails with EAGAIN after claude -p lea</a><a href="#issue-4162"><span class="tier A">A</span>Filesystem control-plane put races empty-parent cleanup (cro</a><a href="#issue-4357"><span class="tier A">A</span>Two forEach steps in one job run one after the other, not in</a><a href="#issue-4335"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-4356"><span class="tier A">A</span>model.usage.summary response phase walks every extension wor</a><a href="#issue-4292"><span class="tier A">A</span>Pending-dispatch transitions write an output record for ever</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4338"><span class="tier A">A</span>Team mode member checkout: model get prefers an auto-created</a><a href="#issue-4368"><span class="tier A">A</span>Regression from #4319: a commit serve refuses at a run&#39;s ste</a><a href="#issue-4284"><span class="tier A">A</span>Docs: the manual describes the CLI&#39;s trial ending and trial </a><a href="#issue-4303"><span class="tier A">A</span>Docs: method-scoped grants cover only their named methods, i</a><a href="#issue-4316"><span class="tier A">A</span>Docs: data kind refusal across runs and the doctor datastore</a><a href="#issue-4132"><span class="tier A">A</span>Docs: v3 serve team mode, followers forward writes and the a</a><a href="#issue-4169"><span class="tier A">A</span>Docs: team-mode model leases (swamp behavior lease, lease st</a><a href="#issue-4200"><span class="tier A">A</span>Docs: swamp data query --sort, --cursor and nextCursor in th</a><a href="#issue-4203"><span class="tier A">A</span>Docs: working offline against swamp serve (leases, outbox, f</a><a href="#issue-4208"><span class="tier A">A</span>Docs: document the datastore durable setting and its macOS o</a><a href="#issue-4369"><span class="tier A">A</span>serve: the schedule catch-up pass misreports a slot claimed </a></aside><div>
 
 <article class="item" id="issue-4239">
 <h2><span class="tier S">S</span>swamp issue: file bugs, features and security reports against the platform source</h2>
@@ -77,6 +77,86 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
 </article>
+<article class="item" id="issue-4338">
+<h2><span class="tier A">A</span>Team mode member checkout: model get prefers an auto-created definition, run history --active misses own runs, a serve-driven run&#39;s signal receipt missing from the member&#39;s copy, --repo-dir dropped from two hints, serve signal refusals lose the wait id</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-03T22:40:04.626Z">2026-11-03T22:40:04.626Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4338" rel="noopener">lab#4338</a></div>
+</article>
+<article class="item" id="issue-4368">
+<h2><span class="tier A">A</span>Regression from #4319: a commit serve refuses at a run&#39;s step start is reported as datastore_v3_commit_unreachable with outage advice, not forbidden</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-03T22:34:42.382Z">2026-11-03T22:34:42.382Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4368" rel="noopener">lab#4368</a></div>
+</article>
+<article class="item" id="issue-4284">
+<h2><span class="tier A">A</span>Docs: the manual describes the CLI&#39;s trial ending and trial ended notices and the notices field in swamp subscription status --json</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-03T22:34:17.455Z">2026-11-03T22:34:17.455Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4284" rel="noopener">lab#4284</a></div>
+</article>
+<article class="item" id="issue-4303">
+<h2><span class="tier A">A</span>Docs: method-scoped grants cover only their named methods, including vault verbs</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-03T22:34:17.268Z">2026-11-03T22:34:17.268Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4303" rel="noopener">lab#4303</a></div>
+</article>
+<article class="item" id="issue-4316">
+<h2><span class="tier A">A</span>Docs: data kind refusal across runs and the doctor datastores mixed_kind_names check (swamp-club#4302)</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-03T22:34:17.079Z">2026-11-03T22:34:17.079Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4316" rel="noopener">lab#4316</a></div>
+</article>
+<article class="item" id="issue-4132">
+<h2><span class="tier A">A</span>Docs: v3 serve team mode, followers forward writes and the advertise-address and ca-cert serve flags (swamp-club#4120)</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-03T22:34:16.888Z">2026-11-03T22:34:16.888Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4132" rel="noopener">lab#4132</a></div>
+</article>
+<article class="item" id="issue-4169">
+<h2><span class="tier A">A</span>Docs: team-mode model leases (swamp behavior lease, lease status in datastore lock status)</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-03T22:34:16.704Z">2026-11-03T22:34:16.704Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4169" rel="noopener">lab#4169</a></div>
+</article>
+<article class="item" id="issue-4200">
+<h2><span class="tier A">A</span>Docs: swamp data query --sort, --cursor and nextCursor in the data reference</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-03T22:34:16.515Z">2026-11-03T22:34:16.515Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4200" rel="noopener">lab#4200</a></div>
+</article>
+<article class="item" id="issue-4203">
+<h2><span class="tier A">A</span>Docs: working offline against swamp serve (leases, outbox, flush, quarantine) for swamp-club#4195</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-03T22:34:16.325Z">2026-11-03T22:34:16.325Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4203" rel="noopener">lab#4203</a></div>
+</article>
+<article class="item" id="issue-4208">
+<h2><span class="tier A">A</span>Docs: document the datastore durable setting and its macOS ordering in the manual</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-03T22:34:15.935Z">2026-11-03T22:34:15.935Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4208" rel="noopener">lab#4208</a></div>
+</article>
 <article class="item" id="issue-4369">
 <h2><span class="tier A">A</span>serve: the schedule catch-up pass misreports a slot claimed by a crashed instance, a slot run history already settled, and a recorded slot after now</h2>
 <p class="lede">Shipped bug fix</p>
@@ -85,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4369" rel="noopener">lab#4369</a></div>
 </article>
-<article class="item" id="issue-4312">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4312">
 <h2><span class="tier A">A</span>stagecraft studio: low-severity follow-ups from the #3380 layout review</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-03T21:58:21.669Z">2026-11-03T21:58:21.669Z</time></span></div>
@@ -165,7 +245,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4292" rel="noopener">lab#4292</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4351">
+<article class="item" id="issue-4351">
 <h2><span class="tier A">A</span>Docs: name the swamp release that changed auth token revoke and added auth token delete</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-11-03T18:07:07.610Z">2026-11-03T18:07:07.610Z</time></span></div>
@@ -917,109 +997,85 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
-<article class="item" id="issue-4284">
-<h2><span class="tier B">B</span>Docs: the manual describes the CLI&#39;s trial ending and trial ended notices and the notices field in swamp subscription status --json</h2>
+<article class="item" id="issue-4370">
+<h2><span class="tier B">B</span>cli: workflow schedule list prints undefined for an unknown missed-fire reason and an unescaped remote fireTime, and trigger set --catch-up is silently dropped by an older serve</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-03T22:18:48.768Z">2026-11-03T22:18:48.768Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4284" rel="noopener">lab#4284</a></div>
-</article>
-<article class="item" id="issue-4303">
-<h2><span class="tier B">B</span>Docs: method-scoped grants cover only their named methods, including vault verbs</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-03T22:18:48.578Z">2026-11-03T22:18:48.578Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4303" rel="noopener">lab#4303</a></div>
-</article>
-<article class="item" id="issue-4316">
-<h2><span class="tier B">B</span>Docs: data kind refusal across runs and the doctor datastores mixed_kind_names check (swamp-club#4302)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-03T22:18:48.387Z">2026-11-03T22:18:48.387Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4316" rel="noopener">lab#4316</a></div>
-</article>
-<article class="item" id="issue-4132">
-<h2><span class="tier B">B</span>Docs: v3 serve team mode, followers forward writes and the advertise-address and ca-cert serve flags (swamp-club#4120)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-03T22:18:48.196Z">2026-11-03T22:18:48.196Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4132" rel="noopener">lab#4132</a></div>
-</article>
-<article class="item" id="issue-4169">
-<h2><span class="tier B">B</span>Docs: team-mode model leases (swamp behavior lease, lease status in datastore lock status)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-03T22:18:48.000Z">2026-11-03T22:18:48.000Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4169" rel="noopener">lab#4169</a></div>
-</article>
-<article class="item" id="issue-4200">
-<h2><span class="tier B">B</span>Docs: swamp data query --sort, --cursor and nextCursor in the data reference</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-03T22:18:47.810Z">2026-11-03T22:18:47.810Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4200" rel="noopener">lab#4200</a></div>
-</article>
-<article class="item" id="issue-4203">
-<h2><span class="tier B">B</span>Docs: working offline against swamp serve (leases, outbox, flush, quarantine) for swamp-club#4195</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-03T22:18:47.625Z">2026-11-03T22:18:47.625Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4203" rel="noopener">lab#4203</a></div>
-</article>
-<article class="item" id="issue-4208">
-<h2><span class="tier B">B</span>Docs: document the datastore durable setting and its macOS ordering in the manual</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-03T22:18:47.230Z">2026-11-03T22:18:47.230Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4208" rel="noopener">lab#4208</a></div>
-</article>
-<article class="item" id="issue-4338">
-<h2><span class="tier B">B</span>Team mode member checkout: model get prefers an auto-created definition, run history --active misses own runs, a serve-driven run&#39;s signal receipt missing from the member&#39;s copy, --repo-dir dropped from two hints, serve signal refusals lose the wait id</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-03T22:01:31.968Z">2026-11-03T22:01:31.968Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4338" rel="noopener">lab#4338</a></div>
-</article>
-<article class="item" id="issue-4368">
-<h2><span class="tier B">B</span>Regression from #4319: a commit serve refuses at a run&#39;s step start is reported as datastore_v3_commit_unreachable with outage advice, not forbidden</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-03T21:13:00.945Z">2026-11-03T21:13:00.945Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4368" rel="noopener">lab#4368</a></div>
-</article>
-<article class="item" id="issue-4295">
-<h2><span class="tier B">B</span>v3 run lifecycle: a running job cannot reliably be cancelled, and a killed run&#39;s record loses a step&#39;s start (solo v3, no serve)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-02T21:25:53.783Z">2026-11-02T21:25:53.783Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4295" rel="noopener">lab#4295</a></div>
-</article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4370">
-<h2><span class="tier C">C</span>cli: workflow schedule list prints undefined for an unknown missed-fire reason and an unescaped remote fireTime, and trigger set --catch-up is silently dropped by an older serve</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-03T22:21:25.014Z">2026-11-03T22:21:25.014Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-03T23:02:14.787Z">2026-11-03T23:02:14.787Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4370" rel="noopener">lab#4370</a></div>
 </article>
+<article class="item" id="issue-4327">
+<h2><span class="tier B">B</span>v3 serve shutdown: maintenance tick, retention compaction, leadership and commit effects are awaited past the shutdown deadline</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-03T22:56:16.582Z">2026-11-03T22:56:16.582Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4327" rel="noopener">lab#4327</a></div>
+</article></section>
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4374">
+<h2><span class="tier C">C</span>Team-mode dogfood on a real GCS bucket: the team&#39;s work through serve, failover, offline, run lifecycle, and the real-bucket numbers (datastore rework Phase 5)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-03T22:54:15.713Z">2026-11-03T22:54:15.713Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4374" rel="noopener">lab#4374</a></div>
+</article>
+<article class="item" id="issue-4373">
+<h2><span class="tier C">C</span>serve: a capability probe answered by a follower does not speak for the leader that handles the forwarded request</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-03T22:53:22.538Z">2026-11-03T22:53:22.538Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4373" rel="noopener">lab#4373</a></div>
+</article>
+<article class="item" id="issue-4188">
+<h2><span class="tier C">C</span>Read-model catch-up of many data versions slows sharply under load</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-03T22:51:09.026Z">2026-11-03T22:51:09.026Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4188" rel="noopener">lab#4188</a></div>
+</article>
+<article class="item" id="issue-4295">
+<h2><span class="tier C">C</span>v3 run lifecycle: a running job cannot reliably be cancelled, and a killed run&#39;s record loses a step&#39;s start (solo v3, no serve)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-03T22:50:34.470Z">2026-11-03T22:50:34.470Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4295" rel="noopener">lab#4295</a></div>
+</article>
+<article class="item" id="issue-4195">
+<h2><span class="tier C">C</span>Datastore rework Phase 5 (team mode): work offline under a checked-out lease, flush and rebase on reconnect, and keep leases across a takeover</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-03T22:50:26.021Z">2026-11-03T22:50:26.021Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4195" rel="noopener">lab#4195</a></div>
+</article>
 <article class="item" id="issue-4366">
 <h2><span class="tier C">C</span>Docs: reusing an OAuth client when swamp serve is recreated with an empty data dir</h2>
 <p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-03T22:01:04.829Z">2026-11-03T22:01:04.829Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-03T22:46:24.596Z">2026-11-03T22:46:24.596Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4366" rel="noopener">lab#4366</a></div>
+</article>
+<article class="item" id="issue-4372">
+<h2><span class="tier C">C</span>serve OAuth client reuse: remaining review findings from swamp-club#4264</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-03T22:46:23.338Z">2026-11-03T22:46:23.338Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4372" rel="noopener">lab#4372</a></div>
+</article>
+<article class="item" id="issue-4353">
+<h2><span class="tier C">C</span>Package everything on ops.swamp-club.com; stop direct server edits</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-03T22:43:40.305Z">2026-11-03T22:43:40.305Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4353" rel="noopener">lab#4353</a></div>
 </article>
 <article class="item" id="issue-4371">
 <h2><span class="tier C">C</span>Agents.md: consider not using H1 &#39;Project&#39; inside managed block</h2>
@@ -1068,14 +1124,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4358" rel="noopener">lab#4358</a></div>
-</article>
-<article class="item" id="issue-4353">
-<h2><span class="tier C">C</span>Package everything on ops.swamp-club.com; stop direct server edits</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-03T16:30:54.954Z">2026-11-03T16:30:54.954Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4353" rel="noopener">lab#4353</a></div>
 </article>
 <article class="item" id="issue-4131">
 <h2><span class="tier C">C</span>Skill/docs: document registry listing limits, static-extraction rules, and splitting large APIs by domain</h2>
@@ -1164,14 +1212,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4328" rel="noopener">lab#4328</a></div>
-</article>
-<article class="item" id="issue-4327">
-<h2><span class="tier C">C</span>v3 serve shutdown: maintenance tick, retention compaction, leadership and commit effects are awaited past the shutdown deadline</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-02T22:23:36.361Z">2026-11-02T22:23:36.361Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4327" rel="noopener">lab#4327</a></div>
 </article>
 <article class="item" id="issue-4325">
 <h2><span class="tier C">C</span>Team mode manual pages: swamp-serve and remote-execution for leader/follower, member checkouts, offline work, run control and known limits</h2>
@@ -1374,13 +1414,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>163 items across 1 source(s) in this window:
-1 critical, 105 notable, 11 routine,
-46 minor.</p>
-<ul><li><strong>issues</strong> — 163</li></ul></section>
+<p>168 items across 1 source(s) in this window:
+1 critical, 115 notable, 2 routine,
+50 minor.</p>
+<ul><li><strong>issues</strong> — 168</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-03T22:25:33.737Z">2026-11-03T22:25:33.737Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-03T23:08:30.793Z">2026-11-03T23:08:30.793Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

@@ -70,20 +70,36 @@ footer .ver{color:var(--acc)}
 <main>
 <h2 class="page-title">Documentation changes — This month</h2>
 <div class="cards">
-<div class="card"><div class="n">33</div><div class="l">FILES CHANGED</div></div>
-<div class="card"><div class="n">41</div><div class="l">CHANGES</div></div>
-<div class="card"><div class="n">9</div><div class="l">WITH MANUAL PAGE</div></div>
+<div class="card"><div class="n">31</div><div class="l">FILES CHANGED</div></div>
+<div class="card"><div class="n">39</div><div class="l">CHANGES</div></div>
+<div class="card"><div class="n">8</div><div class="l">WITH MANUAL PAGE</div></div>
 </div>
 <p class="lede">Documentation changed in the This month window, newest first. The activity leaderboard is on the
 <a href="leaderboard.html">Leaderboard</a> page.</p>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-11-03T14:40:35Z">2026-11-03T14:40:35Z</time></span><span><a href="https://swamp-club.com/manual/explanation/swamp-serve" rel="noopener">published manual</a></span></div>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/serve/guide.md" rel="noopener">.claude/skills/swamp/references/serve/guide.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-11-03T16:13:29Z">2026-11-03T16:13:29Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-11-03T14:40:35Z">2026-11-03T14:40:35Z</time></span>
-<span class="doc-title">reads that can outgrow a WebSocket frame move to an HTTP route, and every client frame is capped below Deno&#39;s 64 MiB receive limit (swamp-club#4321) (#3578)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/325bb7690404f9c375b10dc96a6369aa62b177e6" rel="noopener">325bb769</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3578" rel="noopener">#3578</a>𝗔 <a href="https://swamp-club.com/lab/4321" rel="noopener">lab#4321</a></span>
+<span class="doc-date"><time datetime="2026-11-03T16:13:29Z">2026-11-03T16:13:29Z</time></span>
+<span class="doc-title">a tokens:mint collective token creates and revokes tokens through swamp auth token, with --ttl, revoke as a disable, a new delete subcommand, and a STATUS column in list (swamp-club#4340) (#3587)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1ac194107af75dcccc44ae6248454c3d2a91fd62" rel="noopener">1ac19410</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3587" rel="noopener">#3587</a>𝗔 <a href="https://swamp-club.com/lab/4340" rel="noopener">lab#4340</a></span>
+</li></ul>
+</article>
+<article class="item doc-item">
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>2 changes</span><span>updated <time datetime="2026-11-03T16:07:16Z">2026-11-03T16:07:16Z</time></span><span><a href="https://swamp-club.com/manual/reference/datastore-configuration" rel="noopener">published manual</a></span></div>
+<ul class="doc-changes"><li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-03T16:07:16Z">2026-11-03T16:07:16Z</time></span>
+<span class="doc-title">a lock waiter no longer freezes swamp on Windows by spawning tasklist on every retry (swamp-club#4337) (#3586)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d30302b89d65393f2d4a71024d958f41487a00ce" rel="noopener">d30302b8</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3586" rel="noopener">#3586</a>𝗔 <a href="https://swamp-club.com/lab/4337" rel="noopener">lab#4337</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-02T07:28:15Z">2026-11-02T07:28:15Z</time></span>
+<span class="doc-title">a team member&#39;s datastore lock, datastore status, extension and run gc commands go through serve, never storage, and --json errors carry inFlight (swamp-club#4281) (#3545)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/37107c15647cbedabf901f49a9747fa3ed051483" rel="noopener">37107c15</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3545" rel="noopener">#3545</a>𝗔 <a href="https://swamp-club.com/lab/4281" rel="noopener">lab#4281</a></span>
 </li></ul>
 </article>
 <article class="item doc-item">
@@ -94,22 +110,6 @@ footer .ver{color:var(--acc)}
 <span class="doc-date"><time datetime="2026-11-03T13:35:21Z">2026-11-03T13:35:21Z</time></span>
 <span class="doc-title">on v3 a step&#39;s start commits as a constant-size StepStart, not the whole run record, and a start that cannot commit stops the run before the step (swamp-club#4319) (#3582)</span>
 <span class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261103.132822.0-sha.8f45f6af" rel="noopener">release v20261103.132822.0-sha.8f45f6af</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8f45f6af8f7cfb66024ad9574f6828b06fddff57" rel="noopener">8f45f6af</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3582" rel="noopener">#3582</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4195" rel="noopener">#4195</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4295" rel="noopener">#4295</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3568" rel="noopener">#3568</a>𝗔 <a href="https://swamp-club.com/lab/4319" rel="noopener">lab#4319</a></span>
-</li></ul>
-</article>
-<article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>2 changes</span><span>updated <time datetime="2026-11-03T13:35:21Z">2026-11-03T13:35:21Z</time></span><span><a href="https://swamp-club.com/manual/reference/datastore-configuration" rel="noopener">published manual</a></span></div>
-<ul class="doc-changes"><li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-11-03T13:35:21Z">2026-11-03T13:35:21Z</time></span>
-<span class="doc-title">on v3 a step&#39;s start commits as a constant-size StepStart, not the whole run record, and a start that cannot commit stops the run before the step (swamp-club#4319) (#3582)</span>
-<span class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261103.132822.0-sha.8f45f6af" rel="noopener">release v20261103.132822.0-sha.8f45f6af</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8f45f6af8f7cfb66024ad9574f6828b06fddff57" rel="noopener">8f45f6af</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3582" rel="noopener">#3582</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4195" rel="noopener">#4195</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4295" rel="noopener">#4295</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3568" rel="noopener">#3568</a>𝗔 <a href="https://swamp-club.com/lab/4319" rel="noopener">lab#4319</a></span>
-</li>
-<li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-11-02T07:28:15Z">2026-11-02T07:28:15Z</time></span>
-<span class="doc-title">a team member&#39;s datastore lock, datastore status, extension and run gc commands go through serve, never storage, and --json errors carry inFlight (swamp-club#4281) (#3545)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/37107c15647cbedabf901f49a9747fa3ed051483" rel="noopener">37107c15</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3545" rel="noopener">#3545</a>𝗔 <a href="https://swamp-club.com/lab/4281" rel="noopener">lab#4281</a></span>
 </li></ul>
 </article>
 <article class="item doc-item">
@@ -169,16 +169,6 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/serve/guide.md" rel="noopener">.claude/skills/swamp/references/serve/guide.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-11-02T23:19:40Z">2026-11-02T23:19:40Z</time></span><span><span class="dim">no published page</span></span></div>
-<ul class="doc-changes"><li class="doc-change">
-<span class="tier C">C</span>
-<span class="doc-date"><time datetime="2026-11-02T23:19:40Z">2026-11-02T23:19:40Z</time></span>
-<span class="doc-title">one name in help and errors, managedConfig warning at serve start, run-control help, a team mode skill reference, and the per-wait gate freeze in the threat model (swamp-club#4320) (#3576)</span>
-<span class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261102.231354.0-sha.288f52ef" rel="noopener">release v20261102.231354.0-sha.288f52ef</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/288f52ef51ea14495681a07509fe9a821f23c904" rel="noopener">288f52ef</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3576" rel="noopener">#3576</a>𝗔 <a href="https://swamp-club.com/lab/4320" rel="noopener">lab#4320</a></span>
-</li></ul>
-</article>
-<article class="item doc-item">
 <h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/serve/team-mode.md" rel="noopener">.claude/skills/swamp/references/serve/team-mode.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-11-02T23:19:40Z">2026-11-02T23:19:40Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
@@ -216,16 +206,6 @@ footer .ver{color:var(--acc)}
 <span class="doc-date"><time datetime="2026-11-02T23:12:09Z">2026-11-02T23:12:09Z</time></span>
 <span class="doc-title">vault put --server reads a piped value from stdin, keeping secrets out of argv (swamp-club#4225) (#3574)</span>
 <span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ba696f80d02a00e460ac178325d7a58310bba3b6" rel="noopener">ba696f80</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3574" rel="noopener">#3574</a>𝗔 <a href="https://swamp-club.com/lab/4225" rel="noopener">lab#4225</a></span>
-</li></ul>
-</article>
-<article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp-extensions/blob/main/agent-sessions/README.md" rel="noopener">agent-sessions/README.md</a></h2>
-<div class="meta"><span>swamp-club/swamp-extensions</span><span>1 change</span><span>updated <time datetime="2026-11-02T22:43:45Z">2026-11-02T22:43:45Z</time></span><span><span class="dim">no published page</span></span></div>
-<ul class="doc-changes"><li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-11-02T22:43:45Z">2026-11-02T22:43:45Z</time></span>
-<span class="doc-title">read the extension lockfile where swamp writes it (swamp-club#4317) (#632)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/c36285520b72e29f94bd147f6f8d5f8e685c803c" rel="noopener">c3628552</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/632" rel="noopener">#632</a>𝗔 <a href="https://swamp-club.com/lab/4317" rel="noopener">lab#4317</a></span>
 </li></ul>
 </article>
 <article class="item doc-item">
@@ -456,7 +436,7 @@ footer .ver{color:var(--acc)}
 </article>
 </main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-03T16:24:59.587Z">2026-11-03T16:24:59.587Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-03T17:06:57.402Z">2026-11-03T17:06:57.402Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

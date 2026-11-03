@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4331"><span class="tier A">A</span>Flaky property test: pending_dispatch_model_property_test &#39;t</a><a href="#issue-4332"><span class="tier A">A</span>pending dispatch property test fails on a __proto__ label ke</a><a href="#issue-4319"><span class="tier A">A</span>v3: record a step&#39;s start with a constant-size commit, not t</a><a href="#issue-3953"><span class="tier A">A</span>datastore_v3_replica_verify_test stall case flakes under the</a><a href="#issue-4324"><span class="tier A">A</span>Agent sessions page: jump to what you open, and scroll the s</a><a href="#issue-4289"><span class="tier A">A</span>Flaky test: serve_datastore_lease_fence_test &#39;a behavior who</a><a href="#issue-4283"><span class="tier A">A</span>Flaky: v3 replica check broken-lineage restart case reads th</a><a href="#issue-4296"><span class="tier A">A</span>flaky test: v3 replica check restarted-lineage case (swamp-c</a><a href="#issue-4282"><span class="tier A">A</span>serve reload never re-reads extension manifests; new additio</a><a href="#issue-4322"><span class="tier A">A</span>Page the worker data-plane read routes so serve memory stays</a><a href="#issue-4225"><span class="tier A">A</span>vault put --server: accept the value on stdin (keep secrets </a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4321"><span class="tier A">A</span>Serve client WebSocket replies have no frame-size bound, so </a><a href="#issue-4331"><span class="tier A">A</span>Flaky property test: pending_dispatch_model_property_test &#39;t</a><a href="#issue-4332"><span class="tier A">A</span>pending dispatch property test fails on a __proto__ label ke</a><a href="#issue-4319"><span class="tier A">A</span>v3: record a step&#39;s start with a constant-size commit, not t</a><a href="#issue-3953"><span class="tier A">A</span>datastore_v3_replica_verify_test stall case flakes under the</a><a href="#issue-4324"><span class="tier A">A</span>Agent sessions page: jump to what you open, and scroll the s</a><a href="#issue-4289"><span class="tier A">A</span>Flaky test: serve_datastore_lease_fence_test &#39;a behavior who</a><a href="#issue-4283"><span class="tier A">A</span>Flaky: v3 replica check broken-lineage restart case reads th</a><a href="#issue-4296"><span class="tier A">A</span>flaky test: v3 replica check restarted-lineage case (swamp-c</a><a href="#issue-4282"><span class="tier A">A</span>serve reload never re-reads extension manifests; new additio</a><a href="#issue-4322"><span class="tier A">A</span>Page the worker data-plane read routes so serve memory stays</a></aside><div>
 
 <article class="item" id="issue-4239">
 <h2><span class="tier S">S</span>swamp issue: file bugs, features and security reports against the platform source</h2>
@@ -76,6 +76,14 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-4321">
+<h2><span class="tier A">A</span>Serve client WebSocket replies have no frame-size bound, so a reply of 64 MiB or more drops the client socket</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-03T14:44:19.537Z">2026-11-03T14:44:19.537Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4321" rel="noopener">lab#4321</a></div>
 </article>
 <article class="item" id="issue-4331">
 <h2><span class="tier A">A</span>Flaky property test: pending_dispatch_model_property_test &#39;the methods write exactly what the pure functions return&#39; fails on a __proto__ label key</h2>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4322" rel="noopener">lab#4322</a></div>
 </article>
-<article class="item" id="issue-4225">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4225">
 <h2><span class="tier A">A</span>vault put --server: accept the value on stdin (keep secrets out of argv)</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-11-02T23:18:27.943Z">2026-11-02T23:18:27.943Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4225" rel="noopener">lab#4225</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4320">
+<article class="item" id="issue-4320">
 <h2><span class="tier A">A</span>Team mode docs before the announcement: one name, managedConfig required, manual pages, run-control help, known limits</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-11-02T23:15:57.636Z">2026-11-02T23:15:57.636Z</time></span></div>
@@ -741,6 +749,38 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
+<article class="item" id="issue-4340">
+<h2><span class="tier B">B</span>Let a collective token create and revoke tokens through swamp auth token</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-03T14:59:30.067Z">2026-11-03T14:59:30.067Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4340" rel="noopener">lab#4340</a></div>
+</article>
+<article class="item" id="issue-4339">
+<h2><span class="tier B">B</span>Extension auto-resolve re-downloads and re-installs the same extension for every fresh repo (1.7–2.7s each, no host-level cache)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-03T14:54:30.162Z">2026-11-03T14:54:30.162Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4339" rel="noopener">lab#4339</a></div>
+</article>
+<article class="item" id="issue-4337">
+<h2><span class="tier B">B</span>Parallel steps on one model instance lose seconds per lock handoff, and waiters slow the holder</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-03T14:31:33.174Z">2026-11-03T14:31:33.174Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4337" rel="noopener">lab#4337</a></div>
+</article>
+<article class="item" id="issue-4338">
+<h2><span class="tier B">B</span>Team mode member checkout: model get prefers an auto-created definition, run history --active misses own runs, a serve-driven run&#39;s signal receipt missing from the member&#39;s copy, --repo-dir dropped from two hints, serve signal refusals lose the wait id</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-03T14:24:57.936Z">2026-11-03T14:24:57.936Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4338" rel="noopener">lab#4338</a></div>
+</article>
 <article class="item" id="issue-4333">
 <h2><span class="tier B">B</span>Dashboard large reads still hit the WebSocket frame limit: route them over /api/v1/request, including through the workspace hub</h2>
 <p class="lede">Issue in_progress</p>
@@ -748,14 +788,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4333" rel="noopener">lab#4333</a></div>
-</article>
-<article class="item" id="issue-4321">
-<h2><span class="tier B">B</span>Serve client WebSocket replies have no frame-size bound, so a reply of 64 MiB or more drops the client socket</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-02T23:52:21.175Z">2026-11-02T23:52:21.175Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4321" rel="noopener">lab#4321</a></div>
 </article>
 <article class="item" id="issue-4295">
 <h2><span class="tier B">B</span>v3 run lifecycle: a running job cannot reliably be cancelled, and a killed run&#39;s record loses a step&#39;s start (solo v3, no serve)</h2>
@@ -773,13 +805,21 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4292" rel="noopener">lab#4292</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4338">
-<h2><span class="tier C">C</span>Team mode member checkout: model get prefers an auto-created definition, run history --active misses own runs, a serve-driven run&#39;s signal receipt missing from the member&#39;s copy, --repo-dir dropped from two hints, serve signal refusals lose the wait id</h2>
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4342">
+<h2><span class="tier C">C</span>Shorten swamp serve&#39;s token session re-check so revocation takes effect sooner</h2>
 <p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-03T14:03:23.348Z">2026-11-03T14:03:23.348Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-03T14:48:22.183Z">2026-11-03T14:48:22.183Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4338" rel="noopener">lab#4338</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4342" rel="noopener">lab#4342</a></div>
+</article>
+<article class="item" id="issue-4341">
+<h2><span class="tier C">C</span>serve: authorizing a run of an extension workflow (history.get / history.logs) parses every extension workflow file per request; ~760ms p50 on ops, and run.search repeats the walk concurrently</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-03T14:44:33.012Z">2026-11-03T14:44:33.012Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4341" rel="noopener">lab#4341</a></div>
 </article>
 <article class="item" id="issue-4335">
 <h2><span class="tier C">C</span>Scheduled flaky-test detection is failing</h2>
@@ -788,14 +828,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4335" rel="noopener">lab#4335</a></div>
-</article>
-<article class="item" id="issue-4337">
-<h2><span class="tier C">C</span>Parallel steps on one model instance lose seconds per lock handoff, and waiters slow the holder</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-03T13:07:40.016Z">2026-11-03T13:07:40.016Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4337" rel="noopener">lab#4337</a></div>
 </article>
 <article class="item" id="issue-4336">
 <h2><span class="tier C">C</span>@swamp/cve/emudhra: Ubuntu&#39;s pip vendored certifi reported as exposed although pip uses the OS store</h2>
@@ -1110,13 +1142,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>130 items across 1 source(s) in this window:
-1 critical, 83 notable, 4 routine,
+<p>134 items across 1 source(s) in this window:
+1 critical, 84 notable, 7 routine,
 42 minor.</p>
-<ul><li><strong>issues</strong> — 130</li></ul></section>
+<ul><li><strong>issues</strong> — 134</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-03T14:13:04.495Z">2026-11-03T14:13:04.495Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-03T15:08:45.701Z">2026-11-03T15:08:45.701Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

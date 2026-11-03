@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4321"><span class="tier A">A</span>Serve client WebSocket replies have no frame-size bound, so </a><a href="#issue-4331"><span class="tier A">A</span>Flaky property test: pending_dispatch_model_property_test &#39;t</a><a href="#issue-4332"><span class="tier A">A</span>pending dispatch property test fails on a __proto__ label ke</a><a href="#issue-4319"><span class="tier A">A</span>v3: record a step&#39;s start with a constant-size commit, not t</a><a href="#issue-3953"><span class="tier A">A</span>datastore_v3_replica_verify_test stall case flakes under the</a><a href="#issue-4324"><span class="tier A">A</span>Agent sessions page: jump to what you open, and scroll the s</a><a href="#issue-4289"><span class="tier A">A</span>Flaky test: serve_datastore_lease_fence_test &#39;a behavior who</a><a href="#issue-4283"><span class="tier A">A</span>Flaky: v3 replica check broken-lineage restart case reads th</a><a href="#issue-4296"><span class="tier A">A</span>flaky test: v3 replica check restarted-lineage case (swamp-c</a><a href="#issue-4282"><span class="tier A">A</span>serve reload never re-reads extension manifests; new additio</a><a href="#issue-4322"><span class="tier A">A</span>Page the worker data-plane read routes so serve memory stays</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4340"><span class="tier A">A</span>Let a collective token create and revoke tokens through swam</a><a href="#issue-4337"><span class="tier A">A</span>Parallel steps on one model instance lose seconds per lock h</a><a href="#issue-4339"><span class="tier A">A</span>Extension auto-resolve re-downloads and re-installs the same</a><a href="#issue-4333"><span class="tier A">A</span>Dashboard large reads still hit the WebSocket frame limit: r</a><a href="#issue-4321"><span class="tier A">A</span>Serve client WebSocket replies have no frame-size bound, so </a><a href="#issue-4331"><span class="tier A">A</span>Flaky property test: pending_dispatch_model_property_test &#39;t</a><a href="#issue-4332"><span class="tier A">A</span>pending dispatch property test fails on a __proto__ label ke</a><a href="#issue-4319"><span class="tier A">A</span>v3: record a step&#39;s start with a constant-size commit, not t</a><a href="#issue-3953"><span class="tier A">A</span>datastore_v3_replica_verify_test stall case flakes under the</a><a href="#issue-4324"><span class="tier A">A</span>Agent sessions page: jump to what you open, and scroll the s</a><a href="#issue-4289"><span class="tier A">A</span>Flaky test: serve_datastore_lease_fence_test &#39;a behavior who</a></aside><div>
 
 <article class="item" id="issue-4239">
 <h2><span class="tier S">S</span>swamp issue: file bugs, features and security reports against the platform source</h2>
@@ -76,6 +76,38 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-4340">
+<h2><span class="tier A">A</span>Let a collective token create and revoke tokens through swamp auth token</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-03T16:14:15.863Z">2026-11-03T16:14:15.863Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4340" rel="noopener">lab#4340</a></div>
+</article>
+<article class="item" id="issue-4337">
+<h2><span class="tier A">A</span>Parallel steps on one model instance lose seconds per lock handoff, and waiters slow the holder</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-03T16:09:38.123Z">2026-11-03T16:09:38.123Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4337" rel="noopener">lab#4337</a></div>
+</article>
+<article class="item" id="issue-4339">
+<h2><span class="tier A">A</span>Extension auto-resolve re-downloads and re-installs the same extension for every fresh repo (1.7–2.7s each, no host-level cache)</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-03T16:08:54.977Z">2026-11-03T16:08:54.977Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4339" rel="noopener">lab#4339</a></div>
+</article>
+<article class="item" id="issue-4333">
+<h2><span class="tier A">A</span>Dashboard large reads still hit the WebSocket frame limit: route them over /api/v1/request, including through the workspace hub</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-03T15:56:45.326Z">2026-11-03T15:56:45.326Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4333" rel="noopener">lab#4333</a></div>
 </article>
 <article class="item" id="issue-4321">
 <h2><span class="tier A">A</span>Serve client WebSocket replies have no frame-size bound, so a reply of 64 MiB or more drops the client socket</h2>
@@ -133,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4289" rel="noopener">lab#4289</a></div>
 </article>
-<article class="item" id="issue-4283">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4283">
 <h2><span class="tier A">A</span>Flaky: v3 replica check broken-lineage restart case reads the lineage fence before the sidecar has started the new lineage</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-02T23:48:58.393Z">2026-11-02T23:48:58.393Z</time></span></div>
@@ -165,7 +197,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4322" rel="noopener">lab#4322</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4225">
+<article class="item" id="issue-4225">
 <h2><span class="tier A">A</span>vault put --server: accept the value on stdin (keep secrets out of argv)</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-11-02T23:18:27.943Z">2026-11-02T23:18:27.943Z</time></span></div>
@@ -749,29 +781,37 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
-<article class="item" id="issue-4340">
-<h2><span class="tier B">B</span>Let a collective token create and revoke tokens through swamp auth token</h2>
+<article class="item" id="issue-4341">
+<h2><span class="tier B">B</span>serve: authorizing a run of an extension workflow (history.get / history.logs) parses every extension workflow file per request; ~760ms p50 on ops, and run.search repeats the walk concurrently</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-03T14:59:30.067Z">2026-11-03T14:59:30.067Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-03T16:19:47.752Z">2026-11-03T16:19:47.752Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4340" rel="noopener">lab#4340</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4341" rel="noopener">lab#4341</a></div>
 </article>
-<article class="item" id="issue-4339">
-<h2><span class="tier B">B</span>Extension auto-resolve re-downloads and re-installs the same extension for every fresh repo (1.7–2.7s each, no host-level cache)</h2>
+<article class="item" id="issue-4349">
+<h2><span class="tier B">B</span>Serve&#39;s HTTP read route frees a caller&#39;s slot once the reply is queued, not read, so unread replies and serve memory are unbounded</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-03T14:54:30.162Z">2026-11-03T14:54:30.162Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-03T16:17:51.201Z">2026-11-03T16:17:51.201Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4339" rel="noopener">lab#4339</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4349" rel="noopener">lab#4349</a></div>
 </article>
-<article class="item" id="issue-4337">
-<h2><span class="tier B">B</span>Parallel steps on one model instance lose seconds per lock handoff, and waiters slow the holder</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-11-03T14:31:33.174Z">2026-11-03T14:31:33.174Z</time></span></div>
+<article class="item" id="issue-4344">
+<h2><span class="tier B">B</span>Extension probe: run a pulled extension&#39;s methods blind in a sandbox and record what they do</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-03T16:13:17.320Z">2026-11-03T16:13:17.320Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4337" rel="noopener">lab#4337</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4344" rel="noopener">lab#4344</a></div>
+</article>
+<article class="item" id="issue-4346">
+<h2><span class="tier B">B</span>Make @swamp/agent-sessions public (go-live for agent observation)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-03T16:12:45.369Z">2026-11-03T16:12:45.369Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4346" rel="noopener">lab#4346</a></div>
 </article>
 <article class="item" id="issue-4338">
 <h2><span class="tier B">B</span>Team mode member checkout: model get prefers an auto-created definition, run history --active misses own runs, a serve-driven run&#39;s signal receipt missing from the member&#39;s copy, --repo-dir dropped from two hints, serve signal refusals lose the wait id</h2>
@@ -780,14 +820,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4338" rel="noopener">lab#4338</a></div>
-</article>
-<article class="item" id="issue-4333">
-<h2><span class="tier B">B</span>Dashboard large reads still hit the WebSocket frame limit: route them over /api/v1/request, including through the workspace hub</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-02T23:58:58.658Z">2026-11-02T23:58:58.658Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4333" rel="noopener">lab#4333</a></div>
 </article>
 <article class="item" id="issue-4295">
 <h2><span class="tier B">B</span>v3 run lifecycle: a running job cannot reliably be cancelled, and a killed run&#39;s record loses a step&#39;s start (solo v3, no serve)</h2>
@@ -805,21 +837,53 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4292" rel="noopener">lab#4292</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4342">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4352">
+<h2><span class="tier C">C</span>serve: concurrent requests with one valid bearer token are refused 429 rate_limited, because the failed-attempt limiter counts in-flight attempts before any authenticates</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-03T16:21:17.335Z">2026-11-03T16:21:17.335Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4352" rel="noopener">lab#4352</a></div>
+</article>
+<article class="item" id="issue-4351">
+<h2><span class="tier C">C</span>Docs: name the swamp release that changed auth token revoke and added auth token delete</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-03T16:09:57.092Z">2026-11-03T16:09:57.092Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4351" rel="noopener">lab#4351</a></div>
+</article>
+<article class="item" id="issue-4131">
+<h2><span class="tier C">C</span>Skill/docs: document registry listing limits, static-extraction rules, and splitting large APIs by domain</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-03T16:07:42.449Z">2026-11-03T16:07:42.449Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4131" rel="noopener">lab#4131</a></div>
+</article>
+<article class="item" id="issue-4347">
+<h2><span class="tier C">C</span>workflow run: let a run skip the &quot;Data produced&quot; box, or make it show what each artifact holds</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-03T15:49:57.108Z">2026-11-03T15:49:57.108Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4347" rel="noopener">lab#4347</a></div>
+</article>
+<article class="item" id="issue-4345">
+<h2><span class="tier C">C</span>serve: one IP-burst bucket guards session restore, WebSocket upgrades and failed HTTP auth, so unrelated failures from an IP log its dashboards out</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-03T15:18:27.848Z">2026-11-03T15:18:27.848Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4345" rel="noopener">lab#4345</a></div>
+</article>
+<article class="item" id="issue-4342">
 <h2><span class="tier C">C</span>Shorten swamp serve&#39;s token session re-check so revocation takes effect sooner</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-11-03T14:48:22.183Z">2026-11-03T14:48:22.183Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4342" rel="noopener">lab#4342</a></div>
-</article>
-<article class="item" id="issue-4341">
-<h2><span class="tier C">C</span>serve: authorizing a run of an extension workflow (history.get / history.logs) parses every extension workflow file per request; ~760ms p50 on ops, and run.search repeats the walk concurrently</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-03T14:44:33.012Z">2026-11-03T14:44:33.012Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4341" rel="noopener">lab#4341</a></div>
 </article>
 <article class="item" id="issue-4335">
 <h2><span class="tier C">C</span>Scheduled flaky-test detection is failing</h2>
@@ -1142,13 +1206,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>134 items across 1 source(s) in this window:
-1 critical, 84 notable, 7 routine,
-42 minor.</p>
-<ul><li><strong>issues</strong> — 134</li></ul></section>
+<p>142 items across 1 source(s) in this window:
+1 critical, 88 notable, 7 routine,
+46 minor.</p>
+<ul><li><strong>issues</strong> — 142</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-03T15:08:45.701Z">2026-11-03T15:08:45.701Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-03T16:24:59.587Z">2026-11-03T16:24:59.587Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

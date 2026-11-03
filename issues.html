@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4317"><span class="tier A">A</span>agent-sessions: covered-CLI rule never fires; coverage reads</a><a href="#issue-4326"><span class="tier A">A</span>vault put --server ignores --yes; only --force overwrites an</a><a href="#issue-4286"><span class="tier A">A</span>serve shutdown waits minutes after the drain ends, beyond th</a><a href="#issue-4158"><span class="tier A">A</span>Agent sessions extension: import Codex sessions</a><a href="#issue-4234"><span class="tier A">A</span>Worker control WebSocket reports Frame too large and aborts </a><a href="#issue-4236"><span class="tier A">A</span>Failed remote methods lose named command-result output handl</a><a href="#issue-4294"><span class="tier A">A</span>CLI fixes from the team-mode UAT: lock release --force --mod</a><a href="#issue-4302"><span class="tier A">A</span>A data name written as a file in one run and a resource in a</a><a href="#issue-4179"><span class="tier A">A</span>A lone step in a job still starts under the aborted signal w</a><a href="#issue-4309"><span class="tier A">A</span>serve reload skips the local catalog reconcile when the sour</a><a href="#issue-4184"><span class="tier A">A</span>A step settled after the abort overwrites the expression-con</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4289"><span class="tier A">A</span>Flaky test: serve_datastore_lease_fence_test &#39;a behavior who</a><a href="#issue-4283"><span class="tier A">A</span>Flaky: v3 replica check broken-lineage restart case reads th</a><a href="#issue-4296"><span class="tier A">A</span>flaky test: v3 replica check restarted-lineage case (swamp-c</a><a href="#issue-4282"><span class="tier A">A</span>serve reload never re-reads extension manifests; new additio</a><a href="#issue-4322"><span class="tier A">A</span>Page the worker data-plane read routes so serve memory stays</a><a href="#issue-4225"><span class="tier A">A</span>vault put --server: accept the value on stdin (keep secrets </a><a href="#issue-4320"><span class="tier A">A</span>Team mode docs before the announcement: one name, managedCon</a><a href="#issue-4224"><span class="tier A">A</span>swamp serve exhausts its heap when a workflow&#39;s run history </a><a href="#issue-4235"><span class="tier A">A</span>Whole run-index rewrites block serve dispatch as retained in</a><a href="#issue-4317"><span class="tier A">A</span>agent-sessions: covered-CLI rule never fires; coverage reads</a><a href="#issue-4326"><span class="tier A">A</span>vault put --server ignores --yes; only --force overwrites an</a></aside><div>
 
 <article class="item" id="issue-4239">
 <h2><span class="tier S">S</span>swamp issue: file bugs, features and security reports against the platform source</h2>
@@ -76,6 +76,78 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-4289">
+<h2><span class="tier A">A</span>Flaky test: serve_datastore_lease_fence_test &#39;a behavior whose floor is past the small reply limit&#39; times out under the full suite</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-02T23:48:58.579Z">2026-11-02T23:48:58.579Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4289" rel="noopener">lab#4289</a></div>
+</article>
+<article class="item" id="issue-4283">
+<h2><span class="tier A">A</span>Flaky: v3 replica check broken-lineage restart case reads the lineage fence before the sidecar has started the new lineage</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-02T23:48:58.393Z">2026-11-02T23:48:58.393Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4283" rel="noopener">lab#4283</a></div>
+</article>
+<article class="item" id="issue-4296">
+<h2><span class="tier A">A</span>flaky test: v3 replica check restarted-lineage case (swamp-club#3935) fails under full-suite load in verify-build</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-02T23:48:58.209Z">2026-11-02T23:48:58.209Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4296" rel="noopener">lab#4296</a></div>
+</article>
+<article class="item" id="issue-4282">
+<h2><span class="tier A">A</span>serve reload never re-reads extension manifests; new additionalFiles reach workers only after a serve restart</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-02T23:45:36.544Z">2026-11-02T23:45:36.544Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4282" rel="noopener">lab#4282</a></div>
+</article>
+<article class="item" id="issue-4322">
+<h2><span class="tier A">A</span>Page the worker data-plane read routes so serve memory stays bounded</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-02T23:36:10.753Z">2026-11-02T23:36:10.753Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4322" rel="noopener">lab#4322</a></div>
+</article>
+<article class="item" id="issue-4225">
+<h2><span class="tier A">A</span>vault put --server: accept the value on stdin (keep secrets out of argv)</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-02T23:18:27.943Z">2026-11-02T23:18:27.943Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4225" rel="noopener">lab#4225</a></div>
+</article>
+<article class="item" id="issue-4320">
+<h2><span class="tier A">A</span>Team mode docs before the announcement: one name, managedConfig required, manual pages, run-control help, known limits</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-02T23:15:57.636Z">2026-11-02T23:15:57.636Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4320" rel="noopener">lab#4320</a></div>
+</article>
+<article class="item" id="issue-4224">
+<h2><span class="tier A">A</span>swamp serve exhausts its heap when a workflow&#39;s run history carries large inputs: every run save parses and rewrites the whole .runs-index.json</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-02T23:12:49.943Z">2026-11-02T23:12:49.943Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4224" rel="noopener">lab#4224</a></div>
+</article>
+<article class="item" id="issue-4235">
+<h2><span class="tier A">A</span>Whole run-index rewrites block serve dispatch as retained inputs grow</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-02T23:12:49.776Z">2026-11-02T23:12:49.776Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4235" rel="noopener">lab#4235</a></div>
 </article>
 <article class="item" id="issue-4317">
 <h2><span class="tier A">A</span>agent-sessions: covered-CLI rule never fires; coverage reads .swamp/upstream_extensions.json, swamp writes extensions/models/upstream_extensions.json</h2>
@@ -93,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4326" rel="noopener">lab#4326</a></div>
 </article>
-<article class="item" id="issue-4286">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4286">
 <h2><span class="tier A">A</span>serve shutdown waits minutes after the drain ends, beyond the documented drain + ~25 s bound</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-02T22:40:04.213Z">2026-11-02T22:40:04.213Z</time></span></div>
@@ -165,7 +237,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4184" rel="noopener">lab#4184</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4300">
+<article class="item" id="issue-4300">
 <h2><span class="tier A">A</span>CLI lookups by id of auto-definitions read every file of the type; data prune does it once per model</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-02T20:06:45.138Z">2026-11-02T20:06:45.138Z</time></span></div>
@@ -629,77 +701,29 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
+<article class="item" id="issue-4333">
+<h2><span class="tier B">B</span>Dashboard large reads still hit the WebSocket frame limit: route them over /api/v1/request, including through the workspace hub</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-02T23:58:58.658Z">2026-11-02T23:58:58.658Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4333" rel="noopener">lab#4333</a></div>
+</article>
+<article class="item" id="issue-4321">
+<h2><span class="tier B">B</span>Serve client WebSocket replies have no frame-size bound, so a reply of 64 MiB or more drops the client socket</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-02T23:52:21.175Z">2026-11-02T23:52:21.175Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4321" rel="noopener">lab#4321</a></div>
+</article>
 <article class="item" id="issue-4324">
 <h2><span class="tier B">B</span>Agent sessions page: jump to what you open, and scroll the sessions list and turns separately</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-02T23:03:48.544Z">2026-11-02T23:03:48.544Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-02T23:37:56.684Z">2026-11-02T23:37:56.684Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4324" rel="noopener">lab#4324</a></div>
-</article>
-<article class="item" id="issue-4282">
-<h2><span class="tier B">B</span>serve reload never re-reads extension manifests; new additionalFiles reach workers only after a serve restart</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-02T23:03:47.642Z">2026-11-02T23:03:47.642Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4282" rel="noopener">lab#4282</a></div>
-</article>
-<article class="item" id="issue-4320">
-<h2><span class="tier B">B</span>Team mode docs before the announcement: one name, managedConfig required, manual pages, run-control help, known limits</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-02T23:03:46.363Z">2026-11-02T23:03:46.363Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4320" rel="noopener">lab#4320</a></div>
-</article>
-<article class="item" id="issue-4224">
-<h2><span class="tier B">B</span>swamp serve exhausts its heap when a workflow&#39;s run history carries large inputs: every run save parses and rewrites the whole .runs-index.json</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-02T23:03:17.703Z">2026-11-02T23:03:17.703Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4224" rel="noopener">lab#4224</a></div>
-</article>
-<article class="item" id="issue-4235">
-<h2><span class="tier B">B</span>Whole run-index rewrites block serve dispatch as retained inputs grow</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-02T23:03:17.527Z">2026-11-02T23:03:17.527Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4235" rel="noopener">lab#4235</a></div>
-</article>
-<article class="item" id="issue-4225">
-<h2><span class="tier B">B</span>vault put --server: accept the value on stdin (keep secrets out of argv)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-02T23:02:35.089Z">2026-11-02T23:02:35.089Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4225" rel="noopener">lab#4225</a></div>
-</article>
-<article class="item" id="issue-4289">
-<h2><span class="tier B">B</span>Flaky test: serve_datastore_lease_fence_test &#39;a behavior whose floor is past the small reply limit&#39; times out under the full suite</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-02T23:02:11.684Z">2026-11-02T23:02:11.684Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4289" rel="noopener">lab#4289</a></div>
-</article>
-<article class="item" id="issue-4283">
-<h2><span class="tier B">B</span>Flaky: v3 replica check broken-lineage restart case reads the lineage fence before the sidecar has started the new lineage</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-02T23:02:11.498Z">2026-11-02T23:02:11.498Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4283" rel="noopener">lab#4283</a></div>
-</article>
-<article class="item" id="issue-4296">
-<h2><span class="tier B">B</span>flaky test: v3 replica check restarted-lineage case (swamp-club#3935) fails under full-suite load in verify-build</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-02T23:02:11.015Z">2026-11-02T23:02:11.015Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4296" rel="noopener">lab#4296</a></div>
 </article>
 <article class="item" id="issue-4319">
 <h2><span class="tier B">B</span>v3: record a step&#39;s start with a constant-size commit, not the whole run record (#4295&#39;s step-start cost: 3.1 GiB and +123 ms/step for a 1,000-step forEach)</h2>
@@ -708,22 +732,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4319" rel="noopener">lab#4319</a></div>
-</article>
-<article class="item" id="issue-4322">
-<h2><span class="tier B">B</span>Page the worker data-plane read routes so serve memory stays bounded</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-02T22:59:41.886Z">2026-11-02T22:59:41.886Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4322" rel="noopener">lab#4322</a></div>
-</article>
-<article class="item" id="issue-4321">
-<h2><span class="tier B">B</span>Serve client WebSocket replies have no frame-size bound, so a reply of 64 MiB or more drops the client socket</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-02T22:53:03.498Z">2026-11-02T22:53:03.498Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4321" rel="noopener">lab#4321</a></div>
 </article>
 <article class="item" id="issue-4295">
 <h2><span class="tier B">B</span>v3 run lifecycle: a running job cannot reliably be cancelled, and a killed run&#39;s record loses a step&#39;s start (solo v3, no serve)</h2>
@@ -741,7 +749,15 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4292" rel="noopener">lab#4292</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4331">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4332">
+<h2><span class="tier C">C</span>pending dispatch property test fails on a __proto__ label key (seed 598987396)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-02T23:27:30.184Z">2026-11-02T23:27:30.184Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4332" rel="noopener">lab#4332</a></div>
+</article>
+<article class="item" id="issue-4331">
 <h2><span class="tier C">C</span>Flaky property test: pending_dispatch_model_property_test &#39;the methods write exactly what the pure functions return&#39; fails on a __proto__ label key</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-11-02T22:55:53.565Z">2026-11-02T22:55:53.565Z</time></span></div>
@@ -1030,13 +1046,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>120 items across 1 source(s) in this window:
-1 critical, 69 notable, 14 routine,
-36 minor.</p>
-<ul><li><strong>issues</strong> — 120</li></ul></section>
+<p>122 items across 1 source(s) in this window:
+1 critical, 78 notable, 6 routine,
+37 minor.</p>
+<ul><li><strong>issues</strong> — 122</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-02T23:07:52.366Z">2026-11-02T23:07:52.366Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-03T00:05:48.325Z">2026-11-03T00:05:48.325Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

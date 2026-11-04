@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4389"><span class="tier A">A</span>Docs: explain how secrets reach subprocesses and nested swam</a><a href="#issue-4394"><span class="tier A">A</span>forEach over objects puts truncated raw JSON in report data </a><a href="#issue-4366"><span class="tier A">A</span>Docs: reusing an OAuth client when swamp serve is recreated </a><a href="#issue-4377"><span class="tier A">A</span>Team mode member checkout: workflow cancel and model cancel </a><a href="#issue-4379"><span class="tier A">A</span>feat(workflows): a job-level fanOut field with its validatio</a><a href="#issue-4378"><span class="tier A">A</span>v3: run views don&#39;t apply the step-start journal, so a start</a><a href="#issue-4327"><span class="tier A">A</span>v3 serve shutdown: maintenance tick, retention compaction, l</a><a href="#issue-4375"><span class="tier A">A</span>fix(serve): the fan-out pool reader judges a worker&#39;s mint f</a><a href="#issue-4370"><span class="tier A">A</span>cli: workflow schedule list prints undefined for an unknown </a><a href="#issue-4338"><span class="tier A">A</span>Team mode member checkout: model get prefers an auto-created</a><a href="#issue-4368"><span class="tier A">A</span>Regression from #4319: a commit serve refuses at a run&#39;s ste</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4395"><span class="tier A">A</span>On Windows, doctor datastores --repair fails its final wipe </a><a href="#issue-4389"><span class="tier A">A</span>Docs: explain how secrets reach subprocesses and nested swam</a><a href="#issue-4394"><span class="tier A">A</span>forEach over objects puts truncated raw JSON in report data </a><a href="#issue-4366"><span class="tier A">A</span>Docs: reusing an OAuth client when swamp serve is recreated </a><a href="#issue-4377"><span class="tier A">A</span>Team mode member checkout: workflow cancel and model cancel </a><a href="#issue-4379"><span class="tier A">A</span>feat(workflows): a job-level fanOut field with its validatio</a><a href="#issue-4378"><span class="tier A">A</span>v3: run views don&#39;t apply the step-start journal, so a start</a><a href="#issue-4327"><span class="tier A">A</span>v3 serve shutdown: maintenance tick, retention compaction, l</a><a href="#issue-4375"><span class="tier A">A</span>fix(serve): the fan-out pool reader judges a worker&#39;s mint f</a><a href="#issue-4370"><span class="tier A">A</span>cli: workflow schedule list prints undefined for an unknown </a><a href="#issue-4338"><span class="tier A">A</span>Team mode member checkout: model get prefers an auto-created</a></aside><div>
 
 <article class="item" id="issue-4239">
 <h2><span class="tier S">S</span>swamp issue: file bugs, features and security reports against the platform source</h2>
@@ -76,6 +76,14 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-4395">
+<h2><span class="tier A">A</span>On Windows, doctor datastores --repair fails its final wipe with os error 32, failing all six doctor_repair_unpushed_cache_files tests</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-04T19:35:58.852Z">2026-11-04T19:35:58.852Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4395" rel="noopener">lab#4395</a></div>
 </article>
 <article class="item" id="issue-4389">
 <h2><span class="tier A">A</span>Docs: explain how secrets reach subprocesses and nested swamp in serve runs</h2>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4338" rel="noopener">lab#4338</a></div>
 </article>
-<article class="item" id="issue-4368">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4368">
 <h2><span class="tier A">A</span>Regression from #4319: a commit serve refuses at a run&#39;s step start is reported as datastore_v3_commit_unreachable with outage advice, not forbidden</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-03T22:34:42.382Z">2026-11-03T22:34:42.382Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4368" rel="noopener">lab#4368</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4284">
+<article class="item" id="issue-4284">
 <h2><span class="tier A">A</span>Docs: the manual describes the CLI&#39;s trial ending and trial ended notices and the notices field in swamp subscription status --json</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-11-03T22:34:17.455Z">2026-11-03T22:34:17.455Z</time></span></div>
@@ -1069,13 +1077,13 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
-<article class="item" id="issue-4395">
-<h2><span class="tier B">B</span>On Windows, doctor datastores --repair fails its final wipe with os error 32, failing all six doctor_repair_unpushed_cache_files tests</h2>
+<article class="item" id="issue-4387">
+<h2><span class="tier B">B</span>v3 serve: every write through the datastore API replays the whole commit history (catalog invalidate resets the read model), so commit cost grows with history: K2a 4.3 s fresh and 53 s after a day on real GCS (found by #4374)</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-04T18:36:58.387Z">2026-11-04T18:36:58.387Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-04T20:17:39.591Z">2026-11-04T20:17:39.591Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4395" rel="noopener">lab#4395</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4387" rel="noopener">lab#4387</a></div>
 </article>
 <article class="item" id="issue-4390">
 <h2><span class="tier B">B</span>Design and plan: compact settled workflow run logs by replacing duplicated shell step output with references to the step&#39;s log artifact</h2>
@@ -1085,14 +1093,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4390" rel="noopener">lab#4390</a></div>
 </article>
-<article class="item" id="issue-4387">
-<h2><span class="tier B">B</span>v3 serve: every write through the datastore API replays the whole commit history (catalog invalidate resets the read model), so commit cost grows with history: K2a 4.3 s fresh and 53 s after a day on real GCS (found by #4374)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-04T15:12:32.835Z">2026-11-04T15:12:32.835Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4387" rel="noopener">lab#4387</a></div>
-</article>
 <article class="item" id="issue-4374">
 <h2><span class="tier B">B</span>Team-mode dogfood on a real GCS bucket: the team&#39;s work through serve, failover, offline, run lifecycle, and the real-bucket numbers (datastore rework Phase 5)</h2>
 <p class="lede">Issue triaged</p>
@@ -1101,7 +1101,15 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4374" rel="noopener">lab#4374</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4400">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4382">
+<h2><span class="tier C">C</span>Scheduled flaky-test detection is failing</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-04T19:12:42.835Z">2026-11-04T19:12:42.835Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4382" rel="noopener">lab#4382</a></div>
+</article>
+<article class="item" id="issue-4400">
 <h2><span class="tier C">C</span>On Windows, withIndexQueue warns when the run index lock file cannot be made, where the test expects it silent</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-11-04T18:09:24.038Z">2026-11-04T18:09:24.038Z</time></span></div>
@@ -1204,14 +1212,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4383" rel="noopener">lab#4383</a></div>
-</article>
-<article class="item" id="issue-4382">
-<h2><span class="tier C">C</span>Scheduled flaky-test detection is failing</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-04T13:14:48.365Z">2026-11-04T13:14:48.365Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4382" rel="noopener">lab#4382</a></div>
 </article>
 <article class="item" id="issue-4381">
 <h2><span class="tier C">C</span>swamp skill: add a workspace guide and routing-table entry</h2>
@@ -1607,12 +1607,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>192 items across 1 source(s) in this window:
-1 critical, 124 notable, 4 routine,
+1 critical, 125 notable, 3 routine,
 63 minor.</p>
 <ul><li><strong>issues</strong> — 192</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-04T19:11:10.665Z">2026-11-04T19:11:10.665Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-04T20:26:16.610Z">2026-11-04T20:26:16.610Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

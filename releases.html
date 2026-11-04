@@ -1813,7 +1813,28 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261102.151815.0-sha.b8f64405" rel="noopener">release v20261102.151815.0-sha.b8f64405</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b8f6440513579d2a9e7c0c68d6c501d584dfd667" rel="noopener">b8f64405</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3546" rel="noopener">#3546</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4150" rel="noopener">#4150</a>𝗔 <a href="https://swamp-club.com/lab/4231" rel="noopener">lab#4231</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261104-163022-0-sha-ed274a65">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261104-173648-0-sha-2adc97d4">
+<h2><span class="tier C">C</span>swamp 20261104.173648.0-sha.2adc97d4</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-04T17:42:39Z">2026-11-04T17:42:39Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(workflows): a forEach or vary suffix for an object without key, name or id is a 16-hex hash of the object, not its raw JSON cut to 64 characters (swamp-club#4394) (#3610)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>swamp-club#4394: when a forEach step iterates over objects that have no <code>key</code>, <code>name</code> or <code>id</code>, the per-iteration report names used the item&#39;s raw JSON, cut to 64 characters:</p>
+<p>```</p>
+<p>report-swamp-method-summary-{&quot;category&quot;:&quot;Other&quot;,&quot;articles&quot;:[{&quot;title&quot;:&quot;xxxx…</p>
+<p>```</p>
+<p>These names contained <code>{</code>, <code>&quot;</code>, <code>:</code> and <code>[</code>. They put item content into data names and <code>.swamp/data/</code> directory names. Two items whose JSON matched for the first 64 characters also wrote to the same data name, so one iteration&#39;s report replaced the other&#39;s (reproduced: v1 and v2 of one name).</p>
+<ul>
+<li><strong><code>src/domain/workflows/data_suffix.ts</code></strong>: <code>coerceToSuffix</code> now hashes an object or array with no <code>key</code>/<code>name</code>/<code>id</code>. The suffix is the first 16 hex characters of a SHA-256 of <code>canonicalJson(val)</code>, which sorts the keys. Primitives and objects with <code>key</code>/<code>name</code>/<code>id</code> are unchanged, so suffixes like <code>-prod</code> and <code>-a</code> keep their names. Callers already swap secret values for placeholders before calling, so the hash is never computed from a secret. The same function builds <code>vary</code> output suffixes, so varying over object inputs is fixed too.</li>
+<li><strong>Tests</strong>: <code>data_suffix_test.ts</code> replaces the three tests that pinned the old JSON fallback. The new tests cover hash format, key-order independence, the shared-prefix collision, arrays, and tha</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261104.173648.0-sha.2adc97d4" rel="noopener">release v20261104.173648.0-sha.2adc97d4</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/2adc97d4" rel="noopener">2adc97d4</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3610" rel="noopener">#3610</a>𝗔 <a href="https://swamp-club.com/lab/4394" rel="noopener">lab#4394</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261104-163022-0-sha-ed274a65">
 <h2><span class="tier C">C</span>swamp 20261104.163022.0-sha.ed274a65</h2>
 <p class="lede">Change (untyped) · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-11-04T16:36:09Z">2026-11-04T16:36:09Z</time></span></div>
@@ -1961,13 +1982,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261101.202412.0-sha.0500dc35" rel="noopener">release v20261101.202412.0-sha.0500dc35</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0500dc35534060a870a5998e5dddbcd015dfc2e1" rel="noopener">0500dc35</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3528" rel="noopener">#3528</a>𝗔 <a href="https://swamp-club.com/lab/4250" rel="noopener">lab#4250</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>81 items across 1 source(s) in this window:
+<p>82 items across 1 source(s) in this window:
 1 critical, 69 notable, 5 routine,
-6 minor.</p>
-<ul><li><strong>fix</strong> — 58</li><li><strong>feat</strong> — 12</li><li><strong>perf</strong> — 3</li><li><strong>test</strong> — 3</li><li><strong>docs</strong> — 2</li><li><strong>chore</strong> — 1</li></ul></section>
+7 minor.</p>
+<ul><li><strong>fix</strong> — 58</li><li><strong>feat</strong> — 12</li><li><strong>perf</strong> — 3</li><li><strong>test</strong> — 3</li><li><strong>changes</strong> — 2</li><li><strong>docs</strong> — 2</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-04T17:08:14.461Z">2026-11-04T17:08:14.461Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-04T18:29:55.709Z">2026-11-04T18:29:55.709Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

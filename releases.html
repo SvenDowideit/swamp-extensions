@@ -118,7 +118,7 @@ footer .ver{color:var(--acc)}
 <p>No flag or stored key name changes, and no keys move for existing deployments that do not supply a client.</p>
 <h4 class="body-h">Upgrade note</h4>
 <p>A deployment that supplies a client, still has a flat <code>oauth-resolved-admins</code>, and has no cached map or collective k</p></div>
-
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261104.184331.0-sha.0230e7ef" rel="noopener">release v20261104.184331.0-sha.0230e7ef</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0230e7ef2043f911724737121173aaf81dd26f10" rel="noopener">0230e7ef</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3611" rel="noopener">#3611</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261104-173648-0-sha-2adc97d4">
@@ -139,7 +139,7 @@ footer .ver{color:var(--acc)}
 <li><strong><code>src/domain/workflows/data_suffix.ts</code></strong>: <code>coerceToSuffix</code> now hashes an object or array with no <code>key</code>/<code>name</code>/<code>id</code>. The suffix is the first 16 hex characters of a SHA-256 of <code>canonicalJson(val)</code>, which sorts the keys. Primitives and objects with <code>key</code>/<code>name</code>/<code>id</code> are unchanged, so suffixes like <code>-prod</code> and <code>-a</code> keep their names. Callers already swap secret values for placeholders before calling, so the hash is never computed from a secret. The same function builds <code>vary</code> output suffixes, so varying over object inputs is fixed too.</li>
 <li><strong>Tests</strong>: <code>data_suffix_test.ts</code> replaces the three tests that pinned the old JSON fallback. The new tests cover hash format, key-order independence, the shared-prefix collision, arrays, and tha</li>
 </ul></div>
-
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/references/data-chaining.md" rel="noopener">.claude/skills/swamp/references/workflow/references/data-chaining.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/reports.md" rel="noopener">design/enablers/reports.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/data.md" rel="noopener">design/primitives/data.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261104.173648.0-sha.2adc97d4" rel="noopener">release v20261104.173648.0-sha.2adc97d4</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/2adc97d4b93d37fbcd1c40d91b25aafa03204f11" rel="noopener">2adc97d4</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3610" rel="noopener">#3610</a>𝗔 <a href="https://swamp-club.com/lab/4394" rel="noopener">lab#4394</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261104-025555-0-sha-dd659114">
@@ -213,7 +213,7 @@ footer .ver{color:var(--acc)}
 </ul>
 <h4 class="body-h">Why <code>running</code>, not <code>unknown</code></h4>
 <p>The issue ask</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261104.020105.0-sha.22ba2872" rel="noopener">release v20261104.020105.0-sha.22ba2872</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/22ba2872626e701a9b53f00d65104782acc57218" rel="noopener">22ba2872</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3606" rel="noopener">#3606</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3582" rel="noopener">#3582</a>𝗔 <a href="https://swamp-club.com/lab/4378" rel="noopener">lab#4378</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261104-003807-0-sha-1aef836e">
@@ -232,7 +232,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Retention GC:</strong> <code>dispose()</code> aborts <code>RetentionPassControl.signal</code>, the same shape <code>ContinuationSweepService</code> already uses. Serve&#39;s <code>afterPass</code> skips or aborts the v3 retention compaction.</li>
 <li><strong>Leadership:</strong> a stopped tick never promotes or restores. <code>onLead</code> gets a <code>stopped()</code> check, so a promotion already running skips</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261104.003807.0-sha.1aef836e" rel="noopener">release v20261104.003807.0-sha.1aef836e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1aef836eb43f4e559740c77ad8994d0714acd946" rel="noopener">1aef836e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3605" rel="noopener">#3605</a>𝗔 <a href="https://swamp-club.com/lab/4327" rel="noopener">lab#4327</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261104-003114-0-sha-7ae39ac0">
@@ -254,7 +254,7 @@ footer .ver{color:var(--acc)}
 <li>Design doc &quot;Fan-out planning (dormant)&quot; paragraph updated.</li>
 </ul>
 <p>The reader is dormant (no production caller until the fan-out lane engine), so there is no user-visible change. The field is optional and a</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261104.003114.0-sha.7ae39ac0" rel="noopener">release v20261104.003114.0-sha.7ae39ac0</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7ae39ac04d66ca018e357a02e4f80bc35d8dcc61" rel="noopener">7ae39ac0</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3604" rel="noopener">#3604</a>𝗔 <a href="https://swamp-club.com/lab/4375" rel="noopener">lab#4375</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261103-232552-0-sha-a5830844">
@@ -941,7 +941,7 @@ footer .ver{color:var(--acc)}
 <li>The composite repository also checks the other store, so a lifetime change cannot switch a name&#39;s kind between the ephemeral and persistent stores within a workflow run.</li>
 <li><code>swamp doctor datastores</code> gains a <code>mixed_kind_names</code> check over the catalog that lists names whose history alre</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/model/troubleshooting.md" rel="noopener">.claude/skills/swamp/references/extension/references/model/troubleshooting.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/troubleshooting/reference.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/data.md" rel="noopener">design/primitives/data.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/model/troubleshooting.md" rel="noopener">.claude/skills/swamp/references/extension/references/model/troubleshooting.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/troubleshooting/reference.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/reference.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261102.210513.0-sha.147e2b3a" rel="noopener">release v20261102.210513.0-sha.147e2b3a</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/147e2b3ad6be99282d60b9ac658c07bfa121bddc" rel="noopener">147e2b3a</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3567" rel="noopener">#3567</a>𝗔 <a href="https://swamp-club.com/lab/4302" rel="noopener">lab#4302</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261102-204111-0-sha-a33e992d">
@@ -1156,7 +1156,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Model reads that know their method carry it.</strong> These are <code>model.method.describe</code>, <code>model.output.get</code>/<code>.data</code>/<code>.logs</code> and <code>model.method.history.get</code>/<code>.logs</code>.</li>
 <li><strong>Datastore commits saved by a run are decided as any method.</strong> These are <code>data.save</code>, <code>data.append</code>, <code>output.save</code> and partition uploads; they name no method. A scoped run allow admits them. The marker is set only in `commit_authorizat</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/vaults.md" rel="noopener">design/primitives/vaults.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261102.180642.0-sha.c7a42995" rel="noopener">release v20261102.180642.0-sha.c7a42995</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c7a42995148ce46085a8ec6b1ed4884cf929f867" rel="noopener">c7a42995</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3555" rel="noopener">#3555</a>𝗔 <a href="https://swamp-club.com/lab/4303" rel="noopener">lab#4303</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261102-174921-0-sha-48923e2f">
@@ -1880,7 +1880,7 @@ footer .ver{color:var(--acc)}
 <li><strong><code>design/primitives/serve.md</code></strong> and the managedConfig pod boot section of <strong><code>design/enablers/datastores.md</code></strong>: one-line pointers to the new section.</li>
 <li>**Bundled <code>swamp</code> skill,</li>
 </ul></div>
-
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/model/api.md" rel="noopener">.claude/skills/swamp/references/extension/references/model/api.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/vaults.md" rel="noopener">design/primitives/vaults.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261104.163022.0-sha.ed274a65" rel="noopener">release v20261104.163022.0-sha.ed274a65</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ed274a65f6c8962bd18f4472170721999688530c" rel="noopener">ed274a65</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3609" rel="noopener">#3609</a>𝗔 <a href="https://swamp-club.com/lab/4389" rel="noopener">lab#4389</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261103-165234-0-sha-4900d623">
@@ -2011,7 +2011,7 @@ footer .ver{color:var(--acc)}
 <ul><li><strong>fix</strong> — 60</li><li><strong>feat</strong> — 12</li><li><strong>perf</strong> — 3</li><li><strong>docs</strong> — 3</li><li><strong>test</strong> — 3</li><li><strong>chore</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-04T20:26:16.610Z">2026-11-04T20:26:16.610Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-04T21:07:54.440Z">2026-11-04T21:07:54.440Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

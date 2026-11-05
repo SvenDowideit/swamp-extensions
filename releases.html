@@ -2297,7 +2297,159 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261102.151815.0-sha.b8f64405" rel="noopener">release v20261102.151815.0-sha.b8f64405</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b8f6440513579d2a9e7c0c68d6c501d584dfd667" rel="noopener">b8f64405</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3546" rel="noopener">#3546</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4150" rel="noopener">#4150</a>𝗔 <a href="https://swamp-club.com/lab/4231" rel="noopener">lab#4231</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261104-163022-0-sha-ed274a65">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261105-214503-0-sha-f4450b8b">
+<h2><span class="tier C">C</span>swamp 20261105.214503.0-sha.f4450b8b</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-05T21:49:50Z">2026-11-05T21:49:50Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(workflows): workflow run and resume show each data artifact&#39;s attributes in the Data produced box and --json, read after the run is saved; -q keeps the box name-only and serve carries none (swamp-club#4347) (#3636)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>A live <code>swamp workflow run</code> listed each artifact in the Data produced box by</p>
+<p>name only (<code>result    from main</code>), while <code>swamp behavior run</code> showed the same</p>
+<p>record&#39;s attributes. The completed event was mapped without resolved step</p>
+<p>outputs, so <code>dataArtifacts[].attributes</code> and step <code>outputs</code> were never filled;</p>
+<p>only <code>workflow history get</code> read them back from the datastore. This was never</p>
+<p>populated on the live path, so it is a bug, not a regression.</p>
+<ul>
+<li><strong>Attributes on completion.</strong> <code>resolveCompletedRunOutputs</code> reads a finished</li>
+</ul>
+<p>  run&#39;s attributes through the existing <code>StepOutputResolver</code>, with the same read</p>
+<p>  rules as local <code>history get</code> (no vault resolution, so tagged fields show their</p>
+<p>  stored references). Values go through <code>run.mask</code>. A resource that cannot be</p>
+<p>  read is left out; a failed or aborted walk leaves the box name-only. It never</p>
+<p>  fails the run.</p>
+<ul>
+<li><strong>After the save.</strong> The execution service yields <code>completed</code> and then saves</li>
+</ul>
+<p>  the run. <code>deferCompletedForOutputs</code> holds the completed event until the</p>
+<p>  stream ends, so the reads cannot delay that save; an interrupt during them</p>
+<p>  can no longer leave a succeeded run recorded as running. On the failure path</p>
+<p>  (save, yield completed, throw) the held event is delivered before the err</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261105.214503.0-sha.f4450b8b" rel="noopener">release v20261105.214503.0-sha.f4450b8b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/f4450b8b" rel="noopener">f4450b8b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3636" rel="noopener">#3636</a>𝗔 <a href="https://swamp-club.com/lab/4347" rel="noopener">lab#4347</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261105-211121-0-sha-875de689">
+<h2><span class="tier C">C</span>swamp 20261105.211121.0-sha.875de689</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-05T21:15:18Z">2026-11-05T21:15:18Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): a graceful stop no longer reports a spurious unconfirmed commit, a sync Litestream answers one transaction short is synced again, and a team follower reports ready only once a token check would pass (swamp-club#4432) (#3635)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes the three team-mode serve findings from the dogfood (swamp-club#4432: F22, F19, F30).</p>
+<p><strong>F22: a graceful stop of the leader failed its closing confirm.</strong> Under systemd&#39;s default <code>KillMode=control-group</code>, <code>systemctl stop</code> sends SIGTERM to serve, the replication supervisor and Litestream within about 1 ms. Litestream does its own final sync and exits before serve&#39;s closing sync, so serve found no control socket and exited 75. The replica matched local every time, so the error was spurious.</p>
+<ul>
+<li>The unit <code>serve daemon enable</code> writes now sets <code>KillMode=mixed</code>. Only serve gets SIGTERM, and it confirms against a live sidecar.</li>
+<li>For units swamp does not write (hand-written units, containers), a sidecar already gone at close is handled read-only:</li>
+<li>serve skips its optional closing compaction, so nothing is committed after Litestream exited;</li>
+<li>nothing committed since the last confirmed sync needs no check;</li>
+<li>otherwise serve restores the replica into a temp file and passes only if the restored commit store reaches the local high-water mark, then publishes the head under the lease it still holds.</li>
+<li>It never starts a sidecar or releases its hold or lease, so a follower cannot take over mid-check. Anything unreada</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261105.211121.0-sha.875de689" rel="noopener">release v20261105.211121.0-sha.875de689</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/875de689" rel="noopener">875de689</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3635" rel="noopener">#3635</a>𝗔 <a href="https://swamp-club.com/lab/4432" rel="noopener">lab#4432</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261105-205023-0-sha-366cc864">
+<h2><span class="tier C">C</span>swamp 20261105.205023.0-sha.366cc864</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-05T20:54:32Z">2026-11-05T20:54:32Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(audit): the Claude audit hook records PowerShell calls, swamp audit install --user covers repos a session starts above, and doctor audit warns when a nested repo&#39;s hook cannot fire (swamp-club#4009) (#3634)</li>
+</ul>
+<p>Fixes swamp-club#4009.</p>
+<p>Claude Code&#39;s PowerShell tool calls never reached the audit log: the hook swamp writes matched only <code>Bash</code>, and the normalizer dropped every other tool name. A swamp repo nested below its git root recorded nothing either, because Claude Code reads <code>.claude/settings.local.json</code> from the git root (the start folder on Windows), so the repo&#39;s own hook never loaded for sessions started above it.</p>
+<h4 class="body-h">Changes</h4>
+<ul>
+<li><strong>PowerShell.</strong> <code>normalizeClaude</code> accepts <code>PowerShell</code> as well as <code>Bash</code>. Claude Code builds the hook payload the same way for both tools (<code>tool_name</code>, <code>tool_input.command</code>, and <code>error</code> on failure).</li>
+<li><strong>Repo hook.</strong> <code>swamp repo init</code> writes the hook with matcher <code>Bash|PowerShell</code>. <code>swamp repo upgrade</code> and <code>init --force</code> replace swamp&#39;s earlier Bash-only entry in place before the existing merge, which would otherwise count it as present and never widen it. Hooks a user wrote or changed are kept.</li>
+<li><strong><code>swamp audit install --user</code> / <code>uninstall --user</code>.</strong> These add or remove swamp&#39;s hook in the Claude Code user settings (<code>settings.json</code> in <code>CLAUDE_CONFIG_DIR</code>, else <code>~/.claude</code>). The hook records calls whose working directory is inside any swamp repo, wherever the session started.</li>
+<li>Install keeps every other key and refuses a</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261105.205023.0-sha.366cc864" rel="noopener">release v20261105.205023.0-sha.366cc864</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/366cc864" rel="noopener">366cc864</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3634" rel="noopener">#3634</a>𝗔 <a href="https://swamp-club.com/lab/4009" rel="noopener">lab#4009</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261105-203306-0-sha-7b02298b">
+<h2><span class="tier C">C</span>swamp 20261105.203306.0-sha.7b02298b</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-05T20:37:29Z">2026-11-05T20:37:29Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(test): the two-step workflow-run pinned-requests test no longer flakes when the run outlasts the 2 s checkpoint interval on a slow host (swamp-club#4441) (#3633)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>team-mode workflow run: a two-step run&#39;s requests to serve are pinned</code> failed once in verify-build. It pins the exact order of a team member&#39;s requests to serve.</p>
+<p>The issue said the failure was an extra commits read. The request counts matched, though. One run-record commit went out before step two&#39;s <code>POST locks</code>, and its read-back came after the lock&#39;s catch-up.</p>
+<p><strong>Cause.</strong> <code>WorkflowRunCheckpointer</code> spaces checkpoints by a real 2 s interval.</p>
+<ul>
+<li>Step one&#39;s start save arms a trailing checkpoint about 2 s out.</li>
+<li>A fast run takes about 130 ms, and its end save clears that timer.</li>
+<li>On a loaded host the run outlasted the interval, so the timer fired mid-run.</li>
+<li>The run does not wait for that checkpoint, so its commit raced step two&#39;s lock.</li>
+</ul>
+<p>Forcing the timer to fire at step two&#39;s start save reproduces the CI diff line for line.</p>
+<p><strong>Fix (test-only, production unchanged).</strong></p>
+<ul>
+<li><code>WorkflowRunCheckpointer</code> reads its default interval from a module-level value that <code>setRunCheckpointIntervalForTesting</code> sets. An explicit <code>intervalMs</code> still wins, and every production construction site keeps 2 s.</li>
+<li>The two-step test sets the interval to one hour for its body, so the trailing checkpoint never fires mid-run. The flattened pinned list is unchanged.</li>
+<li>The test&#39;s step comments now match the order observe</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261105.203306.0-sha.7b02298b" rel="noopener">release v20261105.203306.0-sha.7b02298b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7b02298b" rel="noopener">7b02298b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3633" rel="noopener">#3633</a>𝗔 <a href="https://swamp-club.com/lab/4441" rel="noopener">lab#4441</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261105-192430-0-sha-2d08404e">
+<h2><span class="tier C">C</span>swamp 20261105.192430.0-sha.2d08404e</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-05T19:29:25Z">2026-11-05T19:29:25Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(validation): model validate warns instead of failing when a vault cannot answer, so CI without vault access passes again (swamp-club#4418) (#3631)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>swamp model validate</code> resolves <code>vault.get</code> references live before it runs pre-flight checks. Since the October 26 typed-secrets change (swamp-club#3735), it failed <code>Check argument delivery</code> whenever the vault provider could not answer, for example on a CI runner without the 1Password CLI. That turned CI schema gates red with no change to the definitions.</p>
+<ul>
+<li><strong>What counts as unchecked:</strong> a provider that throws instead of answering whether a reference exists now raises <code>SecretReferenceUncheckedError</code>. <code>checkSecretReference</code> raises it around the provider call only.</li>
+<li><strong>What validate does with it:</strong> validate leaves the expression as stored text, as it already does for an unset environment variable, and runs the checks. It then reports a <code>Secret references not checked</code> warning naming each reference (location, vault, key, provider reason) in log and JSON. The result is PASSED with exit code 0.</li>
+<li><strong>What still fails validate:</strong> a denial, a key that <code>has()</code> or a store&#39;s <code>secret_not_found</code> reports missing, a vault not configured in the repository, a refused destination, indirect vault access, and a failed load.</li>
+<li><strong>Runs are unchanged:</strong> they still need the value and fail with the same message.</li>
+<li><strong>Design doc:</strong> <code>design/enablers/typed-secrets.md</code> is updated.</li>
+</ul>
+<h4 class="body-h">Upgrade impact</h4>
+<ul>
+<li>A missing key still fail</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261105.192430.0-sha.2d08404e" rel="noopener">release v20261105.192430.0-sha.2d08404e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/2d08404e" rel="noopener">2d08404e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3631" rel="noopener">#3631</a>𝗔 <a href="https://swamp-club.com/lab/3735" rel="noopener">lab#3735</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261105-191119-0-sha-159e23e1">
+<h2><span class="tier C">C</span>swamp 20261105.191119.0-sha.159e23e1</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-05T19:16:07Z">2026-11-05T19:16:07Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(workflows): a cancelled run no longer starts a step queued on its model lock, keeps an in-flight method&#39;s lock, and lets a data write already under way land before it settles or a second Ctrl+C exits (swamp-club#4434) (#3632)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>A Ctrl+C during a fanned-out run could leave an external side effect with no persisted record (swamp-club#4434). Four things combined:</p>
+<ul>
+<li>steps queued on a sibling&#39;s model lock still started their method after the abort;</li>
+<li>the datastore sync coordinator&#39;s first-SIGINT handler released every model lock, even for commands that own their shutdown;</li>
+<li>the run abandoned in-flight work after the 4 s step stop grace, and the CLI exited while a write was under way;</li>
+<li>a second Ctrl+C exited at once.</li>
+</ul>
+<p>The report&#39;s suspicion that the abort severs the local write RPC did not hold: local writes take no signal, and serve persists a remote write it has accepted. The loss came from process exit.</p>
+<h4 class="body-h">Changes</h4>
+<ul>
+<li><strong>No new work after the cancel.</strong> <code>executeModelMethod</code> checks the step&#39;s signal after taking its lock (inside the <code>try</code>, so the lock is still released). The lock wait itself stops on the signal: <code>StepLockHook</code> → <code>createStepLockHook</code> → <code>acquireModelLocks</code> → <code>registerDatastoreSyncNamed</code> → an optional <code>signal</code> on <code>DistributedLock.acquire</code>, honoured by <code>FileLock</code> and <code>ServeLock</code> between attempts only, so a lease serve granted is never orphaned. Cleanup steps run under their own cleanup signal and are unaffected.</li>
+<li>**Locks held on</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261105.191119.0-sha.159e23e1" rel="noopener">release v20261105.191119.0-sha.159e23e1</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/159e23e1" rel="noopener">159e23e1</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3632" rel="noopener">#3632</a>𝗔 <a href="https://swamp-club.com/lab/4434" rel="noopener">lab#4434</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261104-163022-0-sha-ed274a65">
 <h2><span class="tier C">C</span>state where a secret stops once a run starts, so serve and extension code no longer expect the vault to reach child processes (swamp-club#2176) (#3609)</h2>
 <p class="lede">`docs` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-11-04T16:36:09Z">2026-11-04T16:36:09Z</time></span><span>vaults</span><span>docs</span></div>
@@ -2445,13 +2597,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261101.202412.0-sha.0500dc35" rel="noopener">release v20261101.202412.0-sha.0500dc35</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0500dc35534060a870a5998e5dddbcd015dfc2e1" rel="noopener">0500dc35</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3528" rel="noopener">#3528</a>𝗔 <a href="https://swamp-club.com/lab/4250" rel="noopener">lab#4250</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>102 items across 1 source(s) in this window:
+<p>108 items across 1 source(s) in this window:
 2 critical, 88 notable, 6 routine,
-6 minor.</p>
-<ul><li><strong>fix</strong> — 72</li><li><strong>feat</strong> — 18</li><li><strong>perf</strong> — 4</li><li><strong>docs</strong> — 3</li><li><strong>test</strong> — 3</li><li><strong>chore</strong> — 1</li></ul></section>
+12 minor.</p>
+<ul><li><strong>fix</strong> — 72</li><li><strong>feat</strong> — 18</li><li><strong>changes</strong> — 6</li><li><strong>perf</strong> — 4</li><li><strong>docs</strong> — 3</li><li><strong>test</strong> — 3</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-05T21:07:58.067Z">2026-11-05T21:07:58.067Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-05T22:27:34.885Z">2026-11-05T22:27:34.885Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

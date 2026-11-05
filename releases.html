@@ -89,7 +89,7 @@ footer .ver{color:var(--acc)}
 <li>An <code>Error</code>, <code>Map</code> or <code>Set</code> is rendered with <code>Deno.inspect</code>, so it keeps its message, stack or entries rather than printing as <code>{}</code>.</li>
 <li>Each patched method binds the stream</li>
 </ul></div>
-
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/typed-secrets.md" rel="noopener">design/enablers/typed-secrets.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261105.023331.0-sha.f6de2ba3" rel="noopener">release v20261105.023331.0-sha.f6de2ba3</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/f6de2ba3b00c7c9ad66572c2869dbbaf2b7c08e5" rel="noopener">f6de2ba3</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3625" rel="noopener">#3625</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261101-184944-0-sha-30a05f37">
@@ -140,7 +140,7 @@ footer .ver{color:var(--acc)}
 <p>New doctor JSON fields, present only when non-zero: <code>unreadableWorkflowRuns</code>, <code>unreadableReaped</code>, <code>unreadableRuns</code>.</p>
 <h4 class="body-h">What this does not establish</h4>
 <p>The reporter&#39;s truncation was not reproduced end to end. 40×500 fan-outs on the filesystem and</p></div>
-
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/troubleshooting/guide.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/troubleshooting/reference.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/run-tracker.md" rel="noopener">design/enablers/run-tracker.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261105.030003.0-sha.363a1dad" rel="noopener">release v20261105.030003.0-sha.363a1dad</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/363a1dad37a424b7f59e3bbce366ad95a8109c00" rel="noopener">363a1dad</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3626" rel="noopener">#3626</a>𝗔 <a href="https://swamp-club.com/lab/4411" rel="noopener">lab#4411</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261104-235301-0-sha-d072a0e5">
@@ -390,7 +390,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Restore.</strong> A reader whose restore moved the commits under it replays through <code>V3Datastore.replayEveryCommit</code>. That writes a replay-pending marker to the read-model state before any await, so a killed process still replays, and the next lock section resets as the read model&#39;s own reset.</li>
 <li>**Defence in depth</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261104.203255.0-sha.3ff9a703" rel="noopener">release v20261104.203255.0-sha.3ff9a703</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/3ff9a7030b6f61c39319a5a4b7daae45633d5a68" rel="noopener">3ff9a703</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3613" rel="noopener">#3613</a>𝗔 <a href="https://swamp-club.com/lab/4387" rel="noopener">lab#4387</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261104-193314-0-sha-b24d9e09">
@@ -476,7 +476,7 @@ footer .ver{color:var(--acc)}
 <li>Serve sends the local code in <code>details.refusalCode</code>. This includes a missing run or workflow (<code>reserveSuspendedRun</code>), and only when serve sends the refusal&#39;s own message unchanged.</li>
 <li>The CLI</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/run-tracker.md" rel="noopener">design/enablers/run-tracker.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261104.025555.0-sha.dd659114" rel="noopener">release v20261104.025555.0-sha.dd659114</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/dd659114842dda33775ed11420c07b8d9f470536" rel="noopener">dd659114</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3608" rel="noopener">#3608</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4378" rel="noopener">#4378</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3606" rel="noopener">#3606</a>𝗔 <a href="https://swamp-club.com/lab/4377" rel="noopener">lab#4377</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261104-024638-0-sha-18eb4a0b">
@@ -1162,7 +1162,7 @@ footer .ver{color:var(--acc)}
 <li><strong><code>floor</code></strong>: always gets at least 0.5 s.</li>
 <li>**`awaited</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastore-litestream.md" rel="noopener">design/enablers/datastore-litestream.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261102.223604.0-sha.333bee61" rel="noopener">release v20261102.223604.0-sha.333bee61</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/333bee6179ff7f726e832ca6274a6aeb4ae9bef9" rel="noopener">333bee61</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3572" rel="noopener">#3572</a>𝗔 <a href="https://swamp-club.com/lab/4286" rel="noopener">lab#4286</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261102-221519-0-sha-6a9fa0d2">
@@ -1255,7 +1255,7 @@ footer .ver{color:var(--acc)}
 <li>The composite repository also checks the other store, so a lifetime change cannot switch a name&#39;s kind between the ephemeral and persistent stores within a workflow run.</li>
 <li><code>swamp doctor datastores</code> gains a <code>mixed_kind_names</code> check over the catalog that lists names whose history alre</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/model/troubleshooting.md" rel="noopener">.claude/skills/swamp/references/extension/references/model/troubleshooting.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/troubleshooting/reference.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/reference.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/model/troubleshooting.md" rel="noopener">.claude/skills/swamp/references/extension/references/model/troubleshooting.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261102.210513.0-sha.147e2b3a" rel="noopener">release v20261102.210513.0-sha.147e2b3a</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/147e2b3ad6be99282d60b9ac658c07bfa121bddc" rel="noopener">147e2b3a</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3567" rel="noopener">#3567</a>𝗔 <a href="https://swamp-club.com/lab/4302" rel="noopener">lab#4302</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261102-204111-0-sha-a33e992d">
@@ -2075,7 +2075,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Catch-ups.</strong> A member catches up from serve once at the writer hold and once under the lock. The repository open and the lock&#39;s second pass bring only the read model up.</li>
 <li><strong>Chunk prefetch.</strong> A read-model page</li>
 </ul></div>
-
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastore-litestream.md" rel="noopener">design/enablers/datastore-litestream.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261105.020252.0-sha.09c042bd" rel="noopener">release v20261105.020252.0-sha.09c042bd</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/09c042bd023ef16dd24850ea825e45ba3f0c0bff" rel="noopener">09c042bd</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3624" rel="noopener">#3624</a>𝗔 <a href="https://swamp-club.com/lab/4401" rel="noopener">lab#4401</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261103-200028-0-sha-e0b3b215">
@@ -2347,7 +2347,7 @@ footer .ver{color:var(--acc)}
 <ul><li><strong>fix</strong> — 71</li><li><strong>feat</strong> — 15</li><li><strong>perf</strong> — 4</li><li><strong>docs</strong> — 3</li><li><strong>test</strong> — 3</li><li><strong>chore</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-05T05:07:33.348Z">2026-11-05T05:07:33.348Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-05T06:27:28.130Z">2026-11-05T06:27:28.130Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

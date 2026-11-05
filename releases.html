@@ -2193,7 +2193,34 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261102.151815.0-sha.b8f64405" rel="noopener">release v20261102.151815.0-sha.b8f64405</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b8f6440513579d2a9e7c0c68d6c501d584dfd667" rel="noopener">b8f64405</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3546" rel="noopener">#3546</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4150" rel="noopener">#4150</a>𝗔 <a href="https://swamp-club.com/lab/4231" rel="noopener">lab#4231</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261105-055054-0-sha-30608949">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261105-141959-0-sha-7621f6d4">
+<h2><span class="tier C">C</span>swamp 20261105.141959.0-sha.7621f6d4</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-05T14:26:25Z">2026-11-05T14:26:25Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): POST /api/v1/request server spans carry http.route, and a rule test fails when serve answers a fixed path the span route table lacks (swamp-club#4423) (#3628)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>EXACT_ROUTES</code> in <code>src/serve/http_request_span.ts</code> did not list <code>POST /api/v1/request</code> (<code>SERVE_REQUEST_PATH</code>), the route #3578 added to <code>swamp serve</code>. Server spans on it got no <code>http.route</code> and were named by method alone, the same as operator webhook and scanner paths. Alerts that count failed route-less POSTs as webhook failures therefore counted every 4xx on this route, such as a 401 from an expired token or a 429.</p>
+<ul>
+<li>Add <code>SERVE_REQUEST_PATH</code> to <code>EXACT_ROUTES</code>, imported from <code>src/serve/protocol.ts</code>, so the span route table and the handler&#39;s dispatch share one constant.</li>
+<li>New <code>integration/serve_http_route_span_rules_test.ts</code> scans <code>src/cli/commands/serve.ts</code> for fixed-path <code>===</code> comparisons and asserts each resolves to itself through <code>resolveHttpRoute</code>:</li>
+<li>slash-prefixed literals;</li>
+<li>constants compared against a <code>.pathname</code>, an <code>...Path</code> variable or <code>path</code>, mapped through an explicit table.</li>
+</ul>
+<p>  An unmapped constant fails the test, and minimum counts keep the scan from silently matching nothing. Before the fix it failed on <code>/api/v1/request</code>.</p>
+<ul>
+<li>The comment above <code>EXACT_ROUTES</code> now names that test as the guard.</li>
+</ul>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li><code>src/serve/http_request_span_test.ts</code>: the route is in the <code>resolveHttpRoute</code> known-paths table, and a refused <code>POST /api/v1/request</code> (401) span is na</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261105.141959.0-sha.7621f6d4" rel="noopener">release v20261105.141959.0-sha.7621f6d4</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7621f6d4" rel="noopener">7621f6d4</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3628" rel="noopener">#3628</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3578" rel="noopener">#3578</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261105-055054-0-sha-30608949">
 <h2><span class="tier C">C</span>swamp 20261105.055054.0-sha.30608949</h2>
 <p class="lede">Change (untyped) · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-11-05T05:56:14Z">2026-11-05T05:56:14Z</time></span></div>
@@ -2365,13 +2392,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261101.202412.0-sha.0500dc35" rel="noopener">release v20261101.202412.0-sha.0500dc35</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0500dc35534060a870a5998e5dddbcd015dfc2e1" rel="noopener">0500dc35</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3528" rel="noopener">#3528</a>𝗔 <a href="https://swamp-club.com/lab/4250" rel="noopener">lab#4250</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>99 items across 1 source(s) in this window:
+<p>100 items across 1 source(s) in this window:
 2 critical, 84 notable, 6 routine,
-7 minor.</p>
-<ul><li><strong>fix</strong> — 71</li><li><strong>feat</strong> — 15</li><li><strong>perf</strong> — 4</li><li><strong>docs</strong> — 3</li><li><strong>test</strong> — 3</li><li><strong>chore</strong> — 1</li></ul></section>
+8 minor.</p>
+<ul><li><strong>fix</strong> — 71</li><li><strong>feat</strong> — 15</li><li><strong>perf</strong> — 4</li><li><strong>docs</strong> — 3</li><li><strong>test</strong> — 3</li><li><strong>changes</strong> — 2</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-05T13:06:04.577Z">2026-11-05T13:06:04.577Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-05T14:30:55.813Z">2026-11-05T14:30:55.813Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

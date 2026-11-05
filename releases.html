@@ -1876,7 +1876,29 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261102.151815.0-sha.b8f64405" rel="noopener">release v20261102.151815.0-sha.b8f64405</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b8f6440513579d2a9e7c0c68d6c501d584dfd667" rel="noopener">b8f64405</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3546" rel="noopener">#3546</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4150" rel="noopener">#4150</a>𝗔 <a href="https://swamp-club.com/lab/4231" rel="noopener">lab#4231</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261105-023331-0-sha-f6de2ba3">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261105-030003-0-sha-363a1dad">
+<h2><span class="tier C">C</span>swamp 20261105.030003.0-sha.363a1dad</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-05T03:05:25Z">2026-11-05T03:05:25Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(workflows): a damaged run record no longer stops the run or breaks run doctor and history search; a later save repairs it, and run doctor --fix settles it as failed (swamp-club#2517) (#3626)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes the three symptoms in swamp-club#2517 when a run record on disk is damaged. A run record that does not parse now raises <code>UnreadableRunRecordError</code>, which names the run and file.</p>
+<ul>
+<li><strong>A damaged record during a run:</strong> the run finishes, and its next save repairs the record. This path used to crash with a raw parse error.</li>
+<li><strong><code>swamp run doctor</code>:</strong> reports the damaged record instead of crashing. <code>--fix</code> settles it as <code>failed</code> only if the file is empty or has no trailing newline, the owner is dead, and it is still damaged on re-read. It uses <code>failed</code> because the steps are lost, so <code>workflow recover</code> must not pick it up.</li>
+<li><strong><code>swamp workflow history search</code>:</strong> names any workflow it leaves out, in both output modes. The JSON field is <code>skippedWorkflows</code>, filtered by read access on <code>serve</code>.</li>
+<li><strong><code>workflow delete</code> and <code>workflow cancel</code>:</strong> still refuse on a damaged record, now with a clear error. Every scan except <code>findGlobalByStatus</code> still throws, because the serve delete guard and cancel depend on seeing the record.</li>
+</ul>
+<p>New doctor JSON fields, present only when non-zero: <code>unreadableWorkflowRuns</code>, <code>unreadableReaped</code>, <code>unreadableRuns</code>.</p>
+<h4 class="body-h">What this does not establish</h4>
+<p>The reporter&#39;s truncation was not reproduced end to end. 40×500 fan-outs on the filesystem and</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261105.030003.0-sha.363a1dad" rel="noopener">release v20261105.030003.0-sha.363a1dad</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/363a1dad" rel="noopener">363a1dad</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3626" rel="noopener">#3626</a>𝗔 <a href="https://swamp-club.com/lab/4411" rel="noopener">lab#4411</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261105-023331-0-sha-f6de2ba3">
 <h2><span class="tier C">C</span>swamp 20261105.023331.0-sha.f6de2ba3</h2>
 <p class="lede">Change (untyped) · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-11-05T02:39:29Z">2026-11-05T02:39:29Z</time></span></div>
@@ -2319,13 +2341,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261101.202412.0-sha.0500dc35" rel="noopener">release v20261101.202412.0-sha.0500dc35</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0500dc35534060a870a5998e5dddbcd015dfc2e1" rel="noopener">0500dc35</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3528" rel="noopener">#3528</a>𝗔 <a href="https://swamp-club.com/lab/4250" rel="noopener">lab#4250</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>97 items across 1 source(s) in this window:
+<p>98 items across 1 source(s) in this window:
 1 critical, 72 notable, 5 routine,
-19 minor.</p>
-<ul><li><strong>fix</strong> — 61</li><li><strong>changes</strong> — 13</li><li><strong>feat</strong> — 12</li><li><strong>perf</strong> — 3</li><li><strong>docs</strong> — 3</li><li><strong>test</strong> — 3</li></ul></section>
+20 minor.</p>
+<ul><li><strong>fix</strong> — 61</li><li><strong>changes</strong> — 14</li><li><strong>feat</strong> — 12</li><li><strong>perf</strong> — 3</li><li><strong>docs</strong> — 3</li><li><strong>test</strong> — 3</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-05T03:06:36.600Z">2026-11-05T03:06:36.600Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-05T04:26:00.016Z">2026-11-05T04:26:00.016Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

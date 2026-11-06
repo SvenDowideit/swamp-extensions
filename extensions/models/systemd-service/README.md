@@ -62,6 +62,7 @@ Global arguments (set at model creation with `--global-arg key=value`):
 | `after` | `[network-online.target]` | `After=` dependencies. |
 | `wants` | `[network-online.target]` | `Wants=` dependencies. |
 | `force` | `false` | Rewrite the unit file even if it already matches. |
+| `hardening` | `true` | Apply `PrivateTmp=true` and `ProtectSystem=full`. Set false for a service that must read root-owned SSH config: `PrivateTmp`'s user namespace maps root-owned files to `nobody`, which OpenSSH rejects. |
 
 `startService` arguments:
 
@@ -262,7 +263,11 @@ Resources:
   newlines; a newline would start a new directive (e.g. `User=root`), so it is
   rejected rather than silently stripped.
 - **Rendered hardening.** The unit sets `PrivateTmp=true`,
-  `ProtectSystem=full`, and `TimeoutStopSec=5`.
+  `ProtectSystem=full`, and `TimeoutStopSec=5` by default. Pass
+  `hardening=false` on `createService` when the service must read root-owned
+  files (for example an SSH client config under `/etc/ssh/ssh_config.d`):
+  `PrivateTmp` runs the service in a user namespace where only the service UID
+  is mapped, so root-owned files appear as `nobody` and OpenSSH refuses them.
 
 ### Extending and testing
 

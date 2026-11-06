@@ -43,6 +43,9 @@ export interface HistoryRide {
   avgHr: number | null;
   maxHr: number | null;
   avgCadence: number | null;
+  maxCadence?: number | null;
+  cadenceAt5s?: number | null;
+  cadenceAt60s?: number | null;
   maxPower: number | null;
   eventId: number | null;
   routeId: number | null;

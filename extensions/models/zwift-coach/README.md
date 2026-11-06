@@ -2,7 +2,9 @@
 
 Turn your own Zwift and Garmin history into a periodised training plan and
 validated `.zwo` workouts, then deliver the workouts to Zwift over SSH, a local
-workouts folder, a sync folder or a portable bundle.
+workouts folder, a sync folder or a portable bundle. Built-in goals cover
+regain/improve/event; custom goals (including sprint and max-wattage targets)
+come from the rider's own words or a validated agent-authored PlanSpec.
 
 ## What it does
 
@@ -24,6 +26,14 @@ them from the history you already have:
   age/readiness-aware ramp and a taper.
 - Renders conservative `.zwo` XML, validated for block count, file size and
   power/duration sanity.
+- Parses custom goals deterministically: power for a duration, max wattage,
+  FTP, w/kg, CTL, weight, a horizon and days/hours. Ambiguous goals return
+  clarifying questions instead of inventing a target.
+- Exposes `GoalSpec`/`PlanSpec` schemas, examples, safety limits and a prompt
+  through `scaffold-current`. An external agent (for example opencode) can
+  author a `PlanSpec`; `validate-current` rejects raw XML, unsafe session
+  frequency, consecutive hard days, phase-length drift and over-cap sessions
+  before anything is rendered.
 - Delivers the rendered files. The coach model writes local, sync-folder and
   bundle outputs itself; SSH and SCP are delegated to the existing
   `@swamp/ssh` extension, never reimplemented here.
@@ -94,6 +104,79 @@ there is no separate upgrade workflow: `swamp extension pull` (or
 `render-current` and `delivery-current` resources are kept; re-run the plan
 workflow to render and deliver with the new version.
 
+## Custom goals and agent-authored plans
+
+The built-in `regain`/`improve`/`event` goals are the fast path. A goal like
+“in 3 months, hold ≥700 W for 60 s and raise max wattage above 1300 W” is a
+sprint/anaerobic goal, so it uses the custom workflow instead:
+
+```sh
+swamp workflow run @svendowideit/zwift-coach-custom \
+  --input description="In 3 months, hold >=700W for 60s, raise max wattage above 1300W, and move toward 65kg"
+```
+
+That parses the horizon, the 60 s target, the max-wattage target and the
+secondary weight target, then generates a deterministic sprint plan with
+sprint, anaerobic, endurance and recovery sessions and tests on the
+recovery-week cadence.
+
+### Absolute targets, not FTP multiples
+
+Sprint and 60 s goals are absolute-power goals. The coach reads the rider's
+`power-curve-current` (`5 s`, `15 s`, `60 s`, `300 s`, `1200 s`) and writes
+`FreeRide`/`MaxEffort` blocks with the target watts and current best in the
+workout text. It does not derive a 1300 W max or a 700 W 60 s effort from FTP.
+If the curve is missing, the plan inserts a week-0 5 s/60 s test instead of
+inventing a percentage. If the gap is large, the plan says so: with a 473 W
+current 60 s best, 700 W is 48% higher; the plan progresses from 473 W and puts
+700 W in the peak as a stretch, rather than pretending 12 weeks will close it.
+
+Read the curve and the gap:
+
+```sh
+swamp data query 'modelType == "@svendowideit/zwift-rider" && name == "power-curve-current"' \
+  --single --json --select content | jq '.best'
+```
+
+Sprint sessions are also shaped for the rider, not for a template:
+
+- 5–6 minute rotating primers (cadence ladder, progressive spin-up, mini-race
+  opener), not a 15-minute ramp;
+- separate **torque** sprints (6 s, 70–90 rpm) and **cadence** sprints (8 s,
+  capped from your 5 s best-window cadence);
+- a 3 s lead-in ramp, then the max effort, then a 10–20 s ramp-down and 2–3
+  minutes easy — no instant jump, no coasting;
+- a human-readable block summary in `preview-current` and the ZWO description,
+  with watts, cadence and duration, plus a glossary for TSS/CTL/ATL/TSB/IF.
+
+The weight target is a separate lever: Z2 volume and a weekly trend review, not
+sprint intervals. The plan keeps at least one endurance session every week and
+does not prescribe calories.
+
+The extension does **not** call an LLM. To use an agent, run it with
+`scaffold-current` and pass its JSON back:
+
+```sh
+# The scaffold carries the versioned PlanSpec schema, examples, availability
+# and safety limits. Give it to opencode (or another agent) and ask for one
+# JSON object, no prose and no XML.
+swamp data query 'behavior("zwift-coach") && name == "scaffold-current"' \
+  --single --json --select content > scaffold.json
+
+# Validate and plan from the agent's JSON. Validation is fail-closed: errors
+# stop the workflow before render/deliver.
+swamp workflow run @svendowideit/zwift-coach-custom \
+  --input description="In 3 months, hold >=700W for 60s..." \
+  --input planSpecJson="$(cat plan-spec.json)"
+```
+
+Read `validation-current` before trusting a plan:
+
+```sh
+swamp data query 'behavior("zwift-coach") && name == "validation-current"' \
+  --single --json --select content | jq '{errors,warnings,suggestions}'
+```
+
 ## Configuration
 
 ### Coach workflow inputs (`@svendowideit/zwift-coach-plan`)
@@ -120,10 +203,24 @@ workflow to render and deliver with the new version.
 | `autoDeliver` | `true` | Deliver after rendering; `false` renders only |
 | `dryRun` | `false` | Stage and report, but do not write files |
 
+### Custom workflow inputs (`@svendowideit/zwift-coach-custom`)
+
+| Input | Default | Meaning |
+| --- | --- | --- |
+| `description` | empty | The rider's own goal words (required) |
+| `planSpecJson` | empty | Optional agent-authored `PlanSpec` JSON |
+| `equipment` | trainer, power_meter, resistance | Available equipment |
+| `availableDays` | empty | ISO weekdays (1=Mon); empty = history |
+| `indoorOnly` | `false` | Plan indoor sessions only |
+| `injuries` | empty | Injuries or constraints to respect |
+| `targetWeightKg` | `0` | 0 = parse from the description |
+| `weeks` | `0` | 0 = parse the horizon from the description |
+| `style` | empty | Optional `pyramidal`/`polarised`/`sprint` override |
+
 ### Delivery inputs
 
-These are accepted by the plan workflow and by the explicit delivery
-workflows.
+These are accepted by the plan and custom workflows and by the explicit
+delivery workflows.
 
 | Input | Default | Meaning |
 | --- | --- | --- |
@@ -213,6 +310,18 @@ swamp workflow run @svendowideit/zwift-coach-deliver-sync \
 #    workouts/ into <Zwift>/Workouts/<riderId>/zwift-coach/.
 swamp workflow run @svendowideit/zwift-coach-deliver-bundle \
   --input bundleDir="$HOME/.local/share/zwift-coach"
+
+# 7. Custom sprint/weight goal in the rider's own words. The deterministic
+#    path needs no agent and produces sprint, anaerobic, endurance and recovery
+#    sessions that fit the inferred days/hours.
+swamp workflow run @svendowideit/zwift-coach-custom \
+  --input description="In 3 months, hold >=700W for 60s, raise max wattage above 1300W, and move toward 65kg"
+
+# 8. Agent-authored PlanSpec. Get the schema from scaffold-current, have the
+#    agent return one JSON object, then pass it back. Validation is fail-closed.
+swamp workflow run @svendowideit/zwift-coach-custom \
+  --input description="In 3 months, hold >=700W for 60s..." \
+  --input planSpecJson="$(cat plan-spec.json)"
 ```
 
 ## Reading the result
@@ -252,7 +361,9 @@ swamp data query 'modelType == "@svendowideit/zwift-rider" && name == "training-
 | --- | --- | --- |
 | `@svendowideit/zwift-coach` | `setup` | Read-only report of expected resources |
 | `@svendowideit/zwift-coach` | `analyze` | Build `fitness-current` |
-| `@svendowideit/zwift-coach` | `goal` | Compile `regain`/`improve`/`event` into `goal-current` |
+| `@svendowideit/zwift-coach` | `goal` | Compile `regain`/`improve`/`event` or a custom description into `goal-current` |
+| `@svendowideit/zwift-coach` | `scaffold` | Emit `scaffold-current` PlanSpec/GoalSpec schema, example, limits and prompt |
+| `@svendowideit/zwift-coach` | `validate` | Validate an agent-authored PlanSpec into `validation-current` |
 | `@svendowideit/zwift-coach` | `plan` | Generate `plan-current` weeks/sessions |
 | `@svendowideit/zwift-coach` | `render` | Render `workout-*` + `render-current` ZWO |
 | `@svendowideit/zwift-coach` | `preview` | Write `preview-current` markdown |
@@ -269,8 +380,19 @@ swamp data query 'modelType == "@svendowideit/zwift-rider" && name == "training-
 - `workout-<session>` / `render-current` — rendered ZWO and its index.
 - `preview-current` — human-readable markdown.
 - `howto-current` — the guided reading list.
+- `scaffold-current` — `GoalSpec`/`PlanSpec` schemas, examples, availability,
+  safety limits and the agent prompt.
+- `validation-current` — fail-closed `errors`, `warnings` and `suggestions`.
 - `delivery-spec` — resolved destination, file list and delivery inputs.
 - `delivery-current` — winning channel, every attempt, warnings and destination.
+
+### Coach workflows
+
+| Workflow | Purpose |
+| --- | --- |
+| `@svendowideit/zwift-coach-plan` | Built-in goal → plan → render → preview → deliver |
+| `@svendowideit/zwift-coach-custom` | Custom GoalSpec or agent PlanSpec → plan → render → preview → deliver |
+| `@svendowideit/zwift-coach-backfill` | Backfill history without planning |
 
 ### Delivery workflows
 

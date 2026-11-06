@@ -1,5 +1,9 @@
 import { assertEquals, assertNotEquals } from "jsr:@std/assert@1";
-import { parseFitSession } from "./zwift_fit.ts";
+import {
+  bestWindowCadence,
+  maxCadenceFromSamples,
+  parseFitSession,
+} from "./zwift_fit.ts";
 
 function float32LE(value: number): number[] {
   const buf = new ArrayBuffer(4);
@@ -71,6 +75,16 @@ function buildSessionFit(
   return new Uint8Array([...header, ...payload, 0, 0]);
 }
 
+Deno.test("cadence helpers find the max and best-window cadence", () => {
+  assertEquals(maxCadenceFromSamples([90, null, 110, 80]), 110);
+  const samples = Array.from({ length: 10 }, (_, i) => ({
+    power: i < 5 ? 100 : 300,
+    cadence: i < 5 ? 80 : 110,
+  }));
+  assertEquals(bestWindowCadence(samples, 5), 110);
+  assertEquals(bestWindowCadence(samples.slice(0, 3), 5), null);
+});
+
 Deno.test("parseFitSession reads NP/TSS/IF from a session message", async () => {
   const fit = buildSessionFit(250, 100, 1);
   const session = await parseFitSession(fit);
@@ -78,6 +92,7 @@ Deno.test("parseFitSession reads NP/TSS/IF from a session message", async () => 
   assertEquals(session?.normalizedPower, 250);
   assertEquals(session?.trainingStressScore, 100);
   assertEquals(session?.intensityFactor, 1);
+  assertEquals(session?.maxCadence, null);
 });
 
 Deno.test("parseFitSession skips compressed-timestamp messages", async () => {

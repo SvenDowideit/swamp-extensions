@@ -217,6 +217,7 @@ const RequestOutputSchema = z.object({
 /** Maximum bytes captured per stream, so a runaway command cannot exhaust memory. */
 const MAX_STREAM_BYTES = 64 * 1024;
 
+/** A bounded result from one command execution. */
 export interface Exec {
   /** Captured standard output (bounded). */
   stdout: string;
@@ -797,7 +798,7 @@ function ladderReport(ladder: z.infer<typeof LadderEntrySchema>[]): string {
  */
 export const model = {
   type: "@svendowideit/sudo",
-  version: "2026.10.11.1",
+  version: "2026.10.26.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -851,6 +852,16 @@ export const model = {
         "a short timeout, and leaves no elevation marker — so a host with no " +
         "usable non-interactive route can never prompt or hang. No " +
         "global-argument or resource-shape change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.26.1",
+      description: "NixOS compatibility: resolve `id` and `env` from " +
+        "/run/current-system/sw/bin when present, and run container/k8s " +
+        "commands through /bin/sh with the NixOS system bins prepended to " +
+        "PATH. Docker/podman/nerdctl probes on NixOS now prove host root " +
+        "instead of failing on missing /bin/cat or /usr/bin/id. No schema or " +
+        "resource-shape change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

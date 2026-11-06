@@ -82,6 +82,7 @@ import {
   statusPageLinks,
   thirdPartyPlugins,
   validateBaseDomain,
+  validateDesiredState,
   validateEmail,
   withDefaultPlugins,
   withoutBaseDomainApex,
@@ -227,8 +228,6 @@ Deno.test("renderServiceUnit includes binary, config, and --resume, but no --adm
   assertStringIncludes(unit, "--config /home/alice/.config/caddy/Caddyfile");
   assertStringIncludes(unit, "--adapter caddyfile");
   assertStringIncludes(unit, "WantedBy=default.target");
-  // --resume reloads the config autosaved from admin-API changes, so routes
-  // survive a service restart.
   assertStringIncludes(unit, "run --resume");
   // Caddy v2.11+ rejects `caddy run --admin`; the admin endpoint belongs in
   // the Caddyfile global options instead.
@@ -1085,6 +1084,99 @@ Deno.test("renderStatusPage includes install facts and links", () => {
   assertStringIncludes(html, "localhost");
 });
 
+Deno.test("renderStatusPage labels external DNS-only and DNS+TLS hosts with their DNS value", () => {
+  const html = renderStatusPage({
+    title: "Caddy",
+    version: "v2",
+    adminUrl: "",
+    baseDomain: "fi.gy",
+    email: "",
+    capabilities: [],
+    links: [],
+    statusHostnames: [
+      "localhost",
+      "x1yoga.fi.gy",
+      "blog.fi.gy",
+      "nanokvm.fi.gy",
+      "glkvm.fi.gy",
+      "eieio.fi.gy",
+    ],
+    dnsRecords: [
+      { name: "x1yoga.fi.gy", type: "A", value: ["10.10.13.208"] },
+      { name: "blog.fi.gy", type: "CNAME", value: ["figy-blog.pages.dev"] },
+      { name: "nanokvm.fi.gy", type: "A", value: ["10.10.12.230"] },
+      { name: "glkvm.fi.gy", type: "A", value: ["10.10.6.150"] },
+      { name: "eieio.fi.gy", type: "A", value: ["10.10.1.77"] },
+    ],
+    tlsSubjects: ["blog.fi.gy", "nanokvm.fi.gy", "glkvm.fi.gy"],
+    ownIps: ["10.10.13.208"],
+  });
+  assertStringIncludes(
+    html,
+    'x1yoga.fi.gy</a> — <span class="muted">status page (this page)</span>',
+  );
+  assertStringIncludes(
+    html,
+    'blog.fi.gy</a> — <span class="muted">DNS only (CNAME figy-blog.pages.dev)</span>',
+  );
+  assertStringIncludes(
+    html,
+    'nanokvm.fi.gy</a> — <span class="muted">DNS + TLS (A 10.10.12.230)</span>',
+  );
+  assertStringIncludes(
+    html,
+    'glkvm.fi.gy</a> — <span class="muted">DNS + TLS (A 10.10.6.150)</span>',
+  );
+  assertStringIncludes(
+    html,
+    'eieio.fi.gy</a> — <span class="muted">DNS only (A 10.10.1.77)</span>',
+  );
+  const blogLine = html.split("\n").find((l) => l.includes("blog.fi.gy")) ?? "";
+  assertEquals(blogLine.includes("status page (this page)"), false);
+  assert(!html.includes("health contract on <code>blog.fi.gy</code>"));
+});
+
+Deno.test("renderStatusPage shows desired-vs-live drift", () => {
+  const html = renderStatusPage({
+    title: "Caddy",
+    version: "v2",
+    adminUrl: "",
+    baseDomain: "fi.gy",
+    email: "",
+    capabilities: [],
+    links: [],
+    drift: {
+      onlyDesired: ["missing.example.com"],
+      onlyActual: ["extra.example.com"],
+      foreignRoutes: ["hand.example.com"],
+      inSync: false,
+    },
+  });
+  assertStringIncludes(html, "Desired vs live");
+  assertStringIncludes(html, "missing.example.com");
+  assertStringIncludes(html, "extra.example.com");
+  assertStringIncludes(html, "hand.example.com");
+});
+
+Deno.test("renderStatusPage says in sync when drift is empty", () => {
+  const html = renderStatusPage({
+    title: "Caddy",
+    version: "v2",
+    adminUrl: "",
+    baseDomain: "fi.gy",
+    email: "",
+    capabilities: [],
+    links: [],
+    drift: {
+      onlyDesired: [],
+      onlyActual: [],
+      foreignRoutes: [],
+      inSync: true,
+    },
+  });
+  assertStringIncludes(html, "In sync");
+});
+
 Deno.test("renderStatusPage warns when the capability is missing", () => {
   const html = renderStatusPage({
     title: "Caddy",
@@ -1792,6 +1884,209 @@ Deno.test("ensureRoute updates the route when the upstream changed", () => {
   assertEquals(changed, true);
   const route = findRouteByHost(next, "foo.example.com")?.route;
   assertEquals(routeUpstream(route ?? {}), "127.0.0.1:9999");
+});
+
+function desiredState(overrides: Record<string, unknown> = {}) {
+  return {
+    modelName: "good",
+    target: "host",
+    serviceName: "caddy",
+    adminApiAddr: "localhost:2019",
+    baseDomain: "example.com",
+    autoHttps: "off",
+    listenAddrs: [":80"],
+    plugins: [],
+    environmentFile: "",
+    caddyBinPath: "/caddy",
+    routes: [],
+    tls: null,
+    statusPage: null,
+    dnsRecords: [],
+    dnsRemovals: [],
+    dnsTtl: "5m",
+    dnsSoa: {},
+    healthRoutes: true,
+    autoRouteTls: true,
+    autoRouteDns: true,
+    routeIp: "",
+    updatedAt: "2026-10-25T00:00:00Z",
+    ...overrides,
+  } as never;
+}
+
+Deno.test("validateDesiredState accepts a valid state and a non-dotted CNAME", () => {
+  assertEquals(validateDesiredState(desiredState()), []);
+  assertEquals(
+    validateDesiredState(desiredState({
+      dnsRecords: [{
+        name: "blog.example.com",
+        type: "CNAME",
+        value: ["figy-blog.pages.dev"],
+        zone: "example.com",
+        ttl: "",
+      }],
+    })),
+    [],
+  );
+});
+
+Deno.test("validateDesiredState rejects an invalid baseDomain", () => {
+  const errors = validateDesiredState(
+    desiredState({ baseDomain: "https://bad.example.com" }),
+  );
+  assert(errors.some((e: string) => e.includes("baseDomain")));
+});
+
+Deno.test("validateDesiredState rejects an invalid listen address", () => {
+  const errors = validateDesiredState(
+    desiredState({ listenAddrs: ["not-a-port"] }),
+  );
+  assert(errors.some((e: string) => e.includes("listenAddr")));
+});
+
+Deno.test("validateDesiredState rejects an invalid routeIp", () => {
+  const errors = validateDesiredState(
+    desiredState({ routeIp: "999.999.999.999" }),
+  );
+  assert(errors.some((e: string) => e.includes("routeIp")));
+});
+
+Deno.test("validateDesiredState rejects an invalid route hostname", () => {
+  const errors = validateDesiredState(
+    desiredState({
+      routes: [{
+        hostname: "https://bad.example.com/x",
+        kind: "proxy",
+        upstream: "127.0.0.1:8080",
+        root: "",
+        browse: false,
+        rootPath: "",
+      }],
+    }),
+  );
+  assert(errors.some((e: string) => e.includes("hostname")));
+});
+
+Deno.test("validateDesiredState rejects a malformed proxy upstream", () => {
+  const errors = validateDesiredState(
+    desiredState({
+      routes: [{
+        hostname: "bad.example.com",
+        kind: "proxy",
+        upstream: "not a host",
+        root: "",
+        browse: false,
+        rootPath: "",
+      }],
+    }),
+  );
+  assert(errors.some((e: string) => e.includes("upstream")));
+});
+
+Deno.test("validateDesiredState rejects a relative file_server root", () => {
+  const errors = validateDesiredState(
+    desiredState({
+      routes: [{
+        hostname: "bad.example.com",
+        kind: "file_server",
+        upstream: "",
+        root: "relative/site",
+        browse: false,
+        rootPath: "",
+      }],
+    }),
+  );
+  assert(errors.some((e: string) => e.includes("root")));
+});
+
+Deno.test("validateDesiredState rejects an invalid A record value", () => {
+  const errors = validateDesiredState(
+    desiredState({
+      dnsRecords: [{
+        name: "bad.example.com",
+        type: "A",
+        value: ["999.999.999.999"],
+        zone: "example.com",
+        ttl: "",
+      }],
+    }),
+  );
+  assert(errors.some((e: string) => e.includes("A record")));
+});
+
+Deno.test("validateDesiredState rejects a CNAME with multiple targets", () => {
+  const errors = validateDesiredState(
+    desiredState({
+      dnsRecords: [{
+        name: "bad.example.com",
+        type: "CNAME",
+        value: ["a.example.com", "b.example.com"],
+        zone: "example.com",
+        ttl: "",
+      }],
+    }),
+  );
+  assert(errors.some((e: string) => e.includes("CNAME")));
+});
+
+Deno.test("validateDesiredState rejects a record outside its zone", () => {
+  const errors = validateDesiredState(
+    desiredState({
+      dnsRecords: [{
+        name: "outside.example.net",
+        type: "A",
+        value: ["192.0.2.10"],
+        zone: "example.com",
+        ttl: "",
+      }],
+    }),
+  );
+  assert(errors.some((e: string) => e.includes("outside zone")));
+});
+
+Deno.test("validateDesiredState rejects a mismatched admin API address", () => {
+  const errors = validateDesiredState(
+    desiredState({ adminApiAddr: "localhost:2021" }),
+  );
+  assertEquals(errors, []);
+  const merged = mergeDesired([
+    desiredState({ modelName: "good" }),
+    desiredState({ modelName: "bad", adminApiAddr: "localhost:2021" }),
+  ]);
+  assertEquals(merged.rejected.map((r) => r.model), ["bad"]);
+  assertEquals(merged.merged.models, ["good"]);
+});
+
+Deno.test("mergeDesired ignores a bad model and keeps the good model's route", () => {
+  const good = desiredState({
+    modelName: "good",
+    routes: [{
+      hostname: "good.example.com",
+      kind: "file_server",
+      upstream: "",
+      root: "/tmp",
+      browse: false,
+      rootPath: "",
+    }],
+  });
+  const bad = desiredState({
+    modelName: "bad",
+    baseDomain: "https://bad.example.com",
+    routes: [{
+      hostname: "bad.example.com",
+      kind: "file_server",
+      upstream: "",
+      root: "relative",
+      browse: false,
+      rootPath: "",
+    }],
+  });
+  const merged = mergeDesired([good, bad]);
+  assertEquals(merged.rejected.map((r) => r.model), ["bad"]);
+  assertEquals(merged.merged.models, ["good"]);
+  assertEquals(merged.merged.routes.map((r) => r.hostname), [
+    "good.example.com",
+  ]);
 });
 
 // ---------------------------------------------------------------------------

@@ -295,6 +295,60 @@ export interface AbilityProfile {
   [key: string]: unknown;
 }
 
+/** One duration point on the rider's best-power curve. */
+export interface PowerCurvePoint {
+  seconds: number;
+  watts: number;
+  wPerKg?: number;
+}
+
+/** Rider power-duration profile used for absolute training targets. */
+export interface PowerCurve {
+  source: "zwift-power-curve" | "fit-records" | "missing";
+  fetchedAt: string;
+  points: PowerCurvePoint[];
+  best: {
+    power5: number | null;
+    power15: number | null;
+    power60: number | null;
+    power300: number | null;
+    power1200: number | null;
+  };
+  cadence: {
+    max: number | null;
+    at5s: number | null;
+    at60s: number | null;
+    typical: number | null;
+    source: "fit-records" | "detail" | "missing";
+  };
+}
+
+const PowerCurvePointSchema = z.object({
+  seconds: z.number(),
+  watts: z.number(),
+  wPerKg: z.number().optional(),
+});
+
+const PowerCurveSchema = z.object({
+  source: z.enum(["zwift-power-curve", "fit-records", "missing"]),
+  fetchedAt: z.string(),
+  points: z.array(PowerCurvePointSchema),
+  best: z.object({
+    power5: z.number().nullable(),
+    power15: z.number().nullable(),
+    power60: z.number().nullable(),
+    power300: z.number().nullable(),
+    power1200: z.number().nullable(),
+  }),
+  cadence: z.object({
+    max: z.number().nullable(),
+    at5s: z.number().nullable(),
+    at60s: z.number().nullable(),
+    typical: z.number().nullable(),
+    source: z.enum(["fit-records", "detail", "missing"]),
+  }),
+});
+
 const AbilitySchema = z.object({
   generatedAt: z.string(),
   timeZone: z.string(),
@@ -395,6 +449,9 @@ const HistoryRideSchema = z.object({
   avgHr: z.number().nullable(),
   maxHr: z.number().nullable(),
   avgCadence: z.number().nullable(),
+  maxCadence: z.number().nullable().optional(),
+  cadenceAt5s: z.number().nullable().optional(),
+  cadenceAt60s: z.number().nullable().optional(),
   maxPower: z.number().nullable(),
   eventId: z.number().nullable(),
   routeId: z.number().nullable(),
@@ -660,6 +717,9 @@ function toHistoryRide(a: Activity): HistoryRide {
     avgHr: a.avgHeartRate,
     maxHr: null,
     avgCadence: a.avgCadence,
+    maxCadence: null,
+    cadenceAt5s: null,
+    cadenceAt60s: null,
     maxPower: null,
     eventId: a.eventId,
     routeId: a.routeId,
@@ -681,22 +741,48 @@ function delay(ms: number): Promise<void> {
  * Fetch one Zwift FIT file from S3 and read the session normalised power.
  * Returns null when the file is missing, not a FIT, or has no session.
  */
-async function fetchFitNp(
+async function fetchFitStats(
   bucket: string,
   key: string,
   fetchImpl: typeof fetch,
-): Promise<{ np: number | null; fetched: boolean }> {
+): Promise<{
+  np: number | null;
+  maxCadence: number | null;
+  cadenceAt5s: number | null;
+  cadenceAt60s: number | null;
+  fetched: boolean;
+}> {
   try {
     const res = await fetchImpl(
       `https://${bucket}.s3.amazonaws.com/${key}`,
       { signal: AbortSignal.timeout(60_000) },
     );
-    if (!res.ok) return { np: null, fetched: false };
+    if (!res.ok) {
+      return {
+        np: null,
+        maxCadence: null,
+        cadenceAt5s: null,
+        cadenceAt60s: null,
+        fetched: false,
+      };
+    }
     const bytes = new Uint8Array(await res.arrayBuffer());
     const session = await parseFitSession(bytes);
-    return { np: session?.normalizedPower ?? null, fetched: true };
+    return {
+      np: session?.normalizedPower ?? null,
+      maxCadence: session?.maxCadence ?? null,
+      cadenceAt5s: session?.cadenceAt5s ?? null,
+      cadenceAt60s: session?.cadenceAt60s ?? null,
+      fetched: true,
+    };
   } catch {
-    return { np: null, fetched: false };
+    return {
+      np: null,
+      maxCadence: null,
+      cadenceAt5s: null,
+      cadenceAt60s: null,
+      fetched: false,
+    };
   }
 }
 
@@ -844,6 +930,122 @@ export function ftpFromPowerCurve(
     if (value !== null && value > 0) return Math.round(value * 0.95);
   }
   return null;
+}
+
+/** Parse a duration key such as "5", "5s", "1m" or "20m" into seconds. */
+function parseCurveDuration(key: string): number | null {
+  const text = key.trim().toLowerCase();
+  if (/^\d+$/.test(text)) return Number(text);
+  const match = text.match(
+    /^(\d+(?:\.\d+)?)\s*(s|sec|secs|m|min|mins|h|hr|hrs)$/,
+  );
+  if (!match) return null;
+  const value = Number(match[1]);
+  if (!Number.isFinite(value) || value <= 0) return null;
+  const unit = match[2];
+  return unit.startsWith("h")
+    ? value * 3600
+    : unit.startsWith("m")
+    ? value * 60
+    : value;
+}
+
+function curveWatts(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    for (const key of ["value", "watts", "power", "best", "wattsBest"]) {
+      const n = record[key];
+      if (typeof n === "number" && Number.isFinite(n)) return n;
+    }
+  }
+  return null;
+}
+
+function nearestCurvePower(
+  points: PowerCurvePoint[],
+  seconds: number,
+): number | null {
+  if (points.length === 0) return null;
+  const exact = points.find((p) => p.seconds === seconds);
+  if (exact) return exact.watts;
+  const nearest = [...points].sort(
+    (a, b) => Math.abs(a.seconds - seconds) - Math.abs(b.seconds - seconds),
+  )[0];
+  if (!nearest) return null;
+  return Math.abs(nearest.seconds - seconds) <= seconds * 0.5
+    ? nearest.watts
+    : null;
+}
+
+/**
+ * Turn the Zwift `power-curve/best/all-time` payload into a normalized
+ * power-duration profile. Accepts the array form (`pointsWatts: [{duration,
+ * value}]`) and the older keyed-object form (`{ "5": 1300, "60": 700 }`).
+ */
+export function powerCurveFromPayload(
+  payload: Record<string, unknown>,
+  opts: {
+    fetchedAt: string;
+    weightKg?: number | null;
+    source?: PowerCurve["source"];
+    cadence?: PowerCurve["cadence"];
+  },
+): PowerCurve {
+  const raw = payload.pointsWatts ?? payload.points ?? payload;
+  const bySeconds = new Map<number, number>();
+  if (Array.isArray(raw)) {
+    for (const item of raw) {
+      if (!item || typeof item !== "object") continue;
+      const record = item as Record<string, unknown>;
+      const duration = record.duration ?? record.seconds ?? record.time;
+      const seconds = typeof duration === "number"
+        ? duration
+        : parseCurveDuration(String(duration ?? ""));
+      const watts = curveWatts(record);
+      if (seconds && watts && seconds > 0 && watts > 0) {
+        bySeconds.set(seconds, Math.max(bySeconds.get(seconds) ?? 0, watts));
+      }
+    }
+  } else if (raw && typeof raw === "object") {
+    for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+      const seconds = parseCurveDuration(key);
+      const watts = curveWatts(value);
+      if (seconds && watts && seconds > 0 && watts > 0) {
+        bySeconds.set(seconds, Math.max(bySeconds.get(seconds) ?? 0, watts));
+      }
+    }
+  }
+  const points: PowerCurvePoint[] = [...bySeconds.entries()]
+    .sort((a, b) => a[0] - b[0])
+    .map(([seconds, watts]) => ({
+      seconds,
+      watts: Math.round(watts * 10) / 10,
+      ...(opts.weightKg && opts.weightKg > 0
+        ? { wPerKg: Math.round((watts / opts.weightKg) * 100) / 100 }
+        : {}),
+    }));
+  return {
+    source: points.length > 0
+      ? (opts.source ?? "zwift-power-curve")
+      : "missing",
+    fetchedAt: opts.fetchedAt,
+    points,
+    cadence: opts.cadence ?? {
+      max: null,
+      at5s: null,
+      at60s: null,
+      typical: null,
+      source: "missing",
+    },
+    best: {
+      power5: nearestCurvePower(points, 5),
+      power15: nearestCurvePower(points, 15),
+      power60: nearestCurvePower(points, 60),
+      power300: nearestCurvePower(points, 300),
+      power1200: nearestCurvePower(points, 1200),
+    },
+  };
 }
 
 /** Zwift-style power-to-weight category bands (men's race categories). */
@@ -1081,9 +1283,9 @@ export const model = {
     {
       toVersion: "2026.11.06.1",
       description:
-        "Adds the read-only backfill method and training-history, load-daily, " +
-        "history-years and availability-current resources for the coach. " +
-        "Existing resources and global arguments are unchanged.",
+        "Adds the read-only backfill method, training-history, load-daily, " +
+        "history-years, availability-current and power-curve-current resources " +
+        "for the coach. Existing resources and global arguments are unchanged.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1115,6 +1317,13 @@ export const model = {
         "Derived, recency-decayed ability + habit profile for the recommender",
       schema: AbilitySchema,
       lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    powerCurve: {
+      description:
+        "Best-power curve (5 s to 20 min) used for absolute training targets",
+      schema: PowerCurveSchema,
+      lifetime: "30d",
       garbageCollection: 10,
     },
     session: {
@@ -1354,6 +1563,11 @@ export const model = {
         let ftpWatts = profileFtp;
         let ftpSource = profileFtp !== null ? "profile" : "none";
         let racingScore: number | null = null;
+        let powerCurve: PowerCurve | null = null;
+        const previousCurve = await ctx.readResource("power-curve-current");
+        const previousCadence = previousCurve?.cadence as
+          | PowerCurve["cadence"]
+          | undefined;
 
         if (args.includeAbility) {
           try {
@@ -1363,6 +1577,12 @@ export const model = {
               g.apiBase,
               fetchImpl,
             ) as Record<string, unknown>;
+            powerCurve = powerCurveFromPayload(curve, {
+              fetchedAt: new Date(nowMs).toISOString(),
+              weightKg,
+              source: "zwift-power-curve",
+              cadence: previousCadence,
+            });
             const fromCurve = ftpFromPowerCurve(curve);
             if (fromCurve !== null) {
               ftpWatts = fromCurve;
@@ -1407,6 +1627,13 @@ export const model = {
           "ability-current",
           ability,
         );
+        const powerCurveHandle = powerCurve
+          ? await ctx.writeResource(
+            "powerCurve",
+            "power-curve-current",
+            powerCurve as unknown as Record<string, unknown>,
+          )
+          : null;
 
         const summaryHandle = await ctx.writeResource("sync", "summary", {
           riderId,
@@ -1424,6 +1651,7 @@ export const model = {
             sessionHandle,
             profileHandle,
             abilityHandle,
+            ...(powerCurveHandle ? [powerCurveHandle] : []),
             summaryHandle,
             historyHandle,
             ...handles,
@@ -1435,8 +1663,8 @@ export const model = {
       description:
         "Fetch as much Zwift history as the API returns, enrich each ride " +
         "with profileFtp/HR/max power, optionally parse FIT for NP, merge " +
-        "Garmin activities, and write load-daily, history-years and " +
-        "availability-current. Read-only against Zwift.",
+        "Garmin activities, and write load-daily, history-years, " +
+        "availability-current and power-curve-current. Read-only against Zwift.",
       arguments: BackfillArgsSchema,
       execute: async (
         args: z.infer<typeof BackfillArgsSchema>,
@@ -1475,6 +1703,10 @@ export const model = {
         }
         const profileFtp = pickNumber(rawProfile, "ftp", "ftpWatts");
         const ftpFallback = args.ftpFallback ?? profileFtp;
+        const rawWeight = pickNumber(rawProfile, "weight");
+        const weightKg = rawWeight !== null && rawWeight > 1000
+          ? Math.round(rawWeight / 100) / 10
+          : rawWeight;
 
         const { activities: rawActivities, truncated } = await fetchActivities(
           riderId,
@@ -1521,6 +1753,9 @@ export const model = {
               avgHr: fresh.avgHr ?? previous.avgHr,
               maxHr: previous.maxHr,
               avgCadence: fresh.avgCadence ?? previous.avgCadence,
+              maxCadence: previous.maxCadence,
+              cadenceAt5s: previous.cadenceAt5s,
+              cadenceAt60s: previous.cadenceAt60s,
               maxPower: previous.maxPower,
               npWatts: previous.npWatts,
               ftpWatts: previous.ftpWatts,
@@ -1540,8 +1775,10 @@ export const model = {
           // FIT files are immutable once uploaded; only fetch when we have
           // never fetched this activity's file. Detail is what gets refreshed
           // for recent rides.
-          const needsFit = args.includeFit && ride.npWatts === null && (
-            args.force || !previous || !previous.fitFetchedAt
+          // Re-read FIT once for cadence even when NP is already cached.
+          const needsFit = args.includeFit && (
+            args.force || !previous || !previous.fitFetchedAt ||
+            ride.npWatts === null || previous.maxCadence == null
           );
 
           if (needsDetail) {
@@ -1558,6 +1795,11 @@ export const model = {
               ride.avgCadence =
                 pickNumber(detail, "avgCadenceInRotationsPerMinute") ??
                   ride.avgCadence;
+              ride.maxCadence = pickNumber(
+                detail,
+                "maxCadenceInRotationsPerMinute",
+                "maxCadence",
+              ) ?? ride.maxCadence;
               ride.maxPower = pickNumber(detail, "maxWatts");
               ride.detailFetchedAt = new Date().toISOString();
               detailFetched++;
@@ -1597,9 +1839,12 @@ export const model = {
         for (let i = 0; i < fitJobs.length; i += args.fitConcurrency) {
           const chunk = fitJobs.slice(i, i + args.fitConcurrency);
           await Promise.all(chunk.map(async (job) => {
-            const fit = await fetchFitNp(job.bucket, job.key, fetchImpl);
+            const fit = await fetchFitStats(job.bucket, job.key, fetchImpl);
             if (fit.fetched) {
               job.ride.fitFetchedAt = new Date().toISOString();
+              job.ride.maxCadence = fit.maxCadence ?? job.ride.maxCadence;
+              job.ride.cadenceAt5s = fit.cadenceAt5s ?? job.ride.cadenceAt5s;
+              job.ride.cadenceAt60s = fit.cadenceAt60s ?? job.ride.cadenceAt60s;
               if (fit.np !== null) {
                 job.ride.npWatts = fit.np;
                 fitParsed++;
@@ -1756,6 +2001,56 @@ export const model = {
           "availability-current",
           availability,
         );
+        let powerCurveHandle: { name: string } | null = null;
+        try {
+          const curve = await apiGet(
+            "/api/power-curve/best/all-time",
+            tokens.accessToken,
+            g.apiBase,
+            fetchImpl,
+          ) as Record<string, unknown>;
+          const cadenceValues = zwiftRides
+            .map((r) => r.maxCadence)
+            .filter((n): n is number => n !== null && n !== undefined && n > 0);
+          const cadenceAt5 = zwiftRides
+            .map((r) => r.cadenceAt5s)
+            .filter((n): n is number => n !== null && n !== undefined && n > 0);
+          const cadenceAt60 = zwiftRides
+            .map((r) => r.cadenceAt60s)
+            .filter((n): n is number => n !== null && n !== undefined && n > 0);
+          const typicalCadence = zwiftRides
+            .map((r) => r.avgCadence)
+            .filter((n): n is number => n !== null && n !== undefined && n > 0);
+          const cadence = {
+            max: cadenceValues.length ? Math.max(...cadenceValues) : null,
+            at5s: cadenceAt5.length ? Math.max(...cadenceAt5) : null,
+            at60s: cadenceAt60.length ? Math.max(...cadenceAt60) : null,
+            typical: typicalCadence.length
+              ? Math.round(
+                (typicalCadence.reduce((a, b) => a + b, 0) /
+                  typicalCadence.length) * 10,
+              ) / 10
+              : null,
+            source: cadenceValues.length
+              ? "fit-records" as const
+              : "missing" as const,
+          };
+          const powerCurve = powerCurveFromPayload(curve, {
+            fetchedAt: new Date(nowMs).toISOString(),
+            weightKg,
+            source: "zwift-power-curve",
+            cadence,
+          });
+          powerCurveHandle = await ctx.writeResource(
+            "powerCurve",
+            "power-curve-current",
+            powerCurve as unknown as Record<string, unknown>,
+          );
+        } catch (err) {
+          ctx.logger.warning("Power curve unavailable during backfill: {err}", {
+            err: (err as Error).message,
+          });
+        }
         ctx.logger.info(
           "History refreshed: {zwift} Zwift rides ({reused} reused, " +
             "{detail} detail, {fit} FIT NP), {garmin} Garmin, " +
@@ -1778,6 +2073,7 @@ export const model = {
             loadHandle,
             yearsHandle,
             availabilityHandle,
+            ...(powerCurveHandle ? [powerCurveHandle] : []),
           ],
         };
       },

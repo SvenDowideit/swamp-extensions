@@ -5,7 +5,12 @@
  * @module
  */
 
-import type { Fitness, LooseRecord } from "./zwift_coach_types.ts";
+import type {
+  Fitness,
+  LooseRecord,
+  PowerCurve,
+  PowerCurvePoint,
+} from "./zwift_coach_types.ts";
 import { clamp, round1 } from "./zwift_coach_util.ts";
 
 export interface AnalyzeInput {
@@ -14,6 +19,7 @@ export interface AnalyzeInput {
   loadDaily: LooseRecord;
   historyYears: LooseRecord;
   availability: LooseRecord;
+  powerCurve?: LooseRecord | null;
   trainingHistory?: LooseRecord | null;
   bodyRange?: LooseRecord | null;
   healthRange?: LooseRecord | null;
@@ -60,6 +66,42 @@ function mean(values: number[]): number | null {
 
 function maxOf(values: number[]): number | null {
   return values.length === 0 ? null : Math.max(...values);
+}
+
+function parsePowerCurve(value: unknown): PowerCurve {
+  const root = object(value);
+  const best = object(root.best);
+  const points: PowerCurvePoint[] = arr(root.points).map((p) => ({
+    seconds: num(p.seconds) ?? 0,
+    watts: num(p.watts) ?? 0,
+    ...(num(p.wPerKg) !== null ? { wPerKg: num(p.wPerKg) ?? undefined } : {}),
+  })).filter((p) => p.seconds > 0 && p.watts > 0);
+  const source = str(root.source);
+  const cadence = object(root.cadence);
+  const cadenceSource = str(cadence.source);
+  return {
+    source: source === "zwift-power-curve" || source === "fit-records"
+      ? source
+      : "missing",
+    fetchedAt: str(root.fetchedAt),
+    points,
+    best: {
+      power5: num(best.power5),
+      power15: num(best.power15),
+      power60: num(best.power60),
+      power300: num(best.power300),
+      power1200: num(best.power1200),
+    },
+    cadence: {
+      max: num(cadence.max),
+      at5s: num(cadence.at5s),
+      at60s: num(cadence.at60s),
+      typical: num(cadence.typical),
+      source: cadenceSource === "fit-records" || cadenceSource === "detail"
+        ? cadenceSource
+        : "missing",
+    },
+  };
 }
 
 function daysOf(loadDaily: LooseRecord): LoadDay[] {
@@ -301,6 +343,7 @@ export function analyzeFitness(input: AnalyzeInput): Fitness {
   const rideFlavor = classifyRideFlavor(
     arr(input.trainingHistory?.rides),
   );
+  const powerCurve = parsePowerCurve(input.powerCurve);
 
   const profileFtp = num(input.profile.ftpWatts) ??
     num(input.ability.ftpWatts);
@@ -362,6 +405,7 @@ export function analyzeFitness(input: AnalyzeInput): Fitness {
       peakCtl: num(y.peakCtl) ?? 0,
       maxFtp: num(y.maxFtp),
     })),
+    powerCurve,
     availability: {
       source: availabilitySource,
       daysPerWeek: {

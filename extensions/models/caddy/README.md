@@ -10,7 +10,9 @@ API** and **systemd** — it is **not** a Go Caddy plugin.
 Installs the Caddy binary and runs it as a systemd **user** service, then
 manages reverse-proxy routes and TLS live through Caddy's admin API. Routes are
 applied via the admin API (not the Caddyfile) and **persist across service
-restarts and reboots** (Caddy autosave + `--resume`). It can:
+restarts and reboots** (Caddy autosave + `--resume`). Nothing except this
+extension should write Caddy's config or run the caddy binary; use the model
+methods, and use `addRoute` to add a route. It can:
 
 - **Install Caddy** — download the current release, optionally compiling in
   extra modules (DNS providers, etc.) with no local Go toolchain, and place it at
@@ -28,11 +30,20 @@ restarts and reboots** (Caddy autosave + `--resume`). It can:
 - **Serve static files** — publish a directory (e.g. a rendered settings bundle)
   over HTTP(S) at a hostname with `serveSettings` (`file_server`), so documents
   are fetchable network-wide without running another server.
+- **One safe route call** — `addRoute` takes `hostname`, `kind` (`proxy` or
+  `file_server`) and `upstream`/`root`. It migrates an old unit to the managed
+  config file if needed, then declares the route idempotently. Agents should use
+  this instead of running `caddy` or editing a config file directly.
 - **A default status page** — a fresh install answers `http://localhost` and
   `https://localhost` with a page summarising what's installed (version, domain,
   ACME email, privileged-port capability) and linking to the admin API and any
   configured routes, so a new host is never a blank 404. It is the default for
-  every hostname the models name (minus those with their own route).
+  every hostname the models name (minus those with their own route). The page
+  labels each name accurately: routed services, `status page (this page)`,
+  `DNS only (CNAME … / A …)`, `DNS + TLS (A …)` for a certificate passed to an
+  embedded device, or `TLS only` for a certificate with no DNS record. A
+  **Desired vs live** section lists routes that are desired but missing, live
+  but not desired, or hand-added, so drift is visible on the page.
 - **Static DNS records** — declare A/AAAA/CNAME records that Caddy owns and
   reconciles through any `dns.providers.*` module (via `caddy-host-dns`), reusing
   the same credential as the TLS DNS-01 challenge.
@@ -579,6 +590,8 @@ it exposes, with its per-run arguments:
 | `settingsGuidance` | none | Print the minimal Let's Encrypt settings (base domain, ACME email, admin API token). |
 | `addProxyService` | `serviceName`, `upstream`, `baseDomain` | Derive a hostname (`<service-name>.<base-domain>`) and add a reverse-proxy route via the admin API (`POST /config/`) — live, no restart. |
 | `removeProxyService` | `serviceName`, `baseDomain` | Stop the backend systemd service and remove the Caddy route for the derived domain. |
+| `addRoute` | `hostname`, `kind`, `upstream`, `root`, `browse`, `rootPath` | The one-call agent-safe route API. Calls `ensureDnsProxy` (`kind=proxy`) or `serveSettings` (`kind=file_server`) idempotently. Never run `caddy` or edit its config directly. |
+| `materializeDesired` | none | Record this model's desired state without applying it. Used by plan/reconcile tests to stage a model (including a deliberately bad one) for evaluation and rejection. |
 | `ensureDnsProxy` | `hostname`, `upstream`, `rootPath` | Idempotently ensure a full hostname proxies to a backend `host:port` (add if missing, update if the upstream changed, no-op if correct). A hostname under `baseDomain` also gains a TLS subject and an A record automatically (see [Automatic route DNS and TLS](#automatic-route-dns-and-tls)). `rootPath` (e.g. `/dashboard`) serves an app that lives under a sub-path at the hostname root: only the exact path `/` is rewritten to it, so the app's absolute asset/API paths pass through. Safe to run repeatedly — the desired-state entry point. |
 | `serveSettings` | `hostname`, `root`, `browse` (boolean) | Idempotently serve a static directory (e.g. a rendered settings bundle) at a full hostname via Caddy `file_server` (add if missing, update if the root or browse flag changed, no-op if correct). |
 | `startBackendService` | `serviceName` | Start a backend systemd user service by name. |
@@ -1155,8 +1168,9 @@ so `dig` failing while the route exists is expected until the record is added.
 ### Config persistence
 
 Routes are applied live via the admin API, not written to the Caddyfile. Caddy
-autosaves the running JSON config (to `~/.config/caddy/autosave.json`), but only
-reloads it when started with `--resume`. The systemd unit therefore runs:
+autosaves the running JSON config (to `~/.config/caddy/autosave.json`), and the
+systemd unit runs with `--resume` so the service comes back with exactly the
+config it had before a restart:
 
 ```
 ExecStart=... run --resume --config <Caddyfile> --adapter caddyfile
@@ -1170,8 +1184,25 @@ On a fresh install there is no autosave file yet, so Caddy falls back to the
 generated Caddyfile; on subsequent restarts it resumes the last admin-API
 config, so proxy routes survive `stopService` / `restartService` and reboots.
 There is no `ExecReload` pointing at the Caddyfile — doing so would discard the
-admin-API config. Re-run `createService` after upgrading from an older version
-to regenerate the unit with `--resume`.
+admin-API config.
+
+### Bad model rejection
+
+Every model's desired state is validated before it joins the merged Caddy
+config. A model with an invalid `baseDomain`, `listenAddrs`, `routeIp`, route
+(hostname/upstream/root/rootPath), TLS subject/provider env name, DNS record
+(type/value/zone) or `adminApiAddr` is **rejected by name** and excluded from
+the merge; the valid models still apply. The rejection is logged at error level
+and recorded in the `reconcile`/`plan` resources under `rejected`, so a test or
+an operator can see exactly which model was ignored and why. This is how a bad
+model is prevented from poisoning the whole Caddy config.
+
+**The config file is owned by this extension.** Nothing else should write
+`autosave.json`, a Caddyfile, or any other Caddy config directly, and nothing
+else should run the `caddy` binary. Add routes with `addRoute` (or
+`ensureDnsProxy` / `serveSettings`); the extension validates the merge and
+applies it through the admin API, and Caddy keeps its working config if the new
+one is rejected.
 
 ### Requirements
 

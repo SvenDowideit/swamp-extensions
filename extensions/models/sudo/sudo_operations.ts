@@ -23,11 +23,15 @@ export type BuildResult = { kind: "argv"; argv: string[] };
 
 /** A named, reviewed operation. */
 export interface Operation {
+  /** Stable operation id used by callers. */
   id: string;
+  /** One-line description shown by the model. */
   description: string;
+  /** Schema that validates and coerces the operation's typed arguments. */
   argsSchema: ArgsSchema;
   /** True when the operation only makes sense for a local elevation route. */
   localOnly: boolean;
+  /** Turn typed arguments into a shell-free argv. */
   build: (args: Record<string, unknown>) => BuildResult;
 }
 
@@ -203,6 +207,7 @@ export function assertServiceUnit(unit: string): void {
   }
 }
 
+/** The operation catalogue, keyed by operation id. */
 export const OPERATIONS: Record<string, Operation> = {
   installPackage: {
     id: "installPackage",

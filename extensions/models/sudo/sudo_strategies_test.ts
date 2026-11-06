@@ -100,7 +100,8 @@ Deno.test("container build passes argv positionally and defaults to network none
     g,
   );
   assertEquals(full[full.length - 1], "echo; rm -rf /");
-  assertStringIncludes(full.join("\u0000"), 'exec chroot /host "$@"');
+  assertStringIncludes(full.join("\u0000"), "exec chroot /host /bin/sh -c");
+  assertStringIncludes(full.join("\u0000"), 'exec "$@"');
   assertStringIncludes(full.join(" "), "--network=none");
 });
 

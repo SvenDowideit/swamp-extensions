@@ -52,6 +52,13 @@ Container routes are additionally disabled when `DOCKER_HOST` or
 `CONTAINER_HOST` names a remote daemon (`ssh://`, `tcp://`, …): acting on
 another host while the caller believes the operation ran locally is refused.
 
+On NixOS the model resolves `id` and `env` from
+`/run/current-system/sw/bin` when present, and container/k8s commands run
+through `/bin/sh` with `/run/current-system/sw/bin` and `/run/wrappers/bin`
+prepended to `PATH`. That makes `docker-run`, `podman-run`, `nerdctl-run` and
+`k8s-node` usable on NixOS instead of failing on the conventional
+`/usr/bin/id` and `/bin/cat` paths.
+
 ## Examples
 
 ```sh
@@ -89,6 +96,18 @@ swamp workflow run @svendowideit/sudo-command \
   --input 'command:json=["id","-u"]' \
   --input reason="verify elevation works end to end"
 ```
+
+## Upgrade
+
+This extension installs nothing on the host, so the whole upgrade is updating
+the pulled copy:
+
+```sh
+swamp extension update @svendowideit/sudo
+```
+
+The model's lazy `typeVersion` upgrade runs on the next `probe` or `run` call,
+so no model rebuild or host change is needed.
 
 ## Details
 

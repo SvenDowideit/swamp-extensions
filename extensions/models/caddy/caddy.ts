@@ -413,6 +413,27 @@ const DnsSoaSchema = z.object({
 });
 type DnsSoa = z.infer<typeof DnsSoaSchema>;
 
+const AddRouteArgsSchema = z.object({
+  hostname: z.string().min(1).describe(
+    "Full hostname to serve, e.g. status.x1yoga.fi.gy",
+  ),
+  kind: z.enum(["proxy", "file_server"]).default("proxy").describe(
+    "Route kind: proxy (reverse_proxy) or file_server (static files)",
+  ),
+  upstream: z.string().default("").describe(
+    "Backend host:port for kind=proxy (e.g. 127.0.0.1:8080)",
+  ),
+  root: z.string().default("").describe(
+    "Directory to serve for kind=file_server",
+  ),
+  browse: z.boolean().default(false).describe(
+    "Enable directory browsing for kind=file_server",
+  ),
+  rootPath: z.string().default("").describe(
+    "For kind=proxy: rewrite only '/' to this sub-path (e.g. /dashboard)",
+  ),
+});
+
 // ---------------------------------------------------------------------------
 // Global args & method args
 // ---------------------------------------------------------------------------
@@ -1005,6 +1026,11 @@ const DesiredStateSchema = z.object({
   updatedAt: z.string(),
 });
 
+const RejectedModelSchema = z.object({
+  model: z.string(),
+  errors: z.array(z.string()),
+});
+
 const ReconcileOutputSchema = z.object({
   target: z.string(),
   models: z.array(z.string()),
@@ -1013,6 +1039,7 @@ const ReconcileOutputSchema = z.object({
   statusPageModel: z.string(),
   tlsModels: z.array(z.string()),
   changed: z.boolean(),
+  rejected: z.array(RejectedModelSchema).default([]),
   reconciledAt: z.string(),
 });
 
@@ -1120,6 +1147,7 @@ const AuditCaddySchema = z.object({
   /** Ready-to-paste commands to inspect unmerged, merged, and actual. */
   nextCommands: z.string(),
   conflicts: z.array(z.string()),
+  rejected: z.array(RejectedModelSchema).default([]),
   desiredRoutes: z.array(
     z.object({
       hostname: z.string(),
@@ -1663,6 +1691,19 @@ export function renderStatusPage(opts: {
   statusHostnames?: string[];
   /** URL scheme the status page is reached on (`http` or `https`). */
   scheme?: string;
+  /** Static DNS records, so non-proxied names can show their DNS target. */
+  dnsRecords?: Array<{ name: string; type: string; value: string[] }>;
+  /** TLS subjects, so an external A/AAAA can be labelled DNS + TLS. */
+  tlsSubjects?: string[];
+  /** Addresses that belong to this Caddy (from routed host DNS records). */
+  ownIps?: string[];
+  /** Desired-vs-live drift measured before this reconcile. */
+  drift?: {
+    onlyDesired: string[];
+    onlyActual: string[];
+    foreignRoutes: string[];
+    inSync: boolean;
+  };
 }): string {
   const esc = (s: string) =>
     s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
@@ -1692,27 +1733,103 @@ ${listenRows}
   // The generated routes are services too: the admin API, this status page, and
   // the health contract. List them alongside the managed proxy/file routes so the
   // section is complete.
+  const dnsByName = new Map<string, { type: string; value: string[] }>();
+  for (const rec of opts.dnsRecords ?? []) {
+    const cur = dnsByName.get(rec.name);
+    if (cur) cur.value.push(...rec.value);
+    else dnsByName.set(rec.name, { type: rec.type, value: [...rec.value] });
+  }
+  const tlsSubjects = new Set(opts.tlsSubjects ?? []);
+  const ownIps = new Set(opts.ownIps ?? []);
   const systemRows: string[] = [
     `      <li><a href="${
       esc(opts.adminUrl)
     }">Caddy admin API</a> — <span class="muted">live JSON config</span></li>`,
   ];
+  const statusPageRows: string[] = [];
+  const statusPageHosts: string[] = [];
+  const dnsRows: string[] = [];
   for (const h of statusHosts) {
-    systemRows.push(
+    const rec = dnsByName.get(h);
+    const own = !!rec && (rec.type === "A" || rec.type === "AAAA") &&
+      rec.value.some((v) => ownIps.has(v));
+    if (rec && !own) {
+      const tls = tlsSubjects.has(h) && rec.type !== "CNAME";
+      const kind = rec.type === "CNAME"
+        ? "DNS only"
+        : tls
+        ? "DNS + TLS"
+        : "DNS only";
+      dnsRows.push(
+        `      <li><a href="${esc(`https://${h}/`)}">${
+          esc(h)
+        }</a> — <span class="muted">${kind} (${esc(rec.type)} ${
+          esc(rec.value.join(", "))
+        })</span></li>`,
+      );
+      continue;
+    }
+    if (!rec && tlsSubjects.has(h)) {
+      dnsRows.push(
+        `      <li><a href="${esc(`https://${h}/`)}">${
+          esc(h)
+        }</a> — <span class="muted">TLS only (certificate issued)</span></li>`,
+      );
+      continue;
+    }
+    statusPageHosts.push(h);
+    statusPageRows.push(
       `      <li><a href="${esc(`${scheme}://${h}/`)}">${
         esc(h)
       }</a> — <span class="muted">status page (this page)</span></li>`,
     );
   }
-  if (statusHosts.length > 0) {
+  systemRows.push(...statusPageRows);
+  if (statusPageRows.length > 0) {
     systemRows.push(
       `      <li><span class="muted">health contract on ${
-        statusHosts.map((h) => `<code>${esc(h)}</code>`).join(", ")
+        statusPageHosts.map((h) => `<code>${esc(h)}</code>`).join(", ")
       }: <code>/</code> &rarr; 200, <code>/teapot</code> &rarr; <code>418</code>, other paths &rarr; <code>404</code></span></li>`,
     );
   }
-  const routeRows = [...linkRows, ...systemRows];
+  const routeRows = [...linkRows, ...dnsRows, ...systemRows];
   const routesSection = `<ul>\n${routeRows.join("\n")}\n  </ul>`;
+  const drift = opts.drift;
+  const driftSection = drift
+    ? `<h2>Desired vs live</h2>
+  <p class="muted">Measured before this reconcile. The Routes &amp; services
+  section above is the swamp desired state; this section is the difference from
+  what was actually running.</p>
+  ${
+      drift.inSync && drift.foreignRoutes.length === 0
+        ? '<p class="ok">In sync — the live config matched the swamp desired state.</p>'
+        : `<ul>
+    ${
+          drift.onlyDesired.length
+            ? `<li><span class="warn">Desired but missing from live:</span> ${
+              drift.onlyDesired.map((h) => `<code>${esc(h)}</code>`).join(", ")
+            }</li>`
+            : ""
+        }
+    ${
+          drift.onlyActual.length
+            ? `<li><span class="warn">Live but not desired:</span> ${
+              drift.onlyActual.map((h) => `<code>${esc(h)}</code>`).join(", ")
+            }</li>`
+            : ""
+        }
+    ${
+          drift.foreignRoutes.length
+            ? `<li><span class="muted">Hand-added (not managed by swamp):</span> ${
+              drift.foreignRoutes.map((h) => `<code>${esc(h)}</code>`).join(
+                ", ",
+              )
+            }</li>`
+            : ""
+        }
+  </ul>`
+    }`
+    : "";
   const plugins = opts.plugins ?? thirdPartyPlugins(opts.modules ?? []);
   const pluginRows = plugins.map((p) => {
     const pkg = esc(p.packagePath);
@@ -1806,6 +1923,8 @@ ${pluginRows}
 
   <h2>Routes &amp; services</h2>
   ${routesSection}
+
+  ${driftSection}
 
   ${pluginsSection}
 
@@ -2031,6 +2150,166 @@ export interface DesiredState {
   updatedAt: string;
 }
 
+function isIPv4(value: string): boolean {
+  const parts = value.split(".");
+  return parts.length === 4 &&
+    parts.every((p) => /^\d{1,3}$/.test(p) && Number(p) <= 255);
+}
+
+function isIPv6(value: string): boolean {
+  return value.includes(":") && /^[0-9a-fA-F:]+$/.test(value) &&
+    value.split(":").length >= 3;
+}
+
+function isValidIp(value: string): boolean {
+  return isIPv4(value) || isIPv6(value);
+}
+
+function isValidDnsName(name: string, allowWildcard = false): boolean {
+  const n = name.trim().replace(/\.$/, "");
+  if (!n || n.length > 253 || /[\s/:]/.test(n)) return false;
+  return n.split(".").every((label, i) => {
+    if (allowWildcard && i === 0 && label === "*") return true;
+    return label.length > 0 && label.length <= 63 &&
+      /^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/.test(label);
+  });
+}
+
+function isValidListenAddr(addr: string): boolean {
+  if (addr.startsWith("unix//")) return addr.length > 6;
+  const m = /^(.*):(\d+)$/.exec(addr);
+  if (!m) return false;
+  const port = Number(m[2]);
+  return port >= 1 && port <= 65535;
+}
+
+function isValidEmail(email: string): boolean {
+  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email);
+}
+
+function isValidAdminAddr(addr: string): boolean {
+  if (addr.startsWith("unix//")) return addr.length > 6;
+  const m = /^([^:]+):(\d+)$/.exec(addr);
+  if (!m) return false;
+  const port = Number(m[2]);
+  return port >= 1 && port <= 65535;
+}
+
+function zoneCovers(zone: string, name: string): boolean {
+  const z = zone.trim().replace(/\.$/, "").toLowerCase();
+  const n = name.trim().replace(/\.$/, "").toLowerCase();
+  return !z || n === z || n.endsWith(`.${z}`);
+}
+
+/** Validate one model's desired state before it can join a merged Caddy config. */
+export function validateDesiredState(s: DesiredState): string[] {
+  const errors: string[] = [];
+  if (s.adminApiAddr && !isValidAdminAddr(s.adminApiAddr)) {
+    errors.push(`invalid adminApiAddr '${s.adminApiAddr}'`);
+  }
+  if (s.baseDomain && !isValidDnsName(s.baseDomain)) {
+    errors.push(`invalid baseDomain '${s.baseDomain}'`);
+  }
+  for (const addr of s.listenAddrs) {
+    if (!isValidListenAddr(addr)) {
+      errors.push(`invalid listenAddr '${addr}'`);
+    }
+  }
+  for (const ip of (s.routeIp ?? "").split(",")) {
+    if (ip.trim() && !isValidIp(ip.trim())) {
+      errors.push(`invalid routeIp '${ip.trim()}'`);
+    }
+  }
+  for (const r of s.routes) {
+    if (!isValidDnsName(r.hostname)) {
+      errors.push(`invalid route hostname '${r.hostname}'`);
+    }
+    if (r.kind === "proxy") {
+      try {
+        parseUpstream(r.upstream);
+      } catch {
+        errors.push(
+          `invalid proxy upstream '${r.upstream}' for '${r.hostname}'`,
+        );
+      }
+    } else if (
+      !r.root || (!r.root.startsWith("/") && !r.root.startsWith("~"))
+    ) {
+      errors.push(
+        `file_server root for '${r.hostname}' must be absolute or start with ~: '${r.root}'`,
+      );
+    }
+    if (r.rootPath && !r.rootPath.startsWith("/")) {
+      errors.push(
+        `rootPath for '${r.hostname}' must start with /: '${r.rootPath}'`,
+      );
+    }
+  }
+  if (s.tls) {
+    if (s.tls.email && !isValidEmail(s.tls.email)) {
+      errors.push(`invalid TLS email '${s.tls.email}'`);
+    }
+    for (const sub of s.tls.subjects) {
+      if (!isValidDnsName(sub, true)) {
+        errors.push(`invalid TLS subject '${sub}'`);
+      }
+    }
+    for (const [field, env] of Object.entries(s.tls.providerConfig ?? {})) {
+      if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(env)) {
+        errors.push(`invalid providerConfig env var for ${field}: '${env}'`);
+      }
+    }
+  }
+  for (const rec of s.dnsRecords ?? []) {
+    if (!isValidDnsName(rec.name, true)) {
+      errors.push(`invalid DNS record name '${rec.name}'`);
+    }
+    if (rec.zone && !isValidDnsName(rec.zone)) {
+      errors.push(`invalid DNS zone '${rec.zone}' for '${rec.name}'`);
+    }
+    if (rec.zone && !zoneCovers(rec.zone, rec.name)) {
+      errors.push(`DNS record '${rec.name}' is outside zone '${rec.zone}'`);
+    }
+    if (rec.type === "CNAME") {
+      if (rec.value.length !== 1 || !isValidDnsName(rec.value[0] ?? "")) {
+        errors.push(
+          `CNAME '${rec.name}' must have exactly one valid target`,
+        );
+      }
+    } else if (rec.type === "A") {
+      if (!rec.value.every(isIPv4)) {
+        errors.push(`A record '${rec.name}' has an invalid IPv4 value`);
+      }
+    } else if (rec.type === "AAAA") {
+      if (!rec.value.every(isIPv6)) {
+        errors.push(`AAAA record '${rec.name}' has an invalid IPv6 value`);
+      }
+    }
+  }
+  for (const rem of s.dnsRemovals ?? []) {
+    if (!isValidDnsName(rem.name, true)) {
+      errors.push(`invalid DNS removal name '${rem.name}'`);
+    }
+    if (rem.zone && !zoneCovers(rem.zone, rem.name)) {
+      errors.push(`DNS removal '${rem.name}' is outside zone '${rem.zone}'`);
+    }
+    if (rem.value.length > 0 && !rem.value.every(isValidIp)) {
+      errors.push(`DNS removal '${rem.name}' has an invalid value`);
+    }
+  }
+  if (s.statusPage?.enabled) {
+    for (const h of s.statusPage.hostnames) {
+      const bare = h.replace(/^\[|\]$/g, "");
+      if (
+        h !== "localhost" && !isValidDnsName(h) && !isValidIp(bare)
+      ) {
+        errors.push(`invalid status page hostname '${h}'`);
+      }
+    }
+  }
+  return errors;
+}
+
 /** The merge key for a Caddy: which host + which service name. */
 export function caddyTargetKey(target: string, serviceName: string): string {
   return `${target || "local"}\u0000${serviceName || "caddy"}`;
@@ -2068,8 +2347,25 @@ export function mergeDesired(states: DesiredState[]): {
     healthRoutes: boolean;
   };
   errors: string[];
+  rejected: Array<{ model: string; errors: string[] }>;
 } {
   const errors: string[] = [];
+  const rejected: Array<{ model: string; errors: string[] }> = [];
+  const referenceAdmin = states[0]?.adminApiAddr ?? "";
+  const accepted: DesiredState[] = [];
+  for (const s of states) {
+    const errs = validateDesiredState(s);
+    if (
+      referenceAdmin && s.adminApiAddr && s.adminApiAddr !== referenceAdmin
+    ) {
+      errs.push(
+        `adminApiAddr '${s.adminApiAddr}' does not match this Caddy's admin '${referenceAdmin}'`,
+      );
+    }
+    if (errs.length > 0) rejected.push({ model: s.modelName, errors: errs });
+    else accepted.push(s);
+  }
+  states = accepted;
   const routeByHost = new Map<string, { route: DesiredRoute; model: string }>();
   const listenSet = new Set<string>();
   const models: string[] = [];
@@ -2273,6 +2569,7 @@ export function mergeDesired(states: DesiredState[]): {
       healthRoutes,
     },
     errors,
+    rejected,
   };
 }
 
@@ -2521,6 +2818,37 @@ export function buildReconciledConfig(
       extensionVersion,
       statusHostnames,
       scheme: merged.autoHttps === "off" ? "http" : "https",
+      dnsRecords: merged.dnsRecords,
+      tlsSubjects: merged.tls?.subjects ?? [],
+      ownIps: (() => {
+        const routed = new Set(merged.routes.map((r) => r.hostname));
+        const ips = new Set<string>();
+        for (const rec of merged.dnsRecords ?? []) {
+          if (!routed.has(rec.name)) continue;
+          if (rec.type === "A" || rec.type === "AAAA") {
+            for (const v of rec.value) ips.add(v);
+          }
+        }
+        return [...ips];
+      })(),
+      drift: (() => {
+        const diff = diffRoutes(
+          merged.routes.map((r) => ({
+            hostname: r.hostname,
+            kind: r.kind,
+            upstream: r.upstream,
+            root: r.root,
+            model: (r as { model?: string }).model ?? "",
+          })),
+          current,
+        );
+        return {
+          onlyDesired: diff.onlyDesired,
+          onlyActual: diff.onlyActual,
+          foreignRoutes: diff.foreignRoutes,
+          inSync: diff.inSync,
+        };
+      })(),
     });
     // Pushed before the health routes so the `/` match wins over the 404.
     const route = buildStatusPageRoute(html, statusHostnames);
@@ -4467,11 +4795,12 @@ async function computeCaddyPlan(
   inSync: boolean;
   reachable: boolean;
   error: string;
+  rejected: Array<{ model: string; errors: string[] }>;
   desiredConfig: CaddyConfig;
   actualConfig: CaddyConfig;
 }> {
   const group = states ?? await gatherDesiredForTarget(context, own, true);
-  const { merged, errors } = mergeDesired(group);
+  const { merged, errors, rejected } = mergeDesired(group);
   const desiredRoutes = merged.routes.map((r) => ({
     hostname: r.hostname,
     kind: r.kind,
@@ -4513,10 +4842,12 @@ async function computeCaddyPlan(
   // A model that wants nothing (e.g. a scratch instance an audit ran on) is
   // omitted so it does not read as an empty participant.
   const seenModels = new Set<string>();
+  const rejectedNames = new Set(rejected.map((r) => r.model));
   const unmerged = [];
   for (const s of group) {
     if (seenModels.has(s.modelName)) continue;
     seenModels.add(s.modelName);
+    if (rejectedNames.has(s.modelName)) continue;
     const wantsSomething = s.routes.length > 0 ||
       (s.tls?.subjects.length ?? 0) > 0 ||
       (s.statusPage?.enabled ?? false) ||
@@ -4680,6 +5011,7 @@ async function computeCaddyPlan(
       inSync: tlsInSync,
     },
     conflicts: errors,
+    rejected,
     dns: {
       enabled: dnsEnabled,
       desired: dnsDesired,
@@ -4882,10 +5214,30 @@ async function applyReconcile(
   statusPageModel: string;
   tlsModels: string[];
   changed: boolean;
+  rejected: Array<{ model: string; errors: string[] }>;
   desiredHandle: { name: string };
 }> {
+  const desiredHandle = await context.writeResource(
+    "desired",
+    "desired",
+    own as unknown as Record<string, unknown>,
+  );
   const states = await gatherDesiredForTarget(context, own, g.reconcile);
-  const { merged, errors } = mergeDesired(states);
+  const { merged, errors, rejected } = mergeDesired(states);
+  for (const r of rejected) {
+    context.logger?.error?.(
+      "Rejected Caddy model {model}: {errors}",
+      { model: r.model, errors: r.errors.join("; ") },
+    );
+  }
+  const ownRejected = rejected.find((r) => r.model === own.modelName);
+  if (ownRejected) {
+    throw new Error(
+      `This model's Caddy config was rejected: ${
+        ownRejected.errors.join("; ")
+      }`,
+    );
+  }
   if (errors.length > 0) {
     throw new Error(
       `Caddy reconcile conflict for target '${own.target}:${own.serviceName}': ${
@@ -4893,14 +5245,6 @@ async function applyReconcile(
       }`,
     );
   }
-  // Persist this model's desired state only after the merge validated, so a
-  // conflicting edit is rejected before it can be committed and read back by
-  // peers.
-  const desiredHandle = await context.writeResource(
-    "desired",
-    "desired",
-    own as unknown as Record<string, unknown>,
-  );
   const current = await readConfig(
     g.adminApiAddr,
     g.adminApiToken,
@@ -4962,6 +5306,7 @@ async function applyReconcile(
     statusPageModel: merged.statusPageModel,
     tlsModels: merged.tlsModels,
     changed,
+    rejected,
     desiredHandle,
   };
 }
@@ -4995,6 +5340,7 @@ async function saveAndReconcile(
       statusPageModel: summary.statusPageModel,
       tlsModels: summary.tlsModels,
       changed: summary.changed,
+      rejected: summary.rejected,
       reconciledAt: new Date().toISOString(),
     },
   );
@@ -5183,7 +5529,7 @@ type CheckContext = {
 /** Model definition for the Caddy reverse-proxy and service manager. */
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.10.18.3",
+  version: "2026.10.25.1",
   reports: ["@svendowideit/caddy-status"],
   globalArguments: GlobalArgsSchema,
   checks: {
@@ -5525,6 +5871,13 @@ export const model = {
       description:
         // swamp-quality-ignore long-line
         "New global `dnsSoa` lets a model manage the zone SOA through the caddy-host-dns `dns_records` app (requires caddy-host-dns from 2026-10-18 or later, which added SOA support). It is written verbatim as the app's `soa` block (mname, rname, serial, refresh, retry, expire, minimum, ttl, min_ttl, zone). Set `minimum` (RFC 2308 negative-caching TTL, e.g. 300s) so a newly added/changed name is usable sooner — resolvers negative-cache a missing name for at least the previous SOA minimum (Gandi's zone default was 3h). Gandi does not return the existing SOA, so set `mname`/`rname` (mname=ns1.gandi.net., rname=hostmaster.gandi.net.) and the timers you want to keep. The block merges across models sharing a target (first non-empty wins) and is written only when a DNS provider is configured. Schema is additive — existing models upgrade with no changes; run installCaddy once so the binary includes the SOA-capable caddy-host-dns, then re-run configureTls/applyDnsRecords to emit the block.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description:
+        // swamp-quality-ignore long-line
+        "Adds the one-call addRoute method and per-model validation. addRoute(hostname, kind, upstream/root) is idempotent and delegates to ensureDnsProxy/serveSettings, so an agent can add a route without editing a Caddyfile or running the caddy binary. validateDesiredState now checks each model's baseDomain, listenAddrs, routeIp, routes, TLS subjects/provider env names, DNS records and adminApiAddr; an invalid model is logged by name as rejected and excluded from the merged config, while valid peers still apply. materializeDesired records a model's desired state without applying it, for plan/reconcile tests. The default status page now labels DNS-only and DNS+TLS names with their DNS value (instead of calling every name 'status page (this page)') and adds a Desired vs live drift section. The existing --resume persistence and DNS/TLS derivation are unchanged. No global argument changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -7163,7 +7516,7 @@ export const model = {
           }
         }
 
-        const handle = await context.writeResource("upgradeCheck", "current", {
+        const handle = await context.writeResource("upgradeCheck", "upgrade-check", {
           model: name,
           typeVersion,
           currentVersion: model.version, // meta-factory-ignore version-source: the installed model-type version reported alongside the instance typeVersion, not the extension version
@@ -7372,6 +7725,42 @@ export const model = {
       },
     },
 
+    addRoute: {
+      description:
+        "The one-call way for an agent to add a route correctly: proxy or " +
+        "file_server at a full hostname. It declares the route idempotently " +
+        "through this model; no direct Caddy config edit or caddy invocation " +
+        "is needed or allowed.",
+      arguments: AddRouteArgsSchema,
+      execute: async (
+        args: z.infer<typeof AddRouteArgsSchema>,
+        context: MethodContext,
+      ): Promise<{ dataHandles: Array<{ name: string }> }> => {
+        if (args.kind === "proxy") {
+          if (!args.upstream) {
+            throw new Error(
+              "addRoute kind=proxy requires --input upstream=host:port",
+            );
+          }
+          return await model.methods.ensureDnsProxy.execute({
+            hostname: args.hostname,
+            upstream: args.upstream,
+            rootPath: args.rootPath,
+          }, context);
+        }
+        if (!args.root) {
+          throw new Error(
+            "addRoute kind=file_server requires --input root=/path/to/site",
+          );
+        }
+        return await model.methods.serveSettings.execute({
+          hostname: args.hostname,
+          root: args.root,
+          browse: args.browse,
+        }, context);
+      },
+    },
+
     serveSettings: {
       description:
         "Idempotently serve a static settings document directory over HTTP(S) at a hostname via Caddy file_server",
@@ -7427,6 +7816,31 @@ export const model = {
         context: MethodContext,
       ): Promise<{ dataHandles: [{ name: string }] }> =>
         applyStatusPage(args, context),
+    },
+
+    materializeDesired: {
+      description:
+        "Record this model's desired state without applying it. Useful for " +
+        "staging a model so plan/reconcile can evaluate (and, when invalid, " +
+        "reject) it without touching the running Caddy.",
+      arguments: z.object({}),
+      execute: async (
+        _args: Record<string, never>,
+        context: MethodContext,
+      ): Promise<{ dataHandles: Array<{ name: string }> }> => {
+        const g = context.globalArgs;
+        const own = await loadOwnDesired(context, g);
+        own.updatedAt = new Date().toISOString();
+        const handle = await context.writeResource(
+          "desired",
+          "desired",
+          own as unknown as Record<string, unknown>,
+        );
+        context.logger?.info("Recorded desired state for {model}", {
+          model: own.modelName,
+        });
+        return { dataHandles: [handle] };
+      },
     },
 
     plan: {

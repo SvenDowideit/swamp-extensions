@@ -259,7 +259,7 @@ function funSuggestion(flavor: Fitness["rideFlavor"]["funPreference"]): string {
   }
 }
 
-function dayList(goal: Goal): number[] {
+export function dayList(goal: Goal): number[] {
   const preferred = [...new Set(goal.constraints.availableDays)]
     .filter((d) => d >= 1 && d <= 7)
     .sort((a, b) => a - b);

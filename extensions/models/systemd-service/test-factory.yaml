@@ -1,0 +1,71 @@
+# Acceptance tests for @svendowideit/systemd-service.
+#
+# Proves the generic user-service wrapper end to end on a single systemd host:
+# it writes a user unit, daemon-reloads, and starts it, leaving a real
+# `systemctl --user`-managed service in the `active` state.
+#
+# Run it on a systemd host:
+#   swamp model @svendowideit/test-factory method run test tf \
+#     --input manifest=extensions/models/systemd-service/manifest.yaml \
+#     --input scenario=ubuntu-systemd-standalone
+#
+# No network access required: the service command is a local long-running
+# binary already present in the container.
+
+harness:
+  runAs: tester
+
+grants:
+  - { guest: harness, profile: sudo-nopasswd }
+
+tests:
+  - name: creates-and-starts-a-running-user-service
+    confirms: >
+      On a single systemd-capable host, @svendowideit/systemd-service can create
+      a user service unit for a long-running command and start it, and the unit
+      reports `active` under `systemctl --user`.
+    cannot: >
+      must not leave the unit inactive or failed, must not error during
+      create/start, and must not leave the test's own unit behind after
+      teardown.
+    documents: README.md#examples
+    variables:
+      UNIT: tf-systemd-service
+    steps:
+      - name: create-model
+        run: >
+          swamp model create @svendowideit/systemd-service tf-svc
+        expect:
+          exitCode: 0
+          outputNotContains: ["error", "panic"]
+      - name: create-service
+        run: >
+          swamp model method run tf-svc createService
+          --input serviceName=$UNIT
+          --input command="/bin/sleep 3600"
+          --input description="test-factory single-node user service"
+        expect:
+          exitCode: 0
+          outputNotContains: ["error", "panic", "failed"]
+        timeoutSeconds: 120
+      - name: start-service
+        run: >
+          swamp model method run tf-svc startService
+          --input serviceName=$UNIT
+        expect:
+          exitCode: 0
+          outputNotContains: ["error", "panic", "failed", "inactive"]
+        timeoutSeconds: 120
+      - name: unit-is-active
+        run: systemctl --user is-active $UNIT
+        expect:
+          stdoutContains: ["active"]
+          stdoutNotContains: ["inactive", "failed", "unknown"]
+      - name: cleanup-remove-service
+        run: >
+          swamp model method run tf-svc removeService
+          --input serviceName=$UNIT
+        expect:
+          exitCode: 0
+          outputNotContains: ["error", "panic"]
+        timeoutSeconds: 120

@@ -55,7 +55,7 @@ export function rampDefaults(age: number | null): {
 export function compileGoal(input: GoalInput): Goal {
   if (input.mode === "custom") {
     throw new Error(
-      "Custom goals are Phase 4. Use regain/improve/event for now.",
+      "compileGoal handles built-in goals; use compileCustomGoal for custom goals.",
     );
   }
   const f = input.fitness;

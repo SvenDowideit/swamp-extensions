@@ -186,6 +186,31 @@ export function fitnessFixture(): Fitness {
         maxFtp: 270,
       },
     ],
+    powerCurve: {
+      source: "zwift-power-curve",
+      fetchedAt: "2026-04-30T00:00:00.000Z",
+      points: [
+        { seconds: 5, watts: 1176, wPerKg: 16.24 },
+        { seconds: 15, watts: 938, wPerKg: 12.96 },
+        { seconds: 60, watts: 473, wPerKg: 6.53 },
+        { seconds: 300, watts: 287, wPerKg: 3.96 },
+        { seconds: 1200, watts: 261, wPerKg: 3.61 },
+      ],
+      best: {
+        power5: 1176,
+        power15: 938,
+        power60: 473,
+        power300: 287,
+        power1200: 261,
+      },
+      cadence: {
+        max: 118,
+        at5s: 108,
+        at60s: 94,
+        typical: 86,
+        source: "fit-records",
+      },
+    },
     availability: {
       source: "merged",
       daysPerWeek: { median: 3.5, p80: 4 },

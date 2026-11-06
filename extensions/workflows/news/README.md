@@ -549,6 +549,24 @@ rest of the workflow still runs. The `news-caddy` model is a normal caddy model,
 so `swamp model get news-caddy --json` shows the base domain and unit it copied,
 and the `@svendowideit/caddy-upgrade` workflow upgrades it with the others.
 
+### Upgrading to 2026.10.30.1
+
+The bundled feedback server now serves any `*.html` file found in the pages
+directory (`~/.swamp/news-pages/` by default), looked up on every request. A
+page written after the server started — for example a `links.html` produced by
+another workflow — is served without restarting.
+
+Upgrading the extension does **not** restart the already-running feedback
+server, and `ensure-feedback-server` only rewrites the unit file. Restart the
+service once so it loads the new bundled script:
+
+```sh
+swamp model @svendowideit/systemd-service method run restartService feedback-server \
+  --input serviceName=feedback-server
+```
+
+Then open `http://localhost:8765/links.html` (or the equivalent page name).
+
 ### Upgrading from a pre-Sept-25 version
 
 Before 2026.09.25 the feedback server's bind address could be set with a

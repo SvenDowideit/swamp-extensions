@@ -16,11 +16,17 @@
 
 /** What a strategy needs from the model's global arguments. */
 export interface StrategyConfig {
+  /** Host for the ssh-root route; empty disables it. */
   sshHost: string;
+  /** Pinned known_hosts file for the ssh-root route. */
   sshKnownHosts: string;
+  /** Image used by the container and k8s routes. */
   containerImage: string;
+  /** Docker network mode for scratch containers. */
   containerNetwork: string;
+  /** Node used by the k8s-node route; empty disables it. */
   k8sNode: string;
+  /** Instance used by the AWS SSM route; empty disables it. */
   ssmInstanceId: string;
   /**
    * Unique suffix for the k8s-node transient pod name, so concurrent runs do
@@ -53,8 +59,11 @@ export type SideEffects =
 
 /** A result from running a probe or a target command. */
 export interface ExecResult {
+  /** Captured standard output. */
   stdout: string;
+  /** Captured standard error. */
   stderr: string;
+  /** Process exit code. */
   code: number;
 }
 
@@ -68,11 +77,15 @@ export interface RootlessCheck {
 
 /** A single elevation route. */
 export interface Strategy {
+  /** Stable route id used in the ladder and result. */
   id: string;
+  /** Route class (local, capability, container, remote, …). */
   class: StrategyClass;
   /** Binary the route needs on PATH (or the program's own name). */
   tool: string;
+  /** Honest description of the privilege this route grants. */
   riskNote: string;
+  /** What running this route may create or change. */
   sideEffects: SideEffects;
   /**
    * Extra precondition beyond the tool existing. Returns a human reason when
@@ -122,8 +135,19 @@ const uidIsZero = (r: ExecResult): boolean =>
  * `sudo`, `doas`, `docker`, and `ssh` resolve the command name themselves, so
  * they do not need the `env` shim.
  */
-const ENV = "/usr/bin/env";
-const ID = "/usr/bin/id";
+function resolveTool(name: string, fallback: string): string {
+  for (const candidate of [`/run/current-system/sw/bin/${name}`, fallback]) {
+    try {
+      if (Deno.statSync(candidate).isFile) return candidate;
+    } catch {
+      // fall through to the conventional path
+    }
+  }
+  return fallback;
+}
+
+const ENV = resolveTool("env", "/usr/bin/env");
+const ID = resolveTool("id", "/usr/bin/id");
 
 function elevationFailedByPattern(
   patterns: RegExp[],
@@ -427,11 +451,15 @@ export const STRATEGIES: Record<string, Strategy> = {
       containerRunArgv(
         "docker",
         g,
-        "exec chroot /host cat /etc/machine-id",
+        "exec chroot /host /bin/sh -c 'PATH=/run/current-system/sw/bin:/run/wrappers/bin:$PATH; cat /etc/machine-id'",
       ),
     probeOk: (r) => r.code === 0 && r.stdout.trim().length > 0,
     build: (argv, g) =>
-      containerRunArgv("docker", g, 'exec chroot /host "$@"').concat([
+      containerRunArgv(
+        "docker",
+        g,
+        'exec chroot /host /bin/sh -c \'PATH=/run/current-system/sw/bin:/run/wrappers/bin:$PATH; exec "$@"\' sh "$@"',
+      ).concat([
         "swamp-sudo",
         ...argv,
       ]),
@@ -456,11 +484,15 @@ export const STRATEGIES: Record<string, Strategy> = {
       containerRunArgv(
         "podman",
         g,
-        "exec chroot /host cat /etc/machine-id",
+        "exec chroot /host /bin/sh -c 'PATH=/run/current-system/sw/bin:/run/wrappers/bin:$PATH; cat /etc/machine-id'",
       ),
     probeOk: (r) => r.code === 0 && r.stdout.trim().length > 0,
     build: (argv, g) =>
-      containerRunArgv("podman", g, 'exec chroot /host "$@"').concat([
+      containerRunArgv(
+        "podman",
+        g,
+        'exec chroot /host /bin/sh -c \'PATH=/run/current-system/sw/bin:/run/wrappers/bin:$PATH; exec "$@"\' sh "$@"',
+      ).concat([
         "swamp-sudo",
         ...argv,
       ]),
@@ -480,11 +512,15 @@ export const STRATEGIES: Record<string, Strategy> = {
       containerRunArgv(
         "nerdctl",
         g,
-        "exec chroot /host cat /etc/machine-id",
+        "exec chroot /host /bin/sh -c 'PATH=/run/current-system/sw/bin:/run/wrappers/bin:$PATH; cat /etc/machine-id'",
       ),
     probeOk: (r) => r.code === 0 && r.stdout.trim().length > 0,
     build: (argv, g) =>
-      containerRunArgv("nerdctl", g, 'exec chroot /host "$@"').concat([
+      containerRunArgv(
+        "nerdctl",
+        g,
+        'exec chroot /host /bin/sh -c \'PATH=/run/current-system/sw/bin:/run/wrappers/bin:$PATH; exec "$@"\' sh "$@"',
+      ).concat([
         "swamp-sudo",
         ...argv,
       ]),
@@ -501,9 +537,28 @@ export const STRATEGIES: Record<string, Strategy> = {
     sideEffects: "creates-pod",
     precondition: (g) => (g.k8sNode ? null : "k8sNode is not configured"),
     probeArgv: (g) =>
-      k8sRunArgv(g, ["cat", "/etc/machine-id"], `${g.k8sRunName}-probe`),
+      k8sRunArgv(
+        g,
+        [
+          "/bin/sh",
+          "-c",
+          "PATH=/run/current-system/sw/bin:/run/wrappers/bin:$PATH; cat /etc/machine-id",
+        ],
+        `${g.k8sRunName}-probe`,
+      ),
     probeOk: (r) => r.code === 0 && /[0-9a-f]{8,}/i.test(r.stdout),
-    build: (argv, g) => k8sRunArgv(g, argv, `${g.k8sRunName}-run`),
+    build: (argv, g) =>
+      k8sRunArgv(
+        g,
+        [
+          "/bin/sh",
+          "-c",
+          'PATH=/run/current-system/sw/bin:/run/wrappers/bin:$PATH; exec "$@"',
+          "sh",
+          ...argv,
+        ],
+        `${g.k8sRunName}-run`,
+      ),
     elevationFailed: elevationFailedByPattern([
       /forbidden|unauthorized|error from server/i,
     ]),

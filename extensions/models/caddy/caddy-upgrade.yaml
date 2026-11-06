@@ -58,6 +58,13 @@ inputs:
       description: >
         Optional provider credential field -> environment variable map, for
         multi-field providers, e.g. {"bearer_token":"GANDI_TOKEN"} for Gandi.
+    force:
+      type: boolean
+      default: false
+      description: >
+        Force a fresh Caddy binary build even when all wanted modules are
+        already present. Use this to pick up newer commits of bundled modules
+        (for example caddy-host-dns) when the installed binary is stale.
   required: []
 tags:
   swamp: "caddy"
@@ -147,6 +154,7 @@ jobs:
           inputs:
             setCapabilities: false
             configureStatusPage: false
+            force: ${{ inputs.force }}
         dependsOn:
           - step: confirm
             condition:
@@ -166,16 +174,13 @@ jobs:
         task:
           type: model_method
           modelType: "@svendowideit/sudo"
-          modelName: sudo-caddy-upgrade
+          modelName: caddy-setcap
           methodName: run
-          globalArgs:
-            allowedOperations:
-              - setcap
           inputs:
             operation: setcap
-            args:json: >-
-              {"path": "${{ data.latest(inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").attributes.firstModel, "install").attributes.binPath }}",
-              "capabilities": "cap_net_bind_service=+ep"}
+            args:
+              path: '${{ data.findBySpec(inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").attributes.firstModel, "install")[0].attributes.binPath }}'
+              capabilities: cap_net_bind_service=+ep
         dependsOn:
           - step: install
             condition:

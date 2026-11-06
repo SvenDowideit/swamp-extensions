@@ -1,9 +1,10 @@
 /**
- * `@svendowideit/zwift-coach` — read-only planning engine.
+ * `@svendowideit/zwift-coach` — analysis, planning, validation and delivery.
  *
- * Phase 1/2: analyse merged Zwift+Garmin history, compile a built-in goal,
- * generate a periodised plan and render `.zwo` workouts. Delivery is a later
- * phase (and delegates SSH/SCP to `@swamp/ssh`).
+ * Phase 1–4: analyse merged Zwift+Garmin history, compile built-in or custom
+ * goals, emit a PlanSpec scaffold, validate agent-authored plans fail-closed,
+ * generate a periodised plan, render `.zwo` workouts and deliver them. SSH/SCP
+ * is delegated to `@swamp/ssh`.
  *
  * @module
  */
@@ -12,7 +13,14 @@ import { z } from "npm:zod@4";
 import { analyzeFitness } from "./zwift_coach_analysis.ts";
 import { compileGoal } from "./zwift_coach_goal.ts";
 import { generatePlan } from "./zwift_coach_plan.ts";
-import type { Fitness, Goal, Plan } from "./zwift_coach_types.ts";
+import {
+  buildScaffold,
+  compileCustomGoal,
+  generateCustomPlan,
+  planFromSpec,
+  validatePlanSpec,
+} from "./zwift_coach_custom.ts";
+import type { Fitness, Goal, Plan, PlanSpec } from "./zwift_coach_types.ts";
 import { fileNameFor, renderZwo, validateZwo } from "./zwift_coach_workouts.ts";
 import { hashString } from "./zwift_coach_util.ts";
 import { buildHowtoReport } from "./zwift_coach_howto.ts";
@@ -75,6 +83,7 @@ const AnalyzeArgsSchema = z.object({
   loadDaily: LooseSchema,
   historyYears: LooseSchema,
   availability: LooseSchema,
+  powerCurve: LooseSchema.nullable().optional(),
   trainingHistory: LooseSchema.nullable().optional(),
   bodyRange: LooseSchema.nullable().optional(),
   healthRange: LooseSchema.nullable().optional(),
@@ -87,17 +96,17 @@ const GoalArgsSchema = z.object({
   fitness: LooseSchema,
   mode: z.enum(["regain", "improve", "event", "custom"]),
   description: z.string().optional(),
-  targetDate: z.string().optional(),
+  targetDate: z.string().nullish(),
   targetFtpPct: z.number().positive().max(0.2).optional(),
   targetWkg: z.number().positive().optional(),
-  targetWeightKg: z.number().positive().optional(),
+  targetWeightKg: z.number().min(0).nullish(),
   eventType: z.string().optional(),
   weeks: z.number().int().min(0).max(24).optional(),
   daysPerWeek: z.number().int().min(0).max(6).optional(),
   hoursPerWeek: z.number().min(0).max(20).optional(),
   overrideAvailability: z.boolean().optional(),
   age: z.number().int().min(0).optional(),
-  style: z.enum(["pyramidal", "polarised", "sprint"]).optional(),
+  style: z.enum(["pyramidal", "polarised", "sprint"]).nullish(),
   constraints: z.object({
     availableDays: z.array(z.number().int().min(1).max(7)).optional(),
     maxSessionMinutes: z.number().positive().optional(),
@@ -113,6 +122,19 @@ const PlanArgsSchema = z.object({
   startDate: z.string().optional(),
   weeks: z.number().int().min(0).max(24).optional(),
   seed: z.number().int().optional(),
+  planSpec: z.union([LooseSchema, z.string()]).nullish(),
+});
+
+const ScaffoldArgsSchema = z.object({
+  fitness: LooseSchema,
+  goal: LooseSchema,
+  constraints: LooseSchema.optional(),
+});
+
+const ValidateArgsSchema = z.object({
+  planSpec: z.union([LooseSchema, z.string()]),
+  fitness: LooseSchema,
+  goal: LooseSchema,
 });
 
 const RenderArgsSchema = z.object({
@@ -179,6 +201,7 @@ const SessionSchema = z.object({
   targetIf: z.number(),
   steps: z.array(z.record(z.string(), z.unknown())),
   progression: z.string().optional(),
+  brief: z.string().optional(),
 }).passthrough();
 
 const WeekSchema = z.object({
@@ -255,6 +278,29 @@ const TransportSchema = z.object({
   transport: z.record(z.string(), z.unknown()),
 }).passthrough();
 
+const ScaffoldSchema = z.object({
+  goalId: z.string(),
+  generatedAt: z.string(),
+  goalSpecSchema: z.record(z.string(), z.unknown()),
+  planSpecSchema: z.record(z.string(), z.unknown()),
+  exampleGoalSpec: z.record(z.string(), z.unknown()),
+  examplePlanSpec: z.record(z.string(), z.unknown()),
+  fitnessSummary: z.record(z.string(), z.unknown()),
+  availabilitySummary: z.record(z.string(), z.unknown()),
+  sessionArchetypes: z.array(z.record(z.string(), z.unknown())),
+  safetyLimits: z.record(z.string(), z.unknown()),
+  promptTemplate: z.string(),
+  notes: z.array(z.string()),
+}).passthrough();
+
+const ValidationSchema = z.object({
+  goalId: z.string(),
+  errors: z.array(z.string()),
+  warnings: z.array(z.string()),
+  suggestions: z.array(z.string()),
+  checkedAt: z.string(),
+}).passthrough();
+
 type Ctx = {
   globalArgs: z.infer<typeof GlobalArgsSchema>;
   logger: {
@@ -279,6 +325,20 @@ function asGoal(value: Record<string, unknown>): Goal {
 
 function asPlan(value: Record<string, unknown>): Plan {
   return value as unknown as Plan;
+}
+
+function parsePlanSpec(value: Record<string, unknown> | string): PlanSpec {
+  if (typeof value !== "string") return value as unknown as PlanSpec;
+  if (!value.trim()) throw new Error("planSpec is empty.");
+  try {
+    return JSON.parse(value) as PlanSpec;
+  } catch (error) {
+    throw new Error(
+      `planSpec is not valid JSON: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
 }
 
 /** The model definition. */
@@ -356,6 +416,19 @@ export const model = {
       lifetime: "30d",
       garbageCollection: 10,
     },
+    scaffold: {
+      description:
+        "PlanSpec/GoalSpec schema, examples, limits and prompt for an external agent",
+      schema: ScaffoldSchema,
+      lifetime: "30d",
+      garbageCollection: 10,
+    },
+    validation: {
+      description: "Fail-closed PlanSpec validation result",
+      schema: ValidationSchema,
+      lifetime: "30d",
+      garbageCollection: 10,
+    },
   },
   methods: {
     // meta-factory-ignore config-lifecycle: setup is a read-only readiness
@@ -374,13 +447,13 @@ export const model = {
           "  inputs expected:",
           "    @svendowideit/zwift-rider profile-current, ability-current",
           "    @svendowideit/zwift-rider load-daily, history-years,",
-          "      availability-current, training-history",
+          "      availability-current, power-curve-current, training-history",
           "  Garmin (optional):",
           "    @svendowideit/garmin-body body-range",
           "    @svendowideit/garmin-health health-range",
           "    @svendowideit/garmin-performance performance-range",
-          "  methods: analyze, goal, plan, render, preview, howto, deliver,",
-          "    record-delivery, ssh-transport",
+          "  methods: analyze, goal, scaffold, validate, plan, render,",
+          "    preview, howto, deliver, record-delivery, ssh-transport",
           "  delivery: SSH via @swamp/ssh, or local workoutsDir / syncDir /",
           "    bundleDir; see @svendowideit/zwift-coach-deliver",
           "  next: swamp workflow run @svendowideit/zwift-coach-plan",
@@ -423,6 +496,7 @@ export const model = {
       ) => {
         const fitness = analyzeFitness({
           ...args,
+          powerCurve: args.powerCurve,
           age: args.age && args.age > 0 ? args.age : undefined,
           timezone: args.timezone ?? ctx.globalArgs.timezone,
         });
@@ -444,24 +518,49 @@ export const model = {
     },
     goal: {
       description:
-        "Compile a built-in regain/improve/event goal. Availability defaults " +
-        "to the history-derived p80; explicit values are an override.",
+        "Compile a built-in regain/improve/event goal or a custom goal parsed " +
+        "from the rider's words. Availability defaults to the history-derived " +
+        "p80; explicit values are an override.",
       arguments: GoalArgsSchema,
       execute: async (
         args: z.infer<typeof GoalArgsSchema>,
         ctx: Ctx,
       ) => {
-        const goal = compileGoal({
-          ...args,
-          fitness: asFitness(args.fitness),
-          daysPerWeek: args.daysPerWeek && args.daysPerWeek >= 2
-            ? args.daysPerWeek
-            : undefined,
-          hoursPerWeek: args.hoursPerWeek && args.hoursPerWeek > 0
-            ? args.hoursPerWeek
-            : undefined,
-          age: args.age && args.age > 0 ? args.age : undefined,
-        });
+        const fitness = asFitness(args.fitness);
+        let goal: Goal;
+        if (args.mode === "custom") {
+          if (!args.description?.trim()) {
+            throw new Error(
+              "Custom goals need a description (the rider's words).",
+            );
+          }
+          goal = compileCustomGoal(fitness, {
+            description: args.description,
+            targetDate: args.targetDate ?? undefined,
+            weeks: args.weeks,
+            daysPerWeek: args.daysPerWeek,
+            hoursPerWeek: args.hoursPerWeek,
+            targetWeightKg: args.targetWeightKg ?? undefined,
+            overrideAvailability: args.overrideAvailability,
+            style: args.style ?? undefined,
+            constraints: args.constraints,
+          });
+        } else {
+          goal = compileGoal({
+            ...args,
+            targetDate: args.targetDate ?? undefined,
+            targetWeightKg: args.targetWeightKg ?? undefined,
+            style: args.style ?? undefined,
+            fitness,
+            daysPerWeek: args.daysPerWeek && args.daysPerWeek >= 2
+              ? args.daysPerWeek
+              : undefined,
+            hoursPerWeek: args.hoursPerWeek && args.hoursPerWeek > 0
+              ? args.hoursPerWeek
+              : undefined,
+            age: args.age && args.age > 0 ? args.age : undefined,
+          });
+        }
         const handle = await ctx.writeResource(
           "goal",
           "goal-current",
@@ -476,22 +575,113 @@ export const model = {
             weeks: goal.weeks,
           },
         );
+        if (goal.clarifyingQuestions?.length) {
+          ctx.logger.info(
+            "Goal needs answers before planning: {questions}",
+            { questions: goal.clarifyingQuestions.join(" | ") },
+          );
+        }
+        return { dataHandles: [handle] };
+      },
+    },
+    scaffold: {
+      description:
+        "Emit the PlanSpec/GoalSpec schema, examples, safety limits and prompt " +
+        "for an external agent (opencode/claude/codex).",
+      arguments: ScaffoldArgsSchema,
+      execute: async (
+        args: z.infer<typeof ScaffoldArgsSchema>,
+        ctx: Ctx,
+      ) => {
+        const fitness = asFitness(args.fitness);
+        const goal = asGoal(args.goal);
+        const scaffold = buildScaffold(fitness, goal);
+        const handle = await ctx.writeResource(
+          "scaffold",
+          "scaffold-current",
+          scaffold as unknown as Record<string, unknown>,
+        );
+        ctx.logger.info(
+          "Scaffold: PlanSpec schema, {n} session archetypes, {weeks}-week goal",
+          {
+            n: scaffold.sessionArchetypes.length,
+            weeks: goal.weeks,
+          },
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    validate: {
+      description:
+        "Validate an agent-authored PlanSpec fail-closed: schema, phase " +
+        "coverage, hard-session limits, sprint spacing and raw-XML rejection.",
+      arguments: ValidateArgsSchema,
+      execute: async (
+        args: z.infer<typeof ValidateArgsSchema>,
+        ctx: Ctx,
+      ) => {
+        const result = validatePlanSpec(
+          parsePlanSpec(args.planSpec),
+          asGoal(args.goal),
+          asFitness(args.fitness),
+        );
+        const handle = await ctx.writeResource(
+          "validation",
+          "validation-current",
+          result as unknown as Record<string, unknown>,
+        );
+        ctx.logger.info(
+          "PlanSpec validation: {errors} error(s), {warnings} warning(s)",
+          { errors: result.errors.length, warnings: result.warnings.length },
+        );
+        for (const error of result.errors) {
+          ctx.logger.info("  error: {error}", { error });
+        }
+        for (const warning of result.warnings) {
+          ctx.logger.info("  warning: {warning}", { warning });
+        }
         return { dataHandles: [handle] };
       },
     },
     plan: {
       description:
-        "Generate the periodised weeks and sessions from the fitness and goal.",
+        "Generate the periodised weeks and sessions from the fitness and goal, " +
+        "or from a validated agent-authored PlanSpec.",
       arguments: PlanArgsSchema,
       execute: async (
         args: z.infer<typeof PlanArgsSchema>,
         ctx: Ctx,
       ) => {
-        const plan = generatePlan(asFitness(args.fitness), asGoal(args.goal), {
-          startDate: args.startDate?.trim() || undefined,
-          weeks: args.weeks && args.weeks > 0 ? args.weeks : undefined,
-          seed: args.seed,
-        });
+        const fitness = asFitness(args.fitness);
+        const goal = asGoal(args.goal);
+        let plan: Plan;
+        if (args.planSpec !== undefined && args.planSpec !== null) {
+          const spec = parsePlanSpec(args.planSpec);
+          const validation = validatePlanSpec(spec, goal, fitness);
+          if (validation.errors.length > 0) {
+            throw new Error(
+              `PlanSpec validation failed; refusing to plan: ${
+                validation.errors.join("; ")
+              }`,
+            );
+          }
+          plan = planFromSpec(fitness, goal, spec, {
+            startDate: args.startDate?.trim() || undefined,
+            seed: args.seed,
+          });
+        } else if (goal.mode === "custom") {
+          plan = generateCustomPlan(fitness, goal, {
+            startDate: args.startDate?.trim() || undefined,
+            weeks: args.weeks && args.weeks > 0 ? args.weeks : undefined,
+            seed: args.seed,
+          });
+        } else {
+          plan = generatePlan(fitness, goal, {
+            startDate: args.startDate?.trim() || undefined,
+            weeks: args.weeks && args.weeks > 0 ? args.weeks : undefined,
+            seed: args.seed,
+          });
+        }
         const handle = await ctx.writeResource(
           "plan",
           "plan-current",
@@ -595,8 +785,9 @@ export const model = {
           for (const session of week.sessions) {
             lines.push(
               `- **${session.date} ${session.title}** — ${session.hook} ` +
-                `(${session.durationMinutes} min, ~${session.computedTss} TSS)`,
-              `  ${session.why}`,
+                `(${session.durationMinutes} min, load ${session.computedTss} TSS)`,
+              `  ${session.brief ?? session.why}`,
+              `  Why: ${session.why}`,
             );
             if (session.zwiftSuggestion) {
               lines.push(`  Fun: ${session.zwiftSuggestion}`);
@@ -604,6 +795,17 @@ export const model = {
           }
           lines.push("");
         }
+        lines.push(
+          "",
+          "## What the numbers mean",
+          "",
+          "TSS (training stress score): a rough load score. 100 is about one hour at FTP; higher is more stress.",
+          "CTL (chronic training load): a rolling average of TSS, often called 'fitness'.",
+          "ATL (acute training load): short-term fatigue.",
+          "TSB (training stress balance): CTL minus ATL. Positive is fresher; negative is more tired.",
+          "IF (intensity factor): how hard the session is relative to FTP. 1.0 is FTP.",
+          "",
+        );
         const handle = await ctx.writeResource("preview", "preview-current", {
           planId: plan.id,
           generatedAt: new Date().toISOString(),

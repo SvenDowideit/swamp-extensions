@@ -327,7 +327,7 @@ Deno.test("buildHtml escapes hostile data", () => {
 
 Deno.test("buildRemoteScript is a complete Debian-family probe", () => {
   const script = buildRemoteScript();
-  assert(script.includes("/etc/os-release"));
+  assert(script.includes("if [ -r /etc/os-release ]"));
   assert(script.includes("apt-get -s -qq dist-upgrade"));
   assert(script.includes("pro security-status --format json"));
   assert(script.includes("debsecan"));

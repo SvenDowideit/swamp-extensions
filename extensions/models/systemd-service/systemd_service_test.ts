@@ -56,7 +56,24 @@ Deno.test("renderServiceUnit renders a minimal unit with defaults", () => {
   );
   assertStringIncludes(unit, "Restart=on-failure");
   assertStringIncludes(unit, "RestartSec=5");
+  assertStringIncludes(unit, "PrivateTmp=true");
+  assertStringIncludes(unit, "ProtectSystem=full");
   assertStringIncludes(unit, "WantedBy=default.target");
+});
+
+Deno.test("renderServiceUnit can omit hardening for SSH-reading services", () => {
+  const unit = renderServiceUnit({
+    serviceName: "swamp-serve",
+    command: "/home/alice/.local/bin/swamp serve",
+    environment: [],
+    restart: "always",
+    restartSec: "5",
+    after: ["network-online.target"],
+    wants: ["network-online.target"],
+    hardening: false,
+  });
+  assertEquals(unit.includes("PrivateTmp=true"), false);
+  assertEquals(unit.includes("ProtectSystem=full"), false);
 });
 
 Deno.test("renderServiceUnit includes description, working dir, and env", () => {

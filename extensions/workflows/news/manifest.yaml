@@ -109,7 +109,10 @@ description: >
     local-only) — set them to expose it on the network, which is safe only
     behind an authenticating proxy. Rewriting the unit does not restart a
     running process, so after changing the host/port run `stopService` then
-    `startService`. With `@svendowideit/caddy` installed it additionally creates
+    `startService`. The same applies after upgrading the extension: restart the
+    service so the newly installed bundled `feedback-server.ts` script is
+    loaded, then any `*.html` in the pages directory is served at
+    `/<name>.html`. With `@svendowideit/caddy` installed it additionally creates
     a `news-caddy` model and declares a reverse-proxy route from
     `news.<host>.<domain>` to the feedback server, letting Caddy issue the
     certificate and (when a DNS provider is configured) the A record. Without

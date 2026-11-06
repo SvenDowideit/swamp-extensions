@@ -215,6 +215,7 @@ jobs:
             loadDaily: ${{ data.latest(inputs.riderName, "load-daily").attributes }}
             historyYears: ${{ data.latest(inputs.riderName, "history-years").attributes }}
             availability: ${{ data.latest(inputs.riderName, "availability-current").attributes }}
+            powerCurve: ${{ data.latest(inputs.riderName, "power-curve-current").?attributes.orValue(null) }}
             trainingHistory: ${{ data.latest(inputs.riderName, "training-history").attributes }}
             bodyRange: ${{ data.latest(inputs.bodyName, "body-range").?attributes.orValue(null) }}
             healthRange: ${{ data.latest(inputs.healthName, "health-range").?attributes.orValue(null) }}

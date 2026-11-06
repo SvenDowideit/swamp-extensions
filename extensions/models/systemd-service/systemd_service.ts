@@ -86,6 +86,11 @@ const CreateServiceArgsSchema = z.object({
   force: z.boolean().default(false).describe(
     "Rewrite the unit file even if it already matches",
   ),
+  hardening: z.boolean().default(true).describe(
+    "Apply systemd hardening (PrivateTmp=true, ProtectSystem=full). Set false " +
+      "for a service that must read root-owned SSH config or other files that " +
+      "PrivateTmp's user namespace would map to nobody.",
+  ),
 });
 
 const ServiceNameArgsSchema = z.object({
@@ -243,6 +248,7 @@ export function renderServiceUnit(opts: {
   restartSec: string;
   after: string[];
   wants: string[];
+  hardening?: boolean;
 }): string {
   const {
     serviceName,
@@ -254,6 +260,7 @@ export function renderServiceUnit(opts: {
     restartSec,
     after,
     wants,
+    hardening = true,
   } = opts;
   assertValidServiceName(serviceName);
   assertNoNewlines("command", command);
@@ -278,8 +285,11 @@ export function renderServiceUnit(opts: {
     `Restart=${restart}`,
     `RestartSec=${restartSec}`,
     `TimeoutStopSec=5`,
-    `PrivateTmp=true`,
-    `ProtectSystem=full`,
+  );
+  if (hardening) {
+    lines.push(`PrivateTmp=true`, `ProtectSystem=full`);
+  }
+  lines.push(
     ``,
     `[Install]`,
     `WantedBy=default.target`,
@@ -299,6 +309,7 @@ async function runCmd(
   args: string[],
 ): Promise<CmdResult> {
   try {
+    // swamp-quality-ignore deno-command: systemd-service is a thin wrapper around systemctl and loginctl; spawning these fixed commands is the extension purpose and every argument is validated by the caller.
     const proc = new Deno.Command(binary, {
       args,
       stdout: "piped",
@@ -689,7 +700,7 @@ type MethodContext = {
  */
 export const model = {
   type: "@svendowideit/systemd-service",
-  version: "2026.10.23.1",
+  version: "2026.10.26.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -720,6 +731,12 @@ export const model = {
       toVersion: "2026.10.23.1",
       description:
         "Honour SWAMP_HOME when resolving the ~/.swamp/deno/deno denoPath default.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.26.1",
+      description:
+        "Adds an optional `hardening` argument to createService (default true). Set it false for a service that must read root-owned files such as /etc/ssh/ssh_config.d: PrivateTmp's user namespace maps root-owned files to nobody, which OpenSSH rejects. Existing callers get the previous hardening unchanged.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -770,6 +787,7 @@ export const model = {
           restartSec: args.restartSec,
           after: args.after,
           wants: args.wants,
+          hardening: args.hardening,
         });
 
         let written = false;

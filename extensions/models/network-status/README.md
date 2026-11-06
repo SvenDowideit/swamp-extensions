@@ -6,9 +6,11 @@ Debian debsecan CVEs, and an extensible list of other network action items.
 
 ## What it does
 
-`@svendowideit/network-status` audits every configured Debian-family host over
-SSH and writes a single self-contained `index.html`. Per host it runs a
-read-only probe — no sudo, no package changes:
+`@svendowideit/network-status` audits every successfully probed host in the
+fleet inventory over SSH and writes a single self-contained `index.html`.
+Non-Debian hosts are reported as skipped. When no inventory exists it falls back
+to the model's configured `hosts`. Per host it runs a read-only probe — no sudo,
+no package changes:
 
 - `apt-get -s -qq dist-upgrade` for the pending update set;
 - the apt origin string for security classification (default substring
@@ -33,9 +35,11 @@ or anything else the network needs. The Debian audit is the first provider.
 
 This extension intentionally does not rebuild the pieces that already exist:
 
-- **`@svendowideit/fleet-inventory`** is the recommended source of the host
-  list (its `inventory` data has `os` per host, so a CEL filter can select the
-  Debian family).
+- **`@svendowideit/fleet-inventory`** is the source of the host list: the
+  bundled workflow reads its `inventory` data and audits every host that has
+  been probed successfully. Non-Debian hosts (and hosts whose OS is unknown)
+  are reported as skipped. If the inventory is empty, the workflow falls back to
+  the model's own `hosts` argument.
 - **`@svendowideit/caddy`** serves the page with its existing `serveSettings`
   file_server route and derives the certificate and A record. The extension's
   `ensure-caddy-serve` method follows the same additive setup pattern as
@@ -173,6 +177,9 @@ jobs:
           modelType: "@svendowideit/network-status"
           modelName: status
           methodName: audit
+          inputs:
+            hosts: >-
+              ${{ data.latest("fleet", "inventory").?attributes.?hosts.orValue([]).filter(h, h.probed == true).map(h, {"name": h.name, "address": h.name, "os": h.os}) }}
       - name: serve
         dependsOn:
           - step: audit
@@ -206,32 +213,32 @@ the source model on the status model:
 swamp model edit status --global-arg caddyModelName=my-caddy
 ```
 
-### Building the host list from fleet inventory
+### Host list from fleet inventory
 
-If `@svendowideit/fleet-inventory` already inventories the network, pass a CEL
-filter as the workflow's `hosts` input instead of maintaining a second list. The
-inventory's `os` field is the discriminator:
+The bundled workflow builds the audit host list from
+`@svendowideit/fleet-inventory` automatically. It reads
+`data.latest("fleet", "inventory")`, keeps every host that was probed
+successfully, and maps each to `{name, address, os}`. The mapped `address` is
+the inventory hostname, so a DHCP lease change does not leave the page pointed
+at a stale literal IP. Non-Debian hosts stay in the list and are reported as
+skipped instead of disappearing.
+
+If the inventory does not exist yet, the expression resolves to an empty list
+and the model falls back to its own `hosts` global, so a fresh install still
+works. To include hosts the inventory has not probed yet, add them to the model
+with `swamp model edit status --global-arg ...` or pass `hosts` to the `audit`
+method directly.
+
+The equivalent expression if you write your own workflow is:
 
 ```yaml
 inputs:
-  hosts:
-    type: array
-    default: []
-jobs:
-  - name: audit
-    steps:
-      - name: collect
-        task:
-          type: model_method
-          modelType: "@svendowideit/network-status"
-          modelName: status
-          methodName: audit
-          inputs:
-            hosts: ${{ data.latest("fleet", "inventory").attributes.hosts.filter(h, ["ubuntu","debian","raspbian","devuan"].exists(o, o == h.os)).map(h, {"name": h.name, "address": h.address, "os": h.os}) }}
+  hosts: >-
+    ${{ data.latest("fleet", "inventory").?attributes.?hosts.orValue([]).filter(h, h.probed == true).map(h, {"name": h.name, "address": h.name, "os": h.os}) }}
 ```
 
-The model uses its own `hosts` global when the audit `hosts` input is empty, so
-a workflow with no inventory yet still works.
+If you prefer to audit only Debian-family hosts, add an OS predicate to the
+filter, for example `h.probed == true && ["ubuntu","debian","raspbian","devuan"].exists(o, o == h.os)`.
 
 ## Details
 

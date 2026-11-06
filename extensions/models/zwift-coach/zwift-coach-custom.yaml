@@ -1,0 +1,477 @@
+id: 26d22cf9-e53a-4dfe-9af3-de159f1e94da
+name: "@svendowideit/zwift-coach-custom"
+description: |
+  Custom-goal coach run: parse the rider's own words into a GoalSpec, emit the
+  PlanSpec scaffold, optionally validate an agent-authored PlanSpec, then plan,
+  render, preview and deliver.
+
+  The extension does not call an LLM. To use opencode (or another agent), run it
+  with `scaffold-current` and pass its JSON back as `planSpecJson`. Without a
+  PlanSpec, a deterministic custom plan is generated from the goal (the sprint
+  example in the design doc is the reference case).
+
+  Manual run:
+    swamp workflow run @svendowideit/zwift-coach-custom \
+      --input description="In 3 months, hold >=700W for 60s, raise max wattage above 1300W, and move toward 65kg"
+    swamp workflow run @svendowideit/zwift-coach-custom \
+      --input description="..." --input planSpecJson:json='{"goalId":"..."}'
+tags:
+  domain: fitness
+inputs:
+  properties:
+    description:
+      type: string
+      default: ""
+      description: The rider's own goal words (required).
+    planSpecJson:
+      type: string
+      default: ""
+      description: Optional agent-authored PlanSpec JSON from scaffold-current.
+    riderName:
+      type: string
+      default: zwift-rider
+      description: Zwift rider model instance name.
+    coachName:
+      type: string
+      default: zwift-coach
+      description: Coach model instance name.
+    garminName:
+      type: string
+      default: garmin-activities
+      description: Garmin activities model instance name (optional).
+    bodyName:
+      type: string
+      default: garmin-body
+      description: Garmin body model instance name (optional).
+    healthName:
+      type: string
+      default: garmin-health
+      description: Garmin health model instance name (optional).
+    performanceName:
+      type: string
+      default: garmin-performance
+      description: Garmin performance model instance name (optional).
+    targetWeightKg:
+      type: number
+      default: 0
+      description: Optional secondary weight target; 0 = parse from description.
+    daysPerWeek:
+      type: number
+      default: 0
+      description: Override days/week; 0 = infer from history.
+    hoursPerWeek:
+      type: number
+      default: 0
+      description: Override hours/week; 0 = infer from history.
+    availableDays:
+      type: array
+      items:
+        type: integer
+      default: []
+      description: ISO weekdays (1=Mon) available; empty = history.
+    equipment:
+      type: array
+      items:
+        type: string
+      default: [trainer, power_meter, resistance]
+      description: Available equipment (trainer, power_meter, erg, resistance, gym).
+    indoorOnly:
+      type: boolean
+      default: false
+      description: Only plan indoor sessions.
+    injuries:
+      type: array
+      items:
+        type: string
+      default: []
+      description: Injuries or constraints to respect.
+    overrideAvailability:
+      type: boolean
+      default: false
+      description: Use explicit days/hours even if above the historical p80.
+    style:
+      type: string
+      default: ""
+      description: Optional style override (pyramidal, polarised, sprint).
+    weeks:
+      type: integer
+      default: 0
+      description: Override plan length; 0 = parsed horizon.
+    age:
+      type: number
+      default: 0
+      description: Override age; 0 = Garmin/profile.
+    startDate:
+      type: string
+      default: ""
+      description: Plan start (Monday); empty = next Monday.
+    horizonDays:
+      type: integer
+      default: 14
+      description: Render this many days from the plan start.
+    backfillDays:
+      type: integer
+      default: 3650
+      description: Zwift history window in days for backfill.
+    backfillMaxActivities:
+      type: integer
+      default: 2000
+      description: Maximum Zwift activities to request (page cap is 2000).
+    includeFit:
+      type: boolean
+      default: true
+      description: Parse Zwift FIT session NP only when it is not cached.
+    refreshDays:
+      type: integer
+      default: 7
+      description: Refresh detail for rides newer than this many days.
+    force:
+      type: boolean
+      default: false
+      description: Ignore the cache and re-fetch every ride (one-off repair).
+    fitConcurrency:
+      type: integer
+      default: 4
+      description: Parallel FIT downloads during a backfill (1-8).
+    autoDeliver:
+      type: boolean
+      default: true
+      description: Deliver automatically when the plan validates.
+    riderId:
+      type: string
+      default: ""
+      description: Zwift numeric ID for local delivery; empty = profile-current.id.
+    sshModel:
+      type: string
+      default: zwift-hosts
+      description: The @swamp/ssh fleet model for SSH delivery.
+    sshAddress:
+      type: string
+      default: ""
+      description: SSH address of the Zwift host; empty = no SSH, use local/sync/bundle.
+    sshUser:
+      type: string
+      default: ""
+      description: SSH user; empty = your ssh config / agent default.
+    sshPort:
+      type: integer
+      default: 22
+      description: SSH port.
+    sshKey:
+      type: string
+      default: ""
+      description: Identity file; empty = your ssh config / agent default.
+    sshHostKeyChecking:
+      type: string
+      enum: [yes, accept-new, no, off]
+      default: accept-new
+      description: OpenSSH StrictHostKeyChecking policy.
+    hosts:
+      type: string
+      default: macmini
+      description: Host selector in the @swamp/ssh fleet.
+    remoteWorkoutsDir:
+      type: string
+      default: ""
+      description: Base Zwift workouts folder on the remote host; empty = $HOME/Documents/Zwift/Workouts.
+    workoutsDir:
+      type: string
+      default: ""
+      description: Local/mounted Zwift workouts folder, if available.
+    syncDir:
+      type: string
+      default: ""
+      description: Folder replicated to the Zwift host, if available.
+    bundleDir:
+      type: string
+      default: ".swamp/zwift-coach/bundles"
+      description: Portable bundle output directory.
+    subfolder:
+      type: string
+      default: zwift-coach
+      description: Isolated folder under the rider ID / sync folder.
+    prune:
+      type: boolean
+      default: false
+      description: Remove only our marked files not in this render.
+    dryRun:
+      type: boolean
+      default: false
+      description: Check/stage only; no copy or install.
+  required: []
+jobs:
+  - name: custom
+    description: Parse the goal, scaffold, validate, plan, render and preview.
+    steps:
+      - name: assert-description
+        description: Fail clearly when the rider's goal words are missing.
+        task:
+          type: assert
+          expr: >-
+            inputs.description != ""
+          message: >-
+            Set description to the rider's own goal words, for example
+            --input description="In 3 months, hold >=700W for 60s...".
+          severity: high
+        weight: 0
+        allowFailure: false
+      - name: backfill
+        description: >
+          Fetch every available Zwift ride, enrich it, parse FIT for NP, and
+          merge the Garmin activity list when that model exists.
+        task:
+          type: model_method
+          modelType: "@svendowideit/zwift-rider"
+          modelName: ${{ inputs.riderName }}
+          methodName: backfill
+          inputs:
+            backfillDays: ${{ inputs.backfillDays }}
+            backfillMaxActivities: ${{ inputs.backfillMaxActivities }}
+            includeDetail: true
+            includeFit: ${{ inputs.includeFit }}
+            refreshDays: ${{ inputs.refreshDays }}
+            force: ${{ inputs.force }}
+            fitConcurrency: ${{ inputs.fitConcurrency }}
+            includeGarmin: true
+            garminActivities: ${{ data.latest(inputs.garminName, "activity-list").?attributes.?activities.orValue([]) }}
+        dependsOn:
+          - step: assert-description
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: analyze
+        description: Build the fitness snapshot from the data-owner resources.
+        task:
+          type: model_method
+          modelType: "@svendowideit/zwift-coach"
+          modelName: ${{ inputs.coachName }}
+          methodName: analyze
+          inputs:
+            profile: ${{ data.latest(inputs.riderName, "profile-current").attributes }}
+            ability: ${{ data.latest(inputs.riderName, "ability-current").attributes }}
+            loadDaily: ${{ data.latest(inputs.riderName, "load-daily").attributes }}
+            historyYears: ${{ data.latest(inputs.riderName, "history-years").attributes }}
+            availability: ${{ data.latest(inputs.riderName, "availability-current").attributes }}
+            powerCurve: ${{ data.latest(inputs.riderName, "power-curve-current").?attributes.orValue(null) }}
+            trainingHistory: ${{ data.latest(inputs.riderName, "training-history").attributes }}
+            bodyRange: ${{ data.latest(inputs.bodyName, "body-range").?attributes.orValue(null) }}
+            healthRange: ${{ data.latest(inputs.healthName, "health-range").?attributes.orValue(null) }}
+            performanceRange: ${{ data.latest(inputs.performanceName, "performance-range").?attributes.orValue(null) }}
+            age: ${{ inputs.age }}
+        dependsOn:
+          - step: backfill
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: goal
+        description: Parse the rider's words into a GoalSpec and Goal.
+        task:
+          type: model_method
+          modelType: "@svendowideit/zwift-coach"
+          modelName: ${{ inputs.coachName }}
+          methodName: goal
+          inputs:
+            fitness: ${{ data.latest(inputs.coachName, "fitness-current").attributes }}
+            mode: custom
+            description: ${{ inputs.description }}
+            targetWeightKg: '${{ inputs.targetWeightKg > 0 ? inputs.targetWeightKg : null }}'
+            daysPerWeek: ${{ inputs.daysPerWeek }}
+            hoursPerWeek: ${{ inputs.hoursPerWeek }}
+            overrideAvailability: ${{ inputs.overrideAvailability }}
+            age: ${{ inputs.age }}
+            style: '${{ inputs.style == "" ? null : inputs.style }}'
+            constraints:
+              availableDays: ${{ inputs.availableDays }}
+              equipment: ${{ inputs.equipment }}
+              indoorOnly: ${{ inputs.indoorOnly }}
+              injuries: ${{ inputs.injuries }}
+        dependsOn:
+          - step: analyze
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: assert-goal
+        description: Stop if the goal still needs clarifying answers.
+        task:
+          type: assert
+          expr: >-
+            size(data.latest(inputs.coachName, "goal-current").attributes.?clarifyingQuestions.orValue([])) == 0
+          message: >-
+            The custom goal needs answers before planning. Make the description
+            more specific (target metric and horizon) and re-run.
+          severity: high
+        dependsOn:
+          - step: goal
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: scaffold
+        description: Emit the PlanSpec/GoalSpec schema, examples, limits and prompt.
+        task:
+          type: model_method
+          modelType: "@svendowideit/zwift-coach"
+          modelName: ${{ inputs.coachName }}
+          methodName: scaffold
+          inputs:
+            fitness: ${{ data.latest(inputs.coachName, "fitness-current").attributes }}
+            goal: ${{ data.latest(inputs.coachName, "goal-current").attributes }}
+        dependsOn:
+          - step: assert-goal
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: validate
+        description: Validate the agent-authored PlanSpec, if one was supplied.
+        task:
+          type: model_method
+          modelType: "@svendowideit/zwift-coach"
+          modelName: ${{ inputs.coachName }}
+          methodName: validate
+          inputs:
+            planSpec: ${{ inputs.planSpecJson }}
+            fitness: ${{ data.latest(inputs.coachName, "fitness-current").attributes }}
+            goal: ${{ data.latest(inputs.coachName, "goal-current").attributes }}
+        guard: ${{ inputs.planSpecJson == "" }}
+        dependsOn:
+          - step: scaffold
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: assert_valid
+        description: Fail closed unless the PlanSpec has zero errors.
+        task:
+          type: assert
+          expr: >-
+            size(data.latest(inputs.coachName, "validation-current").attributes.errors) == 0
+          message: >-
+            The agent-authored PlanSpec failed validation. Fix the reported
+            errors and re-run; never bypass validate.
+          severity: high
+        guard: ${{ inputs.planSpecJson == "" }}
+        dependsOn:
+          - step: validate
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: plan
+        description: Generate the plan from the PlanSpec or the custom goal.
+        task:
+          type: model_method
+          modelType: "@svendowideit/zwift-coach"
+          modelName: ${{ inputs.coachName }}
+          methodName: plan
+          inputs:
+            fitness: ${{ data.latest(inputs.coachName, "fitness-current").attributes }}
+            goal: ${{ data.latest(inputs.coachName, "goal-current").attributes }}
+            startDate: ${{ inputs.startDate }}
+            weeks: ${{ inputs.weeks }}
+            planSpec: '${{ inputs.planSpecJson == "" ? null : inputs.planSpecJson }}'
+        dependsOn:
+          - step: assert_valid
+            condition:
+              type: always
+        guard: ${{ has(steps.assert_valid) && steps.assert_valid.status != "succeeded" }}
+        weight: 0
+        allowFailure: false
+      - name: render
+        description: Render the next horizon of sessions as ZWO workouts.
+        task:
+          type: model_method
+          modelType: "@svendowideit/zwift-coach"
+          modelName: ${{ inputs.coachName }}
+          methodName: render
+          inputs:
+            plan: ${{ data.latest(inputs.coachName, "plan-current").attributes }}
+            horizonDays: ${{ inputs.horizonDays }}
+        dependsOn:
+          - step: plan
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: preview
+        description: Write the human-readable week-by-week preview.
+        task:
+          type: model_method
+          modelType: "@svendowideit/zwift-coach"
+          modelName: ${{ inputs.coachName }}
+          methodName: preview
+          inputs:
+            plan: ${{ data.latest(inputs.coachName, "plan-current").attributes }}
+            render: ${{ data.latest(inputs.coachName, "render-current").attributes }}
+        dependsOn:
+          - step: render
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: has-plan
+        description: Fail with a clear message if no sessions were rendered.
+        task:
+          type: assert
+          expr: >-
+            size(data.latest(inputs.coachName, "render-current").attributes.workouts) > 0
+          message: >-
+            No workouts were rendered. Check the backfill/analyze/plan logs and
+            that the rider has enough history.
+          severity: high
+        dependsOn:
+          - step: preview
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: deliver
+        description: Deliver the rendered workouts through the fallback chain.
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/zwift-coach-deliver"
+          inputs:
+            riderName: ${{ inputs.riderName }}
+            coachName: ${{ inputs.coachName }}
+            riderId: ${{ inputs.riderId }}
+            sshModel: ${{ inputs.sshModel }}
+            sshAddress: ${{ inputs.sshAddress }}
+            sshUser: ${{ inputs.sshUser }}
+            sshPort: ${{ inputs.sshPort }}
+            sshKey: ${{ inputs.sshKey }}
+            sshHostKeyChecking: ${{ inputs.sshHostKeyChecking }}
+            hosts: ${{ inputs.hosts }}
+            remoteWorkoutsDir: ${{ inputs.remoteWorkoutsDir }}
+            workoutsDir: ${{ inputs.workoutsDir }}
+            syncDir: ${{ inputs.syncDir }}
+            bundleDir: ${{ inputs.bundleDir }}
+            subfolder: ${{ inputs.subfolder }}
+            prune: ${{ inputs.prune }}
+            dryRun: ${{ inputs.dryRun }}
+        guard: ${{ inputs.autoDeliver == false }}
+        dependsOn:
+          - step: has-plan
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: howto
+        description: Print the commands for inspecting the plan and workouts.
+        task:
+          type: model_method
+          modelType: "@svendowideit/zwift-coach"
+          modelName: ${{ inputs.coachName }}
+          methodName: howto
+          inputs:
+            coachName: ${{ inputs.coachName }}
+            plan: ${{ data.latest(inputs.coachName, "plan-current").attributes }}
+            render: ${{ data.latest(inputs.coachName, "render-current").attributes }}
+        dependsOn:
+          - step: has-plan
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false

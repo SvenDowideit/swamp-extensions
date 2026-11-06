@@ -12,12 +12,11 @@ description: >
     power and as much Garmin history as exists, then infers the days, hours,
     start times and session length you actually ride. It computes
     TSS/CTL/ATL/TSB, weight and readiness, and builds a periodised plan that
-    fits that capacity. Every session has a title, a one-line hook and a
-    "why"; each week includes one fun session from your own ride mix. It
-    renders conservative `.zwo` XML, validated against Zwift's limits, and
-    delivers the files: SSH through `@swamp/ssh`, a local folder, a sync folder
-    or a portable bundle, idempotent and marker-safe. Custom/agent-authored
-    goals are a later phase; the built-in regain/improve/event goals work now.
+    fits that capacity. Every session has a title, a hook and a "why"; each
+    week includes one fun session from your own ride mix. It renders
+    conservative `.zwo` XML, validates it, and delivers it over SSH, a local
+    folder, a sync folder or a bundle. Custom goals come from the rider's words
+    or a validated agent-authored PlanSpec; the agent never writes ZWO.
 
   INSTALL
 
@@ -46,6 +45,25 @@ description: >
       # delivery input the fallback chain ends at a portable bundle.
       swamp workflow run @svendowideit/zwift-coach-plan \
         --input goal=improve --input targetFtpPct=0.05
+
+      # Custom sprint/weight goal in the rider's own words. This is the
+      # deterministic path; no agent is required.
+      swamp workflow run @svendowideit/zwift-coach-custom \
+        --input description="In 3 months, hold >=700W for 60s, raise max wattage above 1300W, and move toward 65kg"
+
+      # Agent-authored plan: run opencode (or another agent) with
+      # scaffold-current, then pass its JSON back. Validation is fail-closed.
+      swamp workflow run @svendowideit/zwift-coach-custom \
+        --input description="In 3 months, hold >=700W for 60s..." \
+        --input planSpecJson="$(cat plan-spec.json)"
+
+      # Power targets use the rider's own curve, not FTP multiples. The coach
+      # reads power-curve-current (5s/15s/60s/300s/1200s) and writes
+      # FreeRide/MaxEffort blocks with the absolute watts in the text. If the
+      # curve is missing, it inserts a week-0 test instead of guessing. Weight
+      # is a separate lever: Z2 volume and weekly trend, not sprint intervals.
+      # Sprint days use a 5-6 min rotating primer, separate torque/cadence
+      # efforts, a 3 s lead-in, a 10-20 s ramp-down and 2-3 min easy recovery.
 
       # Deliver explicitly to a local Zwift workouts folder. riderId is the
       # numeric folder Zwift uses under Workouts/; replace 123456 with yours.
@@ -87,6 +105,18 @@ description: >
       startDate            plan start (Monday); empty = next Monday
       autoDeliver          deliver after rendering (default true)
       dryRun               stage and report, write nothing (default false)
+
+    Custom workflow inputs (`@svendowideit/zwift-coach-custom`):
+
+      description          the rider's own goal words (required)
+      planSpecJson         optional agent-authored PlanSpec JSON
+      equipment            trainer, power_meter, erg, resistance, gym
+      availableDays        ISO weekdays (1=Mon); empty = history
+      indoorOnly           plan indoor sessions only
+      injuries             injuries or constraints to respect
+      targetWeightKg       0 = parse from the description
+      weeks                0 = parse the horizon from the description
+      style                optional pyramidal | polarised | sprint override
 
     Delivery inputs (all workflows):
 
@@ -139,6 +169,7 @@ models:
 
 workflows:
   - zwift-coach-plan.yaml
+  - zwift-coach-custom.yaml
   - zwift-coach-backfill.yaml
   - zwift-coach-deliver.yaml
   - zwift-coach-deliver-local.yaml
@@ -160,6 +191,7 @@ additionalFiles:
   - zwift_coach_plan.ts
   - zwift_coach_workouts.ts
   - zwift_coach_howto.ts
+  - zwift_coach_custom.ts
   - zwift_coach_delivery.ts
   - zwift_coach_fixtures.ts
   - zwift_coach_analysis_test.ts
@@ -167,6 +199,8 @@ additionalFiles:
   - zwift_coach_plan_test.ts
   - zwift_coach_workouts_test.ts
   - zwift_coach_howto_test.ts
+  - zwift_coach_test.ts
+  - zwift_coach_custom_test.ts
   - zwift_coach_delivery_test.ts
 
 platforms: []

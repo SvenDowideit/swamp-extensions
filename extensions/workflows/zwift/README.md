@@ -228,16 +228,21 @@ Nothing on the host. Two cron triggers are registered when `swamp serve` runs:
 
 `zwift-rider` writes: `activity-<id>` (one per ride), `history-current` (all
 rides in one array, for a single CEL expression), `profile-current`,
-`ability-current`, `session-auth` (the refresh token, marked `sensitive: true`
-so swamp stores it in the vault; the spec is pinned to `zwift-secrets` — see
-[Vault pinning](#vault-pinning)) and `sync-summary`.
+`ability-current`, `power-curve-current` (best 5 s/15 s/60 s/300 s/1200 s from
+the Zwift power curve, plus FIT-derived max and 5 s/60 s cadence when
+available), `session-auth` (the refresh token, marked `sensitive:
+true` so swamp stores it in the vault; the spec is pinned to `zwift-secrets` —
+see [Vault pinning](#vault-pinning)) and `sync-summary`.
 
 `zwift-events` writes `upcoming` — every event and subgroup in the window.
 
 `zwift-rider` also writes the coach inputs from `backfill`: `training-history`
 (merged rides), `load-daily` (TSS/CTL/ATL/TSB including rest days),
-`history-years` (yearly totals/peaks) and `availability-current` (merged and
-Zwift-only days/hours, preferred times and recent trend).
+`history-years` (yearly totals/peaks), `availability-current` (merged and
+Zwift-only days/hours, preferred times and recent trend) and
+`power-curve-current` (absolute bests for 5 s/15 s/60 s/300 s/1200 s). The coach
+uses those absolute bests for sprint and 60 s targets instead of deriving them
+from FTP; if the curve is missing it inserts a week-0 test rather than guessing.
 
 `backfill` is incremental: it re-reads the cheap activity list to catch new
 rides, reuses the detail/FIT already stored in `training-history`, and refreshes

@@ -4,8 +4,9 @@ description: |
   Hourly Debian-family package and security audit, followed by the idempotent
   Caddy serving setup.
 
-  The audit step probes every configured host and writes one HTML page. The
-  serve step then declares the page's file_server route via
+  The audit step probes every host in the fleet inventory (falling back to the
+  model's configured hosts when no inventory exists) and writes one HTML page.
+  The serve step then declares the page's file_server route via
   @svendowideit/caddy's normal additive reconcile: it reads the caddy model that
   already owns this machine, creates/updates a dedicated status-caddy model
   carrying only that model's baseDomain and serviceName, and lets caddy derive
@@ -48,12 +49,15 @@ jobs:
     description: Audit the fleet, then idempotently declare the status page route.
     steps:
       - name: audit
-        description: Probe every configured Debian-family host and render index.html.
+        description: Probe every inventoried host and render index.html.
         task:
           type: model_method
           modelType: "@svendowideit/network-status"
           modelName: ${{ inputs.statusModel }}
           methodName: audit
+          inputs:
+            hosts: >-
+              ${{ data.latest("fleet", "inventory").?attributes.?hosts.orValue([]).filter(h, h.probed == true).map(h, {"name": h.name, "address": h.name, "os": h.os}) }}
         dependsOn: []
         weight: 0
         allowFailure: false

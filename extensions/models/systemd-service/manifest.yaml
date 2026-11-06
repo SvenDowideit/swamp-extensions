@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/systemd-service"
-version: "2026.10.23.1"
+version: "2026.10.26.1"
 description: >
   Generic systemd *user* service management: idempotently create, start, stop,
   restart, and remove a persistent user service for any command line — and
@@ -70,7 +70,9 @@ description: >
 
     Per-call overrides on `createService`: `command`, `description`,
     `workingDirectory`, `environment`, `restart`, `restartSec`, `after`,
-    `wants`, and `force`. `startService` takes `linger` (default true) to
+    `wants`, `force`, and `hardening` (default true; set false for a service
+    that must read root-owned SSH config under a user namespace). `startService`
+    takes `linger` (default true) to
     control whether user lingering is enabled. `restartService` restarts a
     running (or stopped) unit and verifies it is active — use it after
     replacing the service's executable, which `enable --now` does not restart.

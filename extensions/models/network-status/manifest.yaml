@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/network-status"
-version: "2026.10.25.1"
+version: "2026.10.26.1"
 description: |
   One hourly HTML status page for a mixed Debian-family fleet: it audits pending
   package updates on every host over SSH, separates security updates from normal
@@ -11,7 +11,8 @@ description: |
   WHAT IT DOES
 
     Turns "what needs patching on my network?" into one page. For every
-    configured host it runs a read-only probe (no root, no package changes):
+    inventoried (or explicitly configured) host it runs a read-only probe (no
+    root, no package changes):
     `apt-get -s -qq dist-upgrade` for pending updates, the apt security origin
     for security classification, `pro security-status --format json` on Ubuntu
     for standard/ESM security counts, and `debsecan --format detail` on Debian
@@ -48,7 +49,9 @@ description: |
     @svendowideit/caddy is an optional dependency for the static file_server
     route and TLS/DNS; pull it separately to enable the workflow's serve step
     (the step skips with a log when it is absent). @svendowideit/fleet-inventory
-    is optional and recommended: use its inventory as the host source. Every
+    is optional and recommended: the bundled workflow audits every probed host
+    in its inventory and falls back to the model's own hosts when no inventory
+    exists. Every
     target needs an OpenSSH server and a key or agent the swamp host can use; no
     swamp install is required on the targets. Ubuntu Pro (`pro`) and debsecan are
     optional per host and only add security detail; without them the apt
@@ -78,7 +81,8 @@ description: |
   CONFIGURE
 
     Global arguments: hosts (array of {name,address,user,port,os,local} or
-    user@host strings), sshUser, identityFile, connectTimeoutSec,
+    user@host strings) used when fleet inventory has no hosts, sshUser,
+    identityFile, connectTimeoutSec,
     commandTimeoutSec, parallel, securityOrigin (default `-security`),
     outputDir, outputFile, tasksFile, pageTitle, statusHostname,
     staleAfterHours, cveCheck, static tasks, caddyModelName (source caddy model;

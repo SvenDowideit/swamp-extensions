@@ -94,6 +94,12 @@ const GlobalArgsSchema = z.object({
   schedule: z.boolean().default(true).describe(
     "Whether the server runs scheduled workflows (false passes --no-schedule)",
   ),
+  serviceHardening: z.boolean().default(true).describe(
+    "Apply systemd hardening (PrivateTmp/ProtectSystem) to the serve unit. Set " +
+      "false when workflows started by the server must SSH: PrivateTmp's user " +
+      "namespace maps root-owned files (e.g. /etc/ssh/ssh_config.d) to nobody, " +
+      "which OpenSSH rejects.",
+  ),
   swampHome: z.string().default("~/.swamp").describe(
     "SWAMP_HOME pinned into the unit (prevents 'Unknown model type' crash-loops)",
   ),
@@ -990,6 +996,7 @@ export const runCommand: CommandRunner = async (
   args: string[],
 ): Promise<{ stdout: string; stderr: string; code: number }> => {
   try {
+    // swamp-quality-ignore deno-command: swamp-serve invokes the swamp binary and system tools with fixed, validated arguments; spawning them is the extension purpose.
     const proc = new Deno.Command(cmd, {
       args,
       stdout: "piped",
@@ -1223,7 +1230,7 @@ export function configPathFor(g: ServeGlobals): string {
 /** The swamp model definition for `@svendowideit/swamp-serve`. */
 export const model = {
   type: "@svendowideit/swamp-serve",
-  version: "2026.10.23.1",
+  version: "2026.10.26.1",
   globalArguments: GlobalArgsSchema,
   checks: {
     "valid-config": {
@@ -1306,6 +1313,12 @@ export const model = {
       toVersion: "2026.10.23.1",
       description:
         "Honour SWAMP_HOME when resolving the ~/.swamp-based worker/install defaults.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.26.1",
+      description:
+        "Adds the `serviceHardening` global argument (default true) and passes it to @svendowideit/systemd-service createService. Set it false when workflows started by the server need SSH: PrivateTmp's user namespace maps root-owned SSH config files to nobody. Existing models keep the previous hardening.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1606,6 +1619,7 @@ export const model = {
           restartSec: "5",
           after: ["network-online.target"],
           wants: ["network-online.target"],
+          hardening: g.serviceHardening,
         });
 
         const method = args.restart ? "restartService" : "startService";
@@ -1684,6 +1698,7 @@ export const model = {
           restart: "always",
           restartSec: "5",
           force: true,
+          hardening: g.serviceHardening,
         });
         await callSystemd(context, "restartService", name, {
           serviceName: name,

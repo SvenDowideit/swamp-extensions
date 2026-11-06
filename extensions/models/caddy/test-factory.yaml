@@ -162,6 +162,619 @@ tests:
           stdoutContains: ["404"]
           stdoutNotContains: ["200"]
 
+  - name: rejects-invalid-route-hostname
+    confirms: >
+      A caddy model with invalid route hostname is rejected by the caddy reconcile and
+      ignored, while the good e2e-caddy model's route remains configured.
+    cannot: >
+      must not merge the bad model into the config, must not make the bad value
+      live, and must not stop the good model from applying its route.
+    documents: README.md#details
+    steps:
+      - name: create-bad-model
+        run: |
+          swamp model create @svendowideit/caddy bad-1 \
+            --global-arg serviceName=caddy \
+            --global-arg baseDomain=example.com \
+            --global-arg autoHttps=off \
+            --global-arg 'listenAddrs:json=[":80"]' \
+            --global-arg 'plugins:json=["github.com/caddy-dns/rfc2136"]' \
+            --global-arg environmentFile=/root/.config/caddy/dns.env
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+      - name: stage-bad-model
+        run: |
+          swamp model method run bad-1 ensureDnsProxy \
+            --input hostname=https://bad-1.example.com/x --input upstream=127.0.0.1:8080
+          continueOnFailure: true
+          expect: { outputContains: ["rejected"] }
+      - name: good-route-still-applies
+        run: >
+          swamp model method run e2e-caddy addRoute
+          --input hostname=good.example.com --input kind=file_server
+          --input root=/tmp
+        expect:
+          exitCode: 0
+          outputContains: ["Rejected Caddy model bad-1"]
+          outputNotContains: ["panic"]
+      - name: rejected-model-is-named
+        run: |
+          swamp model method run e2e-caddy plan >/dev/null
+          swamp data get e2e-caddy plan --json | jq -r '[.content.rejected[].model] | join(",")'
+        expect:
+          stdoutContains: ["bad-1"]
+      - name: rejected-model-is-not-merged
+        run: |
+          swamp data get e2e-caddy plan --json | jq -r '[.content.models[]] | join(",")'
+        expect:
+          stdoutContains: ["e2e-caddy"]
+          stdoutNotContains: ["bad-1"]
+      - name: good-route-is-retained
+        run: |
+          swamp data get e2e-caddy plan --json | jq -r '[.content.desiredRoutes[].hostname] | join(",")'
+        expect:
+          stdoutContains: ["good.example.com"]
+      - name: bad-input-is-ignored
+        run: |
+          swamp data get e2e-caddy plan --json | jq -r '[.content.desiredRoutes[].hostname] | join(",")'
+        expect:
+          stdoutNotContains: ["bad-1.example.com"]
+      - name: cleanup-bad-model
+        run: swamp model delete bad-1 --yes --force
+        expect: { exitCode: 0 }
+
+  - name: rejects-invalid-proxy-upstream
+    confirms: >
+      A caddy model with malformed proxy upstream is rejected by the caddy reconcile and
+      ignored, while the good e2e-caddy model's route remains configured.
+    cannot: >
+      must not merge the bad model into the config, must not make the bad value
+      live, and must not stop the good model from applying its route.
+    documents: README.md#details
+    steps:
+      - name: create-bad-model
+        run: |
+          swamp model create @svendowideit/caddy bad-2 \
+            --global-arg serviceName=caddy \
+            --global-arg baseDomain=example.com \
+            --global-arg autoHttps=off \
+            --global-arg 'listenAddrs:json=[":80"]' \
+            --global-arg 'plugins:json=["github.com/caddy-dns/rfc2136"]' \
+            --global-arg environmentFile=/root/.config/caddy/dns.env
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+      - name: stage-bad-model
+        run: |
+          swamp model method run bad-2 ensureDnsProxy \
+            --input hostname=bad-2.example.com --input 'upstream=not a host'
+          continueOnFailure: true
+          expect: { outputContains: ["rejected"] }
+      - name: good-route-still-applies
+        run: >
+          swamp model method run e2e-caddy addRoute
+          --input hostname=good.example.com --input kind=file_server
+          --input root=/tmp
+        expect:
+          exitCode: 0
+          outputContains: ["Rejected Caddy model bad-2"]
+          outputNotContains: ["panic"]
+      - name: rejected-model-is-named
+        run: |
+          swamp model method run e2e-caddy plan >/dev/null
+          swamp data get e2e-caddy plan --json | jq -r '[.content.rejected[].model] | join(",")'
+        expect:
+          stdoutContains: ["bad-2"]
+      - name: rejected-model-is-not-merged
+        run: |
+          swamp data get e2e-caddy plan --json | jq -r '[.content.models[]] | join(",")'
+        expect:
+          stdoutContains: ["e2e-caddy"]
+          stdoutNotContains: ["bad-2"]
+      - name: good-route-is-retained
+        run: |
+          swamp data get e2e-caddy plan --json | jq -r '[.content.desiredRoutes[].hostname] | join(",")'
+        expect:
+          stdoutContains: ["good.example.com"]
+      - name: bad-input-is-ignored
+        run: |
+          swamp data get e2e-caddy plan --json | jq -r '[.content.desiredRoutes[].hostname] | join(",")'
+        expect:
+          stdoutNotContains: ["bad-2.example.com"]
+      - name: cleanup-bad-model
+        run: swamp model delete bad-2 --yes --force
+        expect: { exitCode: 0 }
+
+  - name: rejects-relative-file-server-root
+    confirms: >
+      A caddy model with relative file_server root is rejected by the caddy reconcile and
+      ignored, while the good e2e-caddy model's route remains configured.
+    cannot: >
+      must not merge the bad model into the config, must not make the bad value
+      live, and must not stop the good model from applying its route.
+    documents: README.md#details
+    steps:
+      - name: create-bad-model
+        run: |
+          swamp model create @svendowideit/caddy bad-3 \
+            --global-arg serviceName=caddy \
+            --global-arg baseDomain=example.com \
+            --global-arg autoHttps=off \
+            --global-arg 'listenAddrs:json=[":80"]' \
+            --global-arg 'plugins:json=["github.com/caddy-dns/rfc2136"]' \
+            --global-arg environmentFile=/root/.config/caddy/dns.env
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+      - name: stage-bad-model
+        run: |
+          swamp model method run bad-3 serveSettings \
+            --input hostname=bad-3.example.com --input root=relative/site
+          continueOnFailure: true
+          expect: { outputContains: ["rejected"] }
+      - name: good-route-still-applies
+        run: >
+          swamp model method run e2e-caddy addRoute
+          --input hostname=good.example.com --input kind=file_server
+          --input root=/tmp
+        expect:
+          exitCode: 0
+          outputContains: ["Rejected Caddy model bad-3"]
+          outputNotContains: ["panic"]
+      - name: rejected-model-is-named
+        run: |
+          swamp model method run e2e-caddy plan >/dev/null
+          swamp data get e2e-caddy plan --json | jq -r '[.content.rejected[].model] | join(",")'
+        expect:
+          stdoutContains: ["bad-3"]
+      - name: rejected-model-is-not-merged
+        run: |
+          swamp data get e2e-caddy plan --json | jq -r '[.content.models[]] | join(",")'
+        expect:
+          stdoutContains: ["e2e-caddy"]
+          stdoutNotContains: ["bad-3"]
+      - name: good-route-is-retained
+        run: |
+          swamp data get e2e-caddy plan --json | jq -r '[.content.desiredRoutes[].hostname] | join(",")'
+        expect:
+          stdoutContains: ["good.example.com"]
+      - name: bad-input-is-ignored
+        run: |
+          swamp data get e2e-caddy plan --json | jq -r '[.content.desiredRoutes[].hostname] | join(",")'
+        expect:
+          stdoutNotContains: ["bad-3.example.com"]
+      - name: cleanup-bad-model
+        run: swamp model delete bad-3 --yes --force
+        expect: { exitCode: 0 }
+
+  - name: rejects-invalid-base-domain
+    confirms: >
+      A caddy model with invalid baseDomain is rejected by the caddy reconcile and
+      ignored, while the good e2e-caddy model's route remains configured.
+    cannot: >
+      must not merge the bad model into the config, must not make the bad value
+      live, and must not stop the good model from applying its route.
+    documents: README.md#details
+    steps:
+      - name: create-bad-model
+        run: |
+          swamp model create @svendowideit/caddy bad-4 \
+            --global-arg serviceName=caddy \
+            --global-arg baseDomain=example.com \
+            --global-arg autoHttps=off \
+            --global-arg 'listenAddrs:json=[":80"]' \
+            --global-arg 'plugins:json=["github.com/caddy-dns/rfc2136"]' \
+            --global-arg environmentFile=/root/.config/caddy/dns.env \
+            --global-arg baseDomain=https://bad-4.example.com
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+      - name: stage-bad-model
+        run: |
+          swamp model method run bad-4 materializeDesired
+          expect: { exitCode: 0 }
+      - name: good-route-still-applies
+        run: >
+          swamp model method run e2e-caddy addRoute
+          --input hostname=good.example.com --input kind=file_server
+          --input root=/tmp
+        expect:
+          exitCode: 0
+          outputContains: ["Rejected Caddy model bad-4"]
+          outputNotContains: ["panic"]
+      - name: rejected-model-is-named
+        run: |
+          swamp model method run e2e-caddy plan >/dev/null
+          swamp data get e2e-caddy plan --json | jq -r '[.content.rejected[].model] | join(",")'
+        expect:
+          stdoutContains: ["bad-4"]
+      - name: rejected-model-is-not-merged
+        run: |
+          swamp data get e2e-caddy plan --json | jq -r '[.content.models[]] | join(",")'
+        expect:
+          stdoutContains: ["e2e-caddy"]
+          stdoutNotContains: ["bad-4"]
+      - name: good-route-is-retained
+        run: |
+          swamp data get e2e-caddy plan --json | jq -r '[.content.desiredRoutes[].hostname] | join(",")'
+        expect:
+          stdoutContains: ["good.example.com"]
+      - name: bad-input-is-ignored
+        run: |
+          swamp data get e2e-caddy plan --json | jq -c '.content.desiredConfig'
+        expect:
+          stdoutNotContains: ["https://bad-4.example.com"]
+      - name: cleanup-bad-model
+        run: swamp model delete bad-4 --yes --force
+        expect: { exitCode: 0 }
+
+  - name: rejects-invalid-listen-address
+    confirms: >
+      A caddy model with invalid listen address is rejected by the caddy reconcile and
+      ignored, while the good e2e-caddy model's route remains configured.
+    cannot: >
+      must not merge the bad model into the config, must not make the bad value
+      live, and must not stop the good model from applying its route.
+    documents: README.md#details
+    steps:
+      - name: create-bad-model
+        run: |
+          swamp model create @svendowideit/caddy bad-5 \
+            --global-arg serviceName=caddy \
+            --global-arg baseDomain=example.com \
+            --global-arg autoHttps=off \
+            --global-arg 'listenAddrs:json=[":80"]' \
+            --global-arg 'plugins:json=["github.com/caddy-dns/rfc2136"]' \
+            --global-arg environmentFile=/root/.config/caddy/dns.env \
+            --global-arg 'listenAddrs:json=["not-a-port"]'
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+      - name: stage-bad-model
+        run: |
+          swamp model method run bad-5 materializeDesired
+          expect: { exitCode: 0 }
+      - name: good-route-still-applies
+        run: >
+          swamp model method run e2e-caddy addRoute
+          --input hostname=good.example.com --input kind=file_server
+          --input root=/tmp
+        expect:
+          exitCode: 0
+          outputContains: ["Rejected Caddy model bad-5"]
+          outputNotContains: ["panic"]
+      - name: rejected-model-is-named
+        run: |
+          swamp model method run e2e-caddy plan >/dev/null
+          swamp data get e2e-caddy plan --json | jq -r '[.content.rejected[].model] | join(",")'
+        expect:
+          stdoutContains: ["bad-5"]
+      - name: rejected-model-is-not-merged
+        run: |
+          swamp data get e2e-caddy plan --json | jq -r '[.content.models[]] | join(",")'
+        expect:
+          stdoutContains: ["e2e-caddy"]
+          stdoutNotContains: ["bad-5"]
+      - name: good-route-is-retained
+        run: |
+          swamp data get e2e-caddy plan --json | jq -r '[.content.desiredRoutes[].hostname] | join(",")'
+        expect:
+          stdoutContains: ["good.example.com"]
+      - name: bad-input-is-ignored
+        run: |
+          swamp data get e2e-caddy plan --json | jq -c '.content.desiredConfig'
+        expect:
+          stdoutNotContains: ["not-a-port"]
+      - name: cleanup-bad-model
+        run: swamp model delete bad-5 --yes --force
+        expect: { exitCode: 0 }
+
+  - name: rejects-invalid-route-ip
+    confirms: >
+      A caddy model with invalid routeIp is rejected by the caddy reconcile and
+      ignored, while the good e2e-caddy model's route remains configured.
+    cannot: >
+      must not merge the bad model into the config, must not make the bad value
+      live, and must not stop the good model from applying its route.
+    documents: README.md#details
+    steps:
+      - name: create-bad-model
+        run: |
+          swamp model create @svendowideit/caddy bad-6 \
+            --global-arg serviceName=caddy \
+            --global-arg baseDomain=example.com \
+            --global-arg autoHttps=off \
+            --global-arg 'listenAddrs:json=[":80"]' \
+            --global-arg 'plugins:json=["github.com/caddy-dns/rfc2136"]' \
+            --global-arg environmentFile=/root/.config/caddy/dns.env \
+            --global-arg routeIp=999.999.999.999
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+      - name: stage-bad-model
+        run: |
+          swamp model method run bad-6 materializeDesired
+          expect: { exitCode: 0 }
+      - name: good-route-still-applies
+        run: >
+          swamp model method run e2e-caddy addRoute
+          --input hostname=good.example.com --input kind=file_server
+          --input root=/tmp
+        expect:
+          exitCode: 0
+          outputContains: ["Rejected Caddy model bad-6"]
+          outputNotContains: ["panic"]
+      - name: rejected-model-is-named
+        run: |
+          swamp model method run e2e-caddy plan >/dev/null
+          swamp data get e2e-caddy plan --json | jq -r '[.content.rejected[].model] | join(",")'
+        expect:
+          stdoutContains: ["bad-6"]
+      - name: rejected-model-is-not-merged
+        run: |
+          swamp data get e2e-caddy plan --json | jq -r '[.content.models[]] | join(",")'
+        expect:
+          stdoutContains: ["e2e-caddy"]
+          stdoutNotContains: ["bad-6"]
+      - name: good-route-is-retained
+        run: |
+          swamp data get e2e-caddy plan --json | jq -r '[.content.desiredRoutes[].hostname] | join(",")'
+        expect:
+          stdoutContains: ["good.example.com"]
+      - name: bad-input-is-ignored
+        run: |
+          swamp data get e2e-caddy plan --json | jq -c '.content.desiredConfig'
+        expect:
+          stdoutNotContains: ["999.999.999.999"]
+      - name: cleanup-bad-model
+        run: swamp model delete bad-6 --yes --force
+        expect: { exitCode: 0 }
+
+  - name: rejects-invalid-a-record
+    confirms: >
+      A caddy model with invalid A record value is rejected by the caddy reconcile and
+      ignored, while the good e2e-caddy model's route remains configured.
+    cannot: >
+      must not merge the bad model into the config, must not make the bad value
+      live, and must not stop the good model from applying its route.
+    documents: README.md#details
+    steps:
+      - name: create-bad-model
+        run: |
+          swamp model create @svendowideit/caddy bad-7 \
+            --global-arg serviceName=caddy \
+            --global-arg baseDomain=example.com \
+            --global-arg autoHttps=off \
+            --global-arg 'listenAddrs:json=[":80"]' \
+            --global-arg 'plugins:json=["github.com/caddy-dns/rfc2136"]' \
+            --global-arg environmentFile=/root/.config/caddy/dns.env \
+            --global-arg 'dnsRecords:json=[{"name":"bad-7.example.com","type":"A","value":["999.999.999.999"],"zone":"example.com","ttl":""}]'
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+      - name: stage-bad-model
+        run: |
+          swamp model method run bad-7 materializeDesired
+          expect: { exitCode: 0 }
+      - name: good-route-still-applies
+        run: >
+          swamp model method run e2e-caddy addRoute
+          --input hostname=good.example.com --input kind=file_server
+          --input root=/tmp
+        expect:
+          exitCode: 0
+          outputContains: ["Rejected Caddy model bad-7"]
+          outputNotContains: ["panic"]
+      - name: rejected-model-is-named
+        run: |
+          swamp model method run e2e-caddy plan >/dev/null
+          swamp data get e2e-caddy plan --json | jq -r '[.content.rejected[].model] | join(",")'
+        expect:
+          stdoutContains: ["bad-7"]
+      - name: rejected-model-is-not-merged
+        run: |
+          swamp data get e2e-caddy plan --json | jq -r '[.content.models[]] | join(",")'
+        expect:
+          stdoutContains: ["e2e-caddy"]
+          stdoutNotContains: ["bad-7"]
+      - name: good-route-is-retained
+        run: |
+          swamp data get e2e-caddy plan --json | jq -r '[.content.desiredRoutes[].hostname] | join(",")'
+        expect:
+          stdoutContains: ["good.example.com"]
+      - name: bad-input-is-ignored
+        run: |
+          swamp data get e2e-caddy plan --json | jq -r '[.content.dns.mergedRecords[].name] | join(",")'
+        expect:
+          stdoutNotContains: ["bad-7.example.com"]
+      - name: cleanup-bad-model
+        run: swamp model delete bad-7 --yes --force
+        expect: { exitCode: 0 }
+
+  - name: rejects-multi-target-cname
+    confirms: >
+      A caddy model with CNAME with multiple targets is rejected by the caddy reconcile and
+      ignored, while the good e2e-caddy model's route remains configured.
+    cannot: >
+      must not merge the bad model into the config, must not make the bad value
+      live, and must not stop the good model from applying its route.
+    documents: README.md#details
+    steps:
+      - name: create-bad-model
+        run: |
+          swamp model create @svendowideit/caddy bad-8 \
+            --global-arg serviceName=caddy \
+            --global-arg baseDomain=example.com \
+            --global-arg autoHttps=off \
+            --global-arg 'listenAddrs:json=[":80"]' \
+            --global-arg 'plugins:json=["github.com/caddy-dns/rfc2136"]' \
+            --global-arg environmentFile=/root/.config/caddy/dns.env \
+            --global-arg 'dnsRecords:json=[{"name":"bad-8.example.com","type":"CNAME","value":["a.example.com","b.example.com"],"zone":"example.com","ttl":""}]'
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+      - name: stage-bad-model
+        run: |
+          swamp model method run bad-8 materializeDesired
+          expect: { exitCode: 0 }
+      - name: good-route-still-applies
+        run: >
+          swamp model method run e2e-caddy addRoute
+          --input hostname=good.example.com --input kind=file_server
+          --input root=/tmp
+        expect:
+          exitCode: 0
+          outputContains: ["Rejected Caddy model bad-8"]
+          outputNotContains: ["panic"]
+      - name: rejected-model-is-named
+        run: |
+          swamp model method run e2e-caddy plan >/dev/null
+          swamp data get e2e-caddy plan --json | jq -r '[.content.rejected[].model] | join(",")'
+        expect:
+          stdoutContains: ["bad-8"]
+      - name: rejected-model-is-not-merged
+        run: |
+          swamp data get e2e-caddy plan --json | jq -r '[.content.models[]] | join(",")'
+        expect:
+          stdoutContains: ["e2e-caddy"]
+          stdoutNotContains: ["bad-8"]
+      - name: good-route-is-retained
+        run: |
+          swamp data get e2e-caddy plan --json | jq -r '[.content.desiredRoutes[].hostname] | join(",")'
+        expect:
+          stdoutContains: ["good.example.com"]
+      - name: bad-input-is-ignored
+        run: |
+          swamp data get e2e-caddy plan --json | jq -r '[.content.dns.mergedRecords[].name] | join(",")'
+        expect:
+          stdoutNotContains: ["bad-8.example.com"]
+      - name: cleanup-bad-model
+        run: swamp model delete bad-8 --yes --force
+        expect: { exitCode: 0 }
+
+  - name: rejects-record-outside-zone
+    confirms: >
+      A caddy model with DNS record outside its zone is rejected by the caddy reconcile and
+      ignored, while the good e2e-caddy model's route remains configured.
+    cannot: >
+      must not merge the bad model into the config, must not make the bad value
+      live, and must not stop the good model from applying its route.
+    documents: README.md#details
+    steps:
+      - name: create-bad-model
+        run: |
+          swamp model create @svendowideit/caddy bad-9 \
+            --global-arg serviceName=caddy \
+            --global-arg baseDomain=example.com \
+            --global-arg autoHttps=off \
+            --global-arg 'listenAddrs:json=[":80"]' \
+            --global-arg 'plugins:json=["github.com/caddy-dns/rfc2136"]' \
+            --global-arg environmentFile=/root/.config/caddy/dns.env \
+            --global-arg 'dnsRecords:json=[{"name":"outside.example.net","type":"A","value":["192.0.2.10"],"zone":"example.com","ttl":""}]'
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+      - name: stage-bad-model
+        run: |
+          swamp model method run bad-9 materializeDesired
+          expect: { exitCode: 0 }
+      - name: good-route-still-applies
+        run: >
+          swamp model method run e2e-caddy addRoute
+          --input hostname=good.example.com --input kind=file_server
+          --input root=/tmp
+        expect:
+          exitCode: 0
+          outputContains: ["Rejected Caddy model bad-9"]
+          outputNotContains: ["panic"]
+      - name: rejected-model-is-named
+        run: |
+          swamp model method run e2e-caddy plan >/dev/null
+          swamp data get e2e-caddy plan --json | jq -r '[.content.rejected[].model] | join(",")'
+        expect:
+          stdoutContains: ["bad-9"]
+      - name: rejected-model-is-not-merged
+        run: |
+          swamp data get e2e-caddy plan --json | jq -r '[.content.models[]] | join(",")'
+        expect:
+          stdoutContains: ["e2e-caddy"]
+          stdoutNotContains: ["bad-9"]
+      - name: good-route-is-retained
+        run: |
+          swamp data get e2e-caddy plan --json | jq -r '[.content.desiredRoutes[].hostname] | join(",")'
+        expect:
+          stdoutContains: ["good.example.com"]
+      - name: bad-input-is-ignored
+        run: |
+          swamp data get e2e-caddy plan --json | jq -r '[.content.dns.mergedRecords[].name] | join(",")'
+        expect:
+          stdoutNotContains: ["outside.example.net"]
+      - name: cleanup-bad-model
+        run: swamp model delete bad-9 --yes --force
+        expect: { exitCode: 0 }
+
+  - name: rejects-mismatched-admin-api
+    confirms: >
+      A caddy model with mismatched admin API address is rejected by the caddy reconcile and
+      ignored, while the good e2e-caddy model's route remains configured.
+    cannot: >
+      must not merge the bad model into the config, must not make the bad value
+      live, and must not stop the good model from applying its route.
+    documents: README.md#details
+    steps:
+      - name: create-bad-model
+        run: |
+          swamp model create @svendowideit/caddy bad-10 \
+            --global-arg serviceName=caddy \
+            --global-arg baseDomain=example.com \
+            --global-arg autoHttps=off \
+            --global-arg 'listenAddrs:json=[":80"]' \
+            --global-arg 'plugins:json=["github.com/caddy-dns/rfc2136"]' \
+            --global-arg environmentFile=/root/.config/caddy/dns.env \
+            --global-arg adminApiAddr=localhost:2021
+        expect:
+          exitCode: 0
+          outputNotContains: ["panic"]
+      - name: stage-bad-model
+        run: |
+          swamp model method run bad-10 materializeDesired
+          expect: { exitCode: 0 }
+      - name: good-route-still-applies
+        run: >
+          swamp model method run e2e-caddy addRoute
+          --input hostname=good.example.com --input kind=file_server
+          --input root=/tmp
+        expect:
+          exitCode: 0
+          outputContains: ["Rejected Caddy model bad-10"]
+          outputNotContains: ["panic"]
+      - name: rejected-model-is-named
+        run: |
+          swamp model method run e2e-caddy plan >/dev/null
+          swamp data get e2e-caddy plan --json | jq -r '[.content.rejected[].model] | join(",")'
+        expect:
+          stdoutContains: ["bad-10"]
+      - name: rejected-model-is-not-merged
+        run: |
+          swamp data get e2e-caddy plan --json | jq -r '[.content.models[]] | join(",")'
+        expect:
+          stdoutContains: ["e2e-caddy"]
+          stdoutNotContains: ["bad-10"]
+      - name: good-route-is-retained
+        run: |
+          swamp data get e2e-caddy plan --json | jq -r '[.content.desiredRoutes[].hostname] | join(",")'
+        expect:
+          stdoutContains: ["good.example.com"]
+      - name: bad-input-is-ignored
+        run: |
+          swamp data get e2e-caddy plan --json | jq -c '.content.desiredConfig'
+        expect:
+          stdoutNotContains: ["localhost:2021"]
+      - name: cleanup-bad-model
+        run: swamp model delete bad-10 --yes --force
+        expect: { exitCode: 0 }
+
   - name: writes-a-records-into-authoritative-dns
     confirms: >
       Declaring dnsRecords and running applyDnsRecords makes Caddy write them

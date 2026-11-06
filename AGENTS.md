@@ -5,13 +5,13 @@ This repository is managed with [swamp](https://github.com/swamp-club/swamp).
 
 ## Rules
 
-1. **Search before you build.** When automating AWS, APIs, or any external service: (a) search community extensions with `swamp extension search <query>` — prefer `@swamp/*` official extensions first, (b) search local/installed types with `swamp behavior type search <query>`, (c) if a community extension exists, install it with `swamp extension pull <package>` instead of building from scratch, (d) extend an existing type if it covers the domain but lacks the method you need, (e) only create a custom extension model in `extensions/models/` as a last resort. Use the `swamp` skill for guidance. The `command/shell` behavior is ONLY for ad-hoc one-off shell commands, NEVER for wrapping CLI tools or building integrations.
+1. **Search before you build.** When automating AWS, APIs, or any external service: (a) search community extensions with `swamp extension search <query>` — prefer `@swamp/*` official extensions first, (b) search local/installed types with `swamp behavior type search <query>`, (c) if a community extension exists, install it with `swamp extension pull <package>` instead of building from scratch, (d) extend an existing type if it covers the domain but lacks the method you need, (e) only create a custom extension behavior in `extensions/models/` as a last resort. Use the `swamp` skill for guidance. The `command/shell` behavior is ONLY for ad-hoc one-off shell commands, NEVER for wrapping CLI tools or building integrations.
 2. **Extend, don't be clever.** When a behavior covers the domain but lacks the method you need, extend it with `export const extension` — don't bypass it with shell scripts, CLI tools, or multi-step hacks. One method, one purpose. Use `swamp behavior type describe <type> --json` to check available methods.
 3. **Use the data model.** Once data exists in a behavior (via `lookup`, `start`, `sync`, etc.), reference it with CEL expressions. Don't re-fetch data that's already available.
 4. **CEL expressions everywhere.** Wire behaviors together with CEL expressions. Always prefer `data.latest("<name>", "<dataName>").attributes.<field>` over the deprecated `model.<name>.resource.<spec>.<instance>.attributes.<field>` pattern.
 5. **Verify before destructive operations.** Always `swamp behavior get <name> --json` and verify resource IDs before running delete/stop/destroy methods.
 6. **Prefer fan-out methods over loops.** When operating on multiple targets, use a single method that handles all targets internally (factory pattern) rather than looping N separate `swamp behavior run` calls against the same behavior. Multiple parallel calls against the same behavior contend on the per-behavior lock, causing timeouts. A single fan-out method acquires the lock once and produces all outputs in one execution. Check `swamp behavior type describe` for methods that accept filters or produce multiple outputs.
-7. **Extension npm deps are bundled, not lockfile-tracked.** Swamp's bundler inlines all npm packages (except zod) into extension bundles at bundle time. `deno.lock` and `package.json` do NOT cover extension model dependencies — this is by design. Always pin explicit versions in `npm:` import specifiers (e.g., `npm:lodash-es@4.17.21`).
+7. **Extension npm deps are bundled; pin them.** Swamp's bundler inlines all npm packages (except zod) into extension bundles at bundle time. When the extension has a `deno.json`, the `deno.lock` beside it decides which versions are bundled; otherwise the registry's current release does. Always pin explicit versions in `npm:` and `jsr:` import specifiers (e.g., `npm:lodash-es@4.17.21`) — `swamp extension push` warns on unpinned and range specifiers.
 8. **Reports for reusable data pipelines.** When the task involves building a repeatable pipeline to transform, aggregate, or analyze behavior output (security reports, cost analysis, compliance checks, summaries), create a report extension. Use the `swamp` skill for guidance.
 9. **"Workflow" means a swamp workflow.** In this repository the word "workflow" (and "create/run/execute/validate/debug workflow", "automate", "orchestrate", "automated/nightly job") refers to a swamp workflow — a declarative YAML DAG of behavior-method steps authored via `swamp workflow create`. Load and follow the `swamp` skill for these requests. Do NOT interpret these as a request to build an agent task list, spin up worktrees, or schedule a cron/remote agent. Only use those orchestration mechanisms when the user explicitly names one (e.g. "task list", "subagent", "worktree", "cron", "remote agent") or explicitly asks you to do the work yourself step by step rather than author a swamp workflow.
 10. **Use swamp, don't bypass it.** Always work through swamp commands — don't go around them with raw shell tools. Use `swamp data query` to find data, not `grep`/`find` on `.swamp/` files. Use behavior methods to interact with resources, not `curl`/`aws`/`gcloud`/`kubectl` when a behavior type already wraps that API — check with `swamp behavior type search`. Use `swamp help` for CLI discovery, not guesswork. Composing with swamp output is fine (e.g. piping `--json` through `jq`) — the anti-pattern is bypassing swamp entirely.
@@ -50,6 +50,79 @@ Behaviors (formerly models) are managed with `swamp behavior` — e.g.
 `swamp behavior run @<type> <method> <name>` to run against a type
 directly). Every `swamp model …` spelling remains supported.
 <!-- END swamp managed section -->
+
+## Existing extensions are mandatory — never bypass them
+
+If a swamp extension exists that manages a resource, command, API, file, or
+service, that extension is the **only** permitted way to read or change it.
+This is a hard rule, not a preference.
+
+### MUST
+
+1. **Identify the owning extension first.** Before acting on a managed
+   resource, run `swamp extension search <query>` and
+   `swamp behavior type search <query>`, then read the extension's
+   `manifest.yaml`, `README.md`, and
+   `swamp behavior type describe <type> --json`.
+2. **Use the extension's model methods for every read and write.** Wire them
+   with CEL expressions and swamp workflows. Do not reimplement their parsing,
+   validation, or side effects.
+3. **Extend, don't bypass.** If the extension covers the domain but lacks the
+   operation, add a method to the extension (`export const extension` or a new
+   method) with tests. One method, one purpose.
+4. **Fix the extension, not the symptom.** If the extension is broken, reproduce
+   it with the extension's own methods, fix the extension and its tests, or stop
+   and report. Do not work around it.
+
+### NEVER
+
+- Hand-edit a file or state the extension manages: Caddy config,
+  `autosave.json`, Caddyfile, systemd units, DNS records, vault contents,
+  extension model files, or extension data.
+- Run the underlying tool or API directly when an extension wraps it:
+  `caddy`, `systemctl --user`, `curl` to a managed API, `dig`/provider APIs for
+  DNS managed by `@svendowideit/caddy`, raw `aws`/`gcloud`/`kubectl`, etc.
+- Create a parallel script, ad-hoc `command/shell` model, or second extension
+  to do the same job.
+- "Unblock" a failing task by changing the extension's model data, desired
+  state, config, or managed state by hand.
+- Infer permission to bypass from "make it work", "make it live", or "finish
+  it". Only an explicit instruction naming the extension and operation
+  authorizes a change.
+
+### STOP AND REPORT
+
+Stop immediately and report when any of these is true:
+
+- No extension exists (then follow the search-before-you-build rules).
+- The extension lacks the method you need (extend it; do not bypass).
+- The extension or its provider is failing (fix the extension or report it;
+  do not bypass).
+- Satisfying the request would require a direct edit or a direct call to a
+  managed resource.
+
+### Pre-action gate
+
+Answer these before every mutating command:
+
+1. Which extension owns this resource?
+2. Which extension method am I calling?
+3. Does this command write any file/data that extension manages? If yes, STOP.
+4. Am I calling an underlying tool the extension wraps? If yes, STOP.
+5. If the extension is missing or broken, have I stopped and reported instead
+   of working around it?
+
+### Forbidden examples in this repository
+
+- Editing `~/.config/caddy/autosave.json` or running `caddy run` instead of
+  using `swamp model @svendowideit/caddy method run ...`.
+- Editing `models/@svendowideit/caddy/*.yaml` outside the approved swamp model
+  workflow instead of using the extension's methods or
+  `swamp model get ... | jq ... | swamp model edit ...`.
+- Calling the Gandi API directly for DNS owned by `@svendowideit/caddy`.
+- Hand-editing a systemd unit instead of using
+  `@svendowideit/systemd-service`.
+- Using `command/shell` to wrap a tool that an extension already manages.
 
 ## Tooling
 

@@ -29,10 +29,16 @@ export function stepTss(step: Step): number {
       const off = (step.offMinutes / 60) * step.offPower * step.offPower * 100;
       return step.repeat * (on + off);
     }
-    case "free":
-      return (step.minutes / 60) * 0.7 * 0.7 * 100;
-    case "maxeffort":
-      return (step.minutes / 60) * 1.2 * 1.2 * 100;
+    case "free": {
+      // Absolute-power efforts are not a CTL driver; cap the effective IF so
+      // a 700 W 60 s block does not inflate the weekly TSS model.
+      const power = Math.min(step.targetPower ?? 0.7, 1.5);
+      return (step.minutes / 60) * power * power * 100;
+    }
+    case "maxeffort": {
+      const power = Math.min(step.targetPower ?? 1.2, 1.2);
+      return (step.minutes / 60) * power * power * 100;
+    }
   }
 }
 
@@ -72,9 +78,9 @@ export function averageIf(steps: Step[]): number {
             step.offPower * step.offMinutes) /
             Math.max(0.01, step.onMinutes + step.offMinutes);
         case "free":
-          return 0.7;
+          return Math.min(step.targetPower ?? 0.7, 1.5);
         case "maxeffort":
-          return 1.2;
+          return Math.min(step.targetPower ?? 1.2, 1.2);
       }
     })();
     return sum + avg * duration;
@@ -265,6 +271,57 @@ export function fitToTss(
   return steps.map((s, i) => i === mainIndex ? scaled : s);
 }
 
+/**
+ * Cap a step list to a maximum duration. Warmup/cooldown are left alone and
+ * the main work is scaled; short anaerobic/sprint intervals keep their full
+ * recovery so the session stays a stimulus rather than fatigue.
+ */
+export function fitToDuration(steps: Step[], maxMinutes: number): Step[] {
+  if (maxMinutes <= 0) return steps;
+  const total = totalMinutes(steps);
+  if (total <= maxMinutes + 0.01) return steps;
+  // Keep the hard efforts honest: never shrink a 5 s/60 s block while the
+  // text still says 5 s/60 s. Scale recovery and steady work instead.
+  const fixedMinutes = steps.reduce((sum, step) => {
+    if (
+      step.kind === "warmup" || step.kind === "cooldown" ||
+      step.kind === "maxeffort" || step.kind === "free" ||
+      (step.kind === "ramp" && step.minutes <= 0.25)
+    ) {
+      return sum + step.minutes;
+    }
+    if (step.kind === "intervals") {
+      return sum + step.repeat * step.onMinutes;
+    }
+    return sum;
+  }, 0);
+  const adjustableMinutes = steps.reduce((sum, step) => {
+    if (step.kind === "intervals") return sum + step.repeat * step.offMinutes;
+    if (
+      step.kind === "steady" || step.kind === "ramp"
+    ) {
+      return sum + step.minutes;
+    }
+    return sum;
+  }, 0);
+  const available = maxMinutes - fixedMinutes;
+  if (adjustableMinutes <= 0 || available <= 0) return steps;
+  const ratio = clamp(available / adjustableMinutes, 0.1, 1);
+  return steps.map((step) => {
+    if (step.kind === "maxeffort" || step.kind === "free") return step;
+    if (step.kind === "intervals") {
+      return {
+        ...step,
+        offMinutes: Math.max(0.25, step.offMinutes * ratio),
+      };
+    }
+    if (step.kind === "steady" || step.kind === "ramp") {
+      return { ...step, minutes: Math.max(0.25, step.minutes * ratio) };
+    }
+    return step;
+  });
+}
+
 /** Build a complete session, including engagement text. */
 export function buildSession(opts: {
   id: string;
@@ -282,12 +339,17 @@ export function buildSession(opts: {
   zwiftSuggestion?: string;
   progression?: string;
   maxMinutes?: number;
+  steps?: Step[];
+  brief?: string;
 }): Session {
-  const steps = fitToTss(
-    templateFor(opts.type, opts.durationMinutes),
-    opts.targetTss,
+  const base = opts.steps?.length
+    ? opts.steps.map((step) => ({ ...step }))
+    : templateFor(opts.type, opts.durationMinutes);
+  const capped = fitToDuration(
+    fitToTss(base, opts.targetTss, opts.maxMinutes ?? opts.durationMinutes),
     opts.maxMinutes ?? opts.durationMinutes,
   );
+  const steps = capped;
   return {
     id: opts.id,
     week: opts.week,
@@ -306,6 +368,7 @@ export function buildSession(opts: {
     targetIf: averageIf(steps),
     steps,
     progression: opts.progression,
+    brief: opts.brief,
   };
 }
 
@@ -364,7 +427,13 @@ function stepXml(step: Step): string {
       return `<Ramp Duration="${seconds(step.minutes)}" PowerLow="${
         power(step.powerLow)
       }" PowerHigh="${power(step.powerHigh)}"${
-        step.cadence ? ` Cadence="${step.cadence}"` : ""
+        step.cadenceLow || step.cadenceHigh
+          ? ` CadenceLow="${
+            step.cadenceLow ?? step.cadence ?? 80
+          }" CadenceHigh="${step.cadenceHigh ?? step.cadence ?? 100}"`
+          : step.cadence
+          ? ` Cadence="${step.cadence}"`
+          : ""
       }>${text}</Ramp>`;
     case "steady":
       return `<SteadyState Duration="${seconds(step.minutes)}" Power="${
@@ -407,9 +476,9 @@ export function renderZwo(session: Session, planId = "unknown"): string {
 <workout_file>
   <author>swamp zwift-coach</author>
   <name>${xmlEscape(session.title)}</name>
-  <description>${
+  <description>${xmlEscape(session.brief ?? session.why)} ${
     xmlEscape(session.why)
-  } Target ${session.targetTss} TSS.</description>
+  } Load: ${session.targetTss} TSS (100 is about one hour at FTP).</description>
   <sportType>bike</sportType>
   <category>zwift-coach</category>
   <subcategory>Week ${session.week}</subcategory>

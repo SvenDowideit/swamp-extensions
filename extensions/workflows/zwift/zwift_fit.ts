@@ -23,6 +23,14 @@ export interface FitSession {
   intensityFactor: number | null;
   /** Mean of the record power samples, when present. */
   averagePower: number | null;
+  /** Mean of the record cadence samples, when present. */
+  averageCadence: number | null;
+  /** Highest cadence sample in the file, when present. */
+  maxCadence: number | null;
+  /** Average cadence in the best 5 s power window. */
+  cadenceAt5s: number | null;
+  /** Average cadence in the best 60 s power window. */
+  cadenceAt60s: number | null;
   /** Number of record power samples read. */
   sampleCount: number;
 }
@@ -66,6 +74,45 @@ function readFloat32(
 
 function mean(values: number[]): number {
   return values.reduce((a, b) => a + b, 0) / values.length;
+}
+
+/** Highest finite cadence sample. */
+export function maxCadenceFromSamples(
+  samples: (number | null)[],
+): number | null {
+  const values = samples.filter((n): n is number => n !== null && n > 0);
+  return values.length === 0 ? null : Math.max(...values);
+}
+
+/**
+ * Average cadence in the best rolling `seconds` power window. Returns null
+ * when the file is shorter than the window or has no cadence samples.
+ */
+export function bestWindowCadence(
+  samples: { power: number | null; cadence: number | null }[],
+  seconds: number,
+): number | null {
+  if (samples.length < seconds || seconds <= 0) return null;
+  let bestPower = -1;
+  let bestStart = -1;
+  let sum = 0;
+  for (let i = 0; i < samples.length; i++) {
+    sum += samples[i].power ?? 0;
+    if (i >= seconds) sum -= samples[i - seconds].power ?? 0;
+    if (i >= seconds - 1) {
+      const avg = sum / seconds;
+      if (avg > bestPower) {
+        bestPower = avg;
+        bestStart = i - seconds + 1;
+      }
+    }
+  }
+  if (bestStart < 0) return null;
+  const cadences = samples
+    .slice(bestStart, bestStart + seconds)
+    .map((s) => s.cadence)
+    .filter((n): n is number => n !== null && n > 0);
+  return cadences.length === 0 ? null : Math.round(mean(cadences) * 10) / 10;
 }
 
 /**
@@ -156,9 +203,18 @@ export async function parseFitSession(
     const records = Array.isArray(data.records)
       ? data.records as Record<string, unknown>[]
       : [];
-    const samples = records
-      .map((r) => Number(r.power))
-      .filter((n) => Number.isFinite(n));
+    const windowSamples = records.map((r) => {
+      const power = Number(r.power);
+      const cadence = Number(r.cadence);
+      return {
+        power: Number.isFinite(power) ? power : null,
+        cadence: Number.isFinite(cadence) ? cadence : null,
+      };
+    });
+    const samples = windowSamples
+      .map((r) => r.power)
+      .filter((n): n is number => n !== null);
+    const cadenceSamples = windowSamples.map((r) => r.cadence);
     const sessions = Array.isArray(data.sessions)
       ? data.sessions as Record<string, unknown>[]
       : [];
@@ -182,6 +238,14 @@ export async function parseFitSession(
         ? Number(session.avg_power) ||
           (computed ?? minimal?.averagePower ?? null)
         : computed ?? minimal?.averagePower ?? null,
+      averageCadence: cadenceSamples.some((n) => n !== null)
+        ? Math.round(
+          mean(cadenceSamples.filter((n): n is number => n !== null)) * 10,
+        ) / 10
+        : null,
+      maxCadence: maxCadenceFromSamples(cadenceSamples),
+      cadenceAt5s: bestWindowCadence(windowSamples, 5),
+      cadenceAt60s: bestWindowCadence(windowSamples, 60),
       sampleCount: samples.length || minimal?.sampleCount || 0,
     };
   } catch {
@@ -271,6 +335,10 @@ export function parseFitSessionMinimal(bytes: Uint8Array): FitSession | null {
     averagePower: powerSamples.length > 0
       ? Math.round(mean(powerSamples) * 10) / 10
       : null,
+    averageCadence: null,
+    maxCadence: null,
+    cadenceAt5s: null,
+    cadenceAt60s: null,
     sampleCount: powerSamples.length,
   };
 }

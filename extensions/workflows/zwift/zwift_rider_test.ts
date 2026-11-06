@@ -8,6 +8,7 @@ import {
   ftpFromPowerCurve,
   model,
   normalizeActivity,
+  powerCurveFromPayload,
 } from "./zwift_rider.ts";
 
 const NOW = Date.parse("2026-09-21T07:00:00Z");
@@ -138,6 +139,47 @@ Deno.test("ftpFromPowerCurve takes the 20-minute point times 0.95", () => {
     null,
   );
   assertEquals(ftpFromPowerCurve({}), null);
+});
+
+Deno.test("powerCurveFromPayload normalises array points and picks bests", () => {
+  const curve = powerCurveFromPayload({
+    pointsWatts: [
+      { duration: 5, value: 1300 },
+      { duration: 15, value: 1000 },
+      { duration: 60, value: 700 },
+      { duration: 300, value: 450 },
+      { duration: 1200, value: 300 },
+    ],
+  }, {
+    fetchedAt: "2026-11-06T00:00:00.000Z",
+    weightKg: 85.3,
+  });
+  assertEquals(curve.source, "zwift-power-curve");
+  assertEquals(curve.best.power5, 1300);
+  assertEquals(curve.best.power15, 1000);
+  assertEquals(curve.best.power60, 700);
+  assertEquals(curve.best.power300, 450);
+  assertEquals(curve.best.power1200, 300);
+  assertEquals(curve.points[0].wPerKg, 15.24);
+});
+
+Deno.test("powerCurveFromPayload accepts keyed and suffixed durations", () => {
+  const keyed = powerCurveFromPayload({
+    pointsWatts: { "5": 1200, "60s": { value: 650 }, "20m": 280 },
+  }, { fetchedAt: "2026-11-06T00:00:00.000Z" });
+  assertEquals(keyed.best.power5, 1200);
+  assertEquals(keyed.best.power60, 650);
+  assertEquals(keyed.best.power1200, 280);
+});
+
+Deno.test("powerCurveFromPayload reports missing instead of guessing", () => {
+  const curve = powerCurveFromPayload({}, {
+    fetchedAt: "2026-11-06T00:00:00.000Z",
+  });
+  assertEquals(curve.source, "missing");
+  assertEquals(curve.points, []);
+  assertEquals(curve.best.power5, null);
+  assertEquals(curve.best.power60, null);
 });
 
 Deno.test("ftpFromPowerCurve accepts Zwift's array-of-points shape", () => {

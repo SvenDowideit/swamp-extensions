@@ -69,6 +69,7 @@ Global arguments are set at creation or edited later with `swamp model edit`.
 | `hotReload` | boolean | `true` | Enable `--hot-reload`. |
 | `autoResume` | boolean | `true` | Enable `--auto-resume`. |
 | `schedule` | boolean | `true` | Run scheduled workflows (`false` passes `--no-schedule`). |
+| `serviceHardening` | boolean | `true` | Apply systemd `PrivateTmp`/`ProtectSystem`. Set false when workflows started by the server must SSH: `PrivateTmp`'s user namespace maps root-owned SSH config files to `nobody`. |
 | `authMode` | enum | `none` | `none` / `token` / `oauth`. `none` is loopback-only. |
 | `admins` | string | `""` | Comma-separated admin principals. |
 | `allowedUsers` | string | `""` | Comma-separated allowed swamp-club users. |
@@ -180,6 +181,7 @@ Resources: `topology`, `binary`, `serveConfig`, `unit`, `service`, `telemetry`,
 `dnsRecords` for an `A`/`AAAA` record under its `baseDomain`. It picks the
 record whose leftmost label is this machine's hostname (else the deepest such
 record), so a base domain of `fi.gy` with a record for `x1yoga.fi.gy` yields
+<!-- swamp-quality-ignore ipv4-address-literals -->
 `hostFqdn: x1yoga.fi.gy` and an IP of `10.10.13.208`. From those it computes
 `swamp.x1yoga.fi.gy` and `dashboard.x1yoga.fi.gy`; an explicit
 `swampHostname`/`dashboardHostname` overrides the derivation, and a label

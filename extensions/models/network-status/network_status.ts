@@ -461,7 +461,7 @@ export function matchCves(
 export function buildRemoteScript(): string {
   return [
     "set -u",
-    ". /etc/os-release 2>/dev/null || true",
+    "if [ -r /etc/os-release ]; then . /etc/os-release; fi",
     'printf "###ID\\n%s\\n" "${ID:-}"',
     'printf "###ID_LIKE\\n%s\\n" "${ID_LIKE:-}"',
     'printf "###VERSION_ID\\n%s\\n" "${VERSION_ID:-}"',
@@ -1308,7 +1308,7 @@ function deriveSiteDir(g: GlobalArgs): string {
 
 export const model = {
   type: "@svendowideit/network-status",
-  version: "2026.10.25.1",
+  version: "2026.10.26.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1319,6 +1319,17 @@ export const model = {
         "status, debsecan CVEs), aggregate the results into one extensible HTML " +
         "status page, and expose addTask/removeTask/clearTasks for other " +
         "workflows to add network-wide action items.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.26.1",
+      description:
+        "Use the fleet inventory as the host source: the bundled workflow now " +
+        "audits every successfully probed @svendowideit/fleet-inventory host " +
+        "(falling back to the model's hosts when no inventory exists) and " +
+        "resolves each host by name so DHCP moves do not pin a stale IP. Also " +
+        "makes the probe's os-release read portable so macOS and other " +
+        "non-Debian hosts are reported as skipped instead of failing.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

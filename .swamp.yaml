@@ -1,10 +1,11 @@
-swampVersion: 20261014.034854.0
+swampVersion: 20261106.012700.0
 initializedAt: "2026-07-17T02:11:06.886Z"
 repoId: e46f92ff-737f-41b7-9d52-c141bb67a79c
 tools:
   - opencode
+  - pi
 gitignoreManaged: true
-upgradedAt: "2026-10-14T10:31:18.341Z"
+upgradedAt: "2026-11-06T02:10:43.185Z"
 vault:
   type: "@svendowideit/systemd-creds"
   config:

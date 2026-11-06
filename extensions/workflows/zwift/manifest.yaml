@@ -19,8 +19,8 @@ description: |
     them. It also includes a read-only `backfill` method: every available Zwift
     ride, per-ride FTP/HR/max power, optional FIT normalised power, and a merge
     with Garmin activities. It writes training-history, load-daily,
-    history-years and availability-current; it never writes to your Zwift
-    account.
+    history-years, availability-current and power-curve-current; it never
+    writes to your Zwift account.
 
   INSTALL
 

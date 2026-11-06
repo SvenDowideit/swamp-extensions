@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/sudo"
-version: "2026.10.11.1"
+version: "2026.10.26.1"
 description: >
   Run one privileged operation on the host — install a package, restart a
   system service, set a sysctl — from any workflow, without writing sudo logic
@@ -28,7 +28,10 @@ description: >
     None required. The extension is self-contained. The out-of-band `ssm-run`
     route is a placeholder: it is never selectable by the built-in argv
     executor (it is documented as always-unavailable), and no `@swamp/aws/ssm`
-    dependency is assumed or installed.
+    dependency is assumed or installed. On NixOS the model resolves `id` and
+    `env` from `/run/current-system/sw/bin` and runs container/k8s commands
+    through `/bin/sh` with the NixOS system PATH, so the docker/podman/nerdctl
+    routes work there.
 
   RUN
 
@@ -152,6 +155,14 @@ description: >
     strategy to a local route to keep execution local.
 
     Read the full method, strategy and operation reference in the README.
+
+  UPGRADE
+
+      swamp extension update @svendowideit/sudo
+
+    It installs nothing on the host, so updating the pulled copy is the whole
+    upgrade. The model's lazy `typeVersion` upgrade is applied automatically on
+    the next `probe`/`run` call.
 
   WHAT IT INSTALLS
 

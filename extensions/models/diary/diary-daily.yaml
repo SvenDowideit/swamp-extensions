@@ -31,6 +31,13 @@ description: |
   when none is logged, or the model is absent, the section simply says so or is
   omitted.
 
+  When a `@svendowideit/zwift-coach` instance (default name `zwift-coach`)
+  holds a plan and a weekly review, the page also gets `## Coach upcoming`
+  (sessions for the next 7 days with watts/cadence briefs) and
+  `## Coach progress` (completion, fun session, enjoyment, weight, readiness
+  and plan changes). The existing hourly trigger writes these with the Zwift
+  and Garmin sections; no extra vault or workflow is needed.
+
   Manual run:
     swamp workflow run @svendowideit/diary-daily
     swamp workflow run @svendowideit/diary-daily --input date=2026-09-30
@@ -82,6 +89,13 @@ inputs:
         Optional @svendowideit/extension-releases instance whose additive log
         is read for the day's published/released extensions. Absent data simply
         omits the Extensions published section.
+    coachModel:
+      type: string
+      default: zwift-coach
+      description: >
+        Optional @svendowideit/zwift-coach instance whose plan-current and
+        review-current resources add Coach upcoming and Coach progress.
+        Absent data simply omits those sections.
     timezone:
       type: string
       default: Australia/Brisbane
@@ -120,6 +134,7 @@ jobs:
           expr: >-
             data.latest(inputs.activitiesModel, "activity-list") != null
             || data.latest(inputs.recommenderModel, "current") != null
+            || data.latest(inputs.coachModel, "plan-current") != null
           message: >-
             No synced fitness data found. Run the Garmin
             (@svendowideit/garmin-activities-sync) and/or Zwift
@@ -151,6 +166,7 @@ jobs:
             eventsModel: ${{ inputs.eventsModel }}
             bomModel: ${{ inputs.bomModel }}
             releasesModel: ${{ inputs.releasesModel }}
+            coachModel: ${{ inputs.coachModel }}
             topN: ${{ inputs.topN }}
             folder: ${{ inputs.folder }}
         dependsOn:

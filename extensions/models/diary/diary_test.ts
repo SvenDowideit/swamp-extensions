@@ -36,6 +36,7 @@ import {
   renderPage,
   resolveDate,
   resolveDates,
+  selectCoach,
   selectReleases,
   selectSuggestions,
   selectWeather,
@@ -80,6 +81,7 @@ const day = (overrides: Partial<CollectedDay> = {}): CollectedDay => ({
   weight: null,
   suggested: [],
   releases: [],
+  coach: null,
   truncated: false,
   missing: [],
   ...overrides,
@@ -1406,6 +1408,107 @@ Deno.test("clockTime formats in the requested timezone", () => {
     "19:14",
   );
   assertEquals(clockTime("not-a-date", "UTC"), "");
+});
+
+Deno.test("selectCoach lists the next 7 days and latest progress", () => {
+  const coach = selectCoach({
+    program: "custom-power60-power5-weight",
+    startDate: "2026-11-09",
+    endDate: "2027-01-31",
+    summary: { focus: "custom sprint", weeks: 12 },
+    weeks: [{
+      index: 1,
+      sessions: [
+        {
+          date: "2026-11-10",
+          week: 1,
+          workoutName: "W1 Torq 80rpm",
+          title: "Sprint sharpening — custom",
+          type: "sprint",
+          durationMinutes: 29,
+          brief: "29 min: 6 min primer; 6 × 6 s max at ~1058 W, 80 rpm.",
+          fun: false,
+        },
+        {
+          date: "2026-11-25",
+          week: 3,
+          workoutName: "W3 Cad 135rpm",
+          title: "Sprint sharpening — custom",
+          type: "sprint",
+          durationMinutes: 29,
+          brief: "29 min: 6 min primer; 6 × 8 s max at ~1058 W, 135 rpm.",
+          fun: false,
+        },
+      ],
+    }],
+  }, {
+    asOf: "2026-11-20",
+    metrics: {
+      completed: 3,
+      planned: 4,
+      completionRate: 0.75,
+      funCompleted: 1,
+      funPlanned: 1,
+      averageEnjoyment: 3,
+      boredCount: 0,
+      weight: { currentKg: 88.2, targetKg: 65, status: "gaining" },
+      readiness: { low: false },
+    },
+    changes: [{ kind: "rotate-fun", message: "Changed the fun-session format." }],
+  }, "2026-11-09");
+  assertEquals(coach?.upcoming.length, 1);
+  assertEquals(coach?.upcoming[0].workoutName, "W1 Torq 80rpm");
+  assertEquals(coach?.progress?.completed, 3);
+  assertEquals(coach?.progress?.weightStatus, "gaining");
+});
+
+Deno.test("renderManagedSection includes coach upcoming and progress", () => {
+  const md = renderManagedSection(day({
+    coach: {
+      upcoming: [{
+        date: "2026-11-10",
+        week: 1,
+        workoutName: "W1 Torq 80rpm",
+        title: "Sprint sharpening — custom",
+        type: "sprint",
+        durationMinutes: 29,
+        brief: "29 min: 6 min primer; 6 × 6 s max at ~1058 W, 80 rpm.",
+        fun: false,
+        zwiftSuggestion: null,
+      }],
+      progress: {
+        asOf: "2026-11-20",
+        program: "custom-power60-power5-weight",
+        focus: "custom sprint",
+        startDate: "2026-11-09",
+        endDate: "2027-01-31",
+        weeks: 12,
+        completed: 3,
+        planned: 4,
+        completionRate: 0.75,
+        funCompleted: 1,
+        funPlanned: 1,
+        averageEnjoyment: 3,
+        boredCount: 0,
+        weightKg: 88.2,
+        weightTargetKg: 65,
+        weightStatus: "gaining",
+        readinessLow: false,
+        changes: ["Changed the fun-session format."],
+      },
+    },
+  }));
+  assertStringIncludes(md, "## Coach upcoming");
+  assertStringIncludes(md, "W1 Torq 80rpm");
+  assertStringIncludes(md, "## Coach progress");
+  assertStringIncludes(md, "3/4 sessions");
+  assertStringIncludes(md, "target 65 kg");
+});
+
+Deno.test("renderManagedSection handles missing coach data", () => {
+  const md = renderManagedSection(day({ coach: null }));
+  assertStringIncludes(md, "No zwift-coach sessions");
+  assertStringIncludes(md, "No weekly coach review yet");
 });
 
 Deno.test("renderManagedSection lists extensions with linked sub-entries", () => {

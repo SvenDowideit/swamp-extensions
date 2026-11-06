@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/diary"
-version: "2026.10.15.1"
+version: "2026.11.06.1"
 description: >
   Turn a day of synced Garmin and Zwift data into one Obsidian daily note,
   merging into any note you have already edited.
@@ -12,8 +12,10 @@ description: >
     models by name. This extension joins them into one per-day diary note:
     activities with durations and totals, sleep and steps, weight plus whatever
     body composition your scale measured, the suggested Zwift rides with reasons
-    and links, a weather line from `@svendowideit/bom-weather`, and a
-    `## Extensions published` list from `@svendowideit/extension-releases`. It
+    and links, a weather line from `@svendowideit/bom-weather`, a
+    `## Extensions published` list from `@svendowideit/extension-releases`, and
+    — when `@svendowideit/zwift-coach` is installed — `## Coach upcoming`
+    sessions plus `## Coach progress` from the weekly review. It
     extends `@magistr/obsidian/vault`, composing that model's `read`/`create`
     instead of writing files itself, and never touches the network: `collect`
     reads data other models already synced. The write is marker-based, so
@@ -31,11 +33,11 @@ description: >
     automatically by the single install above. The first supplies the
     `@magistr/obsidian/vault` model this extension extends; the second supplies
     the append-only release log the `## Extensions published` section reads. The
-    Garmin (`@svendowideit/garmin`), Zwift (`@svendowideit/zwift`) and BOM
-    (`@svendowideit/bom-weather`) syncs that produce the source data are not hard
-    dependencies — the diary reports what is missing when they have not run, and
-    simply omits the weight, forecast and releases sections when no matching
-    data exists.
+    Garmin (`@svendowideit/garmin`), Zwift (`@svendowideit/zwift`), BOM
+    (`@svendowideit/bom-weather`) and coach (`@svendowideit/zwift-coach`) models
+    that produce the source data are not hard dependencies — the diary reports
+    what is missing when they have not run, and simply omits the weight,
+    forecast, releases and coach sections when no matching data exists.
 
   RUN
 
@@ -92,14 +94,16 @@ description: >
     sources by instance name: `activitiesModel` (garmin-activities),
     `healthModel` (garmin-health), `bodyModel` (garmin-body, optional),
     `recommenderModel` (zwift-recommender), `eventsModel` (zwift-events),
-    `bomModel` (bom, optional), `releasesModel` (extension-releases, optional)
-    and `topN` (5). Set `bomModel` to the name of
+    `bomModel` (bom, optional), `releasesModel` (extension-releases, optional),
+    `coachModel` (zwift-coach, optional) and `topN` (5). Set `bomModel` to the name of
     your `@svendowideit/bom-weather` instance; when it holds a forecast for the
     day, the header line appears, otherwise it is silently omitted and listed in
     `collect`'s `missing` field. Set `bodyModel` to the name of your
     `@svendowideit/garmin-body` instance; when it holds a weigh-in for the day a
-    Weight line is added, otherwise it is omitted and listed in `missing`.
-    `publish` takes `vaultModel` (obsidian-vault), `folder` (daily), `noteName`
+    Weight line is added, otherwise it is omitted and listed in `missing`. Set
+    `coachModel` to your `@svendowideit/zwift-coach` instance; when it holds a
+    `plan-current` or `review-current`, the page gains upcoming sessions for the
+    next 7 days and a compact progress block. `publish` takes `vaultModel` (obsidian-vault), `folder` (daily), `noteName`
     and `allowDotObsidian`. The workflow takes the same names as `--input` (plus
     `date`, `days`, `folder`, `topN`). See the README for the full argument table.
 

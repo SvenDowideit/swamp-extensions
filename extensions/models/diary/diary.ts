@@ -85,6 +85,11 @@ const CollectArgsSchema = z.object({
       "is read for the day's published/released extensions. Absent data simply " +
       "omits the Extensions published section.",
   ),
+  coachModel: z.string().default("zwift-coach").describe(
+    "Optional @svendowideit/zwift-coach instance whose plan-current and " +
+      "review-current resources add Coach upcoming and Coach progress " +
+      "sections. Absent data simply omits them.",
+  ),
   topN: z.number().int().positive().default(5).describe(
     "Maximum number of suggested rides to include",
   ),
@@ -345,10 +350,53 @@ export interface CollectedDay {
   suggested: CollectedSuggestion[];
   /** Extension releases and promotions logged against the day. */
   releases: CollectedRelease[];
+  /** Zwift coach upcoming sessions and latest weekly progress, or null. */
+  coach: CollectedCoach | null;
   /** True when more picks existed for the day than `topN` kept. */
   truncated: boolean;
   /** Source models that had no data, as `model/spec`. */
   missing: string[];
+}
+
+/** One upcoming session from the zwift-coach plan. */
+export interface CollectedCoachSession {
+  date: string;
+  week: number;
+  workoutName: string;
+  title: string;
+  type: string;
+  durationMinutes: number;
+  brief: string | null;
+  fun: boolean;
+  zwiftSuggestion: string | null;
+}
+
+/** Latest zwift-coach weekly progress, as shown on the diary page. */
+export interface CollectedCoachProgress {
+  asOf: string;
+  program: string | null;
+  focus: string | null;
+  startDate: string | null;
+  endDate: string | null;
+  weeks: number | null;
+  completed: number | null;
+  planned: number | null;
+  completionRate: number | null;
+  funCompleted: number | null;
+  funPlanned: number | null;
+  averageEnjoyment: number | null;
+  boredCount: number | null;
+  weightKg: number | null;
+  weightTargetKg: number | null;
+  weightStatus: string | null;
+  readinessLow: boolean | null;
+  changes: string[];
+}
+
+/** Coach data contributed to one diary day. */
+export interface CollectedCoach {
+  upcoming: CollectedCoachSession[];
+  progress: CollectedCoachProgress | null;
 }
 
 /** Structural view of the method context fields this extension uses. */
@@ -589,6 +637,82 @@ export function selectWeather(
     rainChance: num(day.rainChance),
     shortText: str(day.shortText),
   };
+}
+
+/**
+ * Reduce the coach's `plan-current` and `review-current` resources to the
+ * upcoming sessions and latest progress shown on the diary page. Only sessions
+ * from `date` through `date + 7` are included. Returns null when there is no
+ * coach plan or review data.
+ */
+export function selectCoach(
+  plan: Record<string, unknown> | null,
+  review: Record<string, unknown> | null,
+  date: string,
+): CollectedCoach | null {
+  if (!plan && !review) return null;
+  const end = shiftDate(date, 7);
+  const sessions: CollectedCoachSession[] = [];
+  const weeks = Array.isArray(plan?.weeks)
+    ? plan.weeks as Array<Record<string, unknown>>
+    : [];
+  for (const week of weeks) {
+    const rows = Array.isArray(week.sessions)
+      ? week.sessions as Array<Record<string, unknown>>
+      : [];
+    for (const session of rows) {
+      const sessionDate = String(session.date ?? "");
+      if (sessionDate < date || sessionDate > end) continue;
+      sessions.push({
+        date: sessionDate,
+        week: Number(session.week ?? week.index ?? 0),
+        workoutName: String(session.workoutName ?? session.title ?? "Workout"),
+        title: String(session.title ?? ""),
+        type: String(session.type ?? ""),
+        durationMinutes: Number(session.durationMinutes ?? 0),
+        brief: typeof session.brief === "string" ? session.brief : null,
+        fun: session.fun === true,
+        zwiftSuggestion: typeof session.zwiftSuggestion === "string"
+          ? session.zwiftSuggestion
+          : null,
+      });
+    }
+  }
+  sessions.sort((a, b) => a.date.localeCompare(b.date));
+
+  const summary = (plan?.summary ?? {}) as Record<string, unknown>;
+  const metrics = (review?.metrics ?? {}) as Record<string, unknown>;
+  const weight = (metrics.weight ?? {}) as Record<string, unknown>;
+  const readiness = (metrics.readiness ?? {}) as Record<string, unknown>;
+  const changes = Array.isArray(review?.changes)
+    ? (review.changes as Array<Record<string, unknown>>)
+      .map((c) => String(c.message ?? c.kind ?? ""))
+      .filter((m) => m.length > 0)
+    : [];
+  const progress: CollectedCoachProgress | null = review
+    ? {
+      asOf: String(review.asOf ?? ""),
+      program: plan ? String(plan.program ?? "") || null : null,
+      focus: plan ? String(summary.focus ?? "") || null : null,
+      startDate: plan ? String(plan.startDate ?? "") || null : null,
+      endDate: plan ? String(plan.endDate ?? "") || null : null,
+      weeks: numOrNull(summary.weeks),
+      completed: numOrNull(metrics.completed),
+      planned: numOrNull(metrics.planned),
+      completionRate: numOrNull(metrics.completionRate),
+      funCompleted: numOrNull(metrics.funCompleted),
+      funPlanned: numOrNull(metrics.funPlanned),
+      averageEnjoyment: numOrNull(metrics.averageEnjoyment),
+      boredCount: numOrNull(metrics.boredCount),
+      weightKg: numOrNull(weight.currentKg),
+      weightTargetKg: numOrNull(weight.targetKg),
+      weightStatus: typeof weight.status === "string" ? weight.status : null,
+      readinessLow: typeof readiness.low === "boolean" ? readiness.low : null,
+      changes,
+    }
+    : null;
+
+  return { upcoming: sessions, progress };
 }
 
 /**
@@ -871,6 +995,67 @@ export function renderManagedSection(day: CollectedDay): string {
   }
   lines.push("");
 
+  lines.push("## Coach upcoming");
+  const coach = day.coach;
+  if (!coach || coach.upcoming.length === 0) {
+    lines.push("- No zwift-coach sessions in the next 7 days");
+  } else {
+    for (const session of coach.upcoming) {
+      const fun = session.fun ? " · fun" : "";
+      const brief = session.brief ?? session.title;
+      lines.push(
+        `- ${session.date} **${session.workoutName}** (${session.durationMinutes} min) — ${brief}${fun}`,
+      );
+    }
+  }
+  lines.push("");
+
+  lines.push("## Coach progress");
+  if (!coach?.progress) {
+    lines.push("- No weekly coach review yet");
+  } else {
+    const p = coach.progress;
+    if (p.focus || p.program) {
+      lines.push(
+        `- **Program:** ${p.focus ?? "coach"}${
+          p.program ? ` (${p.program})` : ""
+        }${p.weeks !== null ? `, ${p.weeks} weeks` : ""}${
+          p.startDate && p.endDate ? ` · ${p.startDate} → ${p.endDate}` : ""
+        }`,
+      );
+    }
+    if (p.completed !== null && p.planned !== null) {
+      const pct = p.completionRate !== null
+        ? ` (${Math.round(p.completionRate * 100)}%)`
+        : "";
+      lines.push(
+        `- **Last review ${p.asOf}:** ${p.completed}/${p.planned} sessions${pct}; fun ${
+          p.funCompleted ?? "?"
+        }/${p.funPlanned ?? "?"}; enjoyment ${
+          p.averageEnjoyment === null ? "no rating" : `${p.averageEnjoyment}/5`
+        }; boredom flags ${p.boredCount ?? 0}`,
+      );
+    }
+    if (p.weightKg !== null) {
+      lines.push(
+        `- **Weight:** ${p.weightKg} kg${
+          p.weightTargetKg !== null ? ` (target ${p.weightTargetKg} kg)` : ""
+        }; ${p.weightStatus ?? "unknown"}`,
+      );
+    }
+    if (p.readinessLow !== null) {
+      lines.push(
+        `- **Readiness:** ${
+          p.readinessLow ? "low — protect recovery" : "okay"
+        }`,
+      );
+    }
+    if (p.changes.length > 0) {
+      lines.push(`- **Plan changes:** ${p.changes.join("; ")}`);
+    }
+  }
+  lines.push("");
+
   lines.push("## Extensions published");
   if (day.releases.length === 0) {
     lines.push("- No extension releases logged for this day");
@@ -1061,6 +1246,22 @@ async function collectWindow(
   const releaseEntries = Array.isArray(releaseRecords[0]?.entries)
     ? releaseRecords[0].entries as Array<Record<string, unknown>>
     : [];
+  const readOptional = async (
+    model: string,
+    spec: string,
+  ): Promise<Array<Record<string, unknown>>> => {
+    try {
+      if (!context.readModelData) return [];
+      const records = await context.readModelData(model, spec);
+      return records.map((r) => r.attributes);
+    } catch {
+      return [];
+    }
+  };
+  const coachPlans = await readOptional(args.coachModel, "plan-current");
+  const coachReviews = await readOptional(args.coachModel, "review-current");
+  const coachPlan = coachPlans[0] ?? null;
+  const coachReview = coachReviews[0] ?? null;
 
   const handles: Array<{ name: string }> = [];
   const payloads: CollectedDay[] = [];
@@ -1104,6 +1305,7 @@ async function collectWindow(
       weather,
       suggested,
       releases,
+      coach: selectCoach(coachPlan, coachReview, date),
       truncated: picksForDate > suggested.length,
       missing,
     };

@@ -74,6 +74,21 @@ swamp extension pull @svendowideit/diary
 `@magistr/obsidian-vault` and `@svendowideit/extension-releases` are declared as
 dependencies and pulled by the same command.
 
+## Coach sections
+
+When `@svendowideit/zwift-coach` is installed and has a `plan-current` and/or
+`review-current`, the same hourly `@svendowideit/diary-daily` trigger writes two
+extra sections into the managed region:
+
+- `## Coach upcoming` — sessions for the next 7 days, with the short workout
+  name, duration and the watts/cadence brief.
+- `## Coach progress` — the latest weekly review: completion, fun session,
+  enjoyment/boredom, weight and target, readiness, and what changed.
+
+No extra trigger or vault is needed: the coach extension writes its data, and
+the next diary run reads it by model name (`coachModel`, default
+`zwift-coach`). If coach data is absent, the sections say so rather than failing.
+
 ## Configuration
 
 ### Global arguments
@@ -101,6 +116,7 @@ the `@magistr/obsidian/vault` model it extends:
 | `collect` | `healthModel` | string | `garmin-health` | Instance holding Garmin daily wellness |
 | `collect` | `bodyModel` | string | `garmin-body` | Optional `@svendowideit/garmin-body` instance for the weight line |
 | `collect` | `recommenderModel` | string | `zwift-recommender` | Instance holding ranked picks |
+| `collect` | `coachModel` | string | `zwift-coach` | Optional coach instance for upcoming/progress |
 | `collect` | `eventsModel` | string | `zwift-events` | Instance holding the schedule (for links) |
 | `collect` | `bomModel` | string | `bom` | Optional `@svendowideit/bom-weather` instance for the forecast line |
 | `collect` | `releasesModel` | string | `extension-releases` | Optional `@svendowideit/extension-releases` instance for the Extensions published section |
@@ -119,7 +135,7 @@ the `@magistr/obsidian/vault` model it extends:
 
 The bundled `@svendowideit/diary-daily` workflow exposes the same names as
 `--input` (`vaultModel`, `activitiesModel`, `healthModel`, `bodyModel`,
-`recommenderModel`, `eventsModel`, `bomModel`, `releasesModel`, `timezone`,
+`recommenderModel`, `eventsModel`, `bomModel`, `releasesModel`, `coachModel`, `timezone`,
 `date`, `days`, `folder`, `topN`), and is scheduled hourly at :45 local. Each
 run rebuilds the last `days` days (default 4 — today and the three before), so a
 weigh-in or activity that arrives after a page was first written still updates
@@ -132,6 +148,7 @@ that page.
 | `healthModel` | string | `garmin-health` | Garmin daily wellness to read |
 | `bodyModel` | string | `garmin-body` | Optional `@svendowideit/garmin-body` instance for the weight line |
 | `recommenderModel` | string | `zwift-recommender` | Ranked Zwift picks to read |
+| `coachModel` | string | `zwift-coach` | Optional coach instance for upcoming/progress |
 | `eventsModel` | string | `zwift-events` | Zwift schedule, used for links |
 | `bomModel` | string | `bom` | Optional BOM instance for the forecast line |
 | `releasesModel` | string | `extension-releases` | Optional releases instance for the Extensions published section |
@@ -296,7 +313,7 @@ swamp model create @magistr/obsidian/vault obsidian-vault \
   `selectWeight`, picks the day's releases with `selectReleases`, and writes a
   `collect` resource named `daily-<date>` per day. Arguments: `timezone`,
   `date`, `days`, `activitiesModel`, `healthModel`, `bodyModel`,
-  `recommenderModel`, `eventsModel`, `bomModel`, `releasesModel`, `topN`.
+  `recommenderModel`, `eventsModel`, `bomModel`, `releasesModel`, `coachModel`, `topN`.
 - **`render`** — reads the collect resource and writes a `page` resource named
   `daily-<date>` with the markdown. Arguments: `timezone`, `date`,
   `collectName`.

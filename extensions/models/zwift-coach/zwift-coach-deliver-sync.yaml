@@ -1,0 +1,66 @@
+id: 1a7e3d2b-9c5f-4d4e-8b82-3f6a9c7d8e01
+name: "@svendowideit/zwift-coach-deliver-sync"
+description: |
+  Write the rendered coach workouts into a sync folder:
+  <syncDir>/<subfolder>/. Point Syncthing/Dropbox/Nextcloud/iCloud Drive at it
+  and let the Zwift host mirror it into its workouts folder. No swamp or SSH is
+  needed on the Zwift host.
+
+tags:
+  domain: fitness
+inputs:
+  properties:
+    coachName:
+      type: string
+      default: zwift-coach
+      description: Coach model instance name.
+    syncDir:
+      type: string
+      default: ""
+      description: Folder replicated to the Zwift host.
+    subfolder:
+      type: string
+      default: zwift-coach
+      description: Isolated folder inside syncDir.
+    prune:
+      type: boolean
+      default: false
+      description: Remove only our marked files not in this render.
+    dryRun:
+      type: boolean
+      default: false
+      description: Report what would change without writing.
+  required: []
+jobs:
+  - name: deliver
+    steps:
+      - name: assert-inputs
+        task:
+          type: assert
+          expr: >-
+            inputs.syncDir != "" && data.latest(inputs.coachName, "render-current") != null
+          message: >-
+            Set syncDir and run @svendowideit/zwift-coach-plan first.
+          severity: high
+        weight: 0
+        allowFailure: false
+      - name: sync
+        task:
+          type: model_method
+          modelType: "@svendowideit/zwift-coach"
+          modelName: ${{ inputs.coachName }}
+          methodName: deliver
+          inputs:
+            render: ${{ data.latest(inputs.coachName, "render-current").attributes }}
+            plan: ${{ data.latest(inputs.coachName, "plan-current").attributes }}
+            mode: sync
+            syncDir: ${{ inputs.syncDir }}
+            subfolder: ${{ inputs.subfolder }}
+            prune: ${{ inputs.prune }}
+            dryRun: ${{ inputs.dryRun }}
+        dependsOn:
+          - step: assert-inputs
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false

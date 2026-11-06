@@ -30,4 +30,11 @@ Deno.test("howto report includes the plan headline and guidance", () => {
   assertEquals(report.includes(`Plan ${plan.id}:`), true);
   assertEquals(report.includes("START HERE"), true);
   assertEquals(report.includes("Expect: 2 rows"), true);
+  assertEquals(report.includes('name == "delivery-current"'), true);
+  assertEquals(
+    report.includes(
+      "@svendowideit/zwift-coach-deliver-ssh --input sshAddress=macmini",
+    ),
+    true,
+  );
 });

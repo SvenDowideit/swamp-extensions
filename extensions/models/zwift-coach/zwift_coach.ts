@@ -16,6 +16,12 @@ import type { Fitness, Goal, Plan } from "./zwift_coach_types.ts";
 import { fileNameFor, renderZwo, validateZwo } from "./zwift_coach_workouts.ts";
 import { hashString } from "./zwift_coach_util.ts";
 import { buildHowtoReport } from "./zwift_coach_howto.ts";
+import {
+  buildSshTransport,
+  deliverWorkouts,
+  type DeliveryMode,
+  type RenderWorkout,
+} from "./zwift_coach_delivery.ts";
 
 const LooseSchema = z.record(z.string(), z.unknown());
 
@@ -31,6 +37,36 @@ const HowtoArgsSchema = z.object({
   coachName: z.string().default("zwift-coach"),
   plan: LooseSchema.optional(),
   render: LooseSchema.optional(),
+});
+
+const DeliverArgsSchema = z.object({
+  render: LooseSchema,
+  plan: LooseSchema.optional(),
+  mode: z.enum(["local", "sync", "bundle"]),
+  workoutsDir: z.string().optional(),
+  riderId: z.string().optional(),
+  subfolder: z.string().default("zwift-coach"),
+  syncDir: z.string().optional(),
+  bundleDir: z.string().optional(),
+  prune: z.boolean().default(false),
+  dryRun: z.boolean().default(false),
+});
+
+const RecordDeliveryArgsSchema = z.object({
+  planId: z.string(),
+  winner: z.string(),
+  attempts: z.array(z.record(z.string(), z.unknown())).default([]),
+  warnings: z.array(z.string()).default([]),
+  destination: z.string().optional(),
+});
+
+const SshTransportArgsSchema = z.object({
+  sshUser: z.string().default(""),
+  sshKey: z.string().default(""),
+  sshPort: z.number().int().positive().default(22),
+  sshHostKeyChecking: z.enum(["yes", "accept-new", "no", "off"]).default(
+    "accept-new",
+  ),
 });
 
 const AnalyzeArgsSchema = z.object({
@@ -193,6 +229,32 @@ const PreviewSchema = z.object({
   markdown: z.string(),
 }).passthrough();
 
+const DeliverySpecSchema = z.object({
+  planId: z.string(),
+  generatedAt: z.string(),
+  mode: z.enum(["local", "sync", "bundle", "ssh"]),
+  destination: z.string(),
+  riderId: z.string().nullable(),
+  subfolder: z.string(),
+  workouts: z.array(WorkoutSchema),
+  bundlePath: z.string().nullable(),
+  keepFiles: z.string(),
+  dryRun: z.boolean(),
+}).passthrough();
+
+const DeliverySchema = z.object({
+  planId: z.string(),
+  generatedAt: z.string(),
+  winner: z.string(),
+  attempts: z.array(z.record(z.string(), z.unknown())),
+  warnings: z.array(z.string()),
+  destination: z.string().nullable(),
+}).passthrough();
+
+const TransportSchema = z.object({
+  transport: z.record(z.string(), z.unknown()),
+}).passthrough();
+
 type Ctx = {
   globalArgs: z.infer<typeof GlobalArgsSchema>;
   logger: {
@@ -275,8 +337,30 @@ export const model = {
       lifetime: "30d",
       garbageCollection: 10,
     },
+    deliverySpec: {
+      description: "Resolved delivery destination and file list",
+      schema: DeliverySpecSchema,
+      lifetime: "30d",
+      garbageCollection: 10,
+    },
+    delivery: {
+      description: "Outcome of the last delivery attempt(s)",
+      schema: DeliverySchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    transportSpec: {
+      description:
+        "Transport object for @swamp/ssh, with unset optional fields omitted",
+      schema: TransportSchema,
+      lifetime: "30d",
+      garbageCollection: 10,
+    },
   },
   methods: {
+    // meta-factory-ignore config-lifecycle: setup is a read-only readiness
+    // report; configuration comes from workflow inputs and is persisted in
+    // plan/render/delivery resources, not in a separate setup config.
     setup: {
       description:
         "Report the resources the coach expects. Read-only; no network.",
@@ -295,8 +379,11 @@ export const model = {
           "    @svendowideit/garmin-body body-range",
           "    @svendowideit/garmin-health health-range",
           "    @svendowideit/garmin-performance performance-range",
-          "  methods: analyze, goal, plan, render, preview, howto",
-          "  delivery: later phase; SSH/SCP delegates to @swamp/ssh",
+          "  methods: analyze, goal, plan, render, preview, howto, deliver,",
+          "    record-delivery, ssh-transport",
+          "  delivery: SSH via @swamp/ssh, or local workoutsDir / syncDir /",
+          "    bundleDir; see @svendowideit/zwift-coach-deliver",
+          "  next: swamp workflow run @svendowideit/zwift-coach-plan",
         ].join("\n");
         const handle = await ctx.writeResource("setup", "report", { report });
         ctx.logger.info(report);
@@ -444,7 +531,7 @@ export const model = {
         const errors: string[] = [];
         const workouts = [];
         for (const session of selected) {
-          const xml = renderZwo(session);
+          const xml = renderZwo(session, plan.id);
           const validation = validateZwo(xml);
           errors.push(...validation.map((e) => `${session.id}: ${e}`));
           workouts.push({
@@ -522,6 +609,154 @@ export const model = {
           generatedAt: new Date().toISOString(),
           markdown: lines.join("\n"),
         });
+        return { dataHandles: [handle] };
+      },
+    },
+    deliver: {
+      description:
+        "Deliver rendered workouts to a local Zwift folder, a sync folder or " +
+        "a portable bundle. SSH is a separate workflow using @swamp/ssh.",
+      arguments: DeliverArgsSchema,
+      execute: async (
+        args: z.infer<typeof DeliverArgsSchema>,
+        ctx: Ctx,
+      ) => {
+        const render = args.render as {
+          planId?: string;
+          workouts?: unknown[];
+        };
+        if (!render.planId || !Array.isArray(render.workouts)) {
+          throw new Error(
+            "deliver needs render-current with planId and workouts",
+          );
+        }
+        const workouts = render.workouts as unknown as RenderWorkout[];
+        const result = await deliverWorkouts(workouts, {
+          mode: args.mode as DeliveryMode,
+          planId: render.planId,
+          plan: args.plan ? asPlan(args.plan) : null,
+          riderId: args.riderId,
+          subfolder: args.subfolder,
+          workoutsDir: args.workoutsDir,
+          syncDir: args.syncDir,
+          bundleDir: args.bundleDir,
+          prune: args.prune,
+          dryRun: args.dryRun,
+        });
+        const generatedAt = new Date().toISOString();
+        const specHandle = await ctx.writeResource(
+          "deliverySpec",
+          "delivery-spec",
+          {
+            planId: render.planId,
+            generatedAt,
+            mode: args.mode,
+            destination: result.destination,
+            riderId: args.riderId ?? null,
+            subfolder: args.subfolder,
+            workouts,
+            bundlePath: result.mode === "bundle" ? result.destination : null,
+            keepFiles: workouts.map((w) => w.filename).join(","),
+            dryRun: args.dryRun,
+          } as unknown as Record<string, unknown>,
+        );
+        const deliveryHandle = await ctx.writeResource(
+          "delivery",
+          "delivery-current",
+          {
+            planId: render.planId,
+            generatedAt,
+            winner: result.mode,
+            attempts: [{
+              mode: result.mode,
+              status: args.dryRun ? "dry-run" : "succeeded",
+              destination: result.destination,
+              wrote: result.written.length,
+            }],
+            warnings: args.dryRun
+              ? [...result.warnings, "dry run only; no files were written"]
+              : result.warnings,
+            destination: result.destination,
+          },
+        );
+        if (args.dryRun) {
+          ctx.logger.info(
+            "Dry run {mode} -> {dest}: {written} would be written, {skipped} already present, {pruned} would be pruned",
+            {
+              mode: result.mode,
+              dest: result.destination,
+              written: result.written.length,
+              skipped: result.skipped.length,
+              pruned: result.pruned.length,
+            },
+          );
+        } else {
+          ctx.logger.info(
+            "Delivered {mode} to {dest}: {written} written, {skipped} already present, {pruned} pruned",
+            {
+              mode: result.mode,
+              dest: result.destination,
+              written: result.written.length,
+              skipped: result.skipped.length,
+              pruned: result.pruned.length,
+            },
+          );
+        }
+        return { dataHandles: [specHandle, deliveryHandle] };
+      },
+    },
+    "ssh-transport": {
+      description:
+        "Build the @swamp/ssh transport from optional user/key overrides. " +
+        "Empty user/key are omitted so ssh uses the current user and agent.",
+      arguments: SshTransportArgsSchema,
+      execute: async (
+        args: z.infer<typeof SshTransportArgsSchema>,
+        ctx: Ctx,
+      ) => {
+        const transport = buildSshTransport({
+          user: args.sshUser,
+          key: args.sshKey,
+          port: args.sshPort,
+          hostKeyChecking: args.sshHostKeyChecking,
+        });
+        const handle = await ctx.writeResource(
+          "transportSpec",
+          "transport-current",
+          { transport },
+        );
+        ctx.logger.info(
+          "SSH transport: user={user}, key={key}, port={port}",
+          {
+            user: args.sshUser || "(ssh default)",
+            key: args.sshKey || "(ssh default)",
+            port: args.sshPort,
+          },
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    "record-delivery": {
+      description:
+        "Record the winning delivery attempt and all attempts for a workflow " +
+        "(used by the SSH/fallback workflows).",
+      arguments: RecordDeliveryArgsSchema,
+      execute: async (
+        args: z.infer<typeof RecordDeliveryArgsSchema>,
+        ctx: Ctx,
+      ) => {
+        const handle = await ctx.writeResource("delivery", "delivery-current", {
+          planId: args.planId,
+          generatedAt: new Date().toISOString(),
+          winner: args.winner,
+          attempts: args.attempts,
+          warnings: args.warnings,
+          destination: args.destination ?? null,
+        });
+        ctx.logger.info(
+          "Delivery recorded: {winner}, {n} attempt(s)",
+          { winner: args.winner, n: args.attempts.length },
+        );
         return { dataHandles: [handle] };
       },
     },

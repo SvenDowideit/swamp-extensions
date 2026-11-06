@@ -3,28 +3,21 @@ name: "@svendowideit/zwift-coach"
 version: "2026.11.06.1"
 description: >
   Turn your own Zwift and Garmin history into a periodised training plan and
-  `.zwo` workouts — read-only in this release.
+  `.zwo` workouts, then deliver the workouts to Zwift.
 
   WHAT IT DOES
 
-    Most training plans ask you to guess your available days and hours. This
-    one derives them from the history you already have: it backfills every
-    Zwift ride the API returns, optionally parses each FIT file for normalised
-    power, merges as much Garmin history as exists, and infers the days, hours,
-    preferred start times and typical session length you actually ride. It then
-    computes TSS/CTL/ATL/TSB, weight and readiness trends, and builds a
-    periodised plan that fits that capacity instead of an aspirational one.
-    Every session has a title, a one-line hook and a "why"; each week includes
-    one fun session chosen from your own race/banded/group/workout mix, so the
-    plan is designed for adherence, not just physiological correctness. The
-    renderer writes conservative `.zwo` XML, validated against the limits Zwift
-    applies, ready to install or hand to a delivery workflow later.
-
-    This release is Phase 1/2: history, analysis, planning and rendering. It
-    does not deliver anything to Zwift yet; SSH/SCP delivery will be delegated
-    to the existing `@swamp/ssh` extension in a later phase, not reimplemented
-    here. Custom/agent-authored goals are also a later phase; the built-in
-    regain/improve/event goals work now.
+    Most plans ask you to guess your available days and hours. This one derives
+    them from the history you already have: every Zwift ride, FIT normalised
+    power and as much Garmin history as exists, then infers the days, hours,
+    start times and session length you actually ride. It computes
+    TSS/CTL/ATL/TSB, weight and readiness, and builds a periodised plan that
+    fits that capacity. Every session has a title, a one-line hook and a
+    "why"; each week includes one fun session from your own ride mix. It
+    renders conservative `.zwo` XML, validated against Zwift's limits, and
+    delivers the files: SSH through `@swamp/ssh`, a local folder, a sync folder
+    or a portable bundle, idempotent and marker-safe. Custom/agent-authored
+    goals are a later phase; the built-in regain/improve/event goals work now.
 
   INSTALL
 
@@ -34,9 +27,10 @@ description: >
 
     `@svendowideit/zwift`, declared in `dependencies:` and pulled automatically.
     It owns the Zwift login and history; this extension reads the resources it
-    writes. Garmin data is optional: install `@svendowideit/garmin` if you want
-    outdoor history, weight/body composition, wellness/readiness and
-    performance. Nothing is installed on the host.
+    writes. `@swamp/ssh` is used only for remote delivery and is pulled
+    automatically. Garmin data is optional: install `@svendowideit/garmin` if
+    you want outdoor history, weight/body composition, wellness/readiness and
+    performance. Nothing is installed on the Zwift host.
 
   RUN
 
@@ -48,27 +42,31 @@ description: >
       swamp workflow run @svendowideit/zwift-coach-backfill \
         --input backfillDays=3650 --input includeFit=true
 
-      # Optional: pull a wider Garmin cycling window before planning. The
-      # coach reads the most recent garmin-activities activity-list.
-      swamp workflow run @svendowideit/garmin-activities-sync \
-        --input startDate=2015-01-01 --input activityType=cycling
-
-      # Analyse, compile a goal, plan 12 weeks, render 14 days and preview.
+      # Analyse, plan 12 weeks, render 14 days and auto-deliver. With no
+      # delivery input the fallback chain ends at a portable bundle.
       swamp workflow run @svendowideit/zwift-coach-plan \
         --input goal=improve --input targetFtpPct=0.05
 
-      # Regain the fitness you had, using the history-derived capacity.
-      swamp workflow run @svendowideit/zwift-coach-plan --input goal=regain
+      # Deliver explicitly to a local Zwift workouts folder. riderId is the
+      # numeric folder Zwift uses under Workouts/; replace 123456 with yours.
+      swamp workflow run @svendowideit/zwift-coach-deliver-local \
+        --input workoutsDir=$HOME/Documents/Zwift/Workouts \
+        --input riderId=123456
 
-      # Read the plan and the next two weeks without trusting a summary.
-      swamp data query 'behavior("zwift-coach") && name == "plan-current"' \
-        --single --json --select content | jq '.weeks[0]'
+      # Deliver over SSH through @swamp/ssh when Zwift runs on another host.
+      # Only the address is required; user/key default to your ssh config.
+      swamp workflow run @svendowideit/zwift-coach-deliver-ssh \
+        --input sshAddress=macmini
+
+      # Read the plan and check where delivery put the files.
       swamp data query 'behavior("zwift-coach") && name == "preview-current"' \
         --single --json --select content | jq -r '.markdown'
+      swamp data query 'behavior("zwift-coach") && name == "delivery-current"' \
+        --single --json --select content | jq '{winner,destination,warnings}'
 
   CONFIGURE
 
-    Workflow inputs (`@svendowideit/zwift-coach-plan`):
+    Plan workflow inputs (`@svendowideit/zwift-coach-plan`):
 
       goal                 regain | improve | event (default improve)
       targetDate           YYYY-MM-DD for an event goal
@@ -83,10 +81,29 @@ description: >
       refreshDays          refresh detail for rides newer than this (7)
       force                ignore the cache and re-fetch every ride (repair)
       fitConcurrency       parallel FIT downloads during backfill (4)
-      horizonDays          render this many days from the plan start (default 14)
+      horizonDays          render this many days from the plan start (14)
       weeks                override plan length; 0 = goal default
       age                  override; 0 = Garmin/profile
       startDate            plan start (Monday); empty = next Monday
+      autoDeliver          deliver after rendering (default true)
+      dryRun               stage and report, write nothing (default false)
+
+    Delivery inputs (all workflows):
+
+      riderId              Zwift numeric ID; empty = profile-current.id
+      workoutsDir          local/mounted Zwift workouts folder
+      syncDir              folder replicated to the Zwift host
+      bundleDir            bundle output (default .swamp/zwift-coach/bundles)
+      subfolder            isolated folder name (default zwift-coach)
+      prune                remove only our marked files not in this render
+      sshModel             @swamp/ssh fleet name (default zwift-hosts)
+      sshAddress           SSH address of the Zwift host
+      sshUser              SSH user override (empty = current user/ssh config)
+      sshPort              SSH port (default 22)
+      sshKey               identity file override (empty = ssh config/agent)
+      sshHostKeyChecking   yes | accept-new | no | off (default accept-new)
+      hosts                @swamp/ssh host selector (default macmini)
+      remoteWorkoutsDir    remote folder; empty = $HOME/Documents/Zwift/Workouts
 
     The plan uses the p80 of the merged Zwift+Garmin days/hours, the preferred
     weekdays/hours, and the p90 session length. It warns when an override is
@@ -94,10 +111,19 @@ description: >
     ramp/recovery defaults use Garmin age when available, otherwise the
     explicit age, otherwise a conservative default.
 
+  UPGRADE
+
+    Run the INSTALL command again to replace the installed model and workflows
+    with the current published version. Existing plan, render and delivery
+    resources are kept; re-run the plan workflow to render and deliver with the
+    new version.
+
   WHAT IT INSTALLS
 
-    Nothing on the host — no services, daemons, or webhooks. It writes swamp
-    resources and `.zwo` documents; delivery is not part of this release. No
+    Nothing on the host by default — no services, daemons, or webhooks. It
+    writes swamp resources, `.zwo` documents and, when you run a delivery
+    workflow, files in the folder you choose. SSH delivery runs `ssh`/`scp`
+    through `@swamp/ssh`; it does not install anything on the remote host. No
     credentials are stored by this extension; the Zwift session lives with
     `@svendowideit/zwift` in the `zwift-secrets` vault.
 
@@ -114,9 +140,15 @@ models:
 workflows:
   - zwift-coach-plan.yaml
   - zwift-coach-backfill.yaml
+  - zwift-coach-deliver.yaml
+  - zwift-coach-deliver-local.yaml
+  - zwift-coach-deliver-sync.yaml
+  - zwift-coach-deliver-bundle.yaml
+  - zwift-coach-deliver-ssh.yaml
 
 dependencies:
   - "@svendowideit/zwift"
+  - "@swamp/ssh"
 
 additionalFiles:
   - README.md
@@ -128,11 +160,13 @@ additionalFiles:
   - zwift_coach_plan.ts
   - zwift_coach_workouts.ts
   - zwift_coach_howto.ts
+  - zwift_coach_delivery.ts
   - zwift_coach_fixtures.ts
   - zwift_coach_analysis_test.ts
   - zwift_coach_goal_test.ts
   - zwift_coach_plan_test.ts
   - zwift_coach_workouts_test.ts
   - zwift_coach_howto_test.ts
+  - zwift_coach_delivery_test.ts
 
 platforms: []

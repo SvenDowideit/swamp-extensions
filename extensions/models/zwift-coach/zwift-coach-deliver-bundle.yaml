@@ -1,0 +1,60 @@
+id: 2b8f4e3c-0d6a-4e5f-9c93-4a7b0d8e9f12
+name: "@svendowideit/zwift-coach-deliver-bundle"
+description: |
+  Write a portable bundle: bundle-<planId>/{plan.md,plan.json,manifest.json,
+  workouts/*.zwo,README.txt}. Copy workouts/ into the Zwift workouts folder.
+  This is the universal fallback when no path or SSH is available.
+
+tags:
+  domain: fitness
+inputs:
+  properties:
+    coachName:
+      type: string
+      default: zwift-coach
+      description: Coach model instance name.
+    bundleDir:
+      type: string
+      default: ""
+      description: Output directory; empty = .swamp/zwift-coach/bundles.
+    subfolder:
+      type: string
+      default: zwift-coach
+      description: Folder name used in the bundle README.
+    dryRun:
+      type: boolean
+      default: false
+      description: Report what would be written without writing.
+  required: []
+jobs:
+  - name: deliver
+    steps:
+      - name: assert-inputs
+        task:
+          type: assert
+          expr: >-
+            data.latest(inputs.coachName, "render-current") != null
+          message: >-
+            Run @svendowideit/zwift-coach-plan first so render-current exists.
+          severity: high
+        weight: 0
+        allowFailure: false
+      - name: bundle
+        task:
+          type: model_method
+          modelType: "@svendowideit/zwift-coach"
+          modelName: ${{ inputs.coachName }}
+          methodName: deliver
+          inputs:
+            render: ${{ data.latest(inputs.coachName, "render-current").attributes }}
+            plan: ${{ data.latest(inputs.coachName, "plan-current").attributes }}
+            mode: bundle
+            bundleDir: ${{ inputs.bundleDir }}
+            subfolder: ${{ inputs.subfolder }}
+            dryRun: ${{ inputs.dryRun }}
+        dependsOn:
+          - step: assert-inputs
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false

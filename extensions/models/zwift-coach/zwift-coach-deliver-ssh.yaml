@@ -1,0 +1,339 @@
+id: 3c9a5f4d-1e7b-4f60-8d04-5b8c1e9f0a23
+name: "@svendowideit/zwift-coach-deliver-ssh"
+description: |
+  Deliver the rendered coach workouts to a remote Zwift host over SSH.
+
+  SSH/SCP is delegated to the existing `@swamp/ssh` extension. This workflow
+  stages a local bundle, checks/creates the remote folder, copies the files to
+  a staging folder, then atomically moves only files carrying the coach marker
+  into place and optionally prunes older coach files.
+
+  The only required input is `sshAddress`. User, key and port are optional
+  overrides; when they are empty, `@swamp/ssh` uses your normal ssh config and
+  agent, exactly as `ssh macmini` does.
+tags:
+  domain: fitness
+inputs:
+  properties:
+    riderName:
+      type: string
+      default: zwift-rider
+      description: Zwift rider model instance name.
+    coachName:
+      type: string
+      default: zwift-coach
+      description: Coach model instance name.
+    sshName:
+      type: string
+      default: zwift-hosts
+      description: Fleet name used by @swamp/ssh.
+    sshHost:
+      type: string
+      default: macmini
+      description: Host name inside the @swamp/ssh fleet.
+    sshAddress:
+      type: string
+      default: ""
+      description: SSH address or host name of the Zwift host (required).
+    sshUser:
+      type: string
+      default: ""
+      description: SSH user override; empty = your ssh config / current user.
+    sshPort:
+      type: integer
+      default: 22
+      description: SSH port.
+    sshKey:
+      type: string
+      default: ""
+      description: Identity file override; empty = your ssh config / agent.
+    sshHostKeyChecking:
+      type: string
+      enum: [yes, accept-new, no, off]
+      default: accept-new
+      description: OpenSSH StrictHostKeyChecking policy.
+    hosts:
+      type: string
+      default: macmini
+      description: Host selector passed to @swamp/ssh.
+    riderId:
+      type: string
+      default: ""
+      description: Zwift numeric ID; empty = profile-current.id.
+    remoteWorkoutsDir:
+      type: string
+      default: ""
+      description: Base Zwift workouts folder on the remote host; empty = $HOME/Documents/Zwift/Workouts.
+    subfolder:
+      type: string
+      default: zwift-coach
+      description: Isolated folder inside the remote rider ID folder.
+    bundleDir:
+      type: string
+      default: ".swamp/zwift-coach/bundles"
+      description: Local staging area for the bundle sent over SSH.
+    prune:
+      type: boolean
+      default: false
+      description: Remove only our marked remote files not in this render.
+    dryRun:
+      type: boolean
+      default: false
+      description: Run checks and stage, but skip copy/install.
+  required: []
+jobs:
+  - name: deliver
+    steps:
+      - name: assert-ssh
+        description: Fail clearly when no SSH address was supplied.
+        task:
+          type: assert
+          expr: >-
+            inputs.sshAddress != ""
+          message: >-
+            Set sshAddress (for example --input sshAddress=macmini) so
+            @swamp/ssh can reach the Zwift host.
+          severity: high
+        weight: 0
+        allowFailure: false
+      - name: stage
+        description: Write the portable bundle that will be copied over SSH.
+        task:
+          type: model_method
+          modelType: "@svendowideit/zwift-coach"
+          modelName: ${{ inputs.coachName }}
+          methodName: deliver
+          inputs:
+            render: ${{ data.latest(inputs.coachName, "render-current").attributes }}
+            plan: ${{ data.latest(inputs.coachName, "plan-current").attributes }}
+            mode: bundle
+            bundleDir: ${{ inputs.bundleDir }}
+            subfolder: ${{ inputs.subfolder }}
+            riderId: '${{ inputs.riderId != "" ? inputs.riderId : data.latest(inputs.riderName, "profile-current").attributes.id }}'
+            dryRun: false
+        dependsOn:
+          - step: assert-ssh
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: assert-rider
+        description: Refuse to build a remote path from missing or unsafe values.
+        task:
+          type: assert
+          expr: >-
+            data.latest(inputs.coachName, "delivery-spec").attributes.riderId
+            != null
+            && data.latest(inputs.coachName, "delivery-spec").attributes.riderId
+            != ""
+            && !data.latest(inputs.coachName, "delivery-spec").attributes.riderId.contains("'")
+            && !data.latest(inputs.coachName, "delivery-spec").attributes.riderId.contains("/")
+            && data.latest(inputs.coachName, "delivery-spec").attributes.planId
+            != null
+            && !data.latest(inputs.coachName, "delivery-spec").attributes.planId.contains("'")
+            && inputs.subfolder != ""
+            && inputs.subfolder != "."
+            && inputs.subfolder != ".."
+            && !inputs.subfolder.contains("'")
+            && !inputs.subfolder.contains("/")
+            && !inputs.remoteWorkoutsDir.contains("'")
+          message: >-
+            SSH delivery needs a non-empty riderId (set --input riderId=... or
+            ensure @svendowideit/zwift-rider profile-current exists) and a
+            subfolder/remoteWorkoutsDir without quotes or slashes.
+          severity: high
+        dependsOn:
+          - step: stage
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: transport
+        description: Build an @swamp/ssh transport that omits unset overrides.
+        task:
+          type: model_method
+          modelType: "@svendowideit/zwift-coach"
+          modelName: ${{ inputs.coachName }}
+          methodName: ssh-transport
+          inputs:
+            sshUser: ${{ inputs.sshUser }}
+            sshKey: ${{ inputs.sshKey }}
+            sshPort: ${{ inputs.sshPort }}
+            sshHostKeyChecking: ${{ inputs.sshHostKeyChecking }}
+        dependsOn:
+          - step: assert-rider
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: check
+        description: Verify the remote workout path, create staging, print its path.
+        task:
+          type: model_method
+          modelType: "@swamp/ssh"
+          modelName: ${{ inputs.sshName }}
+          methodName: script
+          globalArgs:
+            name: ${{ inputs.sshName }}
+            transport: ${{ steps.transport.outputs.transport }}
+            hosts:
+              - name: ${{ inputs.sshHost }}
+                address: ${{ inputs.sshAddress }}
+                tags: []
+                attrs: {}
+          inputs:
+            hosts: ${{ inputs.hosts }}
+            interpreter: sh
+            script: |
+              set -eu
+              ROOT='${{ inputs.remoteWorkoutsDir }}'
+              if [ -z "$ROOT" ]; then
+                ROOT="$HOME/Documents/Zwift/Workouts"
+              fi
+              case "$ROOT" in "~/"*) ROOT="$HOME/${ROOT#~/}";; esac
+              RIDER='${{ data.latest(inputs.coachName, "delivery-spec").attributes.riderId }}'
+              SUBFOLDER='${{ inputs.subfolder }}'
+              PLAN='${{ data.latest(inputs.coachName, "delivery-spec").attributes.planId }}'
+              DEST="$ROOT/$RIDER/$SUBFOLDER"
+              STAGE="$DEST/.staging-$PLAN"
+              mkdir -p "$DEST" "$STAGE"
+              printf '%s' "$DEST"
+        dependsOn:
+          - step: transport
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: copy
+        description: Copy the staged workouts to the remote staging folder.
+        task:
+          type: model_method
+          modelType: "@swamp/ssh"
+          modelName: ${{ inputs.sshName }}
+          methodName: copy
+          globalArgs:
+            name: ${{ inputs.sshName }}
+            transport: ${{ steps.transport.outputs.transport }}
+            hosts:
+              - name: ${{ inputs.sshHost }}
+                address: ${{ inputs.sshAddress }}
+                tags: []
+                attrs: {}
+          inputs:
+            hosts: ${{ inputs.hosts }}
+            direction: to
+            recursive: true
+            src: ${{ data.latest(inputs.coachName, "delivery-spec").attributes.bundlePath + "/workouts" }}
+            dst: ${{ steps.check.outputs.stdout.trim() + "/.staging-" + data.latest(inputs.coachName, "delivery-spec").attributes.planId }}
+        dependsOn:
+          - step: check
+            condition:
+              type: succeeded
+        guard: ${{ inputs.dryRun == true }}
+        weight: 0
+        allowFailure: false
+      - name: install
+        description: Move staged files into place with marker checks and prune.
+        task:
+          type: model_method
+          modelType: "@swamp/ssh"
+          modelName: ${{ inputs.sshName }}
+          methodName: script
+          globalArgs:
+            name: ${{ inputs.sshName }}
+            transport: ${{ steps.transport.outputs.transport }}
+            hosts:
+              - name: ${{ inputs.sshHost }}
+                address: ${{ inputs.sshAddress }}
+                tags: []
+                attrs: {}
+          inputs:
+            hosts: ${{ inputs.hosts }}
+            interpreter: sh
+            script: |
+              set -eu
+              ROOT='${{ inputs.remoteWorkoutsDir }}'
+              if [ -z "$ROOT" ]; then
+                ROOT="$HOME/Documents/Zwift/Workouts"
+              fi
+              case "$ROOT" in "~/"*) ROOT="$HOME/${ROOT#~/}";; esac
+              RIDER='${{ data.latest(inputs.coachName, "delivery-spec").attributes.riderId }}'
+              SUBFOLDER='${{ inputs.subfolder }}'
+              PLAN='${{ data.latest(inputs.coachName, "delivery-spec").attributes.planId }}'
+              KEEP='${{ data.latest(inputs.coachName, "delivery-spec").attributes.keepFiles }}'
+              PRUNE='${{ inputs.prune ? "true" : "false" }}'
+              DEST="$ROOT/$RIDER/$SUBFOLDER"
+              STAGE="$DEST/.staging-$PLAN"
+              for f in "$STAGE"/*.zwo "$STAGE"/workouts/*.zwo; do
+                [ -e "$f" ] || continue
+                base=$(basename "$f")
+                target="$DEST/$base"
+                if [ -e "$target" ] && ! grep -q 'generated by @svendowideit/zwift-coach' "$target"; then
+                  echo "refusing to overwrite $target: no coach marker" >&2
+                  exit 1
+                fi
+                mv -f "$f" "$target"
+              done
+              rmdir "$STAGE/workouts" "$STAGE" 2>/dev/null || true
+              if [ "$PRUNE" = "true" ]; then
+                for f in "$DEST"/*.zwo; do
+                  [ -e "$f" ] || continue
+                  base=$(basename "$f")
+                  case ",$KEEP," in *",$base,"*) continue;; esac
+                  if grep -q 'generated by @svendowideit/zwift-coach' "$f"; then rm -f "$f"; fi
+                done
+              fi
+              printf '%s' "$DEST"
+        dependsOn:
+          - step: copy
+            condition:
+              type: succeeded
+        guard: ${{ inputs.dryRun == true }}
+        weight: 0
+        allowFailure: false
+      - name: record
+        description: Record a successful SSH delivery.
+        task:
+          type: model_method
+          modelType: "@svendowideit/zwift-coach"
+          modelName: ${{ inputs.coachName }}
+          methodName: record-delivery
+          inputs:
+            planId: ${{ data.latest(inputs.coachName, "delivery-spec").attributes.planId }}
+            winner: ssh
+            attempts:
+              - mode: ssh
+                status: succeeded
+                destination: ${{ steps.install.outputs.stdout.trim() }}
+            warnings: []
+            destination: ${{ steps.install.outputs.stdout.trim() }}
+        dependsOn:
+          - step: install
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: record-dry
+        description: Record a dry-run SSH check.
+        task:
+          type: model_method
+          modelType: "@svendowideit/zwift-coach"
+          modelName: ${{ inputs.coachName }}
+          methodName: record-delivery
+          inputs:
+            planId: ${{ data.latest(inputs.coachName, "delivery-spec").attributes.planId }}
+            winner: ssh
+            attempts:
+              - mode: ssh
+                status: dry-run
+                destination: ${{ steps.check.outputs.stdout.trim() }}
+            warnings:
+              - dry run only; no files were copied or installed
+            destination: ${{ steps.check.outputs.stdout.trim() }}
+        dependsOn:
+          - step: check
+            condition:
+              type: succeeded
+        guard: ${{ inputs.dryRun != true }}
+        weight: 0
+        allowFailure: false

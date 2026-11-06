@@ -1,17 +1,20 @@
 id: 6f2a1c7e-3b0d-4f5a-9c21-8d7e6b5a4c31
 name: "@svendowideit/zwift-coach-plan"
 description: |
-  Read-only Phase 1/2 coach run: backfill Zwift (and optional Garmin) history,
-  derive load/availability, compile a built-in goal, generate a 12-week plan,
-  render the next two weeks of ZWO workouts and write a human-readable preview.
+  Full coach run: backfill Zwift (and optional Garmin) history, derive
+  load/availability, compile a built-in goal, generate a 12-week plan, render
+  the next two weeks of ZWO workouts, write a human-readable preview, then
+  deliver the workouts.
 
-  It does not deliver anything yet. Delivery (SSH via @swamp/ssh, local, sync,
-  bundle) is a later phase.
+  Delivery tries SSH (through @swamp/ssh), then a local workouts folder, then a
+  sync folder, then a portable bundle. Set autoDeliver=false to render only.
 
   Manual run:
     swamp workflow run @svendowideit/zwift-coach-plan
     swamp workflow run @svendowideit/zwift-coach-plan --input goal=regain
     swamp workflow run @svendowideit/zwift-coach-plan --input goal=improve --input targetFtpPct=0.05
+    swamp workflow run @svendowideit/zwift-coach-plan --input workoutsDir=/path/to/Zwift/Workouts
+    swamp workflow run @svendowideit/zwift-coach-plan --input sshAddress=macmini.local --input sshUser=you
 tags:
   domain: fitness
 inputs:
@@ -108,6 +111,71 @@ inputs:
       type: string
       default: ""
       description: Plan start (Monday); empty = next Monday.
+    autoDeliver:
+      type: boolean
+      default: true
+      description: Deliver automatically when the plan validates.
+    riderId:
+      type: string
+      default: ""
+      description: Zwift numeric ID for local delivery; empty = profile-current.id.
+    sshModel:
+      type: string
+      default: zwift-hosts
+      description: The @swamp/ssh fleet model for SSH delivery.
+    sshAddress:
+      type: string
+      default: ""
+      description: SSH address of the Zwift host; empty = no SSH, use local/sync/bundle.
+    sshUser:
+      type: string
+      default: ""
+      description: SSH user; empty = your ssh config / agent default.
+    sshPort:
+      type: integer
+      default: 22
+      description: SSH port.
+    sshKey:
+      type: string
+      default: ""
+      description: Identity file; empty = your ssh config / agent default.
+    sshHostKeyChecking:
+      type: string
+      enum: [yes, accept-new, no, off]
+      default: accept-new
+      description: OpenSSH StrictHostKeyChecking policy.
+    hosts:
+      type: string
+      default: macmini
+      description: Host selector in the @swamp/ssh fleet.
+    remoteWorkoutsDir:
+      type: string
+      default: ""
+      description: Base Zwift workouts folder on the remote host; empty = $HOME/Documents/Zwift/Workouts.
+    workoutsDir:
+      type: string
+      default: ""
+      description: Local/mounted Zwift workouts folder, if available.
+    syncDir:
+      type: string
+      default: ""
+      description: Folder replicated to the Zwift host, if available.
+    bundleDir:
+      type: string
+      default: ".swamp/zwift-coach/bundles"
+      description: Portable bundle output directory.
+    subfolder:
+      type: string
+      default: zwift-coach
+      description: Isolated folder under the rider ID / sync folder.
+    prune:
+      type: boolean
+      default: false
+      description: Remove only our marked files not in this render.
+    dryRun:
+      type: boolean
+      default: false
+      description: Check/stage only; no copy or install.
   required: []
 jobs:
   - name: plan
@@ -243,6 +311,36 @@ jobs:
           severity: high
         dependsOn:
           - step: preview
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: deliver
+        description: Deliver the rendered workouts through the fallback chain.
+        task:
+          type: workflow
+          workflowIdOrName: "@svendowideit/zwift-coach-deliver"
+          inputs:
+            riderName: ${{ inputs.riderName }}
+            coachName: ${{ inputs.coachName }}
+            riderId: ${{ inputs.riderId }}
+            sshModel: ${{ inputs.sshModel }}
+            sshAddress: ${{ inputs.sshAddress }}
+            sshUser: ${{ inputs.sshUser }}
+            sshPort: ${{ inputs.sshPort }}
+            sshKey: ${{ inputs.sshKey }}
+            sshHostKeyChecking: ${{ inputs.sshHostKeyChecking }}
+            hosts: ${{ inputs.hosts }}
+            remoteWorkoutsDir: ${{ inputs.remoteWorkoutsDir }}
+            workoutsDir: ${{ inputs.workoutsDir }}
+            syncDir: ${{ inputs.syncDir }}
+            bundleDir: ${{ inputs.bundleDir }}
+            subfolder: ${{ inputs.subfolder }}
+            prune: ${{ inputs.prune }}
+            dryRun: ${{ inputs.dryRun }}
+        guard: ${{ inputs.autoDeliver == false }}
+        dependsOn:
+          - step: has-plan
             condition:
               type: succeeded
         weight: 0

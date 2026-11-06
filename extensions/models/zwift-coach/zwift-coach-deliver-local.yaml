@@ -1,0 +1,79 @@
+id: 0f6d2c1a-8b4e-4c3d-9a71-2e5f8b6c7d90
+name: "@svendowideit/zwift-coach-deliver-local"
+description: |
+  Write the rendered coach workouts into a local Zwift workouts folder:
+  <workoutsDir>/<riderId>/<subfolder>/. Refuses to overwrite files without the
+  coach marker, writes atomically, and can prune only its own older files.
+
+  Use this when swamp runs on the Zwift host or has its workouts folder mounted.
+tags:
+  domain: fitness
+inputs:
+  properties:
+    riderName:
+      type: string
+      default: zwift-rider
+      description: Zwift rider model instance name.
+    coachName:
+      type: string
+      default: zwift-coach
+      description: Coach model instance name.
+    riderId:
+      type: string
+      default: ""
+      description: Zwift numeric ID; empty = profile-current.id.
+    workoutsDir:
+      type: string
+      default: ""
+      description: Base Zwift workouts folder (e.g. ~/Documents/Zwift/Workouts).
+    subfolder:
+      type: string
+      default: zwift-coach
+      description: Isolated folder inside the rider ID folder.
+    prune:
+      type: boolean
+      default: false
+      description: Remove only our marked files not in this render.
+    dryRun:
+      type: boolean
+      default: false
+      description: Report what would change without writing.
+  required: []
+jobs:
+  - name: deliver
+    steps:
+      - name: assert-inputs
+        description: Fail before writing if the path or render data is missing.
+        task:
+          type: assert
+          expr: >-
+            inputs.workoutsDir != "" && data.latest(inputs.coachName, "plan-current") != null
+            && data.latest(inputs.coachName, "render-current") != null
+          message: >-
+            Set workoutsDir and run @svendowideit/zwift-coach-plan first so
+            plan-current and render-current exist.
+          severity: high
+        weight: 0
+        allowFailure: false
+      - name: local
+        description: Write the rendered workouts into the local Zwift folder.
+        task:
+          type: model_method
+          modelType: "@svendowideit/zwift-coach"
+          modelName: ${{ inputs.coachName }}
+          methodName: deliver
+          inputs:
+            render: ${{ data.latest(inputs.coachName, "render-current").attributes }}
+            plan: ${{ data.latest(inputs.coachName, "plan-current").attributes }}
+            mode: local
+            workoutsDir: ${{ inputs.workoutsDir }}
+            riderId: '${{ inputs.riderId != "" ? inputs.riderId : data.latest(inputs.riderName, "profile-current").attributes.id }}'
+            subfolder: ${{ inputs.subfolder }}
+            prune: ${{ inputs.prune }}
+            dryRun: ${{ inputs.dryRun }}
+        dependsOn:
+          - step: assert-inputs
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false

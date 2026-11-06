@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4488"><span class="tier A">A</span>Deeply nested resource content overflows the stack: nested w</a><a href="#issue-4469"><span class="tier A">A</span>A method run writing thousands of resources reports &#39;Invalid</a><a href="#issue-4481"><span class="tier A">A</span>repo prune follow-ups: report failed writes apart from skips</a><a href="#issue-4473"><span class="tier A">A</span>Slackwater: grant conditions can read the client and the run</a><a href="#issue-4475"><span class="tier A">A</span>Slackwater: spike on delegated credentials through serve</a><a href="#issue-4480"><span class="tier A">A</span>repo upgrade tells a repo with tools: [] from an older upgra</a><a href="#issue-4478"><span class="tier A">A</span>run summary box: tabs, carriage returns and non-color escape</a><a href="#issue-4447"><span class="tier A">A</span>repo upgrade: drop stale Claude audit hooks when claude leav</a><a href="#issue-4471"><span class="tier A">A</span>behavior/workflow run: summary box border misaligns on rows </a><a href="#issue-4470"><span class="tier A">A</span>A workflow with a 500-step forEach takes 7m22s to complete a</a><a href="#issue-4472"><span class="tier A">A</span>Ops: package the dossier workflows; give access:* a git path</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4489"><span class="tier A">A</span>workflow run --json reports a succeeded run as failed, and h</a><a href="#issue-4474"><span class="tier A">A</span>Slackwater: bearer-only HTTP route for workflow actions</a><a href="#issue-4488"><span class="tier A">A</span>Deeply nested resource content overflows the stack: nested w</a><a href="#issue-4469"><span class="tier A">A</span>A method run writing thousands of resources reports &#39;Invalid</a><a href="#issue-4481"><span class="tier A">A</span>repo prune follow-ups: report failed writes apart from skips</a><a href="#issue-4473"><span class="tier A">A</span>Slackwater: grant conditions can read the client and the run</a><a href="#issue-4475"><span class="tier A">A</span>Slackwater: spike on delegated credentials through serve</a><a href="#issue-4480"><span class="tier A">A</span>repo upgrade tells a repo with tools: [] from an older upgra</a><a href="#issue-4478"><span class="tier A">A</span>run summary box: tabs, carriage returns and non-color escape</a><a href="#issue-4447"><span class="tier A">A</span>repo upgrade: drop stale Claude audit hooks when claude leav</a><a href="#issue-4471"><span class="tier A">A</span>behavior/workflow run: summary box border misaligns on rows </a></aside><div>
 
 <article class="item" id="issue-4239">
 <h2><span class="tier S">S</span>swamp issue: file bugs, features and security reports against the platform source</h2>
@@ -76,6 +76,22 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-4489">
+<h2><span class="tier A">A</span>workflow run --json reports a succeeded run as failed, and history get --json crashes, when resource content is nested past about 5,250 levels</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-06T21:39:53.699Z">2026-11-06T21:39:53.699Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4489" rel="noopener">lab#4489</a></div>
+</article>
+<article class="item" id="issue-4474">
+<h2><span class="tier A">A</span>Slackwater: bearer-only HTTP route for workflow actions</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-06T21:33:31.624Z">2026-11-06T21:33:31.624Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4474" rel="noopener">lab#4474</a></div>
 </article>
 <article class="item" id="issue-4488">
 <h2><span class="tier A">A</span>Deeply nested resource content overflows the stack: nested workflow run summaries are silently erased, and history outputs --json leaves truncated JSON</h2>
@@ -149,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4471" rel="noopener">lab#4471</a></div>
 </article>
-<article class="item" id="issue-4470">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4470">
 <h2><span class="tier A">A</span>A workflow with a 500-step forEach takes 7m22s to complete after its last step has finished</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-06T15:38:42.030Z">2026-11-06T15:38:42.030Z</time></span></div>
@@ -165,7 +181,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4472" rel="noopener">lab#4472</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4460">
+<article class="item" id="issue-4460">
 <h2><span class="tier A">A</span>Slackwater: record the client on requests, audit events and run decisions</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-11-06T13:22:26.572Z">2026-11-06T13:22:26.572Z</time></span></div>
@@ -1541,29 +1557,29 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
-<article class="item" id="issue-4489">
-<h2><span class="tier B">B</span>workflow run --json reports a succeeded run as failed, and history get --json crashes, when resource content is nested past about 5,250 levels</h2>
+<article class="item" id="issue-4129">
+<h2><span class="tier B">B</span>Over-limit contentMetadata publishes a blank extension page; archive fallback extracts nothing</h2>
 <p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-11-06T20:59:56.700Z">2026-11-06T20:59:56.700Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-06T21:53:23.449Z">2026-11-06T21:53:23.449Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4489" rel="noopener">lab#4489</a></div>
-</article>
-<article class="item" id="issue-4474">
-<h2><span class="tier B">B</span>Slackwater: bearer-only HTTP route for workflow actions</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-06T20:49:16.723Z">2026-11-06T20:49:16.723Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4474" rel="noopener">lab#4474</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4129" rel="noopener">lab#4129</a></div>
 </article>
 <article class="item" id="issue-4485">
 <h2><span class="tier B">B</span>workflow approvals offers a person refused on their own run a cancel that serve refuses without admin</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-06T20:40:16.201Z">2026-11-06T20:40:16.201Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-06T21:44:12.533Z">2026-11-06T21:44:12.533Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4485" rel="noopener">lab#4485</a></div>
+</article>
+<article class="item" id="issue-4483">
+<h2><span class="tier B">B</span>telemetry_workflow_method_invocations_test can leave its swamp-tel-wf-test temp dir behind, failing verify-build&#39;s leftover check</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-06T21:43:29.653Z">2026-11-06T21:43:29.653Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4483" rel="noopener">lab#4483</a></div>
 </article>
 <article class="item" id="issue-4465">
 <h2><span class="tier B">B</span>Dashboard data item page cannot show an item once its behavior definition is deleted, though the data remains</h2>
@@ -1636,14 +1652,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4476" rel="noopener">lab#4476</a></div>
-</article>
-<article class="item" id="issue-4483">
-<h2><span class="tier C">C</span>telemetry_workflow_method_invocations_test can leave its swamp-tel-wf-test temp dir behind, failing verify-build&#39;s leftover check</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-06T17:05:41.047Z">2026-11-06T17:05:41.047Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4483" rel="noopener">lab#4483</a></div>
 </article>
 <article class="item" id="issue-4477">
 <h2><span class="tier C">C</span>A workflow run keeps every step&#39;s resource contents in memory, so a large forEach fan-out can exhaust the heap</h2>
@@ -2390,13 +2398,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>290 items across 1 source(s) in this window:
-1 critical, 183 notable, 7 routine,
-99 minor.</p>
-<ul><li><strong>issues</strong> — 290</li></ul></section>
+<p>291 items across 1 source(s) in this window:
+1 critical, 185 notable, 7 routine,
+98 minor.</p>
+<ul><li><strong>issues</strong> — 291</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-06T21:03:02.451Z">2026-11-06T21:03:02.451Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-06T22:04:41.124Z">2026-11-06T22:04:41.124Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

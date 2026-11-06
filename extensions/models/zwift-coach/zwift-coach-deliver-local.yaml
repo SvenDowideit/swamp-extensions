@@ -29,11 +29,15 @@ inputs:
     subfolder:
       type: string
       default: zwift-coach
-      description: Isolated folder inside the rider ID folder.
+      description: Isolated root folder inside the rider ID folder.
+    horizonDays:
+      type: integer
+      default: 0
+      description: Render this many days before delivery; 0 = the whole plan.
     prune:
       type: boolean
-      default: false
-      description: Remove only our marked files not in this render.
+      default: true
+      description: Remove only our marked files in this program folder not in this render.
     dryRun:
       type: boolean
       default: false
@@ -55,6 +59,22 @@ jobs:
           severity: high
         weight: 0
         allowFailure: false
+      - name: render
+        description: Render the current plan so delivery never uses a stale render.
+        task:
+          type: model_method
+          modelType: "@svendowideit/zwift-coach"
+          modelName: ${{ inputs.coachName }}
+          methodName: render
+          inputs:
+            plan: ${{ data.latest(inputs.coachName, "plan-current").attributes }}
+            horizonDays: ${{ inputs.horizonDays }}
+        dependsOn:
+          - step: assert-inputs
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
       - name: local
         description: Write the rendered workouts into the local Zwift folder.
         task:
@@ -72,7 +92,7 @@ jobs:
             prune: ${{ inputs.prune }}
             dryRun: ${{ inputs.dryRun }}
         dependsOn:
-          - step: assert-inputs
+          - step: render
             condition:
               type: succeeded
         weight: 0

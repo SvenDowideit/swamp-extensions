@@ -41,12 +41,18 @@ import {
   round1,
   todayUtc,
 } from "./zwift_coach_util.ts";
-import { dayList, generatePlan, nextMonday } from "./zwift_coach_plan.ts";
+import {
+  dayList,
+  generatePlan,
+  nextMonday,
+  programName,
+} from "./zwift_coach_plan.ts";
 import {
   averageIf,
   buildSession,
   totalMinutes,
   totalTss,
+  workoutNameFor,
 } from "./zwift_coach_workouts.ts";
 import { rampDefaults } from "./zwift_coach_goal.ts";
 
@@ -1059,7 +1065,12 @@ function targetSprintSteps(
   const target60 = targetWatts(goal, "power60");
   const ftp = fitness.current.ftpWatts ?? fitness.peaks.ftpWatts ?? null;
   const cadence = cadenceProfile(fitness);
-  if (test || phase === "recovery" || phase === "taper") {
+  if (test) {
+    return sprintTestSteps(goal, fitness, week);
+  }
+  if (
+    (phase === "recovery" || phase === "taper") && type === "sprint"
+  ) {
     return sprintTestSteps(goal, fitness, week);
   }
   const steps: Step[] = [...warmupSteps(week, cadence)];
@@ -1098,7 +1109,7 @@ function targetSprintSteps(
   return undefined;
 }
 
-function describeSteps(steps: Step[], ftp: number | null): string {
+export function describeSteps(steps: Step[], ftp: number | null): string {
   const total = Math.round(totalMinutes(steps));
   const firstWork = steps.findIndex((s) =>
     s.kind === "maxeffort" || s.kind === "free" || s.kind === "intervals"
@@ -1251,6 +1262,10 @@ export function generateCustomPlan(
       });
       built.targetTss = built.computedTss;
       built.brief = describeSteps(built.steps, ftp);
+      if (item.type === "sprint" || item.type === "anaerobic") {
+        built.style = style;
+      }
+      built.workoutName = workoutNameFor(built, ftp);
       sessions.push(built);
     }
     if (!sessions.some((x) => x.fun) && sessions.length > 0) {
@@ -1295,6 +1310,7 @@ export function generateCustomPlan(
     id: hashString([goal.id, startDate, weeks, opts.seed ?? 0].join("|")),
     generatedAt: new Date().toISOString(),
     goalId: goal.id,
+    program: programName(goal),
     startDate,
     endDate: addDays(startDate, weeks * 7 - 1),
     weeks: weeksOut,
@@ -1396,7 +1412,7 @@ export function planFromSpec(
       if (item.steps?.length) {
         const steps = stepsFromSpec(item.steps);
         const computed = totalTss(steps);
-        sessions.push({
+        const session: Session = {
           id: item.id,
           week: weekNo,
           date,
@@ -1415,7 +1431,12 @@ export function planFromSpec(
           steps,
           progression: item.progression,
           brief: describeSteps(steps, ftp),
-        });
+        };
+        if (session.type === "sprint" || session.type === "anaerobic") {
+          session.style = i % 2 === 0 ? "torque" : "cadence";
+        }
+        session.workoutName = workoutNameFor(session, ftp);
+        sessions.push(session);
       } else {
         const built = buildSession({
           id: item.id,
@@ -1450,6 +1471,10 @@ export function planFromSpec(
         built.brief = item.progression && !built.brief
           ? built.brief
           : describeSteps(built.steps, ftp);
+        if (built.type === "sprint" || built.type === "anaerobic") {
+          built.style = i % 2 === 0 ? "torque" : "cadence";
+        }
+        built.workoutName = workoutNameFor(built, ftp);
         sessions.push(built);
       }
     }
@@ -1490,6 +1515,7 @@ export function planFromSpec(
     ),
     generatedAt: new Date().toISOString(),
     goalId: goal.id,
+    program: programName(goal),
     startDate,
     endDate: addDays(startDate, weeks * 7 - 1),
     weeks: weeksOut,

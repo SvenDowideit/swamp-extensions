@@ -1,7 +1,9 @@
 import { assertEquals } from "jsr:@std/assert@1";
 import { model } from "./zwift_coach.ts";
 import { compileCustomGoal, generateCustomPlan } from "./zwift_coach_custom.ts";
-import { fitnessFixture } from "./zwift_coach_fixtures.ts";
+import { fitnessFixture, goalFixture } from "./zwift_coach_fixtures.ts";
+import { generatePlan } from "./zwift_coach_plan.ts";
+import { addDays } from "./zwift_coach_util.ts";
 
 const SPRINT_GOAL =
   "In 3 months, hold >=700W for 60s, raise max wattage above 1300W, and move toward 65kg";
@@ -12,10 +14,16 @@ type Writes = {
   value: Record<string, unknown>;
 };
 
-function mockCtx(): { ctx: unknown; writes: Writes[] } {
+function mockCtx(): {
+  ctx: unknown;
+  writes: Writes[];
+  store: Record<string, Record<string, unknown>>;
+} {
   const writes: Writes[] = [];
+  const store: Record<string, Record<string, unknown>> = {};
   return {
     writes,
+    store,
     ctx: {
       globalArgs: { timezone: "" },
       logger: { info() {} },
@@ -25,9 +33,10 @@ function mockCtx(): { ctx: unknown; writes: Writes[] } {
         value: Record<string, unknown>,
       ) => {
         writes.push({ resource, name, value });
+        store[name] = value;
         return Promise.resolve({ resource, name });
       },
-      readResource: () => Promise.resolve(null),
+      readResource: (name: string) => Promise.resolve(store[name] ?? null),
       readModelData: () => Promise.resolve(null),
     },
   };
@@ -91,6 +100,52 @@ Deno.test("preview explains TSS/CTL and includes watts/cadence briefs", async ()
   assertEquals(markdown.includes("CTL (chronic training load)"), true);
   assertEquals(markdown.includes("rpm"), true);
   assertEquals(markdown.includes("W"), true);
+});
+
+Deno.test("model feedback replaces the same date and keeps one record", async () => {
+  const { ctx, store } = mockCtx();
+  await methods.feedback.execute({
+    date: "2026-11-09",
+    enjoyment: 2,
+    bored: true,
+  }, ctx);
+  await methods.feedback.execute({
+    date: "2026-11-09",
+    enjoyment: 4,
+    wouldRepeat: true,
+  }, ctx);
+  const records = store["feedback-current"]?.records as Record<
+    string,
+    unknown
+  >[];
+  assertEquals(records.length, 1);
+  assertEquals(records[0].enjoyment, 4);
+  assertEquals(records[0].bored, undefined);
+});
+
+Deno.test("model review writes review-current and an adapted plan", async () => {
+  const { ctx, store } = mockCtx();
+  const plan = generatePlan(fitnessFixture(), goalFixture());
+  const asOf = plan.startDate;
+  await methods.review.execute({
+    plan,
+    fitness: fitnessFixture(),
+    trainingHistory: { rides: [] },
+    feedback: [{
+      date: addDays(asOf, -1),
+      bored: true,
+      enjoyment: 1,
+    }],
+    asOf,
+    autoAdapt: true,
+  }, ctx);
+  const review = store["review-current"];
+  assertEquals(
+    (review?.summaryMarkdown as string).includes("Weekly review"),
+    true,
+  );
+  assertEquals(review?.changed, true);
+  assertEquals(store["plan-current"] !== undefined, true);
 });
 
 Deno.test("model validate writes fail-closed errors", async () => {

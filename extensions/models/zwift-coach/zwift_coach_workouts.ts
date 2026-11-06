@@ -393,9 +393,71 @@ export function slug(value: string): string {
     .toLowerCase() || "workout";
 }
 
+/** Information-first short name for the Zwift workout list. */
+export function workoutNameFor(
+  session: Session,
+  ftp: number | null,
+): string {
+  const prefix = `W${session.week}`;
+  const work =
+    session.steps.find((step) =>
+      step.kind === "maxeffort" || step.kind === "free" ||
+      step.kind === "intervals"
+    ) ?? session.steps
+      .filter((step) => step.kind === "steady")
+      .sort((a, b) => b.minutes - a.minutes)[0];
+  const watts = (() => {
+    if (!work || ftp === null || ftp <= 0) return null;
+    if (work.kind === "maxeffort" || work.kind === "free") {
+      return work.targetPower ? Math.round(work.targetPower * ftp) : null;
+    }
+    if (work.kind === "steady") return Math.round(work.power * ftp);
+    if (work.kind === "intervals") return Math.round(work.onPower * ftp);
+    return null;
+  })();
+  const rpm = work && "cadence" in work && work.cadence
+    ? Math.round(work.cadence)
+    : null;
+  if (session.title.toLowerCase().includes("benchmark")) {
+    return `${prefix} Test`;
+  }
+  const label = (() => {
+    switch (session.type) {
+      case "sprint":
+        return session.style === "cadence" ? "Cad" : "Torq";
+      case "anaerobic":
+        return "60s";
+      case "endurance":
+        return "Z2";
+      case "recovery":
+        return "Easy";
+      case "sweetspot":
+        return "SS";
+      case "threshold":
+        return "FTP";
+      case "vo2":
+        return "VO2";
+      case "overunder":
+        return "O/U";
+      case "ftp-test":
+        return "FTP Test";
+      case "event":
+        return "Event";
+    }
+  })();
+  const detail = session.type === "recovery"
+    ? ""
+    : rpm && (session.type === "sprint" || session.type === "anaerobic")
+    ? `${rpm}rpm`
+    : watts
+    ? `${watts}W`
+    : "";
+  return `${prefix} ${label}${detail ? ` ${detail}` : ""}`.slice(0, 28);
+}
+
 /** File name for a session. */
 export function fileNameFor(session: Session): string {
-  return `${session.date}_${slug(session.title)}.zwo`;
+  return `${session.date}_${slug(session.workoutName ?? session.title)}.zwo`;
 }
 
 function seconds(minutes: number): number {
@@ -475,7 +537,7 @@ export function renderZwo(session: Session, planId = "unknown"): string {
   } -->
 <workout_file>
   <author>swamp zwift-coach</author>
-  <name>${xmlEscape(session.title)}</name>
+  <name>${xmlEscape(session.workoutName ?? session.title)}</name>
   <description>${xmlEscape(session.brief ?? session.why)} ${
     xmlEscape(session.why)
   } Load: ${session.targetTss} TSS (100 is about one hour at FTP).</description>

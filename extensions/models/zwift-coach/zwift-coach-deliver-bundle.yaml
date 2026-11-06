@@ -39,6 +39,22 @@ jobs:
           severity: high
         weight: 0
         allowFailure: false
+      - name: render
+        description: Render the current plan so delivery never uses a stale render.
+        task:
+          type: model_method
+          modelType: "@svendowideit/zwift-coach"
+          modelName: ${{ inputs.coachName }}
+          methodName: render
+          inputs:
+            plan: ${{ data.latest(inputs.coachName, "plan-current").attributes }}
+            horizonDays: ${{ inputs.horizonDays }}
+        dependsOn:
+          - step: assert-inputs
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
       - name: bundle
         task:
           type: model_method
@@ -53,7 +69,7 @@ jobs:
             subfolder: ${{ inputs.subfolder }}
             dryRun: ${{ inputs.dryRun }}
         dependsOn:
-          - step: assert-inputs
+          - step: render
             condition:
               type: succeeded
         weight: 0

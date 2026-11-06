@@ -20,6 +20,7 @@ import {
   planFromSpec,
   validatePlanSpec,
 } from "./zwift_coach_custom.ts";
+import { reviewPlan, type SessionFeedback } from "./zwift_coach_review.ts";
 import type { Fitness, Goal, Plan, PlanSpec } from "./zwift_coach_types.ts";
 import { fileNameFor, renderZwo, validateZwo } from "./zwift_coach_workouts.ts";
 import { hashString } from "./zwift_coach_util.ts";
@@ -56,7 +57,10 @@ const DeliverArgsSchema = z.object({
   subfolder: z.string().default("zwift-coach"),
   syncDir: z.string().optional(),
   bundleDir: z.string().optional(),
+  program: z.string().optional(),
   prune: z.boolean().default(false),
+  pruneLegacy: z.boolean().default(true),
+  refreshIndex: z.boolean().default(true),
   dryRun: z.boolean().default(false),
 });
 
@@ -131,6 +135,28 @@ const ScaffoldArgsSchema = z.object({
   constraints: LooseSchema.optional(),
 });
 
+const FeedbackArgsSchema = z.object({
+  date: z.string(),
+  sessionId: z.string().optional(),
+  enjoyment: z.number().int().min(1).max(5).optional(),
+  bored: z.boolean().optional(),
+  rpe: z.number().int().min(1).max(10).optional(),
+  cadenceMaxed: z.boolean().optional(),
+  recoveryTooAbrupt: z.boolean().optional(),
+  wouldRepeat: z.boolean().optional(),
+  notes: z.string().optional(),
+});
+
+const ReviewArgsSchema = z.object({
+  plan: LooseSchema,
+  fitness: LooseSchema,
+  goal: LooseSchema.optional(),
+  trainingHistory: LooseSchema,
+  feedback: z.array(LooseSchema).default([]),
+  asOf: z.string().optional(),
+  autoAdapt: z.boolean().default(true),
+});
+
 const ValidateArgsSchema = z.object({
   planSpec: z.union([LooseSchema, z.string()]),
   fitness: LooseSchema,
@@ -140,13 +166,14 @@ const ValidateArgsSchema = z.object({
 const RenderArgsSchema = z.object({
   plan: LooseSchema,
   horizonStart: z.string().optional(),
-  horizonDays: z.number().int().positive().max(365).optional(),
+  horizonDays: z.number().int().min(0).max(365).optional(),
   ftpWatts: z.number().positive().optional(),
 });
 
 const PreviewArgsSchema = z.object({
   plan: LooseSchema,
   render: LooseSchema.optional(),
+  review: LooseSchema.optional(),
 });
 
 const SetupSchema = z.object({ report: z.string() });
@@ -202,6 +229,8 @@ const SessionSchema = z.object({
   steps: z.array(z.record(z.string(), z.unknown())),
   progression: z.string().optional(),
   brief: z.string().optional(),
+  workoutName: z.string().optional(),
+  style: z.enum(["torque", "cadence"]).optional(),
 }).passthrough();
 
 const WeekSchema = z.object({
@@ -259,6 +288,7 @@ const DeliverySpecSchema = z.object({
   destination: z.string(),
   riderId: z.string().nullable(),
   subfolder: z.string(),
+  program: z.string().nullable(),
   workouts: z.array(WorkoutSchema),
   bundlePath: z.string().nullable(),
   keepFiles: z.string(),
@@ -301,6 +331,36 @@ const ValidationSchema = z.object({
   checkedAt: z.string(),
 }).passthrough();
 
+const FeedbackRecordSchema = z.object({
+  date: z.string(),
+  sessionId: z.string().optional(),
+  enjoyment: z.number().optional(),
+  bored: z.boolean().optional(),
+  rpe: z.number().optional(),
+  cadenceMaxed: z.boolean().optional(),
+  recoveryTooAbrupt: z.boolean().optional(),
+  wouldRepeat: z.boolean().optional(),
+  notes: z.string().optional(),
+  recordedAt: z.string().optional(),
+}).passthrough();
+
+const FeedbackSchema = z.object({
+  updatedAt: z.string(),
+  records: z.array(FeedbackRecordSchema),
+}).passthrough();
+
+const ReviewSchema = z.object({
+  asOf: z.string(),
+  reviewedAt: z.string(),
+  previousPlanId: z.string(),
+  planId: z.string(),
+  metrics: z.record(z.string(), z.unknown()),
+  signals: z.array(z.record(z.string(), z.unknown())),
+  changes: z.array(z.record(z.string(), z.unknown())),
+  summaryMarkdown: z.string(),
+  changed: z.boolean(),
+}).passthrough();
+
 type Ctx = {
   globalArgs: z.infer<typeof GlobalArgsSchema>;
   logger: {
@@ -313,6 +373,10 @@ type Ctx = {
     name: string,
     data: Record<string, unknown>,
   ) => Promise<{ name: string }>;
+  readResource: (
+    instanceName: string,
+    version?: number,
+  ) => Promise<Record<string, unknown> | null>;
 };
 
 function asFitness(value: Record<string, unknown>): Fitness {
@@ -429,6 +493,18 @@ export const model = {
       lifetime: "30d",
       garbageCollection: 10,
     },
+    feedback: {
+      description: "Post-session enjoyment, boredom, RPE and cadence feedback",
+      schema: FeedbackSchema,
+      lifetime: "infinite",
+      garbageCollection: 50,
+    },
+    review: {
+      description: "Weekly compliance, engagement, weight/readiness review",
+      schema: ReviewSchema,
+      lifetime: "infinite",
+      garbageCollection: 52,
+    },
   },
   methods: {
     // meta-factory-ignore config-lifecycle: setup is a read-only readiness
@@ -453,7 +529,8 @@ export const model = {
           "    @svendowideit/garmin-health health-range",
           "    @svendowideit/garmin-performance performance-range",
           "  methods: analyze, goal, scaffold, validate, plan, render,",
-          "    preview, howto, deliver, record-delivery, ssh-transport",
+          "    preview, feedback, review, howto, deliver, record-delivery,",
+          "    ssh-transport",
           "  delivery: SSH via @swamp/ssh, or local workoutsDir / syncDir /",
           "    bundleDir; see @svendowideit/zwift-coach-deliver",
           "  next: swamp workflow run @svendowideit/zwift-coach-plan",
@@ -643,6 +720,130 @@ export const model = {
         return { dataHandles: [handle] };
       },
     },
+    feedback: {
+      description:
+        "Record post-session enjoyment, boredom, RPE and cadence feedback for " +
+        "the weekly review.",
+      arguments: FeedbackArgsSchema,
+      execute: async (
+        args: z.infer<typeof FeedbackArgsSchema>,
+        ctx: Ctx,
+      ) => {
+        const existing = await ctx.readResource("feedback-current");
+        const records = Array.isArray(existing?.records)
+          ? [...(existing.records as Record<string, unknown>[])]
+          : [];
+        const record: Record<string, unknown> = {
+          date: args.date,
+          recordedAt: new Date().toISOString(),
+        };
+        if (args.sessionId !== undefined) record.sessionId = args.sessionId;
+        if (args.enjoyment !== undefined) record.enjoyment = args.enjoyment;
+        if (args.bored !== undefined) record.bored = args.bored;
+        if (args.rpe !== undefined) record.rpe = args.rpe;
+        if (args.cadenceMaxed !== undefined) {
+          record.cadenceMaxed = args.cadenceMaxed;
+        }
+        if (args.recoveryTooAbrupt !== undefined) {
+          record.recoveryTooAbrupt = args.recoveryTooAbrupt;
+        }
+        if (args.wouldRepeat !== undefined) {
+          record.wouldRepeat = args.wouldRepeat;
+        }
+        if (args.notes !== undefined) record.notes = args.notes;
+        const index = records.findIndex((r) =>
+          r.date === args.date &&
+          (r.sessionId ?? "") === (args.sessionId ?? "")
+        );
+        if (index >= 0) records[index] = record;
+        else records.push(record);
+        const handle = await ctx.writeResource("feedback", "feedback-current", {
+          updatedAt: new Date().toISOString(),
+          records,
+        });
+        ctx.logger.info(
+          "Recorded feedback for {date}: enjoyment {enjoyment}, bored {bored}",
+          {
+            date: args.date,
+            enjoyment: args.enjoyment ?? "-",
+            bored: args.bored ?? false,
+          },
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    review: {
+      description:
+        "Review planned vs actual rides, feedback, weight and readiness; " +
+        "adapt future weeks and write review-current.",
+      arguments: ReviewArgsSchema,
+      execute: async (
+        args: z.infer<typeof ReviewArgsSchema>,
+        ctx: Ctx,
+      ) => {
+        const plan = asPlan(args.plan);
+        const trainingHistory = args.trainingHistory as {
+          rides?: unknown[];
+        };
+        const rides = Array.isArray(trainingHistory.rides)
+          ? trainingHistory.rides as Record<string, unknown>[]
+          : [];
+        const previousReview = await ctx.readResource("review-current");
+        const result = reviewPlan({
+          plan,
+          fitness: asFitness(args.fitness),
+          goal: args.goal ? asGoal(args.goal) : undefined,
+          feedbackSince: typeof previousReview?.reviewedAt === "string"
+            ? previousReview.reviewedAt
+            : undefined,
+          rides,
+          feedback: args.feedback as unknown as SessionFeedback[],
+          asOf: args.asOf?.trim() || undefined,
+          autoAdapt: args.autoAdapt,
+        });
+        const adapted = args.autoAdapt && result.changed;
+        const reviewData = {
+          asOf: result.asOf,
+          reviewedAt: result.reviewedAt,
+          previousPlanId: result.previousPlanId,
+          planId: adapted ? result.planId : result.previousPlanId,
+          metrics: result.metrics as unknown as Record<string, unknown>,
+          signals: result.signals as unknown as Record<string, unknown>[],
+          changes: result.changes as unknown as Record<string, unknown>[],
+          summaryMarkdown: result.summaryMarkdown,
+          changed: result.changed,
+        };
+        const handle = await ctx.writeResource(
+          "review",
+          "review-current",
+          reviewData,
+        );
+        let planHandle: { name: string } | null = null;
+        if (adapted) {
+          planHandle = await ctx.writeResource(
+            "plan",
+            "plan-current",
+            result.adaptedPlan as unknown as Record<string, unknown>,
+          );
+        }
+        ctx.logger.info(result.summaryMarkdown);
+        if (adapted) {
+          ctx.logger.info(
+            "Adapted plan {id}: {changes}",
+            {
+              id: result.planId,
+              changes: result.changes.map((c) => c.kind).join(", "),
+            },
+          );
+        }
+        return {
+          dataHandles: [
+            handle,
+            ...(planHandle ? [planHandle] : []),
+          ],
+        };
+      },
+    },
     plan: {
       description:
         "Generate the periodised weeks and sessions from the fitness and goal, " +
@@ -769,13 +970,18 @@ export const model = {
         ctx: Ctx,
       ) => {
         const plan = asPlan(args.plan);
-        const lines: string[] = [
+        const review = args.review as { summaryMarkdown?: string } | undefined;
+        const lines: string[] = [];
+        if (review?.summaryMarkdown) {
+          lines.push(review.summaryMarkdown, "", "---", "");
+        }
+        lines.push(
           `# ${plan.summary.focus} plan (${plan.summary.weeks} weeks)`,
           "",
           `Start ${plan.startDate} · ${plan.summary.daysPerWeek} days/week · ` +
-          `${plan.summary.hoursPerWeek} h/week · target CTL ${plan.summary.targetCtl}`,
+            `${plan.summary.hoursPerWeek} h/week · target CTL ${plan.summary.targetCtl}`,
           "",
-        ];
+        );
         for (const week of plan.weeks) {
           lines.push(
             `## Week ${week.index} — ${week.theme} ` +
@@ -833,16 +1039,21 @@ export const model = {
           );
         }
         const workouts = render.workouts as unknown as RenderWorkout[];
+        const plan = args.plan ? asPlan(args.plan) : null;
+        const program = args.program || plan?.program || "default";
         const result = await deliverWorkouts(workouts, {
           mode: args.mode as DeliveryMode,
           planId: render.planId,
-          plan: args.plan ? asPlan(args.plan) : null,
+          plan,
           riderId: args.riderId,
           subfolder: args.subfolder,
           workoutsDir: args.workoutsDir,
           syncDir: args.syncDir,
           bundleDir: args.bundleDir,
+          program,
           prune: args.prune,
+          pruneLegacy: args.pruneLegacy,
+          refreshIndex: args.refreshIndex,
           dryRun: args.dryRun,
         });
         const generatedAt = new Date().toISOString();
@@ -856,6 +1067,7 @@ export const model = {
             destination: result.destination,
             riderId: args.riderId ?? null,
             subfolder: args.subfolder,
+            program,
             workouts,
             bundlePath: result.mode === "bundle" ? result.destination : null,
             keepFiles: workouts.map((w) => w.filename).join(","),
@@ -883,24 +1095,26 @@ export const model = {
         );
         if (args.dryRun) {
           ctx.logger.info(
-            "Dry run {mode} -> {dest}: {written} would be written, {skipped} already present, {pruned} would be pruned",
+            "Dry run {mode} -> {dest}: {written} would be written, {skipped} already present, {pruned} would be pruned, {legacy} legacy would be removed",
             {
               mode: result.mode,
               dest: result.destination,
               written: result.written.length,
               skipped: result.skipped.length,
               pruned: result.pruned.length,
+              legacy: result.legacyPruned.length,
             },
           );
         } else {
           ctx.logger.info(
-            "Delivered {mode} to {dest}: {written} written, {skipped} already present, {pruned} pruned",
+            "Delivered {mode} to {dest}: {written} written, {skipped} already present, {pruned} pruned, {legacy} legacy removed",
             {
               mode: result.mode,
               dest: result.destination,
               written: result.written.length,
               skipped: result.skipped.length,
               pruned: result.pruned.length,
+              legacy: result.legacyPruned.length,
             },
           );
         }

@@ -73,11 +73,15 @@ inputs:
     subfolder:
       type: string
       default: zwift-coach
-      description: Isolated folder under the rider ID / sync folder.
+      description: Isolated root folder under the rider ID / sync folder.
+    horizonDays:
+      type: integer
+      default: 0
+      description: Render this many days before delivery; 0 = the whole plan.
     prune:
       type: boolean
-      default: false
-      description: Remove only our marked files not in this render.
+      default: true
+      description: Remove only our marked files in this program folder not in this render.
     dryRun:
       type: boolean
       default: false
@@ -86,6 +90,34 @@ inputs:
 jobs:
   - name: deliver
     steps:
+      - name: assert-plan
+        description: Fail when there is no plan to render.
+        task:
+          type: assert
+          expr: >-
+            data.latest(inputs.coachName, "plan-current") != null
+          message: >-
+            No plan-current exists. Run @svendowideit/zwift-coach-plan or
+            @svendowideit/zwift-coach-custom first.
+          severity: high
+        weight: 0
+        allowFailure: false
+      - name: render
+        description: Render the current plan once for every delivery channel.
+        task:
+          type: model_method
+          modelType: "@svendowideit/zwift-coach"
+          modelName: ${{ inputs.coachName }}
+          methodName: render
+          inputs:
+            plan: ${{ data.latest(inputs.coachName, "plan-current").attributes }}
+            horizonDays: ${{ inputs.horizonDays }}
+        dependsOn:
+          - step: assert-plan
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
       - name: ssh
         description: Try SSH/SCP through @swamp/ssh.
         task:
@@ -105,9 +137,14 @@ jobs:
             riderId: ${{ inputs.riderId }}
             remoteWorkoutsDir: ${{ inputs.remoteWorkoutsDir }}
             subfolder: ${{ inputs.subfolder }}
+            horizonDays: ${{ inputs.horizonDays }}
             bundleDir: ${{ inputs.bundleDir }}
             prune: ${{ inputs.prune }}
             dryRun: ${{ inputs.dryRun }}
+        dependsOn:
+          - step: render
+            condition:
+              type: succeeded
         guard: ${{ inputs.sshAddress == "" }}
         weight: 0
         allowFailure: true

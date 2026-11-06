@@ -164,6 +164,19 @@ Deno.test("sprint sessions use max efforts and absolute target watts", () => {
   assertEquals(legacy, false);
 });
 
+Deno.test("recovery-week non-sprint sessions do not get sprint test steps", () => {
+  const plan = generateCustomPlan(fitnessFixture(), sprintGoal());
+  const recovery = plan.weeks.find((w) => w.phase === "recovery");
+  const nonSprint = recovery?.sessions.filter((s) => s.type !== "sprint") ?? [];
+  for (const session of nonSprint) {
+    assertEquals(
+      session.steps.some((step) => step.kind === "maxeffort"),
+      false,
+      session.title,
+    );
+  }
+});
+
 Deno.test("weight target keeps one endurance session every week", () => {
   const goal = compileCustomGoal(fitnessFixture(), {
     description: SPRINT_GOAL,

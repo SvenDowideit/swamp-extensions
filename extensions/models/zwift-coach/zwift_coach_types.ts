@@ -105,6 +105,10 @@ export interface Session {
   progression?: string;
   /** Human-readable block summary with watts/cadence, for previews and ZWO. */
   brief?: string;
+  /** Short, information-first name for the Zwift workout list. */
+  workoutName?: string;
+  /** Sprint variant, used in the short name. */
+  style?: "torque" | "cadence";
 }
 
 /** One plan week. */
@@ -125,6 +129,12 @@ export interface Plan {
   id: string;
   generatedAt: string;
   goalId: string;
+  /** Stable program slug used as the per-program workout folder. */
+  program?: string;
+  /** Set when a review adapted a previous plan. */
+  adaptedFrom?: string;
+  /** One-shot review adjustments already applied to this plan. */
+  reviewApplied?: string[];
   startDate: string;
   endDate: string;
   weeks: Week[];

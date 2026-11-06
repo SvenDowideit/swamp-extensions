@@ -177,6 +177,49 @@ swamp data query 'behavior("zwift-coach") && name == "validation-current"' \
   --single --json --select content | jq '{errors,warnings,suggestions}'
 ```
 
+## Weekly review and feedback
+
+Record how a session felt. This is the data the plan cannot infer from FIT:
+
+```sh
+swamp model @svendowideit/zwift-coach method run feedback zwift-coach \
+  --input date=2026-11-18 --input enjoyment=2 --input bored=true \
+  --input cadenceMaxed=true --input recoveryTooAbrupt=true
+```
+
+Then run the weekly review:
+
+```sh
+swamp workflow run @svendowideit/zwift-coach-review
+```
+
+The review:
+
+- compares planned sessions with the rides that actually happened;
+- reports completion by type, fun-session completion, enjoyment/boredom and
+  weight/readiness;
+- detects explicit boredom, two low ratings, two skipped fun sessions, a
+  consistently skipped type, low overall adherence, cadence maxed out, abrupt
+  recovery, fast/gaining/stalled weight and low readiness;
+- changes only **future** weeks: rotates the fun format, swaps a boring aerobic
+  type for a similar one, shortens Z2/recovery when adherence is low, protects
+  readiness, adjusts sprint cadence/recovery, and changes weight volume;
+- marks volume/weight adjustments on the plan so the same change is not applied
+  again every week.
+
+`review-current.summaryMarkdown` is a diary-ready weekly note. If you use
+`@svendowideit/diary`, use it as the source text for the day:
+
+```sh
+swamp data query 'behavior("zwift-coach") && name == "review-current"' \
+  --single --json --select content | jq -r '.summaryMarkdown'
+```
+
+The bundled `@svendowideit/zwift-coach-review` workflow runs Monday 06:00
+host-local while `swamp serve` is running. Set `autoAdapt=false` to report
+changes without rewriting the plan, or `autoDeliver=false` to review without
+delivering.
+
 ## Configuration
 
 ### Coach workflow inputs (`@svendowideit/zwift-coach-plan`)
@@ -368,6 +411,8 @@ swamp data query 'modelType == "@svendowideit/zwift-rider" && name == "training-
 | `@svendowideit/zwift-coach` | `render` | Render `workout-*` + `render-current` ZWO |
 | `@svendowideit/zwift-coach` | `preview` | Write `preview-current` markdown |
 | `@svendowideit/zwift-coach` | `howto` | Log the guided commands for inspecting the result |
+| `@svendowideit/zwift-coach` | `feedback` | Record enjoyment, boredom, RPE, cadence/recovery feedback |
+| `@svendowideit/zwift-coach` | `review` | Compare planned vs actual, adapt future weeks, write `review-current` |
 | `@svendowideit/zwift-coach` | `deliver` | Write local, sync or bundle output and record it |
 | `@svendowideit/zwift-coach` | `record-delivery` | Record the SSH/fallback winner and attempts |
 
@@ -383,6 +428,9 @@ swamp data query 'modelType == "@svendowideit/zwift-rider" && name == "training-
 - `scaffold-current` — `GoalSpec`/`PlanSpec` schemas, examples, availability,
   safety limits and the agent prompt.
 - `validation-current` — fail-closed `errors`, `warnings` and `suggestions`.
+- `feedback-current` — post-session enjoyment/boredom/RPE/cadence feedback.
+- `review-current` — weekly compliance, engagement, weight/readiness, changes
+  and the diary-ready `summaryMarkdown`.
 - `delivery-spec` — resolved destination, file list and delivery inputs.
 - `delivery-current` — winning channel, every attempt, warnings and destination.
 
@@ -392,7 +440,46 @@ swamp data query 'modelType == "@svendowideit/zwift-rider" && name == "training-
 | --- | --- |
 | `@svendowideit/zwift-coach-plan` | Built-in goal → plan → render → preview → deliver |
 | `@svendowideit/zwift-coach-custom` | Custom GoalSpec or agent PlanSpec → plan → render → preview → deliver |
+| `@svendowideit/zwift-coach-review` | Weekly planned-vs-actual review → adapt future weeks → render → deliver |
 | `@svendowideit/zwift-coach-backfill` | Backfill history without planning |
+
+### Program folders and Zwift's workout list
+
+Delivery writes one folder per program:
+
+```text
+<workoutsDir>/<riderId>/zwift-coach/<program>/
+```
+
+The program slug comes from the goal metrics, for example
+`custom-power60-power5-weight`. A 12-week program renders 36 workouts, so Zwift
+shows it as roughly three pages of 12.
+
+Workout names put the useful information first, because Zwift only shows the
+first ~20 characters:
+
+```text
+W1 Torq 80rpm
+W1 Cad 135rpm
+W1 Z2 156W
+W5 60s 100rpm
+W4 Test
+```
+
+Delivery now:
+
+- renders the current `plan-current` before staging, so SSH cannot ship a stale
+  `render-current`;
+- writes into the program folder;
+- prunes only its own marked files in that folder when `prune=true` (default);
+- removes the old flat coach files and the old `default` folder once, marker
+  safe;
+- deletes `<Workouts>/<riderId>/workouts.files` after an SSH install so Zwift
+  rebuilds its workout index on the next start.
+
+If Zwift still shows the old list after a restart, fully quit Zwift, run the
+delivery again, then start Zwift. The stale `workouts.files` is removed by the
+delivery workflow.
 
 ### Delivery workflows
 

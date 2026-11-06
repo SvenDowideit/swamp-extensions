@@ -21,7 +21,11 @@ inputs:
     subfolder:
       type: string
       default: zwift-coach
-      description: Isolated folder inside syncDir.
+      description: Isolated root folder inside syncDir.
+    horizonDays:
+      type: integer
+      default: 0
+      description: Render this many days before delivery; 0 = the whole plan.
     prune:
       type: boolean
       default: false
@@ -44,6 +48,22 @@ jobs:
           severity: high
         weight: 0
         allowFailure: false
+      - name: render
+        description: Render the current plan so delivery never uses a stale render.
+        task:
+          type: model_method
+          modelType: "@svendowideit/zwift-coach"
+          modelName: ${{ inputs.coachName }}
+          methodName: render
+          inputs:
+            plan: ${{ data.latest(inputs.coachName, "plan-current").attributes }}
+            horizonDays: ${{ inputs.horizonDays }}
+        dependsOn:
+          - step: assert-inputs
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
       - name: sync
         task:
           type: model_method
@@ -59,7 +79,7 @@ jobs:
             prune: ${{ inputs.prune }}
             dryRun: ${{ inputs.dryRun }}
         dependsOn:
-          - step: assert-inputs
+          - step: render
             condition:
               type: succeeded
         weight: 0

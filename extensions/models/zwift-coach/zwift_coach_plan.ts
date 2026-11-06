@@ -24,7 +24,12 @@ import {
   sessionMinutes,
 } from "./zwift_coach_util.ts";
 import { rampDefaults } from "./zwift_coach_goal.ts";
-import { buildSession, fileNameFor } from "./zwift_coach_workouts.ts";
+import {
+  buildSession,
+  fileNameFor,
+  slug,
+  workoutNameFor,
+} from "./zwift_coach_workouts.ts";
 
 const TYPE_IF: Record<SessionType, number> = {
   recovery: 0.55,
@@ -104,6 +109,15 @@ const COPY: Record<
     purpose: "Event",
   },
 };
+
+/** Stable per-program folder name, based on the goal metrics. */
+export function programName(goal: Goal): string {
+  const metrics = [goal.primary.metric, ...goal.secondary.map((t) => t.metric)]
+    .filter((metric, index, all) => all.indexOf(metric) === index)
+    .slice(0, 3)
+    .join("-");
+  return slug(`${goal.mode}-${metrics}`).slice(0, 32);
+}
 
 /** Monday on or after `date`. */
 export function nextMonday(date: string): string {
@@ -374,6 +388,7 @@ export function generatePlan(
       if (built.computedTss < built.targetTss * 0.9) {
         built.targetTss = built.computedTss;
       }
+      built.workoutName = workoutNameFor(built, fitness.current.ftpWatts);
       sessions.push(built);
     }
     if (!sessions.some((x) => x.fun) && sessions.length > 0) {
@@ -403,6 +418,7 @@ export function generatePlan(
     ),
     generatedAt: new Date().toISOString(),
     goalId: goal.id,
+    program: programName(goal),
     startDate,
     endDate: addDays(startDate, weeks * 7 - 1),
     weeks: weekRows,

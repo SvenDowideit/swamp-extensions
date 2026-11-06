@@ -107,8 +107,8 @@ inputs:
       description: Plan start (Monday); empty = next Monday.
     horizonDays:
       type: integer
-      default: 14
-      description: Render this many days from the plan start.
+      default: 84
+      description: Render this many days from the plan start; 84 = the whole 12-week program.
     backfillDays:
       type: integer
       default: 3650
@@ -192,8 +192,8 @@ inputs:
       description: Isolated folder under the rider ID / sync folder.
     prune:
       type: boolean
-      default: false
-      description: Remove only our marked files not in this render.
+      default: true
+      description: Remove only our marked files in this program folder not in this render.
     dryRun:
       type: boolean
       default: false
@@ -449,6 +449,7 @@ jobs:
             syncDir: ${{ inputs.syncDir }}
             bundleDir: ${{ inputs.bundleDir }}
             subfolder: ${{ inputs.subfolder }}
+            horizonDays: ${{ inputs.horizonDays }}
             prune: ${{ inputs.prune }}
             dryRun: ${{ inputs.dryRun }}
         guard: ${{ inputs.autoDeliver == false }}

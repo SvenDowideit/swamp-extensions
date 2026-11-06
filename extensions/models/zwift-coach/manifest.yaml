@@ -16,7 +16,9 @@ description: >
     week includes one fun session from your own ride mix. It renders
     conservative `.zwo` XML, validates it, and delivers it over SSH, a local
     folder, a sync folder or a bundle. Custom goals come from the rider's words
-    or a validated agent-authored PlanSpec; the agent never writes ZWO.
+    or a validated agent-authored PlanSpec; the agent never writes ZWO. A
+    weekly review measures adherence, enjoyment and weight/readiness, then
+    adapts future weeks.
 
   INSTALL
 
@@ -57,6 +59,14 @@ description: >
         --input description="In 3 months, hold >=700W for 60s..." \
         --input planSpecJson="$(cat plan-spec.json)"
 
+      # Record how a session felt. This feeds the weekly review.
+      swamp model @svendowideit/zwift-coach method run feedback zwift-coach \
+        --input date=2026-11-18 --input enjoyment=3 --input bored=false
+
+      # Weekly review: compare planned vs actual, adapt future weeks, render
+      # and deliver. The trigger runs it Monday 06:00 host-local under serve.
+      swamp workflow run @svendowideit/zwift-coach-review
+
       # Power targets use the rider's own curve, not FTP multiples. The coach
       # reads power-curve-current (5s/15s/60s/300s/1200s) and writes
       # FreeRide/MaxEffort blocks with the absolute watts in the text. If the
@@ -64,6 +74,9 @@ description: >
       # is a separate lever: Z2 volume and weekly trend, not sprint intervals.
       # Sprint days use a 5-6 min rotating primer, separate torque/cadence
       # efforts, a 3 s lead-in, a 10-20 s ramp-down and 2-3 min easy recovery.
+      # Delivery writes one folder per program, uses short names like
+      # "W1 Torq 80rpm", prunes old coach files, and removes workouts.files so
+      # Zwift reindexes on restart.
 
       # Deliver explicitly to a local Zwift workouts folder. riderId is the
       # numeric folder Zwift uses under Workouts/; replace 123456 with yours.
@@ -118,6 +131,14 @@ description: >
       weeks                0 = parse the horizon from the description
       style                optional pyramidal | polarised | sprint override
 
+    Review workflow inputs (`@svendowideit/zwift-coach-review`):
+
+      asOf                 review cutoff; empty = today
+      autoAdapt            rewrite future weeks (default true)
+      refreshDays          refresh recent ride detail (default 14)
+      includeFit           parse FIT only when missing (default false)
+      autoDeliver          deliver the adapted workouts (default true)
+
     Delivery inputs (all workflows):
 
       riderId              Zwift numeric ID; empty = profile-current.id
@@ -170,6 +191,7 @@ models:
 workflows:
   - zwift-coach-plan.yaml
   - zwift-coach-custom.yaml
+  - zwift-coach-review.yaml
   - zwift-coach-backfill.yaml
   - zwift-coach-deliver.yaml
   - zwift-coach-deliver-local.yaml
@@ -201,6 +223,8 @@ additionalFiles:
   - zwift_coach_howto_test.ts
   - zwift_coach_test.ts
   - zwift_coach_custom_test.ts
+  - zwift_coach_review.ts
+  - zwift_coach_review_test.ts
   - zwift_coach_delivery_test.ts
 
 platforms: []

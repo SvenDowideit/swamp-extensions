@@ -32,7 +32,10 @@ export interface DeliverOptions {
   workoutsDir?: string;
   syncDir?: string;
   bundleDir?: string;
+  program?: string;
   prune?: boolean;
+  pruneLegacy?: boolean;
+  refreshIndex?: boolean;
   dryRun?: boolean;
 }
 
@@ -42,6 +45,7 @@ export interface DeliverResult {
   written: string[];
   skipped: string[];
   pruned: string[];
+  legacyPruned: string[];
   warnings: string[];
 }
 
@@ -122,10 +126,42 @@ async function pruneMarked(
   return removed;
 }
 
+async function pruneLegacyFlat(
+  parent: string,
+  dryRun: boolean,
+): Promise<string[]> {
+  const removed: string[] = [];
+  for await (const entry of Deno.readDir(parent)) {
+    if (!entry.isFile || !entry.name.endsWith(".zwo")) continue;
+    const path = join(parent, entry.name);
+    const content = await Deno.readTextFile(path).catch(() => "");
+    if (!hasMarker(content)) continue;
+    removed.push(entry.name);
+    if (!dryRun) await Deno.remove(path);
+  }
+  // Older code wrote into <parent>/default; remove only marked files there.
+  const defaultDir = join(parent, "default");
+  try {
+    for await (const entry of Deno.readDir(defaultDir)) {
+      if (!entry.isFile || !entry.name.endsWith(".zwo")) continue;
+      const path = join(defaultDir, entry.name);
+      const content = await Deno.readTextFile(path).catch(() => "");
+      if (!hasMarker(content)) continue;
+      removed.push(`default/${entry.name}`);
+      if (!dryRun) await Deno.remove(path);
+    }
+    if (!dryRun) await Deno.remove(defaultDir).catch(() => {});
+  } catch {
+    // No legacy default folder.
+  }
+  return removed;
+}
+
 async function writeToDirectory(
   workouts: RenderWorkout[],
   dir: string,
   opts: DeliverOptions,
+  legacyParent?: string,
 ): Promise<DeliverResult> {
   const result: DeliverResult = {
     mode: opts.mode,
@@ -133,6 +169,7 @@ async function writeToDirectory(
     written: [],
     skipped: [],
     pruned: [],
+    legacyPruned: [],
     warnings: [],
   };
   if (!opts.dryRun) await Deno.mkdir(dir, { recursive: true });
@@ -162,6 +199,12 @@ async function writeToDirectory(
   }
   if (opts.prune) {
     result.pruned = await pruneMarked(dir, keep, opts.dryRun ?? false);
+  }
+  if (legacyParent && opts.pruneLegacy) {
+    result.legacyPruned = await pruneLegacyFlat(
+      legacyParent,
+      opts.dryRun ?? false,
+    );
   }
   return result;
 }
@@ -202,6 +245,7 @@ async function writeBundle(
     written: [],
     skipped: [],
     pruned: [],
+    legacyPruned: [],
     warnings: [],
   };
   if (!opts.dryRun) {
@@ -248,7 +292,7 @@ async function writeBundle(
 }
 
 /** Deliver the rendered workouts through one local adapter. */
-export function deliverWorkouts(
+export async function deliverWorkouts(
   workouts: RenderWorkout[],
   opts: DeliverOptions,
 ): Promise<DeliverResult> {
@@ -260,13 +304,29 @@ export function deliverWorkouts(
     if (!opts.riderId) throw new Error("local delivery needs riderId");
     assertSegment(opts.riderId, "rider id");
     assertSegment(opts.subfolder, "subfolder");
-    return writeToDirectory(
+    if (opts.program) assertSegment(opts.program, "program");
+    const parent = join(opts.workoutsDir, opts.riderId, opts.subfolder);
+    const result = await writeToDirectory(
       workouts,
-      join(opts.workoutsDir, opts.riderId, opts.subfolder),
+      opts.program ? join(parent, opts.program) : parent,
       opts,
+      opts.program ? parent : undefined,
     );
+    if (opts.refreshIndex) {
+      await Deno.remove(
+        join(opts.workoutsDir, opts.riderId, "workouts.files"),
+      ).catch(() => {});
+    }
+    return result;
   }
   if (!opts.syncDir) throw new Error("sync delivery needs syncDir");
   assertSegment(opts.subfolder, "subfolder");
-  return writeToDirectory(workouts, join(opts.syncDir, opts.subfolder), opts);
+  if (opts.program) assertSegment(opts.program, "program");
+  const parent = join(opts.syncDir, opts.subfolder);
+  return writeToDirectory(
+    workouts,
+    opts.program ? join(parent, opts.program) : parent,
+    opts,
+    opts.program ? parent : undefined,
+  );
 }

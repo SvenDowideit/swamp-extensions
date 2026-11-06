@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/zwift"
-version: "2026.10.01.1"
+version: "2026.11.06.1"
 description: |
   Recommend which Zwift events to enter, from your own ride history.
 
@@ -16,7 +16,11 @@ description: |
     bias — and every score component is written out with a human-readable
     reason, so a pick can be audited rather than merely trusted. It also keeps
     your ride history and the event calendar in swamp so other models can use
-    them. Read-only: it never writes to your Zwift account.
+    them. It also includes a read-only `backfill` method: every available Zwift
+    ride, per-ride FTP/HR/max power, optional FIT normalised power, and a merge
+    with Garmin activities. It writes training-history, load-daily,
+    history-years and availability-current; it never writes to your Zwift
+    account.
 
   INSTALL
 
@@ -45,6 +49,11 @@ description: |
 
       # Verify credentials/config and see exactly what is missing (read-only).
       swamp model @svendowideit/zwift-rider method run setup zwift-rider
+
+      # Backfill every available ride, parse FITs and merge Garmin history
+      # (read-only; the coach extension reads the resources it writes).
+      swamp model @svendowideit/zwift-rider method run backfill zwift-rider \
+        --input backfillDays=3650 --input includeFit=true
 
       # Sync 120 days of history, derive the ability profile, and fetch 10 days
       # of events. Scheduled 06:00, 12:00 and 15:00 local time.
@@ -103,6 +112,8 @@ paths:
 models:
   - zwift_auth.ts
   - zwift_util.ts
+  - zwift_history.ts
+  - zwift_fit.ts
   - zwift_rider.ts
   - zwift_events.ts
   - zwift_recommender.ts
@@ -116,6 +127,8 @@ additionalFiles:
   - LICENSE.txt
   - zwift_auth_test.ts
   - zwift_util_test.ts
+  - zwift_history_test.ts
+  - zwift_fit_test.ts
   - zwift_rider_test.ts
   - zwift_events_test.ts
   - zwift_recommender_test.ts

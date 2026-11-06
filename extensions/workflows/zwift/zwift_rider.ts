@@ -25,6 +25,18 @@
 import { z } from "npm:zod@4";
 import { getAccessToken, type ZwiftTokens } from "./zwift_auth.ts";
 import {
+  applyLoad,
+  buildAvailability,
+  buildDailyLoad,
+  buildHistoryYears,
+  calibrateGarminLoad,
+  type HistoryRide,
+  type HistorySources,
+  mergeRides,
+  normalizeGarminRide,
+} from "./zwift_history.ts";
+import { parseFitSession } from "./zwift_fit.ts";
+import {
   clamp,
   decayWeight,
   DURATION_BUCKET_MINUTES,
@@ -362,6 +374,163 @@ const HistorySchema = z.object({
   rides: z.array(RideRowSchema),
 });
 
+const HistoryRideSchema = z.object({
+  id: z.string(),
+  source: z.enum(["zwift", "garmin"]),
+  name: z.string(),
+  sport: z.string(),
+  startMs: z.number(),
+  localDate: z.string(),
+  localHour: z.number(),
+  isoDayOfWeek: z.number(),
+  durationSeconds: z.number(),
+  movingSeconds: z.number(),
+  distanceMeters: z.number(),
+  elevationMeters: z.number(),
+  avgPower: z.number().nullable(),
+  npWatts: z.number().nullable(),
+  ftpWatts: z.number().nullable(),
+  tss: z.number().nullable(),
+  tssSource: z.enum(["np", "garmin_calibrated", "avg_power", "missing"]),
+  avgHr: z.number().nullable(),
+  maxHr: z.number().nullable(),
+  avgCadence: z.number().nullable(),
+  maxPower: z.number().nullable(),
+  eventId: z.number().nullable(),
+  routeId: z.number().nullable(),
+  worldId: z.number().nullable(),
+  garminTrainingLoad: z.number().nullable(),
+  detailFetchedAt: z.string().nullable(),
+  fitFetchedAt: z.string().nullable(),
+});
+
+const SourceRangeSchema = z.object({
+  from: z.string().nullable(),
+  to: z.string().nullable(),
+  rides: z.number(),
+  truncated: z.boolean(),
+});
+
+const HistorySourcesSchema = z.object({
+  zwift: SourceRangeSchema,
+  garmin: SourceRangeSchema,
+  merged: z.object({
+    from: z.string().nullable(),
+    to: z.string().nullable(),
+    rides: z.number(),
+    duplicates: z.number(),
+  }),
+});
+
+const DataQualitySchema = z.object({
+  npRides: z.number(),
+  hrRides: z.number(),
+  estimatedRides: z.number(),
+  missingRides: z.number(),
+  fitParsed: z.number().default(0),
+  fitFetchedNoNp: z.number().default(0),
+  fitFailed: z.number().default(0),
+  reusedRides: z.number().default(0),
+});
+
+const TrainingHistorySchema = z.object({
+  generatedAt: z.string(),
+  timeZone: z.string(),
+  truncated: z.boolean(),
+  rides: z.array(HistoryRideSchema),
+  sources: HistorySourcesSchema,
+  dataQuality: DataQualitySchema,
+});
+
+const LoadDaySchema = z.object({
+  date: z.string(),
+  minutes: z.number(),
+  tss: z.number(),
+  ctl: z.number(),
+  atl: z.number(),
+  tsb: z.number(),
+  rides: z.number(),
+});
+
+const LoadDailySchema = z.object({
+  generatedAt: z.string(),
+  timeZone: z.string(),
+  from: z.string(),
+  to: z.string(),
+  days: z.array(LoadDaySchema),
+  dataQuality: DataQualitySchema,
+  sources: HistorySourcesSchema,
+});
+
+const HistoryYearSchema = z.object({
+  year: z.number(),
+  rides: z.number(),
+  hours: z.number(),
+  km: z.number(),
+  elevationM: z.number(),
+  tss: z.number(),
+  peakCtl: z.number(),
+  maxFtp: z.number().nullable(),
+  avgFtp: z.number().nullable(),
+  sources: z.object({ zwift: z.number(), garmin: z.number() }),
+});
+
+const HistoryYearsSchema = z.object({
+  generatedAt: z.string(),
+  years: z.array(HistoryYearSchema),
+  totals: z.object({
+    rides: z.number(),
+    hours: z.number(),
+    km: z.number(),
+    elevationM: z.number(),
+    tss: z.number(),
+  }),
+  sources: HistorySourcesSchema,
+  truncated: z.boolean(),
+});
+
+const AvailabilityStatsSchema = z.object({
+  from: z.string(),
+  to: z.string(),
+  rides: z.number(),
+  daysPerWeek: z.object({ median: z.number(), p80: z.number() }),
+  hoursPerWeek: z.object({ median: z.number(), p80: z.number() }),
+  preferredDays: z.array(z.number()),
+  preferredHours: z.array(z.number()),
+  sessionMinutes: z.object({ p50: z.number(), p90: z.number() }),
+  recent8w: z.object({ daysPerWeek: z.number(), hoursPerWeek: z.number() }),
+  monthlyHours: z.array(z.object({ month: z.string(), hours: z.number() })),
+  gapDays: z.number(),
+  lowHistory: z.boolean(),
+});
+
+const AvailabilitySchema = z.object({
+  generatedAt: z.string(),
+  source: z.enum(["zwift", "merged"]),
+  window: z.object({ from: z.string(), to: z.string() }),
+  zwift: AvailabilityStatsSchema,
+  merged: AvailabilityStatsSchema,
+  gapDays: z.number(),
+  sources: HistorySourcesSchema,
+  lowHistory: z.boolean(),
+});
+
+const BackfillArgsSchema = z.object({
+  backfillDays: z.number().int().positive().default(3650),
+  backfillMaxActivities: z.number().int().positive().max(2000).default(2000),
+  includeDetail: z.boolean().default(true),
+  includeFit: z.boolean().default(true),
+  includeGarmin: z.boolean().default(true),
+  garminActivities: z.array(z.record(z.string(), z.unknown())).default([]),
+  garminTruncated: z.boolean().default(false),
+  detailDelayMs: z.number().int().min(0).max(5000).default(100),
+  fitDelayMs: z.number().int().min(0).max(5000).default(50),
+  fitConcurrency: z.number().int().min(1).max(8).default(4),
+  ftpFallback: z.number().positive().optional(),
+  refreshDays: z.number().int().min(0).max(365).default(7),
+  force: z.boolean().default(false),
+});
+
 // ---------------------------------------------------------------------------
 // Zwift response shaping (defensive: field names drift)
 // ---------------------------------------------------------------------------
@@ -462,6 +631,73 @@ export function normalizeActivity(
     eventId: pickNumber(raw, "eventId"),
     decayWeight: decayWeight(nowMs - startMs, halfLifeDays),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Backfill helpers
+// ---------------------------------------------------------------------------
+
+/** Convert a normalised Zwift activity into the merged history shape. */
+function toHistoryRide(a: Activity): HistoryRide {
+  return {
+    id: a.id,
+    source: "zwift",
+    name: a.name,
+    sport: a.sport,
+    startMs: a.startMs,
+    localDate: a.localDate,
+    localHour: a.localHour,
+    isoDayOfWeek: a.isoDayOfWeek,
+    durationSeconds: a.durationSeconds,
+    movingSeconds: a.movingSeconds,
+    distanceMeters: a.distanceMeters,
+    elevationMeters: a.elevationMeters,
+    avgPower: a.avgPower,
+    npWatts: null,
+    ftpWatts: null,
+    tss: null,
+    tssSource: "missing",
+    avgHr: a.avgHeartRate,
+    maxHr: null,
+    avgCadence: a.avgCadence,
+    maxPower: null,
+    eventId: a.eventId,
+    routeId: a.routeId,
+    worldId: a.worldId,
+    garminTrainingLoad: null,
+    detailFetchedAt: null,
+    fitFetchedAt: null,
+  };
+}
+
+/** Sleep without pulling in a dependency. */
+function delay(ms: number): Promise<void> {
+  return ms > 0
+    ? new Promise((resolve) => setTimeout(resolve, ms))
+    : Promise.resolve();
+}
+
+/**
+ * Fetch one Zwift FIT file from S3 and read the session normalised power.
+ * Returns null when the file is missing, not a FIT, or has no session.
+ */
+async function fetchFitNp(
+  bucket: string,
+  key: string,
+  fetchImpl: typeof fetch,
+): Promise<{ np: number | null; fetched: boolean }> {
+  try {
+    const res = await fetchImpl(
+      `https://${bucket}.s3.amazonaws.com/${key}`,
+      { signal: AbortSignal.timeout(60_000) },
+    );
+    if (!res.ok) return { np: null, fetched: false };
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    const session = await parseFitSession(bytes);
+    return { np: session?.normalizedPower ?? null, fetched: true };
+  } catch {
+    return { np: null, fetched: false };
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -831,7 +1067,7 @@ export function buildAbilityProfile(
 /** The `@svendowideit/zwift-rider` model definition. */
 export const model = {
   type: "@svendowideit/zwift-rider",
-  version: "2026.10.01.1",
+  version: "2026.11.06.1",
   upgrades: [
     {
       toVersion: "2026.10.01.1",
@@ -840,6 +1076,14 @@ export const model = {
         "(vaultName: DEFAULT_VAULT), so the sensitive refresh token is always " +
         "stored there instead of the first user vault alphabetically — creating " +
         "another vault can no longer redirect it. Global arguments unchanged.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.06.1",
+      description:
+        "Adds the read-only backfill method and training-history, load-daily, " +
+        "history-years and availability-current resources for the coach. " +
+        "Existing resources and global arguments are unchanged.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -890,6 +1134,32 @@ export const model = {
     setup: {
       description: "Configuration-readiness report from the setup method",
       schema: SetupSchema,
+      lifetime: "infinite",
+      garbageCollection: 5,
+    },
+    trainingHistory: {
+      description:
+        "Merged Zwift+Garmin rides with TSS and the FTP used at each ride",
+      schema: TrainingHistorySchema,
+      lifetime: "infinite",
+      garbageCollection: 5,
+    },
+    loadDaily: {
+      description: "Daily TSS, CTL, ATL and TSB, including rest days",
+      schema: LoadDailySchema,
+      lifetime: "infinite",
+      garbageCollection: 5,
+    },
+    historyYears: {
+      description: "One row per calendar year from the merged history",
+      schema: HistoryYearsSchema,
+      lifetime: "infinite",
+      garbageCollection: 5,
+    },
+    availability: {
+      description:
+        "History-derived available days/hours, preferred times and recent trend",
+      schema: AvailabilitySchema,
       lifetime: "infinite",
       garbageCollection: 5,
     },
@@ -1157,6 +1427,357 @@ export const model = {
             summaryHandle,
             historyHandle,
             ...handles,
+          ],
+        };
+      },
+    },
+    "backfill": {
+      description:
+        "Fetch as much Zwift history as the API returns, enrich each ride " +
+        "with profileFtp/HR/max power, optionally parse FIT for NP, merge " +
+        "Garmin activities, and write load-daily, history-years and " +
+        "availability-current. Read-only against Zwift.",
+      arguments: BackfillArgsSchema,
+      execute: async (
+        args: z.infer<typeof BackfillArgsSchema>,
+        ctx: RiderContext,
+      ) => {
+        const g = ctx.globalArgs;
+        const nowMs = Date.now();
+        const historyDays = args.backfillDays;
+        const maxActivities = args.backfillMaxActivities;
+        const fetchImpl = fetch;
+
+        const { tokens, via } = await resolveAuth(ctx);
+        const sessionHandle = await ctx.writeResource(
+          "session",
+          "session-auth",
+          {
+            signedInAt: new Date(nowMs).toISOString(),
+            via,
+            expiresAt: Number.isFinite(tokens.expiresAt)
+              ? new Date(tokens.expiresAt).toISOString()
+              : null,
+            hasRefreshToken: tokens.refreshToken !== null,
+            refreshToken: tokens.refreshToken,
+          },
+        );
+
+        const rawProfile = await apiGet(
+          "/api/profiles/me",
+          tokens.accessToken,
+          g.apiBase,
+          fetchImpl,
+        ) as Record<string, unknown>;
+        const riderId = profileIdOf(rawProfile);
+        if (!riderId) {
+          throw new Error("Zwift profile response contained no athlete id");
+        }
+        const profileFtp = pickNumber(rawProfile, "ftp", "ftpWatts");
+        const ftpFallback = args.ftpFallback ?? profileFtp;
+
+        const { activities: rawActivities, truncated } = await fetchActivities(
+          riderId,
+          maxActivities,
+          tokens.accessToken,
+          g.apiBase,
+          fetchImpl,
+        );
+        const cutoff = nowMs - historyDays * 86_400_000;
+        const existing = await ctx.readResource("training-history");
+        const existingRides = Array.isArray(existing?.rides)
+          ? existing?.rides as unknown as HistoryRide[]
+          : [];
+        const existingById = new Map(
+          existingRides
+            .filter((r) => r.source === "zwift")
+            .map((r) => [r.id, r]),
+        );
+        const recentCutoff = nowMs - args.refreshDays * 86_400_000;
+        const rawById = new Map<string, Record<string, unknown>>();
+        const seenIds = new Set<string>();
+        const zwiftRides: HistoryRide[] = [];
+        let reused = 0;
+        let detailFetched = 0;
+        let fitParsed = 0;
+        let fitNoNp = 0;
+        let fitFailed = 0;
+        const fitJobs: { ride: HistoryRide; bucket: string; key: string }[] =
+          [];
+
+        for (const raw of rawActivities) {
+          const a = normalizeActivity(raw, g.timezone, g.halfLifeDays, nowMs);
+          if (!a) continue;
+          if (a.startMs < cutoff) continue;
+          if (g.sport && a.sport !== g.sport) continue;
+          seenIds.add(a.id);
+          rawById.set(a.id, raw);
+          const fresh = toHistoryRide(a);
+          const previous = existingById.get(a.id);
+          let ride = fresh;
+          if (previous && !args.force) {
+            ride = {
+              ...fresh,
+              avgHr: fresh.avgHr ?? previous.avgHr,
+              maxHr: previous.maxHr,
+              avgCadence: fresh.avgCadence ?? previous.avgCadence,
+              maxPower: previous.maxPower,
+              npWatts: previous.npWatts,
+              ftpWatts: previous.ftpWatts,
+              tss: previous.tss,
+              tssSource: previous.tssSource,
+              detailFetchedAt: previous.detailFetchedAt,
+              fitFetchedAt: previous.fitFetchedAt,
+              garminTrainingLoad: previous.garminTrainingLoad,
+            };
+            reused++;
+          }
+          const isRecent = ride.startMs >= recentCutoff;
+          const needsDetail = args.includeDetail && (
+            args.force || !previous || !previous.detailFetchedAt ||
+            (isRecent && args.refreshDays > 0)
+          );
+          // FIT files are immutable once uploaded; only fetch when we have
+          // never fetched this activity's file. Detail is what gets refreshed
+          // for recent rides.
+          const needsFit = args.includeFit && ride.npWatts === null && (
+            args.force || !previous || !previous.fitFetchedAt
+          );
+
+          if (needsDetail) {
+            try {
+              const detail = await apiGet(
+                `/api/activities/${encodeURIComponent(ride.id)}`,
+                tokens.accessToken,
+                g.apiBase,
+                fetchImpl,
+              ) as Record<string, unknown>;
+              ride.ftpWatts = pickNumber(detail, "profileFtp");
+              ride.avgHr = pickNumber(detail, "avgHeartRate") ?? ride.avgHr;
+              ride.maxHr = pickNumber(detail, "maxHeartRate");
+              ride.avgCadence =
+                pickNumber(detail, "avgCadenceInRotationsPerMinute") ??
+                  ride.avgCadence;
+              ride.maxPower = pickNumber(detail, "maxWatts");
+              ride.detailFetchedAt = new Date().toISOString();
+              detailFetched++;
+            } catch (err) {
+              ctx.logger.warning(
+                "Activity detail unavailable for {id}: {err}",
+                { id: ride.id, err: (err as Error).message },
+              );
+            }
+            if (args.detailDelayMs > 0) await delay(args.detailDelayMs);
+          }
+
+          if (needsFit) {
+            const rawActivity = rawById.get(ride.id);
+            const bucket = rawActivity?.fitFileBucket;
+            const key = rawActivity?.fitFileKey;
+            if (typeof bucket === "string" && typeof key === "string") {
+              fitJobs.push({ ride, bucket, key });
+            }
+          }
+
+          zwiftRides.push(ride);
+          if (zwiftRides.length % 25 === 0) {
+            ctx.logger.info(
+              "Backfilled {i}/{n} Zwift rides (reused {reused}, detail {detail}, fit {fit})",
+              {
+                i: zwiftRides.length,
+                n: rawActivities.length,
+                reused,
+                detail: detailFetched,
+                fit: fitParsed,
+              },
+            );
+          }
+        }
+
+        for (let i = 0; i < fitJobs.length; i += args.fitConcurrency) {
+          const chunk = fitJobs.slice(i, i + args.fitConcurrency);
+          await Promise.all(chunk.map(async (job) => {
+            const fit = await fetchFitNp(job.bucket, job.key, fetchImpl);
+            if (fit.fetched) {
+              job.ride.fitFetchedAt = new Date().toISOString();
+              if (fit.np !== null) {
+                job.ride.npWatts = fit.np;
+                fitParsed++;
+              } else {
+                fitNoNp++;
+              }
+            } else {
+              fitFailed++;
+            }
+          }));
+          if (args.fitDelayMs > 0) await delay(args.fitDelayMs);
+          if (fitJobs.length > 8) {
+            ctx.logger.info(
+              "FIT {done}/{total} (NP {np}, no NP {noNp}, failed {failed})",
+              {
+                done: Math.min(i + args.fitConcurrency, fitJobs.length),
+                total: fitJobs.length,
+                np: fitParsed,
+                noNp: fitNoNp,
+                failed: fitFailed,
+              },
+            );
+          }
+        }
+
+        // Preserve older rides already in training-history unless this is an
+        // explicit repair. A narrower window or the API cap must never shrink
+        // the cached history by accident.
+        if (!args.force) {
+          for (const previous of existingById.values()) {
+            if (!seenIds.has(previous.id)) zwiftRides.push(previous);
+          }
+          zwiftRides.sort((a, b) => a.startMs - b.startMs);
+        }
+
+        const existingGarmin = existingRides.filter((r) =>
+          r.source === "garmin"
+        );
+        const garminInput = (args.includeGarmin ? args.garminActivities : [])
+          .map((raw) => normalizeGarminRide(raw, g.timezone))
+          .filter((r): r is HistoryRide => r !== null && r.sport === "CYCLING");
+        const garminRides = args.includeGarmin
+          ? (garminInput.length > 0 ? garminInput : existingGarmin)
+          : [];
+        const merged = mergeRides(zwiftRides, garminRides);
+        const calibration = calibrateGarminLoad(merged.rides, ftpFallback);
+        const loaded = applyLoad(merged.rides, {
+          ftpFallback,
+          ftpHistory: zwiftRides
+            .filter((r) => r.ftpWatts !== null)
+            .map((r) => ({
+              startMs: r.startMs,
+              ftpWatts: r.ftpWatts as number,
+            })),
+          garminCalibration: calibration,
+        });
+
+        const rangeOf = (rides: HistoryRide[]) => {
+          const dates = rides.map((r) => r.localDate).sort();
+          return {
+            from: dates[0] ?? null,
+            to: dates[dates.length - 1] ?? null,
+            rides: rides.length,
+          };
+        };
+        const zwiftRange = rangeOf(zwiftRides);
+        const garminRange = rangeOf(garminRides);
+        const mergedRange = rangeOf(loaded);
+        const sources: HistorySources = {
+          zwift: { ...zwiftRange, truncated },
+          garmin: { ...garminRange, truncated: args.garminTruncated },
+          merged: { ...mergedRange, duplicates: merged.duplicates },
+        };
+
+        const dataQuality = {
+          npRides: loaded.filter((r) => r.tssSource === "np").length,
+          hrRides: loaded.filter((r) => r.tssSource === "garmin_calibrated")
+            .length,
+          estimatedRides: loaded.filter((r) => r.tssSource === "avg_power")
+            .length,
+          missingRides: loaded.filter((r) => r.tssSource === "missing")
+            .length,
+          fitParsed,
+          fitFetchedNoNp: fitNoNp,
+          fitFailed,
+          reusedRides: reused,
+        };
+        const today = localParts(Date.now(), g.timezone).date;
+        const daily = buildDailyLoad(loaded, { today, dataQuality, sources });
+        const years = buildHistoryYears(daily.days, loaded);
+        const zwiftAvailability = buildAvailability(zwiftRides, {
+          today,
+          source: "zwift",
+        });
+        const mergedAvailability = buildAvailability(loaded, {
+          today,
+          source: "merged",
+        });
+        const availability = {
+          generatedAt: new Date(nowMs).toISOString(),
+          source: "merged" as const,
+          window: {
+            from: mergedAvailability.from,
+            to: mergedAvailability.to,
+          },
+          zwift: zwiftAvailability,
+          merged: mergedAvailability,
+          gapDays: mergedAvailability.gapDays,
+          sources,
+          lowHistory: mergedAvailability.lowHistory,
+        };
+        const generatedAt = new Date(nowMs).toISOString();
+        const trainingHandle = await ctx.writeResource(
+          "trainingHistory",
+          "training-history",
+          {
+            generatedAt,
+            timeZone: g.timezone || "system",
+            truncated: truncated || args.garminTruncated,
+            rides: loaded,
+            sources,
+            dataQuality,
+          },
+        );
+        const loadHandle = await ctx.writeResource("loadDaily", "load-daily", {
+          generatedAt,
+          timeZone: g.timezone || "system",
+          from: daily.from,
+          to: daily.to,
+          days: daily.days,
+          dataQuality,
+          sources,
+        });
+        const yearsHandle = await ctx.writeResource(
+          "historyYears",
+          "history-years",
+          {
+            generatedAt,
+            years,
+            totals: {
+              rides: years.reduce((n, y) => n + y.rides, 0),
+              hours: Math.round(years.reduce((n, y) => n + y.hours, 0) * 10) /
+                10,
+              km: Math.round(years.reduce((n, y) => n + y.km, 0) * 10) / 10,
+              elevationM: years.reduce((n, y) => n + y.elevationM, 0),
+              tss: Math.round(years.reduce((n, y) => n + y.tss, 0) * 10) / 10,
+            },
+            sources,
+            truncated: truncated || args.garminTruncated,
+          },
+        );
+        const availabilityHandle = await ctx.writeResource(
+          "availability",
+          "availability-current",
+          availability,
+        );
+        ctx.logger.info(
+          "History refreshed: {zwift} Zwift rides ({reused} reused, " +
+            "{detail} detail, {fit} FIT NP), {garmin} Garmin, " +
+            "{np} NP / {est} estimated / {missing} missing",
+          {
+            zwift: zwiftRides.length,
+            reused,
+            detail: detailFetched,
+            fit: fitParsed,
+            garmin: garminRides.length,
+            np: dataQuality.npRides,
+            est: dataQuality.estimatedRides,
+            missing: dataQuality.missingRides,
+          },
+        );
+        return {
+          dataHandles: [
+            sessionHandle,
+            trainingHandle,
+            loadHandle,
+            yearsHandle,
+            availabilityHandle,
           ],
         };
       },

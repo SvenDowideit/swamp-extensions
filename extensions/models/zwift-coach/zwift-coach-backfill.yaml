@@ -1,0 +1,93 @@
+id: 2b8e4d6a-1c3f-4a7b-9e5d-6f0a1b2c3d4e
+name: "@svendowideit/zwift-coach-backfill"
+description: |
+  Backfill every available Zwift ride (optionally parsing FIT for NP), merge
+  the Garmin activity list when that model exists, and derive the load and
+  availability resources the coach reads. Read-only.
+
+  Manual run:
+    swamp workflow run @svendowideit/zwift-coach-backfill
+    swamp workflow run @svendowideit/zwift-coach-backfill --input includeFit=false
+tags:
+  domain: fitness
+inputs:
+  properties:
+    riderName:
+      type: string
+      default: zwift-rider
+      description: Zwift rider model instance name.
+    coachName:
+      type: string
+      default: zwift-coach
+      description: Coach model instance name.
+    garminName:
+      type: string
+      default: garmin-activities
+      description: Garmin activities model instance name (optional).
+    backfillDays:
+      type: integer
+      default: 3650
+      description: Zwift history window in days for backfill.
+    backfillMaxActivities:
+      type: integer
+      default: 2000
+      description: Maximum Zwift activities to request (page cap is 2000).
+    includeFit:
+      type: boolean
+      default: true
+      description: Parse Zwift FIT session NP (slow, accurate).
+    includeDetail:
+      type: boolean
+      default: true
+      description: Fetch the per-activity detail endpoint.
+    refreshDays:
+      type: integer
+      default: 7
+      description: Refresh detail for rides newer than this many days.
+    force:
+      type: boolean
+      default: false
+      description: Ignore the cache and re-fetch every ride (one-off repair).
+    fitConcurrency:
+      type: integer
+      default: 4
+      description: Parallel FIT downloads during a backfill (1-8).
+  required: []
+jobs:
+  - name: backfill
+    description: Fetch/merge history and derive load/availability.
+    steps:
+      - name: backfill
+        task:
+          type: model_method
+          modelType: "@svendowideit/zwift-rider"
+          modelName: ${{ inputs.riderName }}
+          methodName: backfill
+          inputs:
+            backfillDays: ${{ inputs.backfillDays }}
+            backfillMaxActivities: ${{ inputs.backfillMaxActivities }}
+            includeDetail: ${{ inputs.includeDetail }}
+            includeFit: ${{ inputs.includeFit }}
+            refreshDays: ${{ inputs.refreshDays }}
+            force: ${{ inputs.force }}
+            fitConcurrency: ${{ inputs.fitConcurrency }}
+            includeGarmin: true
+            garminActivities: ${{ data.latest(inputs.garminName, "activity-list").?attributes.?activities.orValue([]) }}
+        weight: 0
+        allowFailure: false
+      - name: assert-load
+        description: Fail with a clear message if no load series was produced.
+        task:
+          type: assert
+          expr: >-
+            size(data.latest(inputs.riderName, "load-daily").attributes.days) > 0
+          message: >-
+            No daily load was produced. Check the Zwift credentials/history and
+            the backfill logs.
+          severity: high
+        dependsOn:
+          - step: backfill
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false

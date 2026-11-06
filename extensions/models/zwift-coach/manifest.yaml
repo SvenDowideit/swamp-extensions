@@ -1,0 +1,138 @@
+manifestVersion: 1
+name: "@svendowideit/zwift-coach"
+version: "2026.11.06.1"
+description: >
+  Turn your own Zwift and Garmin history into a periodised training plan and
+  `.zwo` workouts — read-only in this release.
+
+  WHAT IT DOES
+
+    Most training plans ask you to guess your available days and hours. This
+    one derives them from the history you already have: it backfills every
+    Zwift ride the API returns, optionally parses each FIT file for normalised
+    power, merges as much Garmin history as exists, and infers the days, hours,
+    preferred start times and typical session length you actually ride. It then
+    computes TSS/CTL/ATL/TSB, weight and readiness trends, and builds a
+    periodised plan that fits that capacity instead of an aspirational one.
+    Every session has a title, a one-line hook and a "why"; each week includes
+    one fun session chosen from your own race/banded/group/workout mix, so the
+    plan is designed for adherence, not just physiological correctness. The
+    renderer writes conservative `.zwo` XML, validated against the limits Zwift
+    applies, ready to install or hand to a delivery workflow later.
+
+    This release is Phase 1/2: history, analysis, planning and rendering. It
+    does not deliver anything to Zwift yet; SSH/SCP delivery will be delegated
+    to the existing `@swamp/ssh` extension in a later phase, not reimplemented
+    here. Custom/agent-authored goals are also a later phase; the built-in
+    regain/improve/event goals work now.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/zwift-coach
+
+  DEPENDENCIES
+
+    `@svendowideit/zwift`, declared in `dependencies:` and pulled automatically.
+    It owns the Zwift login and history; this extension reads the resources it
+    writes. Garmin data is optional: install `@svendowideit/garmin` if you want
+    outdoor history, weight/body composition, wellness/readiness and
+    performance. Nothing is installed on the host.
+
+  RUN
+
+      # One-time: verify the Zwift credentials and see what the coach expects.
+      swamp model @svendowideit/zwift-rider method run setup zwift-rider
+
+      # Backfill every available Zwift ride, parse FITs and merge Garmin.
+      # Incremental: detail/FIT already cached in training-history is reused.
+      swamp workflow run @svendowideit/zwift-coach-backfill \
+        --input backfillDays=3650 --input includeFit=true
+
+      # Optional: pull a wider Garmin cycling window before planning. The
+      # coach reads the most recent garmin-activities activity-list.
+      swamp workflow run @svendowideit/garmin-activities-sync \
+        --input startDate=2015-01-01 --input activityType=cycling
+
+      # Analyse, compile a goal, plan 12 weeks, render 14 days and preview.
+      swamp workflow run @svendowideit/zwift-coach-plan \
+        --input goal=improve --input targetFtpPct=0.05
+
+      # Regain the fitness you had, using the history-derived capacity.
+      swamp workflow run @svendowideit/zwift-coach-plan --input goal=regain
+
+      # Read the plan and the next two weeks without trusting a summary.
+      swamp data query 'behavior("zwift-coach") && name == "plan-current"' \
+        --single --json --select content | jq '.weeks[0]'
+      swamp data query 'behavior("zwift-coach") && name == "preview-current"' \
+        --single --json --select content | jq -r '.markdown'
+
+  CONFIGURE
+
+    Workflow inputs (`@svendowideit/zwift-coach-plan`):
+
+      goal                 regain | improve | event (default improve)
+      targetDate           YYYY-MM-DD for an event goal
+      targetFtpPct         FTP improvement fraction (default 0.05)
+      targetWeightKg       optional secondary weight target (default 65)
+      daysPerWeek          override; 0 = infer from merged history
+      hoursPerWeek         override; 0 = infer from merged history
+      overrideAvailability use explicit values even above the historical p80
+      backfillDays         Zwift window for backfill (default 3650)
+      backfillMaxActivities max Zwift activities (default 2000)
+      includeFit           parse Zwift FIT session NP only when not cached
+      refreshDays          refresh detail for rides newer than this (7)
+      force                ignore the cache and re-fetch every ride (repair)
+      fitConcurrency       parallel FIT downloads during backfill (4)
+      horizonDays          render this many days from the plan start (default 14)
+      weeks                override plan length; 0 = goal default
+      age                  override; 0 = Garmin/profile
+      startDate            plan start (Monday); empty = next Monday
+
+    The plan uses the p80 of the merged Zwift+Garmin days/hours, the preferred
+    weekdays/hours, and the p90 session length. It warns when an override is
+    above that capacity. Weight is tracked from Garmin body data when present;
+    ramp/recovery defaults use Garmin age when available, otherwise the
+    explicit age, otherwise a conservative default.
+
+  WHAT IT INSTALLS
+
+    Nothing on the host — no services, daemons, or webhooks. It writes swamp
+    resources and `.zwo` documents; delivery is not part of this release. No
+    credentials are stored by this extension; the Zwift session lives with
+    `@svendowideit/zwift` in the `zwift-secrets` vault.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - zwift_coach.ts
+
+workflows:
+  - zwift-coach-plan.yaml
+  - zwift-coach-backfill.yaml
+
+dependencies:
+  - "@svendowideit/zwift"
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - zwift_coach_types.ts
+  - zwift_coach_util.ts
+  - zwift_coach_analysis.ts
+  - zwift_coach_goal.ts
+  - zwift_coach_plan.ts
+  - zwift_coach_workouts.ts
+  - zwift_coach_howto.ts
+  - zwift_coach_fixtures.ts
+  - zwift_coach_analysis_test.ts
+  - zwift_coach_goal_test.ts
+  - zwift_coach_plan_test.ts
+  - zwift_coach_workouts_test.ts
+  - zwift_coach_howto_test.ts
+
+platforms: []

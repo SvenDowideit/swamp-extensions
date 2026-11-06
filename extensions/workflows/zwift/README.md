@@ -175,6 +175,11 @@ swamp vault put zwift-secrets ZWIFT_PASSWORD
 # Verify configuration and see exactly what is missing (read-only).
 swamp model @svendowideit/zwift-rider method run setup zwift-rider
 
+# Backfill every available ride for the coach (read-only). Add includeGarmin
+# and garminActivities when @svendowideit/garmin is installed.
+swamp model @svendowideit/zwift-rider method run backfill zwift-rider \
+  --input backfillDays=3650 --input includeFit=true
+
 # Sync 120 days of history and derive the ability profile, by hand.
 swamp workflow run @svendowideit/zwift-sync
 
@@ -215,6 +220,7 @@ Nothing on the host. Two cron triggers are registered when `swamp serve` runs:
 | --------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------- |
 | `@svendowideit/zwift-rider`       | `setup`     | Report credential/config readiness and the exact commands to fix gaps. Read-only; never prints a secret.      |
 | `@svendowideit/zwift-rider`       | `sync`      | Sign in, fetch profile + activities, persist each ride, derive the ability profile, rotate the refresh token. |
+| `@svendowideit/zwift-rider`       | `backfill`  | Fetch every available ride, enrich it, optionally parse FIT NP, merge Garmin, and write load/availability.     |
 | `@svendowideit/zwift-events`      | `fetch`     | Collect events over the horizon by expanding the series the public feed references.                           |
 | `@svendowideit/zwift-recommender` | `recommend` | Score every event subgroup against the rider profile and write the ranked top N.                              |
 
@@ -227,6 +233,17 @@ so swamp stores it in the vault; the spec is pinned to `zwift-secrets` — see
 [Vault pinning](#vault-pinning)) and `sync-summary`.
 
 `zwift-events` writes `upcoming` — every event and subgroup in the window.
+
+`zwift-rider` also writes the coach inputs from `backfill`: `training-history`
+(merged rides), `load-daily` (TSS/CTL/ATL/TSB including rest days),
+`history-years` (yearly totals/peaks) and `availability-current` (merged and
+Zwift-only days/hours, preferred times and recent trend).
+
+`backfill` is incremental: it re-reads the cheap activity list to catch new
+rides, reuses the detail/FIT already stored in `training-history`, and refreshes
+detail only for rides newer than `refreshDays` (default 7). `force=true` is the
+one-off repair path. This is why running the coach plan workflow twice no longer
+re-downloads the whole history.
 
 `zwift-recommender` writes `current` — the ranked set plus the profile context.
 

@@ -2297,7 +2297,71 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261102.151815.0-sha.b8f64405" rel="noopener">release v20261102.151815.0-sha.b8f64405</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b8f6440513579d2a9e7c0c68d6c501d584dfd667" rel="noopener">b8f64405</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3546" rel="noopener">#3546</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4150" rel="noopener">#4150</a>𝗔 <a href="https://swamp-club.com/lab/4231" rel="noopener">lab#4231</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261105-214503-0-sha-f4450b8b">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261105-234942-0-sha-ebf04ac6">
+<h2><span class="tier C">C</span>swamp 20261105.234942.0-sha.ebf04ac6</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-05T23:53:21Z">2026-11-05T23:53:21Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(workflows): runs through serve show each artifact&#39;s attributes under the caller&#39;s data-read rights, and a spec marked display: false stays out of the Data produced box (swamp-club#4391) (#3639)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Follow-up to swamp-club#4347 (#3636), which made local <code>workflow run</code> and <code>resume</code> show each data artifact&#39;s attributes in the Data produced box. Two gaps remained.</p>
+<ul>
+<li><strong>Runs through <code>swamp serve</code> show attributes.</strong> Each attached client gets the attributes it may read as data, added to the completed event at send time. They come from the live completed run, whose never-persisted sensitive values are the only mask for its data; a run read back from its record would send secrets unmasked. The event buffered for a detached run, which every attached client shares, carries none. This covers run and resume, attached or detached, and clients that attach later through <code>run.attach</code> (<code>src/serve/handlers/run_data_attributes.ts</code>).</li>
+<li>serve&#39;s run path gets the live run through a new <code>WorkflowRunDeps.onCompletedRun</code> (a dep, never an input); both resume paths hold the completed event until the run is saved and capture it there.</li>
+<li>each record is read once per run and shared by every client; each client still gets its own data-read decision per resource. A failed read is retried by the next client.</li>
+<li>an event its attributes would push past one WebSocket frame is sent name-only, as main sends it today, and serve logs the size. Once a run&#39;s attributes pass that</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261105.234942.0-sha.ebf04ac6" rel="noopener">release v20261105.234942.0-sha.ebf04ac6</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ebf04ac6" rel="noopener">ebf04ac6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3639" rel="noopener">#3639</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3636" rel="noopener">#3636</a>𝗔 <a href="https://swamp-club.com/lab/4391" rel="noopener">lab#4391</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261105-234357-0-sha-30efbada">
+<h2><span class="tier C">C</span>swamp 20261105.234357.0-sha.30efbada</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-05T23:48:45Z">2026-11-05T23:48:45Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): runModel from a nested-name extension such as @swamp/gcp/gmail is authorized against its own manifest instead of being refused as @swamp/gcp (swamp-club#4462) (#3640)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>A local extension method on <code>@swamp/gcp/gmail/users-messages</code> calling <code>context.runModel</code> on an <code>@swamp/ssh</code> definition was refused with <code>Cannot verify dependencies for extension &quot;@swamp/gcp&quot; — manifest could not be loaded</code>. <code>extractExtensionNameFromPath</code> guessed the owning extension from the path, keeping at most two segments of a scoped name. So every nested-name package (<code>@swamp/gcp/*</code>, <code>@swamp/aws/*</code>) was attributed to a parent with no manifest, and runModel authorization failed closed. A dependency on a nested extension such as <code>@swamp/aws/ec2</code> could never match on the target side either.</p>
+<p>The owner of a pulled source is now resolved in three steps:</p>
+<p>1. <strong>Lockfile:</strong> the deepest path prefix that is an installed extension, via a new <code>ExtensionRepository.isInstalledExtension</code>. No manifest is read.</p>
+<p>2. <strong>Without lockfile data:</strong> the outermost <code>manifest.yaml</code> decides. It owns the source only if it is a regular file whose <code>name</code> equals its own directory; otherwise the search stops there. A package can ship a <code>manifest.yaml</code> naming one of its own subdirectories. This rule keeps such a manifest from giving that code dependencies the published manifest never declared.</p>
+<p>3. <strong>Otherwise:</strong> the old two-segment guess. A pulled source is never unnamed, because an unnamed ca</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261105.234357.0-sha.30efbada" rel="noopener">release v20261105.234357.0-sha.30efbada</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/30efbada" rel="noopener">30efbada</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3640" rel="noopener">#3640</a>𝗔 <a href="https://swamp-club.com/lab/4462" rel="noopener">lab#4462</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261105-230503-0-sha-fdaf6e5b">
+<h2><span class="tier C">C</span>swamp 20261105.230503.0-sha.fdaf6e5b</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-05T23:08:41Z">2026-11-05T23:08:41Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(datastore): a team member&#39;s command ends honestly when serve refuses, loses its lease or is unreachable (swamp-club#4431) (#3637)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#4431, the team-mode exit contract from the dogfood (swamp-club#4374): a member&#39;s command now ends with an honest, coded result when serve refuses its commit, its lease is lost, or serve is unreachable.</p>
+<p><strong>Exit contract</strong></p>
+<ul>
+<li>A run that completes <code>cancelled</code> exits non-zero and never prints &quot;succeeded&quot; (log and <code>--json</code>).</li>
+<li><strong>F18</strong>:</li>
+<li>A commit serve refuses for a lost lease is <code>datastore_v3_commit_lease_lost</code>. It has no stack trace and a hint that fits the command: rerun, or resume/recover a workflow run.</li>
+<li>A lapsed lease reports <code>datastore_v3_lease_lapsed</code>.</li>
+<li>A fenced writer that was taken over, released or restoring its copy exits 75 only when nothing landed. The <code>published</code> variant always exits 1.</li>
+<li><strong>Exit 75 means nothing of the command landed.</strong> Lost and lapsed leases, fenced writers and unreachable commits exit 75 only when nothing landed, else 1. &quot;Landed&quot; counts effects, not per-run bookkeeping (output records, evaluated snapshots, workflow reports); see <code>command_landed.ts</code>.</li>
+<li><strong>F7</strong>: <code>model edit</code>, <code>workflow edit</code> and <code>vault edit</code> print their result only once the commit lands, so a <code>config_edit_conflict</code> refusal never follows <code>&quot;status&quot;:&quot;updated&quot;</code>.</li>
+<li><strong>F2</strong>: an unknown subcommand in <code>--json</code> prints no stack.</li>
+</ul>
+<p><strong>F15 and F26</strong></p>
+<ul>
+<li>Once a commit, or a lease left unrenewed, shows serve unreac</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261105.230503.0-sha.fdaf6e5b" rel="noopener">release v20261105.230503.0-sha.fdaf6e5b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/fdaf6e5b" rel="noopener">fdaf6e5b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3637" rel="noopener">#3637</a>𝗔 <a href="https://swamp-club.com/lab/4431" rel="noopener">lab#4431</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261105-214503-0-sha-f4450b8b">
 <h2><span class="tier C">C</span>swamp 20261105.214503.0-sha.f4450b8b</h2>
 <p class="lede">Change (untyped) · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-11-05T21:49:50Z">2026-11-05T21:49:50Z</time></span></div>
@@ -2597,13 +2661,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261101.202412.0-sha.0500dc35" rel="noopener">release v20261101.202412.0-sha.0500dc35</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0500dc35534060a870a5998e5dddbcd015dfc2e1" rel="noopener">0500dc35</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3528" rel="noopener">#3528</a>𝗔 <a href="https://swamp-club.com/lab/4250" rel="noopener">lab#4250</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>108 items across 1 source(s) in this window:
+<p>111 items across 1 source(s) in this window:
 2 critical, 88 notable, 6 routine,
-12 minor.</p>
-<ul><li><strong>fix</strong> — 72</li><li><strong>feat</strong> — 18</li><li><strong>changes</strong> — 6</li><li><strong>perf</strong> — 4</li><li><strong>docs</strong> — 3</li><li><strong>test</strong> — 3</li></ul></section>
+15 minor.</p>
+<ul><li><strong>fix</strong> — 72</li><li><strong>feat</strong> — 18</li><li><strong>changes</strong> — 9</li><li><strong>perf</strong> — 4</li><li><strong>docs</strong> — 3</li><li><strong>test</strong> — 3</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-06T00:38:00.818Z">2026-11-06T00:38:00.818Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-06T01:08:13.500Z">2026-11-06T01:08:13.500Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

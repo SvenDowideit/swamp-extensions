@@ -1561,7 +1561,7 @@ export async function resolveApiKey(
 /** Model definition for the containerised extension test factory. */
 export const model = {
   type: "@svendowideit/test-factory",
-  version: "2026.11.07.2",
+  version: "2026.11.07.3",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1684,6 +1684,16 @@ export const model = {
         "the 1024 value and a zero CapEff before testing setcap -n 1000. No " +
         "model schema or scenario change; existing models upgrade with no " +
         "changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.3",
+      description:
+        "Adds the runDetached sysctls unit test and the quality-ignore " +
+        "annotations for the pre-existing long upgrade descriptions. .2 " +
+        "already sets net.ipv4.ip_unprivileged_port_start=1024 on the harness " +
+        "container so capability tests require a real host-usable capability. " +
+        "No runtime or schema change from .2.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

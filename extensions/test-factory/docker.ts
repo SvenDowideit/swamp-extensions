@@ -392,6 +392,8 @@ export interface RunDetachedOptions {
   systemd?: boolean;
   /** Bind mounts (`host:container[:ro]`). */
   mounts?: string[];
+  /** Namespaced sysctls, e.g. to require CAP_NET_BIND_SERVICE for ports <1024. */
+  sysctls?: Record<string, string>;
   /** Environment variables. */
   env?: Record<string, string>;
   /** Working directory. */
@@ -442,6 +444,9 @@ export async function runDetached(
     );
   }
   for (const mount of opts.mounts ?? []) args.push("-v", mount);
+  for (const [k, v] of Object.entries(opts.sysctls ?? {})) {
+    args.push("--sysctl", `${k}=${v}`);
+  }
   for (const [k, v] of Object.entries(opts.env ?? {})) {
     args.push("-e", `${k}=${v}`);
   }

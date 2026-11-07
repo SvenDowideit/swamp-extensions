@@ -3,9 +3,29 @@ import {
   distroDockerfile,
   distroImageTag,
   dockerUnavailable,
+  runDetached,
+  type RunFn,
   stripAnsi,
 } from "./docker.ts";
 import { distroByName } from "./scenarios.ts";
+
+Deno.test("runDetached passes capability sysctls to docker run", async () => {
+  let seen: string[] = [];
+  const runFn: RunFn = (_bin, args) => {
+    seen = args;
+    return Promise.resolve({ stdout: "abc123\n", stderr: "", code: 0 });
+  };
+  const created = await runDetached(runFn, {
+    name: "tf-test",
+    image: "ubuntu:24.04",
+    sysctls: { "net.ipv4.ip_unprivileged_port_start": "1024" },
+  });
+  assertEquals(created.id, "abc123");
+  assertStringIncludes(
+    seen.join(" "),
+    "--sysctl net.ipv4.ip_unprivileged_port_start=1024",
+  );
+});
 
 Deno.test("stripAnsi removes SGR colour codes", () => {
   assertEquals(stripAnsi("\u001b[31mred\u001b[0m"), "red");

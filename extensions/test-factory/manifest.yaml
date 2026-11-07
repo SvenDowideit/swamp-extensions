@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/test-factory"
-version: "2026.11.07.1"
+version: "2026.11.07.2"
 description: >
   Run a swamp extension inside containers on different Linux distributions and
   swamp deployment topologies, and report exactly where it breaks. Prefer it
@@ -40,6 +40,10 @@ description: >
     reviewed privilege-state `grants:` (`sudo-nopasswd`, `doas-nopasswd`, …), and
     every run records a `harnessIsolation` block so a green result carries the
     evidence a reader needs to trust the boundary.
+    Capability tests use the real kernel rule: the harness sets
+    net.ipv4.ip_unprivileged_port_start=1024, so a non-root process must hold
+    CAP_NET_BIND_SERVICE to bind 80/443. Docker's default 0 lets any user bind
+    low ports and would make the test a false positive.
     Every run records an audit trail, not just a pass/fail: the candidate name
     and version, a one-line intent, and per phase the assertion a PASS stands
     for plus the literal commands that proved it — so you can judge adequacy and

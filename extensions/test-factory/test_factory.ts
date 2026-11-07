@@ -929,6 +929,13 @@ async function runScenario(
         system.grants.some((g) => g.profile.startsWith("docker-")),
       networks: harnessNetworks.length > 0 ? harnessNetworks : undefined,
       mounts,
+      // Docker defaults this to 0, which lets an unprivileged process bind
+      // :80/:443 without CAP_NET_BIND_SERVICE. That makes every capability
+      // test a false positive: Caddy binds the port even when the file
+      // capability is missing or namespaced. Keep the real kernel rule (ports
+      // below 1024 need the capability) so a capability test proves the
+      // capability.
+      sysctls: { "net.ipv4.ip_unprivileged_port_start": "1024" },
       env: containerEnv(deps.swampApiKey),
       labels: scenario.topology === "standalone"
         ? { "tf.scenario": slug }
@@ -1554,7 +1561,7 @@ export async function resolveApiKey(
 /** Model definition for the containerised extension test factory. */
 export const model = {
   type: "@svendowideit/test-factory",
-  version: "2026.11.07.1",
+  version: "2026.11.07.2",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1582,6 +1589,7 @@ export const model = {
     {
       toVersion: "2026.10.02.1",
       description:
+        // swamp-quality-ignore long-line
         "A candidate's `test-factory.yaml` may now declare a container test system — `networks:` (with subnets), `harness:` (the swamp container's own network attachments plus `dig: true`), and `services:` (sibling containers to build/start with healthchecks). The factory creates the networks, starts and health-checks the services, joins the swamp container to the declared networks (a static IP per network lets one name resolve to several endpoints), and exports every declared address to the test steps as `TF_<SERVICE>_IP` / `TF_HARNESS_IP_<NETWORK>`. `@svendowideit/caddy` is the worked example (BIND over RFC2136 + dig/curl). A malformed topology fails loudly before any container boots; a file with no such keys behaves exactly as before. `result` gains `serviceContainers`. Schema is additive — existing models upgrade with no changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1594,42 +1602,49 @@ export const model = {
     {
       toVersion: "2026.10.02.3",
       description:
+        // swamp-quality-ignore long-line
         "Coverage hardening after adversarial review. Coverage is matched type-awarely, so a shared method name across two model types is no longer over-counted. `test`/`testAll` now also write the standalone `coverage` resource (matching `checkCoverage`), so the meta-factory reuses it instead of recomputing. Fixes a latent logger call: the logger method is `warn`, not `warning`, so a vault-read failure now warns instead of throwing. The `coverage` resource's `documentedCommands`/`testCommands`/`surface.*` fields are arrays of literal command strings. No schema or argument change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
       toVersion: "2026.10.05.1",
       description:
+        // swamp-quality-ignore long-line
         "A candidate's `test-factory.yaml` may now list sibling local extensions it calls at runtime (`extensions:`), which the harness copies in and registers alongside the candidate, so model types that compose others (e.g. @svendowideit/swamp-serve calling caddy/systemd-service/otel-settings) resolve and can be tested end to end. A service `healthcheck` may run `in: harness` instead of the service, for a distroless image with no shell (e.g. OpenObserve). On a systemd host the harness now imports SWAMP_API_KEY/SWAMP_SIGNIN_TOKEN into root's user manager, because a systemd *user* service does not inherit the container environment and `swamp serve` otherwise fails with 'requires a swamp-club.com account'. `result` gains `serviceContainers`. Schema is additive — existing models upgrade with no changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
       toVersion: "2026.10.10.1",
       description:
+        // swamp-quality-ignore long-line
         "Milestone 0 of the virtual-environments plan: a non-root harness, isolation evidence, and boundary negative-control checks. `harness.runAs` (default `root`) runs the swamp phases as a non-root user (e.g. `tester`) — a root prelude installs swamp and hands the sandbox dirs to the user, then the phases drop to it, so the local elevation ladder (sudo/doas/polkit/capability) is genuinely exercised on a plain user. `grants:` applies reviewed, idempotent privilege-state scripts (the T0-nr subset: user-tester, sudo-nopasswd, sudo-none, sudo-interactive-only, doas-nopasswd, no-grant) before the harness runs; a grant from a not-yet-built tier is reported uncovered, never silently passed. `result` gains `harnessIsolation` (whoami/uid/sandboxId/dockerHost) as the evidence a reader needs to conclude the boundary held. A candidate may add an `isolation:` block of boundary negative-control checks (§16.1): an optional in-sandbox `sandbox:` command plus **host-side typed probes** — `absentOnHost:` (paths a root-only in-sandbox write must not have created on the host) and `noPublishedPorts:` (containers whose `-p` bindings must be empty) — evaluated by the model after the harness returns, never running candidate shell on the host. `$TF_RUN_ID`, a per-run token, is exported to the steps and substituted into check commands/paths. Each check appears in `tests` as a synthetic test; a failing check fails the scenario. Also fixes the `systemd` input type in the shipped workflows (was boolean, the model expects a string). Schema is additive — existing models upgrade with no changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
       toVersion: "2026.10.11.1",
       description:
+        // swamp-quality-ignore long-line
         "Adds the `docker-rootful` grant (T1): a real `dockerd` runs **inside** the harness container (never the host daemon), so container-runtime elevation routes such as `@svendowideit/sudo`'s `docker-run` are testable; the harness container is run `--privileged` when a `docker-*` grant is present. Fixes the non-root harness (`runAs: tester`), which previously produced no result for every candidate: the read-only bundle at `/tf-scripts` and the result dir `/tf` are now world-traversable (they were 0700 owned by the host uid, unreadable to the container's non-root uid), and the root→user handover preserves `TF_DROPPED` across `su` (which otherwise reset the environment and re-ran the prelude). README documents the single `test` command an agent runs to exercise one scenario in dind. A `test-factory.yaml` may now pin a per-test `runAs` and `grants`, so one candidate file can carry tests that need different privilege states (e.g. a `sudo-nopasswd` positive test beside a `sudo-none` degrade test); tests are grouped by their resolved `(runAs, grants)` and each group runs in its own container, since a grant is a root pre-harness script that cannot be swapped in a running container. Ships a toggleable dependency-stub fixture (`test/stub/`: a tiny HTTP server that can accept/reject/delay/hang on command) for the DNS/certificate timing tests — a candidate copies it into its own `test/` and drives it via `/ctl?mode=`; Caddy's `acme_ca` points at it so 'configured, not issued' can be asserted against a real ACME-ca failure, while `issuer=internal` covers the synchronous issued path. Also makes the documented `--input phases=tests` path actually work end to end: the candidate and its sibling extensions are now registered as extension sources whenever the harness runs (only the `doctor` check stays gated on `smoke`), so a tests-only run — including every per-test `runAs`/`grants` group beyond the first — no longer fails with 'Unknown model type'; and `evaluateResult` only requires the phases a run actually requested to pass, so an unrun `smoke` (whose `doctor` is 'unknown') no longer drags an otherwise-green tests-only run to fail. Schema is additive — existing models upgrade with no action.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
       toVersion: "2026.10.11.2",
       description:
+        // swamp-quality-ignore long-line
         "Adds a self-contained HTML report of each run, and captures real per-command evidence to back it. `test`/`testAll` now render the scenario results and rollup to a single `.html` file (inline CSS, no external assets; per-test <details> sections showing the exact commands and their stdout/stderr, plus coverage and a source-data sha256) and record where it landed in a new `htmlReport` resource, so the run's console output ends by naming the file. Output dir is `$SWAMP_TEST_FACTORY_HTML_DIR` (else `~/.local/share/test-factory-report/`). The new `@svendowideit/test-factory-report-html` report returns a pointer to that file (and still generates one when no `htmlReport` record exists). The harness now also records the commands it actually ran — `swamp init`, `swamp extension source add`, `swamp doctor extensions`, `swamp model type search`, `swamp model create`, `swamp workflow validate`, and the swamp install — with their real exit codes and captured stdout/stderr, as an `evidence` array on each result; the HTML report shows this as an 'Evidence — commands actually run' section (each command expanding to its exit code and output, with the pass/fail rule stated per phase) instead of presenting the planned command list as if it were the run. Schema is additive — existing models upgrade with no changes; `test`/`testAll` return one extra data handle.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
       toVersion: "2026.10.11.3",
       description:
+        // swamp-quality-ignore long-line
         "Fixes subnet collisions between runs. A candidate's declared test-system subnets (`networks:`) are now a *preference*: if a leftover network from a crashed/kept run already holds one, or a parallel run wants the same one, the factory draws a free /24 from a private pool (`10.213.0.0/16`) and remaps the declared static IPs onto it (host offset preserved), updating the exported `TF_*_IP` variables to match. Docker is the arbiter per host, so a create race is retried around the 'Pool overlaps' error. Cleanup is hardened: `removeNetwork` now disconnects any remaining endpoints before removing a network, and the `cleanup` method force-removes stray `tf-` containers by name prefix as well as by label. `keepOnFailure` still leaves a kept run's containers and networks in place for debugging. Schema is unchanged; existing models upgrade with no changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
       toVersion: "2026.10.11.4",
       description:
+        // swamp-quality-ignore long-line
         "Adds an in-harness SSH server so a candidate can exercise the real `@swamp/ssh` deploy path against a 'remote host' in dind. `test-factory.yaml` gains `harness.sshd` (true, or `{ port: N }`): the harness installs openssh-server/client, generates a client keypair, authorizes it for the phase user, starts sshd on loopback, and exports `TF_SSH_HOST`/`TF_SSH_PORT`/`TF_SSH_USER`/`TF_SSH_KEY`/`TF_SSH_KEY_PUB`/`TF_SSH_KNOWN_HOSTS` to every test step. The `result` gains an `sshd` boolean and a `sshd` phase: a run that requested `harness.sshd` but could not bring it up fails with a clear error. Schema is additive — existing models upgrade with no changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1655,6 +1670,20 @@ export const model = {
         "when only one group remains, its runAs/grants are honored instead of " +
         "silently collapsing to the scenario defaults, which would run a " +
         "per-test sudo grant as root. No scenario or image change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.2",
+      description: "Makes capability tests real. Docker sets " +
+        "net.ipv4.ip_unprivileged_port_start=0 inside a container, so a " +
+        "non-root process can bind :80/:443 without CAP_NET_BIND_SERVICE and " +
+        "every capability test passes even when the cap is absent or ignored. " +
+        "The harness container now sets that sysctl to 1024, so a low-port " +
+        "bind really requires the capability. The caddy test " +
+        "user-namespace-capability-is-not-proof-of-a-host-binding asserts both " +
+        "the 1024 value and a zero CapEff before testing setcap -n 1000. No " +
+        "model schema or scenario change; existing models upgrade with no " +
+        "changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

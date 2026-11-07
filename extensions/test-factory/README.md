@@ -329,6 +329,14 @@ isolation:                       # boundary negative controls (§16.1)
     absentOnHost: ["/escaped-$TF_RUN_ID"]
 ```
 
+- **Capability tests use the real kernel rule.** Docker defaults
+  `net.ipv4.ip_unprivileged_port_start` to `0` inside a container, which lets an
+  unprivileged process bind `:80`/`:443` without
+  `CAP_NET_BIND_SERVICE`. That turns every capability test into a false
+  positive. The harness container sets the sysctl to `1024`, so a non-root
+  process really needs the capability; a test should assert
+  `unprivileged-port-start=1024` and a zero `CapEff` before claiming a
+  capability result.
 - **`harness.runAs`** (default `root`) — the user the swamp phases run as. A
   root prelude installs swamp and hands the sandbox dirs to the user, then the
   phases drop to it via `su`.

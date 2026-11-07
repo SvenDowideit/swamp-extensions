@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/test-factory"
-version: "2026.10.13.1"
+version: "2026.11.07.1"
 description: >
   Run a swamp extension inside containers on different Linux distributions and
   swamp deployment topologies, and report exactly where it breaks. Prefer it
@@ -166,7 +166,7 @@ description: >
                        field is sensitive, so an override must be a vault
                        expression: 'swampApiKey=${{ vault.get(<vault>, <key>) }}'
 
-    Per-run overrides: `manifest` (required), `scenario`, `distro`, `topology`,
+    Per-run overrides: `manifest` (required), `scenario`, `onlyTests`, `distro`, `topology`,
     `systemd`, `workers`, `phases`, `fixturesFile`, `scenarioFile`, `expected`
     on `test`; `root` and `gitOnly` additionally on `testAll`; `manifest` on
     `checkCoverage`; `prefix` on `cleanup`; `distro` on `listScenarios`.

@@ -452,13 +452,25 @@ Global arguments are set at model creation (`swamp model create
 | `vaultEntry` | string | `"SWAMP_API_KEY"` | Secret key read from `vault`. |
 | `swampApiKey` | string (sensitive) | `""` | swamp-club collective API token exported as `SWAMP_API_KEY` in **every** container. Leave empty (the default) and it is read from `vault`/`vaultEntry` — so a `test-factory-vault` holding `SWAMP_API_KEY` is picked up automatically, with no extra arguments. Because the field is sensitive a literal is rejected; an override must be a vault expression (see the Examples section). |
 
-Per-run overrides on `test`: `manifest` (required), `scenario`, `distro`,
-`topology`, `systemd`, `workers`, `phases`, `fixturesFile`, `scenarioFile`,
+Per-run overrides on `test`: `manifest` (required), `scenario`, `onlyTests`,
+`distro`, `topology`, `systemd`, `workers`, `phases`, `fixturesFile`,
+`scenarioFile`,
 `expected`. `testAll` adds `root` and `gitOnly`. `checkCoverage` takes
 `manifest`; `cleanup` takes `prefix`; `listScenarios` takes `distro`. The
 `tests` phase is added automatically when the candidate ships a
 `test-factory.yaml`; pass `phases=smoke,load,definitions` to skip it
 deliberately.
+
+`onlyTests` selects named tests from that file and filters them before the
+existing `runAs`/`grants` grouping. One invocation then runs only those tests
+and the groups they belong to:
+
+```sh
+swamp model @svendowideit/test-factory method run test tf \
+  --input manifest=extensions/models/caddy/manifest.yaml \
+  --input scenario=ubuntu-systemd-standalone \
+  --input onlyTests=setcap-already-applied-does-not-call-sudo
+```
 
 ## Examples
 
@@ -631,7 +643,7 @@ and two workflows (`@svendowideit/test-factory`,
 | Method | Arguments | Produces |
 | ------ | --------- | -------- |
 | `listScenarios` | `distro` (optional) | no data; logs the distro catalog and resolved scenarios |
-| `test` | `manifest` (required), `scenario`, `distro`, `topology`, `systemd`, `workers`, `phases`, `fixturesFile`, `scenarioFile`, `expected` | one `result` resource per scenario plus a `summary` rollup |
+| `test` | `manifest` (required), `scenario`, `onlyTests`, `distro`, `topology`, `systemd`, `workers`, `phases`, `fixturesFile`, `scenarioFile`, `expected` | one `result` resource per scenario plus a `summary` rollup |
 | `testAll` | `test`'s arguments plus `root`, `gitOnly` | one `result` per scenario per discovered extension, plus a `summary` per extension |
 | `checkCoverage` | `manifest` (required) | a `coverage` resource; docker-free |
 | `cleanup` | `prefix` (default `tf-`) | removes leftover `tf-` containers, networks and volumes |

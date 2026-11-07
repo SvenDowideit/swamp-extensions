@@ -174,6 +174,9 @@ const TestArgsSchema = z.object({
   scenario: z.string().default("").describe(
     "Named scenario(s) to run, comma separated (empty = use the filters below)",
   ),
+  onlyTests: z.string().default("").describe(
+    "Run only these test name(s) from the candidate's test-factory.yaml, comma separated. Empty runs every test. The selected tests are filtered before the existing runAs/grants grouping, so one invocation runs only the groups those tests belong to.",
+  ),
   distro: z.string().default("").describe(
     "Distro name(s) to include, comma separated (e.g. ubuntu,fedora)",
   ),
@@ -1551,7 +1554,7 @@ export async function resolveApiKey(
 /** Model definition for the containerised extension test factory. */
 export const model = {
   type: "@svendowideit/test-factory",
-  version: "2026.10.13.1",
+  version: "2026.11.07.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1640,6 +1643,18 @@ export const model = {
       toVersion: "2026.10.13.1",
       description:
         "Documentation only: the README now documents the second report, `@svendowideit/test-factory-report-html` — the self-contained HTML render emitted on every `test`/`testAll` run (opt out with `--skip-report @svendowideit/test-factory-report-html`) — so its behaviour, output location and per-test evidence/independent-verification structure are discoverable without reading the source. No model, schema or resource change; existing models upgrade with no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.1",
+      description:
+        "Adds `onlyTests` to the `test` method: a comma-separated list of test " +
+        "names from the candidate's test-factory.yaml. It filters candidate.tests " +
+        "before the existing runAs/grants grouping, so one invocation runs only " +
+        "the selected tests and their groups. Also fixes the single-group case: " +
+        "when only one group remains, its runAs/grants are honored instead of " +
+        "silently collapsing to the scenario defaults, which would run a " +
+        "per-test sudo grant as root. No scenario or image change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1733,10 +1748,35 @@ export const model = {
           );
         }
 
-        const candidate = await resolveCandidate(
+        let candidate = await resolveCandidate(
           args.manifest,
           context.repoDir,
         );
+        if ((args.onlyTests ?? "").trim()) {
+          const names = (args.onlyTests ?? "").split(",").map((s) => s.trim())
+            .filter(
+              Boolean,
+            );
+          const selected = candidate.tests.filter((t) =>
+            names.includes(t.name)
+          );
+          const missing = names.filter((n) =>
+            !candidate.tests.some((t) => t.name === n)
+          );
+          if (missing.length > 0) {
+            throw new Error(
+              `onlyTests: no such test(s) in ${candidate.name}: ${
+                missing.join(", ")
+              }. Available: ${candidate.tests.map((t) => t.name).join(", ")}`,
+            );
+          }
+          if (selected.length === 0) {
+            throw new Error(
+              `onlyTests: no tests selected from ${candidate.name}`,
+            );
+          }
+          candidate = { ...candidate, tests: selected };
+        }
         const scenarios = selectScenarios(args);
         if (scenarios.length === 0) {
           throw new Error("no scenarios matched the filter");
@@ -1991,7 +2031,14 @@ async function executeScenarios(
       defaultRunAs,
       candidate.system.grants,
     );
-    const useGroups = groups.length > 1;
+    // A single selected test may still pin its own runAs/grants. Do not
+    // collapse to the scenario defaults just because it is the only group:
+    // onlyTests would otherwise silently run it as the default root user.
+    const groupsDiffer = groups.length === 1 &&
+      (groups[0].runAs !== defaultRunAs ||
+        JSON.stringify(groups[0].grants ?? []) !==
+          JSON.stringify(candidate.system.grants ?? []));
+    const useGroups = groups.length > 1 || groupsDiffer;
     const runs = useGroups ? groups : [{
       label: "",
       runAs: defaultRunAs,
@@ -2001,9 +2048,8 @@ async function executeScenarios(
     for (let gi = 0; gi < runs.length; gi++) {
       const group = runs[gi];
       const primary = gi === 0;
-      const grouped = (group.label === "" || (primary && !useGroups))
-        ? candidate
-        : {
+      const grouped = useGroups
+        ? {
           ...candidate,
           tests: group.tests,
           system: {
@@ -2011,7 +2057,8 @@ async function executeScenarios(
             harness: { ...candidate.system.harness, runAs: group.runAs },
             grants: group.grants,
           },
-        };
+        }
+        : candidate;
       const groupOpts = (primary || !useGroups)
         ? opts
         : { ...opts, phases: ["tests"] };

@@ -4313,8 +4313,8 @@ function pendingCapabilityGrant(
   }
   const command = rawCapabilityGrantCommand(binPath, capabilities);
   context.logger?.info(
-    "Granting {caps} to {binPath} is the placed @svendowideit/sudo step the workflow runs. If no route can elevate, run this on the host, then resume:\n  {command}",
-    { caps: capabilities.join(" "), binPath, command },
+    "CAP_NET_BIND_SERVICE is not host-usable on {binPath}. Run this exact command on the host:\n\n    {command}\n\nThe workflow will try the placed @svendowideit/sudo step first; resume after running it.",
+    { binPath, command },
   );
   return { applied: false, detail: command };
 }
@@ -6210,7 +6210,7 @@ type CheckContext = {
 /** Model definition for the Caddy reverse-proxy and service manager. */
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.11.07.11",
+  version: "2026.11.07.12",
   reports: ["@svendowideit/caddy-status"],
   globalArguments: GlobalArgsSchema,
   checks: {
@@ -6759,6 +6759,21 @@ export const model = {
         "existing models upgrade with no changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.07.12",
+      description:
+        "Prints the literal raw host command in the capability approval prompt. " +
+        "caddy-upgrade's pause-if-capability-missing and caddy-setup's equivalent " +
+        "now interpolate the model's binPath and show, on its own indented " +
+        "block, `sudo setcap cap_net_bind_service=+ep <binPath>`, followed by " +
+        "the approve/resume instruction. The 'it starts with ...' prose and the " +
+        "unhelpful wall of text are gone. check-capability and the hard retry " +
+        "also put the exact command on its own indented line. The pause test " +
+        "asserts the literal path command is in the approval output and that " +
+        "'it starts with' is not. No schema change; existing models upgrade with " +
+        "no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     install: {
@@ -7172,8 +7187,8 @@ export const model = {
         if (args.require && !applied) {
           throw new Error(
             `CAP_NET_BIND_SERVICE is not applied to ${binPath}; the selected ` +
-              `elevation route did not take effect. Run this command, then ` +
-              `resume the workflow:\n  ${result.detail}`,
+              `elevation route did not take effect. Run this exact command on ` +
+              `the host, then resume the workflow:\n\n    ${result.detail}\n`,
           );
         }
         return { dataHandles: [handle] };

@@ -1692,8 +1692,13 @@ tests:
         run: swamp workflow run @svendowideit/caddy-upgrade --input model=e2e-pause 2>&1
         expect:
           exitCode: 0
-          outputContains: ["Suspended workflow"]
-          outputNotContains: ["listening on :8080", "listening on :8443"]
+          outputContains:
+            - "Suspended workflow"
+            - "sudo setcap cap_net_bind_service=+ep /home/tester/.local/bin/caddy"
+          outputNotContains:
+            - "it starts with"
+            - "listening on :8080"
+            - "listening on :8443"
         timeoutSeconds: 300
       - name: approve-without-running-the-command
         run: swamp workflow approve @svendowideit/caddy-upgrade pause-if-capability-missing

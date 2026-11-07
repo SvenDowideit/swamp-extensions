@@ -840,18 +840,14 @@ Details:
   is granted at all, the sudo extension reports exactly what it tried and still
   records `userCommand`; run
   `swamp model @svendowideit/sudo method run probe sudo-<key>` to see the ladder.
-- **The workflow measures the running service after restart.** `verify-serving`
-  reads the live config and records `servingOk`. If Caddy is not on 80/443 it
-  suspends at `pause-if-not-serving` with every gap and exact command (including
-  moving a stale autosave aside), then `reverify-serving` is a hard gate. A
-  successful run ends on 80/443; otherwise the run is paused or failed with the
-  reason.
-
-  ```sh
-  # After fixing the host, release the paused workflow:
-  swamp workflow approve @svendowideit/caddy-upgrade pause-if-not-serving
-  swamp workflow resume @svendowideit/caddy-upgrade
-  ```
+- **The config apply and the running-service check are hard.** `status-page`
+  applies the desired server/routes; if the running process cannot bind 80/443
+  it stops there with the journal, the `getcap` state, and the running-process
+  diagnosis (`CapEff`, unit `NoNewPrivileges`/`AmbientCapabilities`/
+  `CapabilityBoundingSet`, autosave). `verify-serving` then measures the live
+  config with `requireServing=true`; a non-serving result stops the run. The
+  capability grant is the only manual-approval pause; the extension never moves
+  the service to 8080/8443.
 - **Replacing the binary drops the capability.** `upgradeCaddy` and
   `installCaddy force=true` re-grant it automatically after writing a new
   binary; if you download a new binary by other means, re-run `setCapabilities`.

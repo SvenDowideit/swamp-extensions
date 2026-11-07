@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/caddy"
-version: "2026.11.07.7"
+version: "2026.11.07.8"
 description: >
   Caddy reverse-proxy and service management for a Linux host with systemd.
 
@@ -324,12 +324,11 @@ description: >
     the capability, regenerates the unit, restarts, and applies TLS/DNS; and
     re-runs the gap report so you see what is left. If the sudo grant fails, the
     run pauses at `pause-if-capability-missing` with the exact command and the
-    reason; run it, then approve and resume. After the restart it measures the
-    running config; if Caddy is not on 80/443 it pauses at
-    `pause-if-not-serving` with the gaps and commands, then a hard re-check
-    follows. A run either ends on the configured 80/443 service or is paused or
-    failed with the reason — it never moves the service to 8080/8443.
-    Idempotent:
+    reason; run it, then approve and resume. After the restart it applies the
+    config and verifies the running config; if Caddy cannot bind 80/443 it stops
+    at that step with the journal, getcap state and running-process diagnosis
+    (CapEff, unit NoNewPrivileges/AmbientCapabilities/CapabilityBoundingSet,
+    autosave). It never moves the service to 8080/8443. Idempotent:
 
         swamp workflow run @svendowideit/caddy-upgrade --input model=my-caddy
 

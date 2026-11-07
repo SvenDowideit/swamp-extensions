@@ -849,6 +849,109 @@ tests:
         expect:
           stdoutContains: ["198.51.100.10", "alpha.example.com"]
 
+  - name: setcap-already-applied-does-not-call-sudo
+    confirms: >
+      When the binary already carries CAP_NET_BIND_SERVICE, setCapabilities
+      reports it as applied with an empty command and never prints a grant
+      command or invokes the sudo extension.
+    cannot: >
+      must not print "Granting cap_net_bind_service ... must be a placed step",
+      must not require sudo, and must not report command as non-empty.
+    documents: README.md#privileged-ports-80443
+    runAs: tester
+    grants:
+      - { guest: harness, profile: sudo-nopasswd }
+    steps:
+      - name: create-model
+        run: |
+          swamp model create @svendowideit/caddy e2e-already \
+            --global-arg serviceName=caddy \
+            --global-arg baseDomain=example.com \
+            --global-arg letsEncryptEmail=admin@example.com
+        expect: { exitCode: 0 }
+      - name: install-binary
+        run: >
+          swamp model method run e2e-already installCaddy
+          --input setCapabilities=false --input configureStatusPage=false
+        expect: { exitCode: 0 }
+        timeoutSeconds: 300
+      - name: set-the-capability-directly
+        run: sudo -n setcap cap_net_bind_service=+ep "$HOME/.local/bin/caddy"
+        expect: { exitCode: 0 }
+      - name: check-reports-already-applied
+        run: swamp model method run e2e-already setCapabilities
+        expect:
+          exitCode: 0
+          outputContains: ["can bind privileged ports"]
+          outputNotContains:
+            - "Granting cap_net_bind_service"
+            - "must be a placed step"
+      - name: data-says-applied-with-no-command
+        run: |
+          swamp data query 'modelName == "e2e-already" && specName == "capabilities"' --json \
+            | jq -e '.results[0].content.applied == true and .results[0].content.requiresSudo == false and .results[0].content.command == ""'
+        expect: { exitCode: 0 }
+      - name: cleanup
+        run: swamp model delete e2e-already --yes --force
+        expect: { exitCode: 0 }
+
+  - name: upgrade-workflow-uses-sudo-when-capability-is-missing
+    confirms: >
+      With no file capability, caddy-upgrade invokes the sudo extension with
+      requireSuccess=true, the sudo extension verifies getcap, the result is
+      succeeded/verified, and the workflow completes on 80/443.
+    cannot: >
+      must not skip the sudo grant when the capability is absent, must not
+      report success if the sudo effect was not verified, and must not end on
+      the 8080/8443 fallback.
+    documents: README.md#privileged-ports-80443
+    runAs: tester
+    grants:
+      - { guest: harness, profile: sudo-nopasswd }
+    steps:
+      - name: create-model
+        run: |
+          swamp model create @svendowideit/caddy e2e-wf-sudo \
+            --global-arg serviceName=caddy \
+            --global-arg baseDomain=example.com \
+            --global-arg letsEncryptEmail=admin@example.com
+        expect: { exitCode: 0 }
+      - name: install-binary
+        run: >
+          swamp model method run e2e-wf-sudo installCaddy
+          --input setCapabilities=false --input configureStatusPage=false
+        expect: { exitCode: 0 }
+        timeoutSeconds: 300
+      - name: remove-any-existing-capability
+        run: sudo -n setcap -r "$HOME/.local/bin/caddy" 2>/dev/null || true
+        expect: { exitCode: 0 }
+      - name: remove-stale-autosave
+        run: rm -f "$HOME/.config/caddy/autosave.json"
+        expect: { exitCode: 0 }
+      - name: run-upgrade
+        run: swamp workflow run @svendowideit/caddy-upgrade --input model=e2e-wf-sudo
+        expect:
+          exitCode: 0
+          outputContains:
+            - "Ran 'setcap' via"
+            - "verified=true"
+          outputNotContains:
+            - "Suspended workflow"
+            - "listening on :8080"
+            - "listening on :8443"
+        timeoutSeconds: 300
+      - name: sudo-result-is-verified-success
+        run: |
+          swamp data query 'modelName == "sudo-default" && specName == "result"' --json \
+            | jq -e '.results[0].content.outcome == "succeeded" and .results[0].content.verified == true'
+        expect: { exitCode: 0 }
+      - name: getcap-proves-the-effect
+        run: getcap "$HOME/.local/bin/caddy"
+        expect: { stdoutContains: ["cap_net_bind_service"] }
+      - name: cleanup
+        run: swamp model delete e2e-wf-sudo --yes --force
+        expect: { exitCode: 0 }
+
   - name: elevation-sudo-grants-capability-and-binds-443
     confirms: >
       With a passwordless-`sudo` grant and a non-root harness, installCaddy grants

@@ -1,4 +1,3 @@
-# meta-factory-ignore report-reality prerequisite-allow-failure: dns is optional and allowFailure; the final check is read-only and reports the gaps, it does not claim the optional DNS step succeeded.
 id: 5add36ac-50d1-4042-b5c5-5af5e4820b8b
 name: '@svendowideit/caddy-upgrade'
 description: |
@@ -231,7 +230,7 @@ jobs:
     weight: 0
     allowFailure: false
   - name: status-page
-    description: Re-install the default status page and apply the desired server/routes. Runs after restart and before verify-serving, because it is the config apply that must bind the configured ports; a bind failure fails here with the exact command.
+    description: 'Re-install the default status page and apply the desired server/routes. This is the config apply: if the running process cannot bind the configured ports, it fails here with the journal, the getcap state and the running-process diagnosis (CapEff, unit NoNewPrivileges/AmbientCapabilities/CapabilityBoundingSet, autosave).'
     guard: ${{ inputs.model == "" && data.latest("caddy-upgrade-scan", "targets").?attributes.?targetCount.orValue(0) != 1 }}
     task:
       type: model_method
@@ -252,42 +251,12 @@ jobs:
       modelType: '@svendowideit/caddy'
       modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?upgradeModel.orValue("") }}'
       methodName: upgradeCheck
+      inputs:
+        requireServing: true
     dependsOn:
     - step: status-page
       condition:
         type: succeeded
-    weight: 0
-    allowFailure: false
-  - name: pause-if-not-serving
-    description: 'Interactive gate: the restarted process is not on 80/443. Pause, show the gaps and exact fix commands from the serving check, and let the user fix the host and decide to resume or reject. The extension never moves the service to 8080/8443.'
-    guard: '${{ data.latest(inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").attributes.upgradeModel, "upgrade-check").?attributes.?servingOk.orValue(false) == true }}'
-    task:
-      type: manual_approval
-      prompt: |
-        Caddy is not serving on 80/443. The serving check above lists every gap
-        and its exact fix command. Fix them on the host, then approve to
-        re-check and continue. If you reject, the workflow stops without
-        further changes. It will never move Caddy to 8080/8443.
-    dependsOn:
-    - step: verify-serving
-      condition:
-        type: succeeded
-    weight: 0
-    allowFailure: false
-  - name: reverify-serving
-    description: Hard re-check after the user has fixed the host. Fails with the gaps and exact commands if Caddy is still not on 80/443, so the run cannot report success for a degraded service.
-    guard: ${{ inputs.model == "" && data.latest("caddy-upgrade-scan", "targets").?attributes.?targetCount.orValue(0) != 1 }}
-    task:
-      type: model_method
-      modelType: '@svendowideit/caddy'
-      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?upgradeModel.orValue("") }}'
-      methodName: upgradeCheck
-      inputs:
-        requireServing: true
-    dependsOn:
-    - step: pause-if-not-serving
-      condition:
-        type: always
     weight: 0
     allowFailure: false
   - name: tls
@@ -302,7 +271,7 @@ jobs:
         dnsProvider: ${{ inputs.dnsProvider }}
         providerConfig: ${{ inputs.providerConfig }}
     dependsOn:
-    - step: reverify-serving
+    - step: verify-serving
       condition:
         type: succeeded
     weight: 0

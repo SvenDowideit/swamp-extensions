@@ -23,6 +23,7 @@ import {
   caddyDownloadUrl,
   caddyTargetKey,
   canBindPrivilegedPortsNow,
+  capabilitiesSatisfied,
   computeHealth,
   configuredListens,
   DEFAULT_CADDY_PLUGINS,
@@ -303,6 +304,16 @@ Deno.test("isPrivilegedBindFailure detects a :443 bind error and never degrades"
     err.message,
     "will not move the service to unprivileged ports",
   );
+  const diagnosed = privilegedBindError(
+    "caddy",
+    "caddy",
+    "/home/me/.local/bin/caddy",
+    ["cap_net_bind_service=ep"],
+    "",
+    "MainPID: 1234\nCapEff: 0 (CAP_NET_BIND_SERVICE absent)\nNoNewPrivileges=yes",
+  );
+  assertStringIncludes(diagnosed.message, "CapEff: 0");
+  assertStringIncludes(diagnosed.message, "NoNewPrivileges=yes");
 });
 
 Deno.test("rootTrustFailureHint names the stale-autosave recovery command", () => {
@@ -3391,6 +3402,19 @@ Deno.test("localhostUrl uses the measured scheme and listen addresses", () => {
   assertEquals(
     localhostUrl("http", [":8443", ":8080"]),
     "http://localhost:8443/",
+  );
+});
+
+Deno.test("capabilitiesSatisfied treats getcap =ep as satisfying =+ep", () => {
+  // getcap renders cap_net_bind_service=+ep as cap_net_bind_service=ep.
+  // Comparing the raw requested string said "not applied", printed a grant
+  // command and skipped the grant later. This is the regression test.
+  assertEquals(
+    capabilitiesSatisfied(
+      ["cap_net_bind_service=ep"],
+      ["cap_net_bind_service=+ep"],
+    ),
+    true,
   );
 });
 

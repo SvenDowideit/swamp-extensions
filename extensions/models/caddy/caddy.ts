@@ -1316,6 +1316,33 @@ export function canBindPrivilegedPortsNow(capabilities: string[]): boolean {
 }
 
 /**
+ * True when the requested capabilities are already present on the binary.
+ *
+ * `getcap` renders `cap_net_bind_service=+ep` as `cap_net_bind_service=ep`.
+ * Comparing the raw requested string therefore says "not present" even when it
+ * is, which made the workflow print a grant command on every run and skip the
+ * grant later. Parse the capability name instead.
+ */
+export function capabilitiesSatisfied(
+  present: string[],
+  requested: string[],
+): boolean {
+  if (
+    requested.some((c) => c.split("=")[0] === "cap_net_bind_service") &&
+    hasNetBindService(present)
+  ) {
+    return true;
+  }
+  // Root can bind privileged ports without a file capability.
+  try {
+    if (Deno.uid() === 0) return true;
+  } catch {
+    // ignore
+  }
+  return requested.every((c) => present.includes(c));
+}
+
+/**
  * Render the systemd *user* service unit file content for Caddy.
  *
  * The admin endpoint is configured via the Caddyfile's `admin` global option,
@@ -4675,16 +4702,94 @@ export function isPrivilegedBindFailure(message: string): boolean {
  * move to unprivileged ports. The extension must never degrade the service:
  * the user asked for 80/443, and a high-port fallback hides the failure.
  */
+/** Measure the running service so a bind failure names the actual cause. */
+async function diagnosePrivilegedBind(
+  serviceName: string,
+  binPath: string,
+  configPath: string,
+): Promise<string> {
+  const lines: string[] = [];
+  try {
+    const pidRes = await systemctl([
+      "show",
+      "-p",
+      "MainPID",
+      "--value",
+      serviceName,
+    ]);
+    const pid = pidRes.stdout.trim();
+    lines.push(`MainPID: ${pid || "(unknown)"}`);
+    if (pid && pid !== "0") {
+      try {
+        const status = await Deno.readTextFile(`/proc/${pid}/status`);
+        const capEff = status.match(/^CapEff:\s*([0-9a-f]+)/mi)?.[1] ?? "";
+        const has = capEff
+          ? (BigInt(`0x${capEff}`) & (1n << 10n)) !== 0n
+          : false;
+        lines.push(
+          `CapEff: ${capEff || "(unknown)"} (CAP_NET_BIND_SERVICE ${
+            has ? "present" : "absent"
+          })`,
+        );
+      } catch {
+        lines.push(`CapEff: could not read /proc/${pid}/status`);
+      }
+      try {
+        const exe = await Deno.readLink(`/proc/${pid}/exe`);
+        lines.push(
+          `/proc/${pid}/exe: ${exe}${
+            exe === binPath ? "" : " (does not match the configured binary)"
+          }`,
+        );
+      } catch {
+        // ignore
+      }
+    }
+  } catch {
+    // ignore
+  }
+  try {
+    const props = await systemctl([
+      "show",
+      serviceName,
+      "-p",
+      "NoNewPrivileges",
+      "-p",
+      "AmbientCapabilities",
+      "-p",
+      "CapabilityBoundingSet",
+      "-p",
+      "ExecStart",
+    ]);
+    if (props.code === 0 && props.stdout.trim()) {
+      lines.push(props.stdout.trim());
+    }
+  } catch {
+    // ignore
+  }
+  try {
+    const autosave = autosavePathFor(configPath);
+    await Deno.stat(autosave);
+    lines.push(
+      `Autosave: ${autosave} exists (--resume can pin the old 8080/8443 config)`,
+    );
+  } catch {
+    // no autosave
+  }
+  return lines.join("\n");
+}
+
 export function privilegedBindError(
   modelName: string,
   serviceName: string,
   binPath: string,
   capabilities: string[],
   capabilityCommand = "",
+  diagnosis = "",
 ): Error {
   const capText = capabilities.length ? capabilities.join(" ") : "(none)";
   return new Error(
-    `Caddy could not bind 80/443: the running process lacks CAP_NET_BIND_SERVICE.\n` +
+    `Caddy could not bind 80/443: the running process could not use CAP_NET_BIND_SERVICE.\n` +
       `The binary ${binPath} reports: ${capText}.\n` +
       `If the capability is missing, grant it:\n  ${
         capabilityCommand ||
@@ -4698,6 +4803,7 @@ export function privilegedBindError(
       `  systemctl --user status ${serviceName}\n` +
       `  journalctl --user -u ${serviceName} -n 50\n` +
       `  systemctl --user show ${serviceName} -p ExecStart -p NoNewPrivileges -p AmbientCapabilities -p CapabilityBoundingSet\n` +
+      (diagnosis ? `\nDiagnosis:\n${diagnosis}\n` : "") +
       `The extension will not move the service to unprivileged ports.`,
   );
 }
@@ -4714,6 +4820,11 @@ async function applyConfig(
     const message = err instanceof Error ? err.message : String(err);
     if (isPrivilegedBindFailure(message)) {
       const binPath = expandHome(g.caddyBinPath);
+      const diagnosis = await diagnosePrivilegedBind(
+        g.serviceName,
+        binPath,
+        g.configPath,
+      );
       throw privilegedBindError(
         context.definition?.name ?? "caddy",
         g.serviceName,
@@ -4722,6 +4833,7 @@ async function applyConfig(
         capabilityGrantCommand(g.sudoInstanceKey, binPath, [
           "cap_net_bind_service=+ep",
         ]),
+        diagnosis,
       );
     }
     const canHeal = !!g.environmentFile && isDnsCredentialFailure(message) &&
@@ -5874,7 +5986,7 @@ type CheckContext = {
 /** Model definition for the Caddy reverse-proxy and service manager. */
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.11.07.7",
+  version: "2026.11.07.8",
   reports: ["@svendowideit/caddy-status"],
   globalArguments: GlobalArgsSchema,
   checks: {
@@ -6355,6 +6467,25 @@ export const model = {
         "the no-fallback behavior.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.07.8",
+      description:
+        "Fixes the already-applied capability comparison. getcap renders " +
+        "cap_net_bind_service=+ep as cap_net_bind_service=ep; the raw string " +
+        "comparison said 'not applied', printed a grant command, and then the " +
+        "workflow guard skipped the grant. capabilitiesSatisfied parses the " +
+        "capability name, so an already-capable binary reports applied, empty " +
+        "command, and no sudo call. When a bind still fails, privilegedBindError " +
+        "now measures the running process (MainPID, /proc/<pid>/exe, CapEff) and " +
+        "the unit (NoNewPrivileges, AmbientCapabilities, CapabilityBoundingSet) " +
+        "and notes a stale autosave, so the failure names the actual cause " +
+        "instead of claiming the binary lacks the capability. status-page is the " +
+        "config apply and fails hard with that diagnosis; verify-serving is a " +
+        "hard requireServing check after it. The only manual-approval pause is " +
+        "the capability grant; the late pause/reverify path is removed. Adds the " +
+        "already-applied and sudo-grant regression tests.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     install: {
@@ -6663,7 +6794,7 @@ export const model = {
         const capabilities = args.capabilities ?? PRIVILEGED_PORT_CAPABILITIES;
 
         const before = await readCapabilities(binPath);
-        const already = capabilities.every((c) => before.includes(c));
+        const already = capabilitiesSatisfied(before, capabilities);
         const result = already
           ? { applied: true, detail: "already granted" }
           : await pendingCapabilityGrant(context, binPath, capabilities);
@@ -6672,8 +6803,7 @@ export const model = {
         // requested capability must actually be present. This is the check the
         // post-grant workflow step uses to catch an elevation route that exits
         // 0 without applying setcap.
-        const applied = canBindPrivilegedPortsNow(after) ||
-          capabilities.every((c) => after.includes(c));
+        const applied = capabilitiesSatisfied(after, capabilities);
 
         if (!args.quiet) {
           if (applied) {

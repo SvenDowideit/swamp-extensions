@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4486"><span class="tier A">A</span>Slackwater: integration registration and ceiling</a><a href="#issue-4497"><span class="tier A">A</span>Telemetry integration tests can fail verify-build by leaving</a><a href="#issue-4487"><span class="tier A">A</span>Slackwater: swamp-club link page, consent and the link email</a><a href="#issue-4492"><span class="tier A">A</span>verify-build can hang for up to an hour when test workers st</a><a href="#issue-4495"><span class="tier A">A</span>swamp workflow validate fails a repo because of a pulled ext</a><a href="#issue-4485"><span class="tier A">A</span>workflow approvals offers a person refused on their own run </a><a href="#issue-4129"><span class="tier A">A</span>Over-limit contentMetadata publishes a blank extension page;</a><a href="#issue-4489"><span class="tier A">A</span>workflow run --json reports a succeeded run as failed, and h</a><a href="#issue-4474"><span class="tier A">A</span>Slackwater: bearer-only HTTP route for workflow actions</a><a href="#issue-4488"><span class="tier A">A</span>Deeply nested resource content overflows the stack: nested w</a><a href="#issue-4469"><span class="tier A">A</span>A method run writing thousands of resources reports &#39;Invalid</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4422"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-4461"><span class="tier A">A</span>Terminal report renderer prints HTML entities in table cells</a><a href="#issue-4486"><span class="tier A">A</span>Slackwater: integration registration and ceiling</a><a href="#issue-4497"><span class="tier A">A</span>Telemetry integration tests can fail verify-build by leaving</a><a href="#issue-4487"><span class="tier A">A</span>Slackwater: swamp-club link page, consent and the link email</a><a href="#issue-4492"><span class="tier A">A</span>verify-build can hang for up to an hour when test workers st</a><a href="#issue-4495"><span class="tier A">A</span>swamp workflow validate fails a repo because of a pulled ext</a><a href="#issue-4485"><span class="tier A">A</span>workflow approvals offers a person refused on their own run </a><a href="#issue-4129"><span class="tier A">A</span>Over-limit contentMetadata publishes a blank extension page;</a><a href="#issue-4489"><span class="tier A">A</span>workflow run --json reports a succeeded run as failed, and h</a><a href="#issue-4474"><span class="tier A">A</span>Slackwater: bearer-only HTTP route for workflow actions</a></aside><div>
 
 <article class="item" id="issue-4239">
 <h2><span class="tier S">S</span>swamp issue: file bugs, features and security reports against the platform source</h2>
@@ -76,6 +76,22 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-4422">
+<h2><span class="tier A">A</span>Scheduled flaky-test detection is failing</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-07T21:56:52.334Z">2026-11-07T21:56:52.334Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4422" rel="noopener">lab#4422</a></div>
+</article>
+<article class="item" id="issue-4461">
+<h2><span class="tier A">A</span>Terminal report renderer prints HTML entities in table cells: a &#39; in a header shows as &amp;#39;</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-07T21:50:38.935Z">2026-11-07T21:50:38.935Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4461" rel="noopener">lab#4461</a></div>
 </article>
 <article class="item" id="issue-4486">
 <h2><span class="tier A">A</span>Slackwater: integration registration and ceiling</h2>
@@ -149,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4474" rel="noopener">lab#4474</a></div>
 </article>
-<article class="item" id="issue-4488">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4488">
 <h2><span class="tier A">A</span>Deeply nested resource content overflows the stack: nested workflow run summaries are silently erased, and history outputs --json leaves truncated JSON</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-06T20:49:01.276Z">2026-11-06T20:49:01.276Z</time></span></div>
@@ -165,7 +181,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4469" rel="noopener">lab#4469</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4481">
+<article class="item" id="issue-4481">
 <h2><span class="tier A">A</span>repo prune follow-ups: report failed writes apart from skips, resolved path in errors, upgrade note indent, matcher tests</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-06T18:00:30.125Z">2026-11-06T18:00:30.125Z</time></span></div>
@@ -1613,6 +1629,38 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
+<article class="item" id="issue-4371">
+<h2><span class="tier B">B</span>Agents.md: consider not using H1 &#39;Project&#39; inside managed block</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-07T22:04:45.724Z">2026-11-07T22:04:45.724Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4371" rel="noopener">lab#4371</a></div>
+</article>
+<article class="item" id="issue-4222">
+<h2><span class="tier B">B</span>Add expiring service-account token requests and authorization checks to RBAC</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-07T22:02:47.550Z">2026-11-07T22:02:47.550Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4222" rel="noopener">lab#4222</a></div>
+</article>
+<article class="item" id="issue-4506">
+<h2><span class="tier B">B</span>feat(workflows): the fan-out lane engine: a fanOut job plans against serve&#39;s worker pool and runs one pinned lane per matching worker</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-07T22:02:02.410Z">2026-11-07T22:02:02.410Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4506" rel="noopener">lab#4506</a></div>
+</article>
+<article class="item" id="issue-4161">
+<h2><span class="tier B">B</span>deployment: getLogs method (deployment-aware pod log tailing)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-07T21:48:19.001Z">2026-11-07T21:48:19.001Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4161" rel="noopener">lab#4161</a></div>
+</article>
 <article class="item" id="issue-4504">
 <h2><span class="tier B">B</span>A worker enrolling into a waiting queue can get its step before it can accept it, failing the step</h2>
 <p class="lede">Issue triaged</p>
@@ -1653,7 +1701,39 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4374" rel="noopener">lab#4374</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4459">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4433">
+<h2><span class="tier C">C</span>stagecraft tracker: tidy up external relations (duplicate entries, id case, second lookup)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-07T21:32:59.237Z">2026-11-07T21:32:59.237Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4433" rel="noopener">lab#4433</a></div>
+</article>
+<article class="item" id="issue-4476">
+<h2><span class="tier C">C</span>Image factory: golden GCE and Docker base images built on ops</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-07T21:32:50.136Z">2026-11-07T21:32:50.136Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4476" rel="noopener">lab#4476</a></div>
+</article>
+<article class="item" id="issue-4428">
+<h2><span class="tier C">C</span>Cloudflare codegen: a self-referencing request body overflows the stack in normalizeProperty</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-07T21:25:29.383Z">2026-11-07T21:25:29.383Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4428" rel="noopener">lab#4428</a></div>
+</article>
+<article class="item" id="issue-4436">
+<h2><span class="tier C">C</span>Cloudflare codegen: a oneOf/anyOf inside a multi-member allOf is dropped</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-07T21:25:21.335Z">2026-11-07T21:25:21.335Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4436" rel="noopener">lab#4436</a></div>
+</article>
+<article class="item" id="issue-4459">
 <h2><span class="tier C">C</span>Slackwater: let customers build integrations that drive workflows securely and auditably</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-11-07T20:22:55.294Z">2026-11-07T20:22:55.294Z</time></span></div>
@@ -1701,14 +1781,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3580" rel="noopener">lab#3580</a></div>
 </article>
-<article class="item" id="issue-4422">
-<h2><span class="tier C">C</span>Scheduled flaky-test detection is failing</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-07T19:00:09.510Z">2026-11-07T19:00:09.510Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4422" rel="noopener">lab#4422</a></div>
-</article>
 <article class="item" id="issue-4202">
 <h2><span class="tier C">C</span>Swamp Club collective GUI: show the swamp serve instances currently connected to a collective</h2>
 <p class="lede">Open issue</p>
@@ -1740,14 +1812,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4491" rel="noopener">lab#4491</a></div>
-</article>
-<article class="item" id="issue-4476">
-<h2><span class="tier C">C</span>Image factory: golden GCE and Docker base images built on ops</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-07T00:09:26.222Z">2026-11-07T00:09:26.222Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4476" rel="noopener">lab#4476</a></div>
 </article>
 <article class="item" id="issue-4490">
 <h2><span class="tier C">C</span>data query rejects CEL list macros: exists(c, ...) fails with Unknown field &quot;c&quot;</h2>
@@ -2005,14 +2069,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4463" rel="noopener">lab#4463</a></div>
 </article>
-<article class="item" id="issue-4461">
-<h2><span class="tier C">C</span>Terminal report renderer prints HTML entities in table cells: a &#39; in a header shows as &amp;#39;</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-05T22:19:01.888Z">2026-11-05T22:19:01.888Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4461" rel="noopener">lab#4461</a></div>
-</article>
 <article class="item" id="issue-4448">
 <h2><span class="tier C">C</span>Docs: Claude audit hook covers PowerShell, swamp audit install --user, and doctor audit hook warnings</h2>
 <p class="lede">Open issue</p>
@@ -2093,22 +2149,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4439" rel="noopener">lab#4439</a></div>
 </article>
-<article class="item" id="issue-4436">
-<h2><span class="tier C">C</span>Cloudflare codegen: a oneOf/anyOf inside a multi-member allOf is dropped</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-05T18:35:48.838Z">2026-11-05T18:35:48.838Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4436" rel="noopener">lab#4436</a></div>
-</article>
-<article class="item" id="issue-4433">
-<h2><span class="tier C">C</span>stagecraft tracker: tidy up external relations (duplicate entries, id case, second lookup)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-05T17:33:25.749Z">2026-11-05T17:33:25.749Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4433" rel="noopener">lab#4433</a></div>
-</article>
 <article class="item" id="issue-3885">
 <h2><span class="tier C">C</span>Skill propulsion rule is silent when no transition is satisfied because stage work is outstanding</h2>
 <p class="lede">Open issue</p>
@@ -2124,14 +2164,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4430" rel="noopener">lab#4430</a></div>
-</article>
-<article class="item" id="issue-4428">
-<h2><span class="tier C">C</span>Cloudflare codegen: a self-referencing request body overflows the stack in normalizeProperty</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-05T14:39:45.712Z">2026-11-05T14:39:45.712Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4428" rel="noopener">lab#4428</a></div>
 </article>
 <article class="item" id="issue-4420">
 <h2><span class="tier C">C</span>Terminal title should be conversation summary</h2>
@@ -2276,14 +2308,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4372" rel="noopener">lab#4372</a></div>
-</article>
-<article class="item" id="issue-4371">
-<h2><span class="tier C">C</span>Agents.md: consider not using H1 &#39;Project&#39; inside managed block</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-03T21:45:05.916Z">2026-11-03T21:45:05.916Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4371" rel="noopener">lab#4371</a></div>
 </article>
 <article class="item" id="issue-4367">
 <h2><span class="tier C">C</span>serve: the cron-fire dedup claim has no deadline, so a hung control plane stalls every scheduled fire</h2>
@@ -2510,13 +2534,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>305 items across 1 source(s) in this window:
-1 critical, 192 notable, 5 routine,
-107 minor.</p>
-<ul><li><strong>issues</strong> — 305</li></ul></section>
+<p>308 items across 1 source(s) in this window:
+1 critical, 194 notable, 9 routine,
+104 minor.</p>
+<ul><li><strong>issues</strong> — 308</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-07T21:01:29.897Z">2026-11-07T21:01:29.897Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-07T22:07:09.653Z">2026-11-07T22:07:09.653Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

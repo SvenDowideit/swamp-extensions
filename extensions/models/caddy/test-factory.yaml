@@ -882,7 +882,7 @@ tests:
         run: swamp model method run e2e-already setCapabilities
         expect:
           exitCode: 0
-          outputContains: ["can bind privileged ports"]
+          outputContains: ["already satisfied", "no sudo step is required"]
           outputNotContains:
             - "Granting cap_net_bind_service"
             - "must be a placed step"
@@ -952,6 +952,265 @@ tests:
         run: swamp model delete e2e-wf-sudo --yes --force
         expect: { exitCode: 0 }
 
+  - name: upgrade-restarts-when-process-lacks-the-capability
+    confirms: >
+      The file capability and the running process capability are different
+      states. When the binary gets the file capability after the service has
+      already started, the upgrade's restart produces a new process with
+      CAP_NET_BIND_SERVICE in CapEff, and the workflow completes on 80/443.
+    cannot: >
+      must not treat the binary getcap result as proof about the old process,
+      must not skip the restart, and must not end on 8080/8443.
+    documents: README.md#privileged-ports-80443
+    runAs: tester
+    grants:
+      - { guest: harness, profile: sudo-nopasswd }
+    steps:
+      - name: create-model
+        run: |
+          swamp model create @svendowideit/caddy e2e-restart \
+            --global-arg serviceName=caddy \
+            --global-arg baseDomain=example.com \
+            --global-arg letsEncryptEmail=admin@example.com
+        expect: { exitCode: 0 }
+      - name: install-binary
+        run: >
+          swamp model method run e2e-restart installCaddy
+          --input setCapabilities=false --input configureStatusPage=false
+        expect: { exitCode: 0 }
+        timeoutSeconds: 300
+      - name: stop-other-caddy
+        run: systemctl --user stop caddy 2>/dev/null || true
+        expect: { exitCode: 0 }
+      - name: remove-file-capability
+        run: sudo -n setcap -r "$HOME/.local/bin/caddy" 2>/dev/null || true
+        expect: { exitCode: 0 }
+      - name: create-service
+        run: swamp model method run e2e-restart createService
+        expect: { exitCode: 0 }
+      - name: start-before-the-file-capability
+        run: >
+          swamp model method run e2e-restart startService
+          --input configureStatusPage=false
+        expect: { exitCode: 0 }
+      - name: give-the-file-the-capability-after-the-process-started
+        run: sudo -n setcap cap_net_bind_service=+ep "$HOME/.local/bin/caddy"
+        expect: { exitCode: 0 }
+      - name: run-upgrade
+        run: swamp workflow run @svendowideit/caddy-upgrade --input model=e2e-restart
+        expect:
+          exitCode: 0
+          outputContains:
+            - "Restarted process"
+            - "CAP_NET_BIND_SERVICE is available"
+          outputNotContains:
+            - "Suspended workflow"
+            - "listening on :8080"
+            - "listening on :8443"
+        timeoutSeconds: 300
+      - name: service-binds-443
+        run: curl -sk -o /dev/null -w '%{http_code}' https://localhost/
+        expect: { stdoutContains: ["200"], stdoutNotContains: ["000"] }
+      - name: cleanup
+        run: |
+          systemctl --user stop caddy 2>/dev/null || true
+          swamp model delete e2e-restart --yes --force || true
+        expect: { exitCode: 0 }
+
+  - name: upgrade-stops-before-apply-when-process-is-not-the-binary
+    confirms: >
+      When the unit's ExecStart points at a different (no-cap) binary than the
+      configured caddyBinPath, the restart produces a process whose /proc/exe
+      does not match the binary. The workflow stops at the process check and
+      never applies the privileged config.
+    cannot: >
+      must not claim the process is the configured binary, must not apply the
+      config, and must not move to 8080/8443.
+    documents: README.md#privileged-ports-80443
+    runAs: tester
+    grants:
+      - { guest: harness, profile: sudo-nopasswd }
+    steps:
+      - name: create-model
+        run: |
+          swamp model create @svendowideit/caddy e2e-dropin \
+            --global-arg serviceName=caddy \
+            --global-arg baseDomain=example.com \
+            --global-arg letsEncryptEmail=admin@example.com
+        expect: { exitCode: 0 }
+      - name: install-binary
+        run: >
+          swamp model method run e2e-dropin installCaddy
+          --input setCapabilities=false --input configureStatusPage=false
+        expect: { exitCode: 0 }
+        timeoutSeconds: 300
+      - name: stop-other-caddy
+        run: systemctl --user stop caddy 2>/dev/null || true
+        expect: { exitCode: 0 }
+      - name: make-a-no-cap-copy
+        run: |
+          cp "$HOME/.local/bin/caddy" /tmp/caddy-nocap
+          chmod +x /tmp/caddy-nocap
+          sudo -n setcap -r /tmp/caddy-nocap 2>/dev/null || true
+          sudo -n setcap cap_net_bind_service=+ep "$HOME/.local/bin/caddy"
+        expect: { exitCode: 0 }
+      - name: point-the-unit-at-the-wrong-binary
+        run: |
+          mkdir -p "$HOME/.config/systemd/user/caddy.service.d"
+          printf '[Service]\nExecStart=\nExecStart=/tmp/caddy-nocap run --config %s/.config/caddy/Caddyfile --adapter caddyfile\n' "$HOME" > "$HOME/.config/systemd/user/caddy.service.d/execstart.conf"
+          systemctl --user daemon-reload
+        expect: { exitCode: 0 }
+      - name: run-upgrade-fails-at-the-process-check
+        run: swamp workflow run @svendowideit/caddy-upgrade --input model=e2e-dropin
+        expect:
+          exitCode: 1
+          outputContains:
+            - "does not match the configured binary"
+          outputNotContains:
+            - "Status page installed on localhost"
+            - "listening on :443"
+        timeoutSeconds: 300
+      - name: cleanup
+        run: |
+          rm -f "$HOME/.config/systemd/user/caddy.service.d/execstart.conf"
+          systemctl --user daemon-reload || true
+          systemctl --user stop caddy 2>/dev/null || true
+          swamp model delete e2e-dropin --yes --force || true
+        expect: { exitCode: 0 }
+  - name: upgrade-rejects-a-stale-process
+    confirms: >
+      The workflow does not trust a restart that did not happen. With a fake
+      systemctl that returns success for `restart` without changing the MainPID,
+      the process check sees the same PID and stops before applying config.
+    cannot: >
+      must not claim the process was restarted, must not apply the status page,
+      and must not move to 8080/8443.
+    documents: README.md#privileged-ports-80443
+    runAs: tester
+    grants:
+      - { guest: harness, profile: sudo-nopasswd }
+    steps:
+      - name: create-model
+        run: |
+          swamp model create @svendowideit/caddy e2e-stale \
+            --global-arg serviceName=caddy \
+            --global-arg baseDomain=example.com \
+            --global-arg letsEncryptEmail=admin@example.com
+        expect: { exitCode: 0 }
+      - name: install-binary
+        run: >
+          swamp model method run e2e-stale installCaddy
+          --input setCapabilities=false --input configureStatusPage=false
+        expect: { exitCode: 0 }
+        timeoutSeconds: 300
+      - name: stop-other-caddy
+        run: systemctl --user stop caddy 2>/dev/null || true
+        expect: { exitCode: 0 }
+      - name: give-the-file-the-capability
+        run: sudo -n setcap cap_net_bind_service=+ep "$HOME/.local/bin/caddy"
+        expect: { exitCode: 0 }
+      - name: start-the-service
+        run: |
+          swamp model method run e2e-stale createService
+          swamp model method run e2e-stale startService --input configureStatusPage=false
+        expect: { exitCode: 0 }
+      - name: make-systemctl-restart-a-no-op
+        run: |
+          mkdir -p /tmp/fakebin
+          printf '#!/bin/sh\nif [ "$1" = "--user" ] && [ "$2" = "restart" ]; then exit 0; fi\nexec /usr/bin/systemctl "$@"\n' > /tmp/fakebin/systemctl
+          chmod +x /tmp/fakebin/systemctl
+        expect: { exitCode: 0 }
+      - name: run-upgrade-sees-the-same-pid
+        run: PATH=/tmp/fakebin:$PATH swamp workflow run @svendowideit/caddy-upgrade --input model=e2e-stale
+        expect:
+          exitCode: 1
+          outputContains:
+            - "did not restart"
+            - "MainPID is still"
+          outputNotContains:
+            - "Status page installed on localhost"
+            - "listening on :443"
+        timeoutSeconds: 300
+      - name: cleanup
+        run: |
+          rm -f /tmp/fakebin/systemctl
+          systemctl --user stop caddy 2>/dev/null || true
+          swamp model delete e2e-stale --yes --force || true
+        expect: { exitCode: 0 }
+  - name: service-restores-applied-config-after-restart
+    confirms: >
+      The admin-API-applied config survives a service restart because the unit
+      uses --resume. A live route remains in the running config after
+      systemctl --user restart, proving normal reboot operation does not fall
+      back to the minimal Caddyfile.
+    cannot: >
+      must not lose the route after the restart, and must not leave the service
+      inactive.
+    documents: README.md#privileged-ports-80443
+    runAs: tester
+    grants:
+      - { guest: harness, profile: sudo-nopasswd }
+    steps:
+      - name: create-model
+        run: |
+          swamp model create @svendowideit/caddy e2e-reboot \
+            --global-arg serviceName=caddy \
+            --global-arg baseDomain=example.com \
+            --global-arg letsEncryptEmail=admin@example.com
+        expect: { exitCode: 0 }
+      - name: install-binary
+        run: >
+          swamp model method run e2e-reboot installCaddy
+          --input setCapabilities=false --input configureStatusPage=false
+        expect: { exitCode: 0 }
+        timeoutSeconds: 300
+      - name: stop-other-caddy
+        run: systemctl --user stop caddy 2>/dev/null || true
+        expect: { exitCode: 0 }
+      - name: give-the-binary-the-capability
+        run: sudo -n setcap cap_net_bind_service=+ep "$HOME/.local/bin/caddy"
+        expect: { exitCode: 0 }
+      - name: create-and-start-the-service
+        run: |
+          swamp model method run e2e-reboot createService
+          swamp model method run e2e-reboot startService --input configureStatusPage=false
+        expect: { exitCode: 0 }
+      - name: apply-a-live-route
+        run: >
+          swamp model method run e2e-reboot addRoute
+          --input hostname=reboot.example.com --input kind=file_server
+          --input root=/tmp
+        expect: { exitCode: 0 }
+      - name: route-is-live-before-restart
+        run: |
+          curl -s http://localhost:2019/config/ \
+            | jq -r '[.apps.http.servers[]?.routes[]?.match[]?.host[]?] | unique | join(",")'
+        expect: { stdoutContains: ["reboot.example.com"] }
+      - name: restart-the-service
+        run: |
+          systemctl --user restart caddy
+          for i in $(seq 1 15); do
+            curl -sf http://localhost:2019/config/ >/dev/null && exit 0
+            sleep 1
+          done
+          exit 1
+        expect: { exitCode: 0 }
+        timeoutSeconds: 60
+      - name: route-is-live-after-restart
+        run: |
+          curl -s http://localhost:2019/config/ \
+            | jq -r '[.apps.http.servers[]?.routes[]?.match[]?.host[]?] | unique | join(",")'
+        expect: { stdoutContains: ["reboot.example.com"] }
+      - name: service-is-active
+        run: systemctl --user is-active caddy
+        expect:
+          stdoutContains: ["active"]
+          stdoutNotContains: ["inactive"]
+      - name: cleanup
+        run: |
+          systemctl --user stop caddy 2>/dev/null || true
+          swamp model delete e2e-reboot --yes --force || true
+        expect: { exitCode: 0 }
   - name: elevation-sudo-grants-capability-and-binds-443
     confirms: >
       With a passwordless-`sudo` grant and a non-root harness, installCaddy grants

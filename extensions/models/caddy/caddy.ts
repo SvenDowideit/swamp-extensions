@@ -541,6 +541,9 @@ const InstallArgsSchema = z.object({
   configureStatusPage: z.boolean().default(true).describe(
     "After install, install a default status page answering on localhost, summarising the install and linking to the admin API. Requires the admin API to be reachable (a running service); skips with a log otherwise.",
   ),
+  restart: z.boolean().default(true).describe(
+    "After replacing the binary or granting the capability, restart a running service and verify the new process. The upgrade/setup workflow passes false so the binary install never touches the service; the workflow's restart step does that after the file capability and process check.",
+  ),
 });
 
 const SetCapabilitiesArgsSchema = z.object({
@@ -564,6 +567,9 @@ const SetCapabilitiesArgsSchema = z.object({
 const ServiceArgsSchema = z.object({
   serviceName: z.string().optional().describe(
     "Override the systemd service name (defaults to global serviceName)",
+  ),
+  configureStatusPage: z.boolean().default(true).describe(
+    "For startService: apply the default status page after the service is up. The setup workflow passes false so the config is applied only after the new process has been verified.",
   ),
 });
 
@@ -950,6 +956,11 @@ const UpgradeCheckOutputSchema = z.object({
   dnsRecordCount: z.number(),
   environmentFile: z.string(),
   environmentFileExists: z.boolean(),
+  processMainPid: z.string().default(""),
+  processExe: z.string().default(""),
+  processCapEff: z.string().default(""),
+  processNetBind: z.boolean().nullable().default(null),
+  processNoNewPrivileges: z.string().default(""),
   gaps: z.array(UpgradeGapSchema),
   /** All required gaps (including TLS/DNS setup) are clear. */
   ok: z.boolean(),
@@ -1348,11 +1359,11 @@ export function capabilitiesSatisfied(
  * The admin endpoint is configured via the Caddyfile's `admin` global option,
  * not a `--admin` CLI flag (Caddy v2.11+ rejects `caddy run --admin`).
  *
- * `--resume` is passed so that config applied via the admin API (routes added
- * by addProxyService/ensureDnsProxy etc.) survives a service restart: Caddy
- * autosaves the running JSON config to its config dir, but only reloads it
- * with `--resume`. On a fresh install there is no autosave file yet, so Caddy
- * falls back to `--config` (the generated Caddyfile) — see the run docs.
+ * `--resume` is required: routes/TLS/DNS are applied through the admin API,
+ * and Caddy autosaves the running JSON config. On a reboot or service restart
+ * `--resume` reloads that applied config; without it Caddy starts from the
+ * minimal managed Caddyfile and the sites disappear. The autosave is the
+ * persistent copy of the last applied config, not a competing config.
  */
 export function renderServiceUnit(opts: {
   binPath: string;
@@ -4565,8 +4576,6 @@ async function adminApiRequestUnix(
 async function readConfig(
   adminApiAddr: string,
   token?: string,
-  listenAddrs?: string[],
-  autoHttps?: string,
 ): Promise<CaddyConfig> {
   const resp = await adminApiRequest(
     adminApiAddr,
@@ -4575,7 +4584,9 @@ async function readConfig(
     undefined,
     token,
   );
-  if (resp.status === 404) return baseConfig(listenAddrs, autoHttps);
+  // A 404 means there is no live config; never invent a server with the
+  // desired ports. Measurement must report what is actually running.
+  if (resp.status === 404) return {};
   if (resp.status < 200 || resp.status >= 300) {
     throw new Error(
       `Failed to read Caddy config (${resp.status}): ${resp.body}`,
@@ -4599,7 +4610,10 @@ async function readConfig(
       `Caddy admin API returned an unexpected config shape (expected a JSON object)`,
     );
   }
-  return ensureServerDefaults(body as CaddyConfig, listenAddrs, autoHttps);
+  // Do not apply ensureServerDefaults here: this is the LIVE config. Adding a
+  // server that is not running would make upgradeCheck claim a listening port
+  // that does not exist. Reconciliation adds defaults when it builds a config.
+  return body as CaddyConfig;
 }
 
 /** Replace the Caddy JSON config via the admin API. */
@@ -4703,55 +4717,39 @@ export function isPrivilegedBindFailure(message: string): boolean {
  * the user asked for 80/443, and a high-port fallback hides the failure.
  */
 /** Measure the running service so a bind failure names the actual cause. */
-async function diagnosePrivilegedBind(
+/** The measured state of the running systemd user service. */
+export interface ProcessState {
+  mainPid: string;
+  exe: string;
+  /** Effective capabilities bitmap from /proc/<pid>/status, hex. */
+  capEff: string;
+  /** True/false when CapEff was readable; null when it was not. */
+  netBind: boolean | null;
+  /** NoNewPrivileges, AmbientCapabilities, CapabilityBoundingSet, ExecStart. */
+  unit: Record<string, string>;
+  startTime: string;
+}
+
+/** Read the running process, not the binary. Read-only. */
+export async function readProcessState(
   serviceName: string,
-  binPath: string,
-  configPath: string,
-): Promise<string> {
-  const lines: string[] = [];
+): Promise<ProcessState> {
+  const state: ProcessState = {
+    mainPid: "",
+    exe: "",
+    capEff: "",
+    netBind: null,
+    unit: {},
+    startTime: "",
+  };
   try {
-    const pidRes = await systemctl([
+    const res = await systemctl([
       "show",
+      serviceName,
       "-p",
       "MainPID",
-      "--value",
-      serviceName,
-    ]);
-    const pid = pidRes.stdout.trim();
-    lines.push(`MainPID: ${pid || "(unknown)"}`);
-    if (pid && pid !== "0") {
-      try {
-        const status = await Deno.readTextFile(`/proc/${pid}/status`);
-        const capEff = status.match(/^CapEff:\s*([0-9a-f]+)/mi)?.[1] ?? "";
-        const has = capEff
-          ? (BigInt(`0x${capEff}`) & (1n << 10n)) !== 0n
-          : false;
-        lines.push(
-          `CapEff: ${capEff || "(unknown)"} (CAP_NET_BIND_SERVICE ${
-            has ? "present" : "absent"
-          })`,
-        );
-      } catch {
-        lines.push(`CapEff: could not read /proc/${pid}/status`);
-      }
-      try {
-        const exe = await Deno.readLink(`/proc/${pid}/exe`);
-        lines.push(
-          `/proc/${pid}/exe: ${exe}${
-            exe === binPath ? "" : " (does not match the configured binary)"
-          }`,
-        );
-      } catch {
-        // ignore
-      }
-    }
-  } catch {
-    // ignore
-  }
-  try {
-    const props = await systemctl([
-      "show",
-      serviceName,
+      "-p",
+      "ExecMainStartTimestamp",
       "-p",
       "NoNewPrivileges",
       "-p",
@@ -4761,22 +4759,132 @@ async function diagnosePrivilegedBind(
       "-p",
       "ExecStart",
     ]);
-    if (props.code === 0 && props.stdout.trim()) {
-      lines.push(props.stdout.trim());
+    for (const line of res.stdout.split("\n")) {
+      const i = line.indexOf("=");
+      if (i < 0) continue;
+      const key = line.slice(0, i);
+      const value = line.slice(i + 1);
+      if (key === "MainPID") state.mainPid = value.trim();
+      else if (key === "ExecMainStartTimestamp") state.startTime = value.trim();
+      else state.unit[key] = value;
     }
   } catch {
-    // ignore
+    // no systemctl / no service
   }
-  try {
-    const autosave = autosavePathFor(configPath);
-    await Deno.stat(autosave);
-    lines.push(
-      `Autosave: ${autosave} exists (--resume can pin the old 8080/8443 config)`,
-    );
-  } catch {
-    // no autosave
+  if (state.mainPid && state.mainPid !== "0") {
+    // Deno's file APIs can be denied outside the repo in a worker; use the
+    // same subprocess path as systemctl. Both commands are read-only.
+    const statusRes = await runCmd("cat", [`/proc/${state.mainPid}/status`]);
+    if (statusRes.code === 0) {
+      state.capEff = statusRes.stdout.match(/^CapEff:\s*([0-9a-f]+)/mi)?.[1] ??
+        "";
+      if (state.capEff) {
+        state.netBind = (BigInt(`0x${state.capEff}`) & (1n << 10n)) !== 0n;
+      }
+    }
+    const exeRes = await runCmd("readlink", [`/proc/${state.mainPid}/exe`]);
+    if (exeRes.code === 0) state.exe = exeRes.stdout.trim();
+  }
+  return state;
+}
+
+/** Human-readable process state for errors and the plan. */
+export function processStateText(
+  state: ProcessState,
+  binPath: string,
+): string {
+  const lines = [
+    `MainPID: ${state.mainPid || "(none)"}`,
+    `Started: ${state.startTime || "(unknown)"}`,
+    `/proc/<pid>/exe: ${
+      state.exe
+        ? `${state.exe}${
+          state.exe === binPath ? "" : " (does not match the configured binary)"
+        }`
+        : "(unreadable)"
+    }`,
+    `CapEff: ${
+      state.capEff
+        ? `${state.capEff} (CAP_NET_BIND_SERVICE ${
+          state.netBind ? "present" : "absent"
+        })`
+        : "(unreadable — do not assume absent)"
+    }`,
+  ];
+  for (
+    const key of [
+      "NoNewPrivileges",
+      "AmbientCapabilities",
+      "CapabilityBoundingSet",
+      "ExecStart",
+    ]
+  ) {
+    if (state.unit[key] !== undefined) lines.push(`${key}=${state.unit[key]}`);
   }
   return lines.join("\n");
+}
+
+async function diagnosePrivilegedBind(
+  serviceName: string,
+  binPath: string,
+  _configPath: string,
+): Promise<string> {
+  const state = await readProcessState(serviceName);
+  return processStateText(state, binPath);
+}
+
+/**
+ * Verify the process that the restart actually produced. This is deliberately
+ * separate from the binary capability: a file capability is applied at exec()
+ * time, so `getcap <bin>` says nothing about the running process.
+ */
+async function verifyRestartedProcess(
+  context: MethodContext,
+  g: GlobalArgs,
+  serviceName: string,
+  beforePid: string,
+  requirePrivileged: boolean,
+): Promise<ProcessState> {
+  const state = await readProcessState(serviceName);
+  const binPath = expandHome(g.caddyBinPath);
+  const details = processStateText(state, binPath);
+  if (!state.mainPid || state.mainPid === "0") {
+    throw new Error(
+      `The Caddy service ${serviceName} has no MainPID after the restart; refusing to apply a privileged config.\n${details}`,
+    );
+  }
+  if (beforePid && beforePid === state.mainPid) {
+    throw new Error(
+      `The Caddy service ${serviceName} did not restart: MainPID is still ${beforePid}. ` +
+        `The process check cannot trust the old process. Refusing to apply a privileged config.\n${details}`,
+    );
+  }
+  if (state.exe && state.exe !== binPath) {
+    throw new Error(
+      `The restarted process is ${state.exe}, not the configured binary ${binPath}. ` +
+        `Refusing to apply a privileged config.\n${details}`,
+    );
+  }
+  if (requirePrivileged && state.netBind === null && Deno.uid() !== 0) {
+    throw new Error(
+      `Could not measure CAP_NET_BIND_SERVICE in the restarted process (PID ${state.mainPid}); ` +
+        `refusing to apply a privileged config rather than guess.\n${details}`,
+    );
+  }
+  if (requirePrivileged && state.netBind === false && Deno.uid() !== 0) {
+    throw new Error(
+      `The restarted process (PID ${state.mainPid}) does not have CAP_NET_BIND_SERVICE, ` +
+        `although the binary may have the file capability. The restart did not give the process the capability. ` +
+        `Refusing to apply a privileged config.\n${details}`,
+    );
+  }
+  context.logger?.info(
+    requirePrivileged
+      ? "Restarted process {pid} is {exe}; CAP_NET_BIND_SERVICE is available"
+      : "Restarted process {pid} is {exe}; this model does not need a privileged port capability",
+    { pid: state.mainPid, exe: state.exe || binPath },
+  );
+  return state;
 }
 
 export function privilegedBindError(
@@ -5325,8 +5433,6 @@ async function computeCaddyPlan(
     actual = await readConfig(
       own.adminApiAddr || "localhost:2019",
       adminToken,
-      own.listenAddrs,
-      own.autoHttps,
     );
   } catch (err) {
     reachable = false;
@@ -5718,8 +5824,6 @@ async function applyReconcile(
   const current = await readConfig(
     g.adminApiAddr,
     g.adminApiToken,
-    g.listenAddrs,
-    g.autoHttps,
   );
   // Never silently degrade: apply exactly the desired serving settings. If the
   // running process cannot bind 80/443, applyConfig throws with the journal,
@@ -5986,7 +6090,7 @@ type CheckContext = {
 /** Model definition for the Caddy reverse-proxy and service manager. */
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.11.07.8",
+  version: "2026.11.07.9",
   reports: ["@svendowideit/caddy-status"],
   globalArguments: GlobalArgsSchema,
   checks: {
@@ -6486,6 +6590,25 @@ export const model = {
         "already-applied and sudo-grant regression tests.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.07.9",
+      description:
+        "Makes the running process a first-class state. The unit keeps --resume " +
+        "(required for admin-API-applied routes/TLS/DNS to survive a restart or " +
+        "reboot; the autosave is the persistent applied config). installCaddy gains restart " +
+        "(default true); the upgrade/setup workflow passes restart:false so a " +
+        "binary install does not touch the service. restartService verifies the " +
+        "new process after restart (PID changed, /proc/exe equals caddyBinPath, " +
+        "CapEff contains CAP_NET_BIND_SERVICE, unit constraints allow it) and " +
+        "refuses to continue if unmeasurable. startService can defer the status " +
+        "page so the setup workflow applies config only after the process check. " +
+        "readConfig no longer injects ensureServerDefaults into the LIVE config, " +
+        "so upgradeCheck reports only measured listeners. capability checks use " +
+        "capabilitiesSatisfied and log whether the file cap is already present " +
+        "and no sudo is needed. Tests add the already-applied, sudo-grant, " +
+        "process-restart and wrong-process cases.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     install: {
@@ -6713,7 +6836,12 @@ export const model = {
         // running service — otherwise it keeps failing to bind 80/443 with
         // "permission denied" even though `getcap` now shows the capability.
         let restarted = false;
-        if (rebuilt || args.setCapabilities) {
+        if (rebuilt && !args.restart) {
+          context.logger?.info(
+            "Caddy binary installed; leaving the running service untouched. The workflow will restart and verify the process.",
+          );
+        }
+        if (args.restart && (rebuilt || args.setCapabilities)) {
           const running = await isServiceActive(g.serviceName);
           if (running) {
             if (!canBindPrivilegedPorts && args.setCapabilities) {
@@ -6721,19 +6849,25 @@ export const model = {
                 "The binary still lacks CAP_NET_BIND_SERVICE (elevation via @svendowideit/sudo did not succeed); the restarted service will not be able to bind 80/443",
               );
             }
+            const before = await readProcessState(g.serviceName);
             await systemctl(["restart", g.serviceName]);
             context.logger?.info(
               "Restarted {serviceName} so it runs the current binary and picks up the capability",
               { serviceName: g.serviceName },
             );
-            // Caddy runs with --resume, so a bad autosave.json can crash-loop it
-            // on restart. ensureCaddyRunning moves a known stale autosave aside
-            // and retries automatically, then throws with the journal if it
-            // still cannot stay up.
             const runningNow = await ensureCaddyRunning(
               context,
               g,
               g.serviceName,
+            );
+            const requirePrivileged = g.autoHttps !== "off" &&
+              (g.listenAddrs ?? []).some((p) => p === ":443" || p === ":80");
+            await verifyRestartedProcess(
+              context,
+              g,
+              g.serviceName,
+              before.mainPid,
+              requirePrivileged,
             );
             restarted = runningNow.active;
           }
@@ -6807,10 +6941,22 @@ export const model = {
 
         if (!args.quiet) {
           if (applied) {
-            context.logger?.info(
-              "Caddy binary {binPath} can bind privileged ports ({caps})",
-              { binPath, caps: after.join(" ") || "(none)" },
-            );
+            if (already) {
+              context.logger?.info(
+                "CAP_NET_BIND_SERVICE is already satisfied for {binPath} ({why}); no sudo step is required",
+                {
+                  binPath,
+                  why: after.join(" ")
+                    ? "the file already has the capability"
+                    : "the process runs as root",
+                },
+              );
+            } else {
+              context.logger?.info(
+                "Caddy binary {binPath} can bind privileged ports ({caps})",
+                { binPath, caps: after.join(" ") || "(none)" },
+              );
+            }
           } else {
             context.logger?.warning?.(
               "Could not grant CAP_NET_BIND_SERVICE to {binPath}: {detail}",
@@ -6959,8 +7105,9 @@ export const model = {
         });
 
         // Ensure the default status page exists now the admin API is up (it may
-        // not have been reachable during installCaddy).
-        if (running.adminApiReachable) {
+        // not have been reachable during installCaddy). A workflow that will
+        // verify the new process first passes configureStatusPage=false.
+        if (args.configureStatusPage !== false && running.adminApiReachable) {
           try {
             await applyStatusPage(
               { title: "Caddy", extraLinks: [], disabled: false },
@@ -7043,8 +7190,6 @@ export const model = {
         const config = await readConfig(
           g.adminApiAddr,
           g.adminApiToken,
-          g.listenAddrs,
-          g.autoHttps,
         );
         const services = listProxyServices(config, baseDomain);
         context.logger?.info(
@@ -7098,8 +7243,6 @@ export const model = {
         const config = await readConfig(
           g.adminApiAddr,
           g.adminApiToken,
-          g.listenAddrs,
-          g.autoHttps,
         );
         const services = listProxyServices(config, baseDomain);
         context.logger?.info(
@@ -7487,8 +7630,6 @@ export const model = {
         const config = await readConfig(
           g.adminApiAddr,
           g.adminApiToken,
-          g.listenAddrs,
-          g.autoHttps,
         );
         const removed = previousNames.map((n) => deriveHostname(n, baseDomain))
           .filter((h) => !nowHosts.has(h));
@@ -7831,8 +7972,6 @@ export const model = {
           liveConfig = await readConfig(
             g.adminApiAddr,
             g.adminApiToken,
-            g.listenAddrs,
-            g.autoHttps,
           );
           liveProvider = liveTlsInfo(liveConfig).dnsProvider;
         } catch {
@@ -7843,6 +7982,7 @@ export const model = {
         // Measured serving state — from the RUNNING config, not the desired
         // settings. Nothing below may claim a URL that was not measured here.
         const live = liveServeSummary(liveConfig);
+        const processState = await readProcessState(serviceName);
 
         // The environmentFile names the provider too — the model's own file, or
         // the conventional default path when the model does not declare one.
@@ -7890,6 +8030,27 @@ export const model = {
               envProvider ||
               "(none)",
             records: String(dnsRecordCount),
+          },
+        );
+        context.logger?.info(
+          "Binary: {binPath}; file capabilities: {caps}",
+          {
+            binPath,
+            caps: caps.join(" ") || "(none; root may still bind)",
+          },
+        );
+        context.logger?.info(
+          "Process: MainPID {pid}; exe {exe}; CapEff {capEff} (CAP_NET_BIND_SERVICE {netBind}); NoNewPrivileges={nnp}",
+          {
+            pid: processState.mainPid || "(none)",
+            exe: processState.exe || "(unreadable)",
+            capEff: processState.capEff || "(unreadable)",
+            netBind: processState.netBind === null
+              ? "unmeasurable"
+              : processState.netBind
+              ? "present"
+              : "absent",
+            nnp: processState.unit["NoNewPrivileges"] ?? "(unknown)",
           },
         );
         // Report what the RUNNING config actually serves — measured, never the
@@ -7966,24 +8127,26 @@ export const model = {
               ["cap_net_bind_service=+ep"],
             ),
           });
+        }
+        if (canBind && processState.netBind === false) {
+          gaps.push({
+            id: "process-lacks-capability",
+            message:
+              `The binary has CAP_NET_BIND_SERVICE, but the running process (PID ${processState.mainPid}) does not have it in CapEff. ` +
+              `The binary and process capabilities are different states; the process was started before the file capability, or the unit does not pass it through.`,
+            command: `swamp model method run ${name} restartService`,
+          });
         } else if (
-          live.reachable && !live.httpsReady && g.autoHttps !== "off"
+          canBind && processState.netBind !== false && live.reachable &&
+          !live.httpsReady && g.autoHttps !== "off"
         ) {
-          // The capability is on the binary, but the RUNNING process is serving
-          // on unprivileged ports — it has not picked the capability up (a file
-          // capability only applies at exec() time, so the service must be
-          // restarted after setcap).
           gaps.push({
             id: "capability-not-in-effect",
             message:
-              `CAP_NET_BIND_SERVICE is set on the binary, but the running Caddy is listening on ${
+              `CAP_NET_BIND_SERVICE is available to the running process, but the live config is listening on ${
                 live.listenAddrs.join(", ") || "(no ports)"
-              } rather than 80/443 — the running process has not picked the capability up. A stale autosave can also pin the old unprivileged ports. Restart from the managed config after moving it aside.`,
-            command:
-              `mv ${autosavePathFor(g.configPath)} ${
-                autosavePathFor(g.configPath)
-              }.bak 2>/dev/null || true\n` +
-              `      swamp model method run ${name} restartService`,
+              } rather than 80/443. Restart from the managed config and apply the desired server/routes.`,
+            command: `swamp model method run ${name} restartService`,
           });
         }
         if (missingModules.length > 0) {
@@ -8129,6 +8292,7 @@ export const model = {
           "service-inactive",
           "cannot-bind-privileged-ports",
           "capability-not-in-effect",
+          "process-lacks-capability",
         ]);
         const servingBlockers = required.filter((gap) =>
           servingIds.has(gap.id)
@@ -8177,6 +8341,11 @@ export const model = {
             dnsRecordCount,
             environmentFile: envFile,
             environmentFileExists: envExists,
+            processMainPid: processState.mainPid,
+            processExe: processState.exe,
+            processCapEff: processState.capEff,
+            processNetBind: processState.netBind,
+            processNoNewPrivileges: processState.unit["NoNewPrivileges"] ?? "",
             gaps,
             ok: required.length === 0,
             servingOk,
@@ -8323,6 +8492,7 @@ export const model = {
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const g = context.globalArgs;
         const serviceName = args.serviceName ?? g.serviceName;
+        const before = await readProcessState(serviceName);
         const result = await systemctl(["restart", serviceName]);
         if (result.code !== 0) {
           throw new Error(
@@ -8332,8 +8502,17 @@ export const model = {
           );
         }
         const running = await ensureCaddyRunning(context, g, serviceName);
+        const requirePrivileged = g.autoHttps !== "off" &&
+          (g.listenAddrs ?? []).some((p) => p === ":443" || p === ":80");
+        await verifyRestartedProcess(
+          context,
+          g,
+          serviceName,
+          before.mainPid,
+          requirePrivileged,
+        );
         context.logger?.info(
-          "Restarted Caddy service {serviceName}; admin API reachable; recovered: {recovered}",
+          "Restarted Caddy service {serviceName}; admin API reachable; process verified; recovered: {recovered}",
           { serviceName, recovered: running.recovered },
         );
         const handle = await context.writeResource("service", "current", {
@@ -8611,8 +8790,6 @@ async function applyStatusPage(
   const config = await readConfig(
     g.adminApiAddr,
     g.adminApiToken,
-    g.listenAddrs,
-    g.autoHttps,
   );
 
   if (args.disabled) {

@@ -848,6 +848,15 @@ Details:
   config with `requireServing=true`; a non-serving result stops the run. The
   capability grant is the only manual-approval pause; the extension never moves
   the service to 8080/8443.
+- **The unit uses `--resume` so admin-API-applied config survives a
+  restart/reboot.** Routes, TLS and DNS are applied through the admin API and
+  Caddy autosaves the running config; `--resume` reloads that copy. The autosave
+  is the persistent copy of the last applied config, not a competing config; a
+  successful config apply replaces it. After the restart the workflow checks the
+  new process (`MainPID` changed, `/proc/<pid>/exe` equals `caddyBinPath`,
+  `CapEff` has `CAP_NET_BIND_SERVICE`, and the unit does not forbid it). A file
+  capability (`getcap`) and the running process capability are reported
+  separately; the process check runs before the config is applied.
 - **Replacing the binary drops the capability.** `upgradeCaddy` and
   `installCaddy force=true` re-grant it automatically after writing a new
   binary; if you download a new binary by other means, re-run `setCapabilities`.

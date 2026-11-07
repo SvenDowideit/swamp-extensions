@@ -69,6 +69,7 @@ import {
   parseModules,
   parseUpstream,
   privilegedBindError,
+  processStateText,
   providerConfigFromEnvKeys,
   reconcileProxyServices,
   removeRouteFromConfig,
@@ -231,7 +232,7 @@ Deno.test("parseCaddyVersion throws on empty output", () => {
   assertEquals(threw, true);
 });
 
-Deno.test("renderServiceUnit includes binary, config, and --resume, but no --admin flag", () => {
+Deno.test("renderServiceUnit includes binary, config, --resume, and no --admin flag", () => {
   const unit = renderServiceUnit({
     binPath: "/home/alice/.local/bin/caddy",
     configPath: "/home/alice/.config/caddy/Caddyfile",
@@ -240,15 +241,19 @@ Deno.test("renderServiceUnit includes binary, config, and --resume, but no --adm
   assertStringIncludes(unit, "--config /home/alice/.config/caddy/Caddyfile");
   assertStringIncludes(unit, "--adapter caddyfile");
   assertStringIncludes(unit, "WantedBy=default.target");
-  assertStringIncludes(unit, "run --resume");
+  assertEquals(unit.includes("--resume"), true);
+  assertStringIncludes(
+    unit,
+    "ExecStart=/home/alice/.local/bin/caddy run --resume --config",
+  );
   // Caddy v2.11+ rejects `caddy run --admin`; the admin endpoint belongs in
   // the Caddyfile global options instead.
   const hasAdminFlag = unit
     .split("\n")
     .some((line) => /(^|\s)--admin(\s|$)/.test(line));
   assertEquals(hasAdminFlag, false);
-  // Reloading via the Caddyfile would discard admin-API routes, so the unit
-  // must not carry an ExecReload pointing at it.
+  // The managed Caddyfile is the source of truth; the unit must not carry an
+  // ExecReload that would apply a different config.
   const hasExecReload = unit
     .split("\n")
     .some((line) => line.startsWith("ExecReload="));
@@ -3403,6 +3408,38 @@ Deno.test("localhostUrl uses the measured scheme and listen addresses", () => {
     localhostUrl("http", [":8443", ":8080"]),
     "http://localhost:8443/",
   );
+});
+
+Deno.test("processStateText separates the running process from the binary", () => {
+  const present = processStateText({
+    mainPid: "1234",
+    exe: "/home/alice/.local/bin/caddy",
+    capEff: "0000000000000400",
+    netBind: true,
+    unit: { NoNewPrivileges: "no", AmbientCapabilities: "" },
+    startTime: "now",
+  }, "/home/alice/.local/bin/caddy");
+  assertStringIncludes(present, "CAP_NET_BIND_SERVICE present");
+  assertStringIncludes(present, "NoNewPrivileges=no");
+  const absent = processStateText({
+    mainPid: "1234",
+    exe: "/tmp/caddy-nocap",
+    capEff: "0000000000000000",
+    netBind: false,
+    unit: {},
+    startTime: "now",
+  }, "/home/alice/.local/bin/caddy");
+  assertStringIncludes(absent, "CAP_NET_BIND_SERVICE absent");
+  assertStringIncludes(absent, "does not match the configured binary");
+  const unknown = processStateText({
+    mainPid: "1234",
+    exe: "",
+    capEff: "",
+    netBind: null,
+    unit: {},
+    startTime: "now",
+  }, "/home/alice/.local/bin/caddy");
+  assertStringIncludes(unknown, "unreadable");
 });
 
 Deno.test("capabilitiesSatisfied treats getcap =ep as satisfying =+ep", () => {

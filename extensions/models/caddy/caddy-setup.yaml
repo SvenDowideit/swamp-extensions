@@ -92,6 +92,7 @@ jobs:
       inputs:
         setCapabilities: false
         configureStatusPage: false
+        restart: false
     dependsOn: []
     weight: 0
     allowFailure: false
@@ -187,6 +188,8 @@ jobs:
       modelType: '@svendowideit/caddy'
       modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?upgradeModel.orValue("") }}'
       methodName: startService
+      inputs:
+        configureStatusPage: false
     dependsOn:
     - step: create-service
       condition:

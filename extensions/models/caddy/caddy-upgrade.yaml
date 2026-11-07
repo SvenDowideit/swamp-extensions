@@ -110,6 +110,7 @@ jobs:
       inputs:
         setCapabilities: false
         configureStatusPage: false
+        restart: false
         force: ${{ inputs.force }}
     dependsOn:
     - step: check-before

@@ -118,7 +118,7 @@ so no model rebuild or host change is needed.
 | Method        | Arguments                                                           | Data      | Notes                                                                                                                                                                                                                                                                                                                   |
 | ------------- | ------------------------------------------------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `probe`       | `strategy` (default `auto`), `allowAudit?`                          | `probe`   | Enumerates the ladder and stops at the first proved route; never runs the target command, but _may_ start a transient privileged container/pod to prove a container route; **always succeeds** (so findings are reachable) with `winner: null` when nothing is granted. `audited` says whether findings were collected. |
-| `run`         | `operation`, `args`, `strategy` (default `auto`), `allowedOperations?`, `timeoutSeconds?`, `requireSuccess?` | `result`  | Runs a named operation. A non-zero program exit is recorded, not thrown; only "no route" or "operation not allowed" throw. Where the operation has a local post-condition (currently `setcap` → `getcap`), `run` verifies the effect and reports `outcome` (`succeeded`/`needs-user-action`/`failed`), `verified`, `requiresUserAction`, `userCommand`, and `failureReason`. `requireSuccess=true` writes the result and then throws with the route, reason, and exact host command. `allowedOperations` adds opt-in operations (e.g. `setcap`) to this call without rewriting the model's persistent allowlist. |
+| `run`         | `operation`, `args`, `strategy` (default `auto`), `allowedOperations?`, `timeoutSeconds?`, `requireSuccess?` | `result`  | Runs a named operation. A non-zero program exit is recorded, not thrown; only "no route" or "operation not allowed" throw. Where the operation has a local post-condition (currently `setcap` → xattr rootid 0), `run` verifies the effect and reports `outcome` (`succeeded`/`needs-user-action`/`failed`), `verified`, `requiresUserAction`, `userCommand`, and `failureReason`. `requireSuccess=true` writes the result and then throws with the route, reason, and exact host command. `allowedOperations` adds opt-in operations (e.g. `setcap`) to this call without rewriting the model's persistent allowlist. |
 | `request`     | `command` (array), `reason`, `requestId?`                           | `request` | Records the exact argv under a request id (defaults to the run id when the workflow supplies it). Requires `allowArbitrary=true`.                                                                                                                                                                                       |
 | `runApproved` | `command`, `requestId`, `approvalToken`                             | `result`  | Runs an arbitrary argv only if it exactly matches the recorded request and the token matches the run-scoped secret minted into the approval vault under the request id, then **consumes** the request and secret (single use). Requires `allowArbitrary=true`.                                                          |
 
@@ -129,21 +129,24 @@ Resources: `probe` and `result` (lifetime `infinite`), `request` (lifetime
 
 `run` never treats the route's exit code as proof that the operation happened.
 After the route it runs the operation's **local post-condition** where one
-exists — `setcap` runs `getcap` on the target path on the host — and records:
+exists — `setcap` reads the `security.capability` xattr on the target path on
+the host and requires `rootid 0`; `getcap` alone is not proof — and records:
 
 | Field                | Meaning                                                                 |
 | -------------------- | ----------------------------------------------------------------------- |
 | `outcome`            | `succeeded`, `needs-user-action`, or `failed`                          |
 | `verified`           | `true`/`false` when a post-condition ran; `null` when the operation has none |
-| `verification`       | what the post-condition observed (e.g. the `getcap` line)              |
+| `verification`       | what the post-condition observed (e.g. `cap=cap_net_bind_service`, `rootid=0`)              |
 | `requiresUserAction` | true when the route failed or the effect was not observed              |
 | `userCommand`        | the exact `sudo '<argv>' ...` line the user can run on the host        |
 | `failureReason`      | the route's stderr, or the post-condition's observation                |
 
 This matters because a route can exit 0 without changing the host — for
-example, `setcap` inside a rootless container's user namespace does not escape
-to the host file. `run` reports `needs-user-action`, `verified=false`, and the
-`getcap` observation, rather than claiming success.
+example, `setcap` inside a rootless container's user namespace writes a
+version-3 xattr with `rootid 1000`. `getcap` still prints the capability, but the
+host kernel ignores it, so the process gets `CapEff 0`. `run` reports
+`needs-user-action`, `verified=false`, and the xattr observation, rather than
+claiming success.
 
 By default the result is written and returned even on failure, preserving the
 record-only contract. With `requireSuccess=true` the result is written first,
@@ -159,8 +162,9 @@ swamp model @svendowideit/sudo method run run sudo-default \
   --input requireSuccess=true \
   --input 'allowedOperations:json=["setcap"]' \
   --input 'args:json={"path":"/home/you/.local/bin/caddy","capabilities":"cap_net_bind_service=+ep"}'
-# If the route exits 0 but getcap does not show the capability, this fails with
-# outcome=needs-user-action and prints: sudo 'setcap' ... '/home/.../caddy'
+# If the route exits 0 but writes a namespaced capability (getcap shows it but
+# rootid != 0), this fails with outcome=needs-user-action and prints:
+# sudo 'setcap' ... '/home/.../caddy'
 ```
 
 ### Workflows

@@ -298,11 +298,15 @@ function setcapExec(
 ) {
   return (binary: string) =>
     Promise.resolve({
-      stdout: binary === "getcap" ? getcapStdout : "machine-id",
-      stderr: binary === "getcap"
+      stdout: binary === "sh"
+        ? (getcapStdout ? "cap=cap_net_bind_service\nrootid=0\n" : "")
+        : binary === "getcap"
+        ? getcapStdout
+        : "machine-id",
+      stderr: binary === "getcap" || binary === "sh"
         ? ""
         : (dockerCode ? "setcap: operation not permitted" : ""),
-      code: binary === "getcap" ? 0 : dockerCode,
+      code: binary === "getcap" || binary === "sh" ? 0 : dockerCode,
       signal: null,
       notFound: false,
       timedOut: false,

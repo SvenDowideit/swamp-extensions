@@ -838,7 +838,7 @@ function ladderReport(ladder: z.infer<typeof LadderEntrySchema>[]): string {
  */
 export const model = {
   type: "@svendowideit/sudo",
-  version: "2026.11.07.2",
+  version: "2026.11.07.3",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -927,6 +927,20 @@ export const model = {
         "requireSuccess argument writes the result and then throws with the " +
         "route, reason and command, so a workflow can pause and show it. " +
         "Existing calls keep the record-only default.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.3",
+      description:
+        "setcap verification now reads the security.capability xattr rootid " +
+        "instead of trusting getcap. A route that exits 0 but writes a " +
+        "namespaced capability (rootid != 0, e.g. docker-run on a rootless " +
+        "daemon or setcap -n 1000) is reported as needs-user-action with " +
+        "verified=false, because the host kernel ignores it; getcap alone " +
+        "would have said verified=true. userCommand remains the raw host " +
+        "`sudo setcap ...` command. The caddy-upgrade workflow can now fail " +
+        "the grant and show that raw command instead of looping through the " +
+        "same route. No schema or argument change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

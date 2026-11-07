@@ -441,16 +441,47 @@ export const OPERATIONS: Record<string, Operation> = {
       assertNotOption("capabilities", a.capabilities);
       return { kind: "argv", argv: ["setcap", a.capabilities, a.path] };
     },
-    // A route can exit 0 without the host file gaining the capability (for
-    // example a rootless container's user namespace). Prove the effect locally.
+    // A route can exit 0 without the host file gaining a usable capability:
+    // a rootless container's setcap writes a version-3 security.capability
+    // xattr whose rootid is that user namespace's root. getcap prints the
+    // capability, but the host kernel ignores it, so the process still gets
+    // CapEff 0 and cannot bind 80/443. Read the xattr rootid and require 0;
+    // fall back to getcap only when no xattr reader is available.
     verify: (args) => {
       const a = SetcapArgs.parse(args);
       const wanted = a.capabilities.split(/\s+/).filter(Boolean);
+      const script = [
+        "p=$1",
+        "if command -v python3 >/dev/null 2>&1; then",
+        "  python3 - \"$p\" <<'PY'",
+        "import os,sys",
+        'b=os.getxattr(sys.argv[1],"security.capability")',
+        'magic=int.from_bytes(b[:4],"little")',
+        'rootid=int.from_bytes(b[20:24],"little") if magic==0x03000001 and len(b)>=24 else 0',
+        'permitted=int.from_bytes(b[4:8],"little") | (int.from_bytes(b[12:16],"little")<<32)',
+        'print("cap=%s" % ("cap_net_bind_service" if permitted & (1<<10) else "none"))',
+        'print("rootid=%d" % rootid)',
+        'print("hex=%s" % b.hex())',
+        "PY",
+        "  exit $?",
+        "fi",
+        'getcap "$p"',
+        'echo "rootid=unknown"',
+      ].join("\n");
       return {
-        argv: ["getcap", a.path],
-        ok: (out) =>
-          out.code === 0 &&
-          wanted.every((cap) => out.stdout.includes(cap.split("=")[0])),
+        // `sh -c script name path`: the first argument after the script is
+        // `$0`, so pass a placeholder before the path the script reads as `$1`.
+        argv: ["sh", "-c", script, "setcap-verify", a.path],
+        ok: (out) => {
+          if (out.code !== 0) return false;
+          if (!wanted.every((cap) => out.stdout.includes(cap.split("=")[0]))) {
+            return false;
+          }
+          const rootid = out.stdout.match(/rootid=(\d+)/)?.[1];
+          // No xattr reader: keep the old getcap-only behaviour rather than
+          // blocking a host that cannot report the rootid.
+          return rootid === undefined || rootid === "0";
+        },
         detail: (out) =>
           out.stdout.trim() || out.stderr.trim() ||
           "getcap reported no capabilities",

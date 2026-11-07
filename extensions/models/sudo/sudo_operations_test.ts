@@ -288,14 +288,37 @@ Deno.test("setcap verification proves the host file actually has the capability"
     path: "/usr/bin/x",
     capabilities: "cap_net_bind_service=+ep",
   });
-  assertEquals(verify.argv, ["getcap", "/usr/bin/x"]);
+  assertEquals(verify.argv[0], "sh");
+  assertEquals(verify.argv[1], "-c");
+  assertEquals(verify.argv[4], "/usr/bin/x");
+  // getcap-only output (no xattr reader available): keep the old behaviour.
   assertEquals(
     verify.ok({
-      stdout: "/usr/bin/x cap_net_bind_service=ep\n",
+      stdout: "/usr/bin/x cap_net_bind_service=ep\nrootid=unknown\n",
       stderr: "",
       code: 0,
     }),
     true,
+  );
+  // A host-root/v2 capability: usable.
+  assertEquals(
+    verify.ok({
+      stdout: "cap=cap_net_bind_service\nrootid=0\nhex=0100000200040000",
+      stderr: "",
+      code: 0,
+    }),
+    true,
+  );
+  // A rootless-container capability: getcap shows it, but the host kernel
+  // ignores rootid 1000. The route must not be reported as verified.
+  assertEquals(
+    verify.ok({
+      stdout:
+        "cap=cap_net_bind_service\nrootid=1000\nhex=0100000300040000000000000000000000000000e8030000",
+      stderr: "",
+      code: 0,
+    }),
+    false,
   );
   assertEquals(
     verify.ok({ stdout: "", stderr: "", code: 0 }),

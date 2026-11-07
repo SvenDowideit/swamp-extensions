@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/sudo"
-version: "2026.11.07.2"
+version: "2026.11.07.3"
 description: >
   Run one privileged operation on the host — install a package, restart a
   system service, set a sysctl — from any workflow, without writing sudo logic
@@ -161,19 +161,23 @@ description: >
   OUTCOME — DID IT ACTUALLY HAPPEN?
 
     The route's exit code is not proof of the effect. For operations with a
-    local post-condition, `run` checks the host afterwards: `setcap` runs
-    `getcap` on the target path. The result records:
+    local post-condition, `run` checks the host afterwards: `setcap` reads
+    the security.capability xattr and requires rootid 0 (a version-2 xattr or
+    a host-root grant). getcap alone is not proof: a rootless container's
+    setcap prints the capability while the host kernel ignores its rootid. The
+    result records:
 
       outcome            succeeded | needs-user-action | failed
       verified           true/false (null when the operation has no post-condition)
-      verification       what the check observed (e.g. the getcap line)
+      verification       what the check observed (e.g. cap=cap_net_bind_service, rootid=0)
       requiresUserAction true when the route failed or the effect was not seen
       userCommand        the exact `sudo '<argv>' ...` line to run on the host
       failureReason      the route's stderr, or the check's observation
 
     A route can exit 0 without changing the host — for example, `setcap` inside
-    a rootless container's user namespace. That is reported as
-    `needs-user-action` with `verified=false` and the getcap observation, never
+    a rootless container's user namespace writes rootid != 0, so getcap prints
+    the capability but the host kernel ignores it. That is reported as
+    `needs-user-action` with `verified=false` and the xattr observation, never
     as success. By default the result is written and returned even on failure.
     With `requireSuccess=true` the result is written first and then `run`
     throws with the route, the reason, and `userCommand`. Callers that need a

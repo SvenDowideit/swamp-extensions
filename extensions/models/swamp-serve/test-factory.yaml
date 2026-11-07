@@ -179,9 +179,10 @@ tests:
       - name: create-swamp-serve
         # swampBinPath points at the harness's swamp (the factory installs it at
         # /usr/local/bin/swamp, not ~/.local/bin). Explicit hostnames make the
-        # derivation deterministic. ensureService renders the OTLP environment
-        # from test-otel and starts the unit; ensureDns/ensureProxy add the two
-        # A records and Caddy routes.
+        # derivation deterministic. The setup workflow reads this model's own
+        # global arguments (it does not override them), then renders the OTLP
+        # environment from test-otel and starts the unit; its dns/proxy steps
+        # add the two A records and Caddy routes.
         run: |
           swamp model create @svendowideit/swamp-serve test-serve \
             --global-arg repoDir=. \
@@ -192,11 +193,8 @@ tests:
             --global-arg dashboardHostname=$DASH_HOST \
             --global-arg port=9090 \
             --global-arg authMode=none
-          swamp model method run test-serve resolve
-          swamp model method run test-serve configure
-          swamp model method run test-serve ensureService
-          swamp model method run test-serve ensureDns
-          swamp model method run test-serve ensureProxy
+          swamp workflow run @svendowideit/swamp-serve-setup \
+            --input modelName=test-serve
         expect:
           exitCode: 0
           outputNotContains: ["panic"]

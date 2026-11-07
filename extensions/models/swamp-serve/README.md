@@ -32,9 +32,13 @@ The work splits into a **core** that needs nothing but swamp, and an optional
 So: to just **run** the server you need no Caddy setup at all. To reach it at
 `swamp.<host>` / `dashboard.<host>` **with TLS**, you need a working Caddy model
 first — the model reads it rather than inventing one, so those hostnames follow
-the Caddy you already configured. `resolve`/`ensureDns`/`ensureProxy` fail with a
-clear message if `caddyModelName` is unset, and the bundled workflow marks those
-three steps `allowFailure`, so a host without Caddy still gets a running service.
+the Caddy you already configured. When `caddyModelName` is empty, `resolve`
+auto-selects the only installed `@svendowideit/caddy` model; when several exist
+it prints their names and the exact `swamp model edit … --global-arg
+caddyModelName=…` command for each. When none exists it prints the
+`@svendowideit/caddy-setup` command to create one. The bundled workflow marks the
+Caddy steps `allowFailure`, so a host without Caddy still gets a running service,
+and its final `guidance` step always spells out the next command.
 
 Side effects: it downloads the swamp binary when absent, writes a systemd user
 unit and a `.swamp/serve.yaml`, starts a user service (enabling lingering), and —
@@ -53,8 +57,44 @@ swamp extension pull @svendowideit/swamp-serve
 
 ## Configuration
 
-Global arguments are set at creation or edited later with `swamp model edit`.
-`caddyModelName` is required; the rest have defaults.
+The setup workflow is the supported entry point. It reads the `swamp-serve`
+model's global arguments, so to change a setting you edit the model and re-run
+the workflow — the workflow does not override your values:
+
+```sh
+# 1. See every option and the exact command that changes it.
+swamp model method run swamp-serve guidance
+
+# 2. Change one value on the real model instance.
+swamp model edit swamp-serve --global-arg port=9091
+
+# 3. Apply it (the workflow also creates the model on a first run).
+swamp workflow run @svendowideit/swamp-serve-setup
+```
+
+The workflow's only input is `modelName` (default `swamp-serve`); it selects
+which model instance to drive. Every setting comes from that model's global
+arguments, so `--input` is never needed to change a setting.
+
+`caddyModelName` selects the Caddy model. Leave it empty to auto-select the only
+installed `@svendowideit/caddy` model, or list them and pick one:
+
+```sh
+swamp behavior list --json \
+  | jq -r '.results[] | select(.type == "@svendowideit/caddy") | .name'
+
+swamp model edit swamp-serve --global-arg caddyModelName=my-caddy
+swamp workflow run @svendowideit/swamp-serve-setup
+```
+
+If there is no Caddy model yet, create and configure one, then re-run:
+
+```sh
+swamp workflow run @svendowideit/caddy-setup
+swamp workflow run @svendowideit/swamp-serve-setup
+```
+
+The rest of the global arguments have defaults.
 
 | Argument | Type | Default | Purpose |
 | -------- | ---- | ------- | ------- |
@@ -79,7 +119,7 @@ Global arguments are set at creation or edited later with `swamp model edit`.
 | `trustedHosts` | array | `[]` | Host-header allowlist. |
 | `swampHome` | string | `~/.swamp` | `SWAMP_HOME` pinned into the unit. |
 | `swampConfigDir` | string | `~/.config/swamp` | `SWAMP_CONFIG_DIR` pinned into the unit. |
-| `caddyModelName` | string | *(required)* | Caddy model whose records supply the host FQDN and IP. |
+| `caddyModelName` | string | `""` | Caddy model whose records supply the host FQDN and IP. Empty auto-selects the only installed Caddy model; with several, guidance lists the exact choice commands. |
 | `swampHostname` | string | *derived* | Serve hostname (empty derives `swamp.<host FQDN>`). |
 | `dashboardHostname` | string | *derived* | Dashboard hostname (empty derives `dashboard.<host FQDN>`). |
 | `otelSettingsModel` | string | `""` | `@svendowideit/otel-settings` model to read (empty = no telemetry). |
@@ -87,7 +127,6 @@ Global arguments are set at creation or edited later with `swamp model edit`.
 | `telemetryVault` | string | `""` | Vault holding the gateway OTLP bearer token. |
 | `authRef` | string | `OTEL_EXPORTER_OTLP_TOKEN` | Vault key for the token. |
 | `autoTrustedHosts` | boolean | `true` | Add the derived serve/dashboard hostnames to `--trusted-hosts`. |
-| `trustedHosts` | string[] | `[]` | Extra `--trusted-hosts` entries (always kept). |
 | `command` | string | `""` | Full override for the unit's `ExecStart` (empty = rendered). |
 
 Method arguments: `installBinary` takes `version`/`force`; `ensureService` takes
@@ -95,57 +134,76 @@ Method arguments: `installBinary` takes `version`/`force`; `ensureService` takes
 
 ## Examples
 
-**Run the server first — this needs no Caddy.** Create the model, write the
-config and start the unit; the dashboard is then on `127.0.0.1:9090/dashboard`,
-with hot-reload and auto-resume already on:
+**Set up the host in one command.** This is the primary instruction. It creates
+the `swamp-serve` model on first run, installs the swamp binary, writes the serve
+config, starts the systemd unit, adds the Caddy routes, applies telemetry, and
+prints the guidance:
 
 ```sh
-# No caddyModelName: the core needs only swamp + systemd.
-swamp model create @svendowideit/swamp-serve swamp-serve
-swamp model method run swamp-serve configure
-swamp model method run swamp-serve ensureService
-curl -sI http://127.0.0.1:9090/dashboard            # 200 once it is up
+swamp workflow run @svendowideit/swamp-serve-setup
+
+# Once DNS/TLS settle, both names answer. Change x1yoga.fi.gy to your own host.
+curl -sI https://dashboard.x1yoga.fi.gy/dashboard
 ```
 
-**Then expose it with TLS** (optional) — point `caddyModelName` at an
-`@svendowideit/caddy` model you already run, and the two hostnames are derived
-from that model's own A record for this host:
+**Choose the Caddy model when there are several.** With one installed Caddy
+model the workflow selects it automatically; with several, list them and set the
+one for this host. `guidance` prints the same commands with the real names:
 
 ```sh
-# Reads my-caddy's x1yoga.fi.gy record -> swamp.x1yoga.fi.gy / dashboard.x1yoga.fi.gy.
+# Show every @svendowideit/caddy model instance in this repo.
+swamp behavior list --json \
+  | jq -r '.results[] | select(.type == "@svendowideit/caddy") | .name'
+
+# Pick one; the two hostnames follow its baseDomain and A record for this host.
 swamp model edit swamp-serve --global-arg caddyModelName=my-caddy
-swamp model method run swamp-serve resolve
-swamp data get swamp-serve topology --json | jq '.content | {hostFqdn, swampHostname, dashboardHostname, hostIp}'
-# Adds the DNS records and Caddy routes (TLS via the Caddy model's ACME).
-swamp model method run swamp-serve ensureProxy
+swamp workflow run @svendowideit/swamp-serve-setup
 ```
 
-Push telemetry, then confirm everything is live (both hostnames return an HTTP
-status once DNS/TLS have settled):
-
-```sh
-# Applies the OTLP environment from the otel-settings contract, then reports state.
-swamp model method run swamp-serve ensureTelemetry
-swamp model method run swamp-serve status
-```
-
-Run the whole sequence in one ordered pass — it creates the instance if missing
-and marks the Caddy steps `allowFailure`, so a host without Caddy still gets a
-running service:
-
-```sh
-swamp workflow run @svendowideit/swamp-serve-setup \
-  --input caddyModelName=my-caddy
-```
-
-See every option and its current value without reading any source:
+**Change a setting and re-apply it.** The workflow reads the model's global
+arguments, so edit the model, then re-run the workflow. `guidance` prints every
+option, its current and default value, and the exact edit command:
 
 ```sh
 swamp model method run swamp-serve guidance
+swamp model edit swamp-serve --global-arg port=9091
+swamp workflow run @svendowideit/swamp-serve-setup
+
+# The same applied value is visible in the rendered unit and status.
+swamp model method run swamp-serve status
 ```
 
-Update the binary in place (verified replacement) and restart the service, or
-tear the service down without touching the swamp binary:
+**Create a Caddy model first if the host has none.** The setup workflow reports
+that no Caddy model exists and tells you to run this; after it creates one,
+re-run the setup and the single Caddy is auto-selected:
+
+```sh
+swamp workflow run @svendowideit/caddy-setup
+swamp workflow run @svendowideit/swamp-serve-setup
+```
+
+**Inspect what was resolved.** The `topology` resource records the selected
+Caddy model, base domain, hostnames and IP; `status` checks the live service and
+both hostnames:
+
+```sh
+swamp data query 'behavior("swamp-serve") && name == "topology"' --select content
+swamp model method run swamp-serve status
+```
+
+**Advanced: run one phase directly.** These use the same persisted global
+arguments as the workflow and are useful when you only want to re-apply the
+config, restart, or add the proxy routes:
+
+```sh
+swamp model method run swamp-serve configure
+swamp model method run swamp-serve ensureService
+swamp model method run swamp-serve ensureProxy
+```
+
+**Maintain the installation.** Update the binary in place (verified replacement)
+and restart the service, or tear the service down without touching the swamp
+binary:
 
 ```sh
 swamp model method run swamp-serve updateBinary
@@ -159,7 +217,7 @@ and one workflow. Methods:
 
 | Method | Arguments | Purpose |
 | ------ | --------- | ------- |
-| `resolve` | none | Read the Caddy model and derive `swamp.<host FQDN>` / `dashboard.<host FQDN>` from its own A record; writes `topology`. No side effects. |
+| `resolve` | none | Read the Caddy model and derive `swamp.<host FQDN>` / `dashboard.<host FQDN>` from its own A record; writes `topology`. When `caddyModelName` is empty, auto-selects the only installed Caddy, or errors with the exact choice commands. No side effects. |
 | `installBinary` | `version`, `force` | Install swamp when absent (pinned `installVersion`), else report; never overwrites an existing binary unless `force`. |
 | `updateBinary` | none | Run `swamp update`, then restart the service so it execs the new build. |
 | `configure` | none | Write `.swamp/serve.yaml` and validate it with `swamp serve check-config`. |
@@ -168,7 +226,7 @@ and one workflow. Methods:
 | `ensureDns` | none | Verify the Caddy model owns the two A records (it reconciles only its own `dnsRecords`); reports any missing. |
 | `ensureProxy` | none | Reverse-proxy both hostnames to the server via `ensureDnsProxy`. |
 | `status` | none | systemd state, HTTP status of both hostnames, version, telemetry summary. |
-| `guidance` | none | Every option with its current value, default and update command. |
+| `guidance` | none | Every option with its current value, default and the exact `swamp model edit` command, plus every installed `@svendowideit/caddy` model and the exact command that selects each one. Always the last step of the setup workflow. |
 | `remove` | `removeRoutes` | Stop/remove the unit and its routes; keeps the binary and data. |
 
 Resources: `topology`, `binary`, `serveConfig`, `unit`, `service`, `telemetry`,
@@ -177,8 +235,12 @@ Resources: `topology`, `binary`, `serveConfig`, `unit`, `service`, `telemetry`,
 ### How the hostnames are derived
 
 `resolve` reads the caddy model named by `caddyModelName` (through
-`context.readModelData`, reading its `desired` resource) and looks through its
-`dnsRecords` for an `A`/`AAAA` record under its `baseDomain`. It picks the
+`context.readModelData`, reading its `desired` resource). When `caddyModelName`
+is empty it queries the definition repository for every
+`@svendowideit/caddy` model, uses the single one if there is exactly one, and
+otherwise fails with a list and one exact `swamp model edit … --global-arg
+caddyModelName=…` command per candidate. It then looks through the chosen
+model's `dnsRecords` for an `A`/`AAAA` record under its `baseDomain`. It picks the
 record whose leftmost label is this machine's hostname (else the deepest such
 record), so a base domain of `fi.gy` with a record for `x1yoga.fi.gy` yields
 <!-- swamp-quality-ignore ipv4-address-literals -->
@@ -192,13 +254,19 @@ changes this model's hostnames with no edit here.
 ### Who owns DNS and TLS
 
 A Caddy model reconciles **only its own** `dnsRecords` and TLS subjects — a
-method cannot edit another definition's persisted global arguments. So to make
-the two hostnames resolve and get certificates, **the Caddy model itself must
-declare them**. In the site setup (`@figy/swamp-serve-bootstrap`) that means
-adding the two A records to the Caddy model's `dnsRecords` and including the two
-names in its TLS `subjects` (the site does this; see that workflow). The generic
-`ensureDns` and `ensureProxy` then verify and route; `ensureDns` reports exactly
-which records are missing rather than silently doing nothing.
+method cannot edit another definition's persisted global arguments. So the
+Caddy model itself owns the records and certificates. On a current
+`@svendowideit/caddy`, `ensureDnsProxy` (called by `ensureProxy`) derives both
+automatically: a route hostname under `baseDomain` gets a TLS subject and, when
+a DNS provider is configured, an A record pointing at `routeIp` or at the IP the
+Caddy already declares for the zone. Set `routeIp` on the Caddy model when this
+host's address is not already one of its A records.
+
+If the Caddy model is older, or a record is missing, the setup workflow's `dns`
+step (`ensureDns`) reports the exact records it needs; add them to the Caddy
+model's `dnsRecords` and run `applyDnsRecords`. In the site setup
+(`@figy/swamp-serve-bootstrap`) the workflow declares the two A records and TLS
+subjects explicitly for this reason.
 
 Cross-model calls use `context.runModel` and `context.readModelData` — never a
 `swamp` CLI subprocess, which would reload the extensions and re-lock the

@@ -3,70 +3,58 @@ name: "@svendowideit/swamp-serve-setup"
 description: |
   Stand up a swamp repository as an always-on `swamp serve` service, in order.
 
-  Resolves the base domain and host IP from an existing @svendowideit/caddy
-  model, installs or confirms the swamp binary, writes `.swamp/serve.yaml`,
-  creates and starts the systemd user unit (dashboard, hot-reload and
-  auto-resume enabled), reconciles the DNS A records and reverse-proxies the two
-  hostnames through Caddy, applies the OTLP telemetry from the
-  @svendowideit/otel-settings contract, and reports the final status.
+  This is the primary way to configure a host. It creates the `swamp-serve`
+  model on first run, reads that model's global arguments, installs or confirms
+  the swamp binary, writes `.swamp/serve.yaml`, creates and starts the systemd
+  user unit (dashboard, hot-reload and auto-resume enabled), reconciles the DNS
+  A records and reverse-proxies the two hostnames through Caddy, applies the
+  OTLP telemetry from the `@svendowideit/otel-settings` contract, and prints
+  the guidance with every option and its exact update command.
 
-  The caddy and DNS steps are allowed to fail so a host without Caddy still
-  gets a running service; `status` records what is (not) live.
+  To change a setting, edit the model and re-run this workflow:
 
-  Run:
-    swamp workflow run @svendowideit/swamp-serve-setup
-    swamp workflow run @svendowideit/swamp-serve-setup \
-      --input caddyModelName=my-caddy --input otelSettingsModel=otel
+      swamp model method run swamp-serve guidance
+      swamp model edit swamp-serve --global-arg port=9091
+      swamp workflow run @svendowideit/swamp-serve-setup
+
+  The model's `caddyModelName` selects the Caddy model. When it is unset, a
+  single `@svendowideit/caddy` model is selected automatically; when several
+  exist the workflow prints their names and the exact `swamp model edit`
+  command for each. When none exists, create one and re-run:
+
+      swamp workflow run @svendowideit/caddy-setup
+      swamp workflow run @svendowideit/swamp-serve-setup
+
+  The Caddy steps are allowed to fail so a host without Caddy still gets a
+  running service; the final guidance step says exactly what to do next.
+
+  `modelName` selects the `@svendowideit/swamp-serve` instance to configure. It
+  defaults to `swamp-serve`; pass it only when the instance has another name.
 inputs:
   properties:
-    caddyModelName:
+    modelName:
       type: string
-      default: ""
+      default: swamp-serve
       description: >-
-        The @svendowideit/caddy model whose baseDomain and A record supply the
-        hostnames and IP. Required for the DNS/proxy steps.
-    otelSettingsModel:
-      type: string
-      default: ""
-      description: >-
-        The @svendowideit/otel-settings model whose contract describes the
-        gateway. Empty leaves telemetry unconfigured.
-    repoDir:
-      type: string
-      default: "."
-      description: Repository the server runs.
-    serviceName:
-      type: string
-      default: "swamp-serve"
-      description: systemd user service name.
-    port:
-      type: integer
-      default: 9090
-      description: Port swamp serve listens on.
-    authMode:
-      type: string
-      enum:
-        - none
-        - token
-        - oauth
-      default: none
-      description: Authentication mode (none is loopback-only).
+        The @svendowideit/swamp-serve model instance to configure. Defaults to
+        swamp-serve; the workflow uses that model's own global arguments.
   required: []
 jobs:
   - name: setup
-    description: Resolve, install, configure, serve, expose, observe.
+    description: Resolve, install, configure, serve, expose, observe, guide.
     steps:
       - name: resolve
         description: >-
-          Derive swamp.<base> and dashboard.<base> from the Caddy model before
-          anything is written, so the hostnames are inspectable first.
+          Read the model's Caddy model and derive swamp.<host> and
+          dashboard.<host> before anything is written. When caddyModelName is
+          unset, a single installed Caddy model is selected automatically; with
+          several, the step reports their names and the exact commands to pick
+          one.
         task:
           type: model_method
           modelType: "@svendowideit/swamp-serve"
-          modelName: swamp-serve
+          modelName: ${{ inputs.modelName }}
           methodName: resolve
-          globalArgs:
-            caddyModelName: ${{ inputs.caddyModelName }}
         dependsOn: []
         weight: 0
         allowFailure: true
@@ -78,7 +66,7 @@ jobs:
         task:
           type: model_method
           modelType: "@svendowideit/swamp-serve"
-          modelName: swamp-serve
+          modelName: ${{ inputs.modelName }}
           methodName: installBinary
         dependsOn:
           - step: resolve
@@ -89,19 +77,13 @@ jobs:
 
       - name: configure
         description: >-
-          Write .swamp/serve.yaml with the dashboard, hot-reload and auto-resume
-          options, then validate it.
+          Write .swamp/serve.yaml from the model's global arguments with the
+          dashboard, hot-reload and auto-resume options, then validate it.
         task:
           type: model_method
           modelType: "@svendowideit/swamp-serve"
-          modelName: swamp-serve
+          modelName: ${{ inputs.modelName }}
           methodName: configure
-          globalArgs:
-            repoDir: ${{ inputs.repoDir }}
-            serviceName: ${{ inputs.serviceName }}
-            port: ${{ inputs.port }}
-            caddyModelName: ${{ inputs.caddyModelName }}
-            authMode: ${{ inputs.authMode }}
         dependsOn:
           - step: install
             condition:
@@ -116,13 +98,8 @@ jobs:
         task:
           type: model_method
           modelType: "@svendowideit/swamp-serve"
-          modelName: swamp-serve
+          modelName: ${{ inputs.modelName }}
           methodName: ensureService
-          globalArgs:
-            repoDir: ${{ inputs.repoDir }}
-            serviceName: ${{ inputs.serviceName }}
-            port: ${{ inputs.port }}
-            caddyModelName: ${{ inputs.caddyModelName }}
         dependsOn:
           - step: configure
             condition:
@@ -137,10 +114,8 @@ jobs:
         task:
           type: model_method
           modelType: "@svendowideit/swamp-serve"
-          modelName: swamp-serve
+          modelName: ${{ inputs.modelName }}
           methodName: ensureDns
-          globalArgs:
-            caddyModelName: ${{ inputs.caddyModelName }}
         dependsOn:
           - step: service
             condition:
@@ -155,11 +130,8 @@ jobs:
         task:
           type: model_method
           modelType: "@svendowideit/swamp-serve"
-          modelName: swamp-serve
+          modelName: ${{ inputs.modelName }}
           methodName: ensureProxy
-          globalArgs:
-            caddyModelName: ${{ inputs.caddyModelName }}
-            port: ${{ inputs.port }}
         dependsOn:
           - step: service
             condition:
@@ -169,17 +141,14 @@ jobs:
 
       - name: telemetry
         description: >-
-          Read the settings contract and apply the OTLP environment so the
-          server's logs, metrics and traces reach the gateway. Skipped cleanly
-          when no otelSettingsModel is configured.
+          Read the settings contract from the model's otelSettingsModel and apply
+          the OTLP environment so the server's logs, metrics and traces reach the
+          gateway. Skipped cleanly when no otelSettingsModel is configured.
         task:
           type: model_method
           modelType: "@svendowideit/swamp-serve"
-          modelName: swamp-serve
+          modelName: ${{ inputs.modelName }}
           methodName: ensureTelemetry
-          globalArgs:
-            otelSettingsModel: ${{ inputs.otelSettingsModel }}
-            caddyModelName: ${{ inputs.caddyModelName }}
           inputs:
             endpoint: ""
         dependsOn:
@@ -196,12 +165,28 @@ jobs:
         task:
           type: model_method
           modelType: "@svendowideit/swamp-serve"
-          modelName: swamp-serve
+          modelName: ${{ inputs.modelName }}
           methodName: status
-          globalArgs:
-            caddyModelName: ${{ inputs.caddyModelName }}
         dependsOn:
           - step: service
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: true
+
+      - name: guidance
+        description: >-
+          Print every option, its current and default value, the exact
+          `swamp model edit` command that changes it, and the installed Caddy
+          models with the exact command that selects each one. Always runs, so a
+          partial setup always ends with the next step spelled out.
+        task:
+          type: model_method
+          modelType: "@svendowideit/swamp-serve"
+          modelName: ${{ inputs.modelName }}
+          methodName: guidance
+        dependsOn:
+          - step: status
             condition:
               type: completed
         weight: 0

@@ -260,16 +260,29 @@ const StatusOutputSchema = z.object({
   checkedAt: z.string(),
 });
 
+const CaddyChoiceSchema = z.object({
+  name: z.string(),
+  baseDomain: z.string(),
+  target: z.string(),
+  hostIp: z.string(),
+  selectCommand: z.string(),
+});
+
 const GuidanceOutputSchema = z.object({
+  modelName: z.string(),
+  primaryCommand: z.string(),
   options: z.array(
     z.object({
       key: z.string(),
       current: z.string(),
       defaultValue: z.string(),
       description: z.string(),
+      example: z.string(),
       persist: z.string(),
     }),
   ),
+  caddyModels: z.array(CaddyChoiceSchema),
+  caddyHelp: z.string(),
   generatedAt: z.string(),
 });
 
@@ -790,145 +803,262 @@ export interface OptionDoc {
   defaultValue: string;
   /** What it controls. */
   description: string;
-  /** The command that persists a change (with `{value}` to fill in). */
+  /** A concrete copy-paste value for `persist`. */
+  example: string;
+  /** The exact command that persists a change on this model instance. */
   persist: string;
 }
 
-/** Every global argument, its default, and the command that changes it. */
-export function describeOptions(g: ServeGlobals): OptionDoc[] {
-  const persist = (key: string, value: string): string =>
-    `swamp model edit <model> --global-arg ${key}=${value}`;
-  const rows: Array<[string, string, string, string]> = [
+/** Quote a CLI argument only when it needs it. */
+function quoteArg(value: string): string {
+  if (/^[A-Za-z0-9_./:=@%+-]+$/.test(value)) return value;
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+/**
+ * Every global argument, its default, and the exact command that changes it on
+ * this model instance. `modelName` is the real instance name (from
+ * `context.definition.name`), so the output is copy-pasteable and never says
+ * `<model>`. `caddyModelNames` is the list discovered in the repo; the first is
+ * used as the concrete example for `caddyModelName`.
+ */
+export function describeOptions(
+  g: ServeGlobals,
+  modelName = "swamp-serve",
+  caddyModelNames: string[] = [],
+): OptionDoc[] {
+  const persist = (arg: string): string =>
+    `swamp model edit ${modelName} --global-arg ${quoteArg(arg)}`;
+  // Prefer the value already on the model, so copying the line is a no-op
+  // rather than an accidental switch to an alphabetically earlier Caddy.
+  const caddyExample = g.caddyModelName || caddyModelNames[0] || "";
+  const trustedExample = JSON.stringify(
+    g.trustedHosts.length > 0 ? g.trustedHosts : ["swamp.fi.gy"],
+  );
+  const rows: Array<
+    [string, string, string, string, string]
+  > = [
     [
       "repoDir",
       g.repoDir,
       ".",
       "Repository the server runs (WorkingDirectory and --repo-dir)",
+      `repoDir=${g.repoDir || "."}`,
     ],
     [
       "swampBinPath",
       g.swampBinPath,
       "~/.local/bin/swamp",
       "swamp binary the unit executes",
+      `swampBinPath=${g.swampBinPath}`,
     ],
     [
       "installVersion",
-      g.installVersion,
+      g.installVersion || "(latest)",
       "(latest)",
-      "Version installed when swamp is absent",
+      "Version installed when swamp is absent (empty = latest)",
+      `installVersion=${g.installVersion}`,
     ],
-    ["serviceName", g.serviceName, "swamp-serve", "systemd user service name"],
-    ["host", g.host, "127.0.0.1", "Bind address (loopback behind Caddy)"],
-    ["port", String(g.port), "9090", "Port swamp serve listens on"],
-    ["configPath", g.configPath, ".swamp/serve.yaml", "Serve config file"],
+    [
+      "serviceName",
+      g.serviceName,
+      "swamp-serve",
+      "systemd user service name",
+      `serviceName=${g.serviceName}`,
+    ],
+    [
+      "host",
+      g.host,
+      "127.0.0.1",
+      "Bind address (loopback behind Caddy)",
+      `host=${g.host}`,
+    ],
+    [
+      "port",
+      String(g.port),
+      "9090",
+      "Port swamp serve listens on",
+      `port=${g.port}`,
+    ],
+    [
+      "configPath",
+      g.configPath,
+      ".swamp/serve.yaml",
+      "Serve config file",
+      `configPath=${g.configPath}`,
+    ],
     [
       "dashboard",
       String(g.dashboard),
       "true",
       "Enable the web dashboard at /dashboard",
+      `dashboard=${g.dashboard}`,
     ],
     [
       "hotReload",
       String(g.hotReload),
       "true",
       "Enable SIGHUP hot-reload of extension bundles",
+      `hotReload=${g.hotReload}`,
     ],
     [
       "autoResume",
       String(g.autoResume),
       "true",
       "Resume suspended runs once approvals are decided",
+      `autoResume=${g.autoResume}`,
     ],
-    ["schedule", String(g.schedule), "true", "Run scheduled workflows"],
+    [
+      "schedule",
+      String(g.schedule),
+      "true",
+      "Run scheduled workflows",
+      `schedule=${g.schedule}`,
+    ],
+    [
+      "serviceHardening",
+      String(g.serviceHardening),
+      "true",
+      "Apply systemd PrivateTmp/ProtectSystem (false when workflows SSH)",
+      `serviceHardening=${g.serviceHardening}`,
+    ],
     [
       "authMode",
       g.authMode,
       "none",
       "none | token | oauth (none is loopback-only)",
+      `authMode=${g.authMode}`,
     ],
-    ["admins", g.admins, "(unset)", "Comma-separated admin principals"],
-    ["allowedUsers", g.allowedUsers, "(unset)", "Allowed swamp-club users"],
+    [
+      "admins",
+      g.admins || "(unset)",
+      "(unset)",
+      "Comma-separated admin principals",
+      `admins=${g.admins || "user:alice"}`,
+    ],
+    [
+      "allowedUsers",
+      g.allowedUsers || "(unset)",
+      "(unset)",
+      "Allowed swamp-club users",
+      `allowedUsers=${g.allowedUsers || "alice"}`,
+    ],
     [
       "allowedCollectives",
-      g.allowedCollectives,
+      g.allowedCollectives || "(unset)",
       "(unset)",
       "Allowed collectives (OAuth)",
+      `allowedCollectives=${g.allowedCollectives || "platform-eng"}`,
     ],
     [
       "oauthProvider",
-      g.oauthProvider,
+      g.oauthProvider || "(unset)",
       "https://swamp-club.com",
       "OAuth authorization server",
+      `oauthProvider=${g.oauthProvider || "https://swamp-club.com"}`,
     ],
     [
       "trustProxy",
       String(g.trustProxy),
       "true",
       "Trust X-Forwarded-For behind a proxy",
+      `trustProxy=${g.trustProxy}`,
     ],
     [
       "trustedHosts",
-      g.trustedHosts.join(","),
+      g.trustedHosts.length > 0 ? g.trustedHosts.join(",") : "(unset)",
       "(unset)",
-      "Host-header allowlist",
+      "Host-header allowlist (JSON array)",
+      `trustedHosts:json=${trustedExample}`,
     ],
     [
       "autoTrustedHosts",
       String(g.autoTrustedHosts),
       "true",
       "Add the derived serve/dashboard hostnames to --trusted-hosts",
+      `autoTrustedHosts=${g.autoTrustedHosts}`,
     ],
-    ["swampHome", g.swampHome, "~/.swamp", "SWAMP_HOME pinned into the unit"],
+    [
+      "swampHome",
+      g.swampHome,
+      "~/.swamp",
+      "SWAMP_HOME pinned into the unit",
+      `swampHome=${g.swampHome}`,
+    ],
     [
       "swampConfigDir",
       g.swampConfigDir,
       "~/.config/swamp",
       "SWAMP_CONFIG_DIR pinned into the unit",
+      `swampConfigDir=${g.swampConfigDir}`,
     ],
     [
       "caddyModelName",
-      g.caddyModelName,
-      "(required)",
+      g.caddyModelName || "(unset)",
+      "(empty = auto-select)",
       "Caddy model the base domain/IP are read from",
+      caddyExample ? `caddyModelName=${caddyExample}` : "caddyModelName=",
     ],
     [
       "swampHostname",
-      g.swampHostname,
+      g.swampHostname || "(derived)",
       "swamp.<baseDomain>",
       "Serve hostname (derived from Caddy)",
+      `swampHostname=${g.swampHostname || "swamp.fi.gy"}`,
     ],
     [
       "dashboardHostname",
-      g.dashboardHostname,
+      g.dashboardHostname || "(derived)",
       "dashboard.<baseDomain>",
       "Dashboard hostname (derived from Caddy)",
+      `dashboardHostname=${g.dashboardHostname || "dashboard.fi.gy"}`,
     ],
     [
       "otelSettingsModel",
-      g.otelSettingsModel,
+      g.otelSettingsModel || "(unset)",
       "(unset)",
       "otel-settings model the telemetry is read from",
+      `otelSettingsModel=${g.otelSettingsModel || "otel"}`,
     ],
-    ["otelServiceName", g.otelServiceName, "swamp-serve", "OTEL_SERVICE_NAME"],
+    [
+      "otelServiceName",
+      g.otelServiceName,
+      "swamp-serve",
+      "OTEL_SERVICE_NAME",
+      `otelServiceName=${g.otelServiceName}`,
+    ],
     [
       "telemetryVault",
-      g.telemetryVault,
+      g.telemetryVault || "(unset)",
       "(unset)",
       "Vault holding the gateway bearer token",
+      `telemetryVault=${g.telemetryVault}`,
     ],
     [
       "authRef",
       g.authRef,
       "OTEL_EXPORTER_OTLP_TOKEN",
       "Vault key for the gateway token",
+      `authRef=${g.authRef}`,
+    ],
+    [
+      "command",
+      g.command || "(rendered)",
+      "(rendered)",
+      "Full override for the unit's ExecStart",
+      `command=${g.command || "swamp serve --host 127.0.0.1 --port 9090"}`,
     ],
   ];
-  return rows.map(([key, current, defaultValue, description]) => ({
+  return rows.map(([key, current, defaultValue, description, arg]) => ({
     key,
     current,
     defaultValue,
     description,
-    persist: persist(key, key === "trustedHosts" ? "a,b" : "{value}"),
+    example: arg.slice(arg.indexOf("=") + 1),
+    persist: key === "caddyModelName" && !caddyExample &&
+        !g.caddyModelName
+      ? "swamp workflow run @svendowideit/caddy-setup"
+      : persist(arg),
   }));
 }
 
@@ -964,7 +1094,172 @@ export type ResourceContext = {
   vaultService?: {
     get(vaultName: string, secretKey: string, caller?: string): Promise<string>;
   };
+  /**
+   * Repository of definitions. Lets guidance and resolve discover every
+   * `@svendowideit/caddy` model in the repo, not just the one already named on
+   * this model. Present in production, best-effort in tests.
+   */
+  definitionRepository?: {
+    findAllGlobal: () => Promise<
+      Array<{
+        definition: { id: string; name: string };
+        type: { raw?: string; normalized?: string } | string;
+      }>
+    >;
+  };
 };
+
+/** One `@svendowideit/caddy` model a serve instance can use. */
+export interface CaddyModelChoice {
+  /** Model instance name, e.g. `my-caddy`. */
+  name: string;
+  /** Base domain from its stored `desired` resource, when readable. */
+  baseDomain: string;
+  /** The host its Caddy runs on, when recorded. */
+  target: string;
+  /** The A-record IP for this host, when readable. */
+  hostIp: string;
+  /** The exact command that selects this model for a serve instance. */
+  selectCommand: string;
+}
+
+/** Read the raw or normalized type name from a definition repository entry. */
+function typeNameOf(type: unknown): string {
+  if (typeof type === "string") return type;
+  if (type && typeof type === "object") {
+    const t = type as { raw?: unknown; normalized?: unknown };
+    if (typeof t.raw === "string") return t.raw;
+    if (typeof t.normalized === "string") return t.normalized;
+  }
+  return "";
+}
+
+/**
+ * Discover every `@svendowideit/caddy` model in the repo, enriched from each
+ * one's stored `desired` resource. Used to auto-select a single Caddy and to
+ * print copy-pasteable `swamp model edit …` choices when there are several.
+ * Best-effort: a test fixture without a definition repository returns [].
+ */
+export async function discoverCaddyModels(
+  context: ResourceContext,
+  serveModelName = "swamp-serve",
+): Promise<CaddyModelChoice[]> {
+  const names = new Set<string>();
+  try {
+    const all = await context.definitionRepository?.findAllGlobal() ?? [];
+    for (const entry of all) {
+      if (typeNameOf(entry.type) === "@svendowideit/caddy") {
+        names.add(entry.definition.name);
+      }
+    }
+  } catch {
+    // fall through to the configured name below
+  }
+  const configured = context.globalArgs.caddyModelName.trim();
+  if (configured) names.add(configured);
+
+  const choices: CaddyModelChoice[] = [];
+  for (const name of [...names].sort((a, b) => a.localeCompare(b))) {
+    let baseDomain = "";
+    let target = "";
+    let hostIp = "";
+    try {
+      const desired = await readModelResource(context, name, "desired");
+      baseDomain = typeof desired?.baseDomain === "string"
+        ? desired.baseDomain
+        : "";
+      target = typeof desired?.target === "string" ? desired.target : "";
+      if (Array.isArray(desired?.dnsRecords)) {
+        const record = (desired!.dnsRecords as Array<Record<string, unknown>>)
+          .find((r) =>
+            (r.type === "A" || r.type === "AAAA") &&
+            Array.isArray(r.value) && r.value.length > 0
+          );
+        hostIp = record && Array.isArray(record.value)
+          ? String(record.value[0])
+          : "";
+      }
+    } catch {
+      // the model exists but has not written `desired` yet
+    }
+    choices.push({
+      name,
+      baseDomain,
+      target,
+      hostIp,
+      selectCommand: `swamp model edit ${serveModelName} ` +
+        `--global-arg caddyModelName=${name}`,
+    });
+  }
+  return choices;
+}
+
+/** A one-line description of a Caddy choice for errors and guidance. */
+export function describeCaddyChoice(choice: CaddyModelChoice): string {
+  const facts = [
+    choice.baseDomain ? `baseDomain ${choice.baseDomain}` : "",
+    choice.target ? `target ${choice.target}` : "",
+    choice.hostIp ? `A ${choice.hostIp}` : "",
+  ].filter((s) => s.length > 0).join(", ");
+  return facts ? `${choice.name} (${facts})` : choice.name;
+}
+
+/** The exact error when several Caddy models exist and none is selected. */
+export function renderCaddyChoiceError(
+  choices: CaddyModelChoice[],
+): string {
+  return [
+    `caddyModelName is not set and there are ${choices.length} ` +
+    `@svendowideit/caddy models:`,
+    ...choices.map((c) => `  ${describeCaddyChoice(c)}`),
+    "Choose one, then re-run:",
+    ...choices.map((c) => `  ${c.selectCommand}`),
+    `  swamp workflow run @svendowideit/swamp-serve-setup`,
+  ].join("\n");
+}
+
+/** The exact error when no Caddy model exists at all. */
+export function renderNoCaddyError(): string {
+  return [
+    "No @svendowideit/caddy model found. Create and configure one, then re-run:",
+    "  swamp workflow run @svendowideit/caddy-setup",
+    "  swamp workflow run @svendowideit/swamp-serve-setup",
+  ].join("\n");
+}
+
+/** The guidance section listing the Caddy choices and exact select commands. */
+export function renderCaddyGuidance(
+  serveModelName: string,
+  choices: CaddyModelChoice[],
+  current: string,
+): string[] {
+  if (choices.length === 0) {
+    return [
+      "Caddy model (needed for swamp.<host>, dashboard.<host>, DNS and TLS):",
+      "  No @svendowideit/caddy model found. Create and configure one, then re-run:",
+      "    swamp workflow run @svendowideit/caddy-setup",
+      "    swamp workflow run @svendowideit/swamp-serve-setup",
+    ];
+  }
+  const currentKnown = choices.some((c) => c.name === current);
+  const currentLabel = current
+    ? `${current}${currentKnown ? "" : " (not found in this repo)"}`
+    : "(unset — a single Caddy model is auto-selected)";
+  return [
+    "Caddy model (needed for swamp.<host>, dashboard.<host>, DNS and TLS):",
+    `  Current: ${currentLabel}`,
+    "  Available @svendowideit/caddy models:",
+    ...choices.map((c) =>
+      `    ${describeCaddyChoice(c)}${c.name === current ? " (current)" : ""}`
+    ),
+    "  Select one, then re-run:",
+    ...choices.map((c) =>
+      `    swamp model edit ${serveModelName} ` +
+      `--global-arg caddyModelName=${c.name}`
+    ),
+    "    swamp workflow run @svendowideit/swamp-serve-setup",
+  ];
+}
 
 /** Options for `context.runModel` (the sanctioned cross-model call). */
 export type RunModelOptions = {
@@ -1112,33 +1407,46 @@ export async function resolveCaddyFromContext(
   g: ServeGlobals,
   hostname = "",
 ): Promise<CaddyFacts> {
-  if (!g.caddyModelName) {
-    throw new Error(
-      "caddyModelName is required — set it to the @svendowideit/caddy model " +
-        "whose base domain this server should use (see `swamp model list`).",
-    );
+  const serveModelName = context.definition?.name ?? "swamp-serve";
+  let modelName = g.caddyModelName.trim();
+  if (!modelName) {
+    const choices = await discoverCaddyModels(context, serveModelName);
+    if (choices.length === 1) {
+      modelName = choices[0].name;
+      context.logger?.info(
+        "caddyModelName is unset; using the only @svendowideit/caddy model '{caddy}'",
+        { caddy: modelName },
+      );
+    } else if (choices.length > 1) {
+      throw new Error(renderCaddyChoiceError(choices));
+    } else {
+      throw new Error(renderNoCaddyError());
+    }
   }
-  const desired = await readModelResource(context, g.caddyModelName, "desired");
+  const desired = await readModelResource(context, modelName, "desired");
   if (!desired) {
     throw new Error(
       `could not read the 'desired' resource of caddy model ` +
-        `'${g.caddyModelName}'. Ensure it exists and has been configured (run ` +
+        `'${modelName}'. Ensure it exists and has been configured (run ` +
         `its configureTls/addProxyService/applyDnsRecords at least once), or ` +
-        `check the name with 'swamp model list'.`,
+        `check the name with 'swamp behavior list'.\n` +
+        `If there is exactly one Caddy model, clear caddyModelName to ` +
+        `auto-select it:\n` +
+        `  swamp model edit ${serveModelName} --global-arg caddyModelName=`,
     );
   }
   // The caddy `desired` resource carries baseDomain + dnsRecords at the top
   // level; wrap it in the globalArguments shape parseCaddyFacts understands.
   const facts = parseCaddyFacts(
-    g.caddyModelName,
+    modelName,
     { globalArguments: desired },
     hostname || machineHostname(),
   );
   if (!facts.baseDomain) {
     throw new Error(
-      `caddy model '${g.caddyModelName}' has no baseDomain; set one (e.g. ` +
-        `\`swamp model edit ${g.caddyModelName} --global-arg ` +
-        "baseDomain=example.com`).",
+      `caddy model '${modelName}' has no baseDomain; set one (e.g. ` +
+        `\`swamp model edit ${modelName} --global-arg ` +
+        "baseDomain=fi.gy`).",
     );
   }
   return facts;
@@ -1230,7 +1538,7 @@ export function configPathFor(g: ServeGlobals): string {
 /** The swamp model definition for `@svendowideit/swamp-serve`. */
 export const model = {
   type: "@svendowideit/swamp-serve",
-  version: "2026.10.26.1",
+  version: "2026.11.07.1",
   globalArguments: GlobalArgsSchema,
   checks: {
     "valid-config": {
@@ -1319,6 +1627,25 @@ export const model = {
       toVersion: "2026.10.26.1",
       description:
         "Adds the `serviceHardening` global argument (default true) and passes it to @svendowideit/systemd-service createService. Set it false when workflows started by the server need SSH: PrivateTmp's user namespace maps root-owned SSH config files to nobody. Existing models keep the previous hardening.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.1",
+      description:
+        "The setup workflow is now the primary instruction and no longer " +
+        "overrides the model's global arguments: edit the model and re-run it. " +
+        "The workflow drops its global-argument overrides (keeping only a " +
+        "`modelName` selector) and passes no step globalArgs, so " +
+        "`serviceHardening`, `dashboard`, `hotReload`, `port` and the rest " +
+        "survive a re-run. `resolve` auto-selects the only installed " +
+        "@svendowideit/caddy model when `caddyModelName` is empty, and errors " +
+        "with one exact `swamp model edit … --global-arg caddyModelName=…` " +
+        "command per candidate when there are several (or the caddy-setup " +
+        "command when there are none). `guidance` enumerates the real model " +
+        "instance and every installed caddy model, and prints the exact " +
+        "copy-pasteable update command for every option instead of a " +
+        "placeholder model name. A final `guidance` step always runs in the " +
+        "workflow.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1936,16 +2263,39 @@ export const model = {
         context: ResourceContext,
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const g = context.globalArgs;
-        const options = describeOptions(g);
+        const modelName = context.definition?.name ?? "swamp-serve";
+        const caddyModels = await discoverCaddyModels(context, modelName);
+        const options = describeOptions(
+          g,
+          modelName,
+          caddyModels.map((c) => c.name),
+        );
+        const caddyHelp = renderCaddyGuidance(
+          modelName,
+          caddyModels,
+          g.caddyModelName,
+        ).join("\n");
         const lines = [
-          "swamp-serve options (current → default, and how to change):",
+          `swamp-serve setup guidance for model '${modelName}'`,
+          "",
+          "Primary command — safe to re-run, and creates the model if missing:",
+          "  swamp workflow run @svendowideit/swamp-serve-setup",
+          "",
+          "The workflow reads this model's global arguments. Change one with the",
+          "exact command under it, then re-run:",
+          "  swamp workflow run @svendowideit/swamp-serve-setup",
+          "",
+          "Options (current → default; the command below each persists the example):",
           "",
           ...options.map((o) =>
             `  ${o.key.padEnd(22)} ${
               String(o.current || "(unset)").padEnd(28)
             }` +
-            `default: ${o.defaultValue.padEnd(24)} ${o.description}`
+            `default: ${o.defaultValue.padEnd(24)} ${o.description}\n` +
+            `    ${o.persist}`
           ),
+          "",
+          ...caddyHelp.split("\n"),
           "",
           "Telemetry environment written to the unit:",
           ...telemetryEnvDescription().map((e) =>
@@ -1959,7 +2309,11 @@ export const model = {
         ];
         context.logger?.info(lines.join("\n"));
         const handle = await context.writeResource("guidance", "guidance", {
+          modelName,
+          primaryCommand: "swamp workflow run @svendowideit/swamp-serve-setup",
           options,
+          caddyModels,
+          caddyHelp,
           generatedAt: new Date().toISOString(),
         });
         return { dataHandles: [handle] };

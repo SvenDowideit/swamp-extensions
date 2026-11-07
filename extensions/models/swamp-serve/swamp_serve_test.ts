@@ -5,14 +5,19 @@ import {
   buildTelemetryEnv,
   deriveHostnames,
   deriveZone,
+  describeCaddyChoice,
   describeOptions,
+  discoverCaddyModels,
   effectiveTrustedHosts,
   expandHome,
   extractVersion,
   hostnamesFor,
   model,
   parseCaddyFacts,
+  renderCaddyChoiceError,
+  renderCaddyGuidance,
   renderExecStart,
+  renderNoCaddyError,
   renderServeConfig,
   renderServeConfigYaml,
   renderUnit,
@@ -46,6 +51,7 @@ const G = {
   trustedHosts: [] as string[],
   autoTrustedHosts: true,
   schedule: true,
+  serviceHardening: true,
   swampHome: "~/.swamp",
   swampConfigDir: "~/.config/swamp",
   caddyModelName: "my-caddy",
@@ -382,7 +388,8 @@ Deno.test("stacks are documented as unsupported", () => {
 });
 
 Deno.test("describeOptions covers the full argument surface", () => {
-  const keys = describeOptions(G as never).map((o) => o.key);
+  const docs = describeOptions(G as never, "my-serve", ["my-caddy"]);
+  const keys = docs.map((o) => o.key);
   for (
     const expected of [
       "port",
@@ -390,21 +397,30 @@ Deno.test("describeOptions covers the full argument surface", () => {
       "dashboard",
       "hotReload",
       "autoResume",
+      "schedule",
+      "serviceHardening",
       "authMode",
       "trustedHosts",
       "caddyModelName",
       "otelSettingsModel",
       "swampHome",
       "swampConfigDir",
+      "command",
     ]
   ) {
     assertEquals(keys.includes(expected), true, `missing ${expected}`);
   }
   assertEquals(
-    describeOptions(G as never).every((o) =>
-      o.persist.includes("--global-arg")
-    ),
+    docs.every((o) => o.persist.includes("swamp model edit my-serve")),
     true,
+  );
+  assertEquals(
+    docs.some((o) => o.persist.includes("<model>")),
+    false,
+  );
+  assertEquals(
+    docs.find((o) => o.key === "caddyModelName")?.persist,
+    "swamp model edit my-serve --global-arg caddyModelName=my-caddy",
   );
 });
 
@@ -430,17 +446,189 @@ Deno.test("systemdDefinitionName never equals the caller's own name", () => {
   assertEquals(systemdDefinitionName("foo", "foo-unit"), "foo-unit-svc");
 });
 
-Deno.test("resolveCaddyFromContext requires a model name", async () => {
-  const ctx = { readModelData: () => Promise.resolve([]) };
+Deno.test("resolveCaddyFromContext auto-selects the only caddy model", async () => {
+  const ctx = {
+    definition: { name: "swamp-serve" },
+    globalArgs: { ...G, caddyModelName: "" },
+    definitionRepository: {
+      findAllGlobal: () =>
+        Promise.resolve([
+          {
+            definition: { id: "c1", name: "my-caddy" },
+            type: { raw: "@svendowideit/caddy" },
+          },
+        ]),
+    },
+    readModelData: (name: string, spec: string) => {
+      assertEquals(name, "my-caddy");
+      assertEquals(spec, "desired");
+      return Promise.resolve([
+        {
+          attributes: {
+            baseDomain: "fi.gy",
+            dnsRecords: [
+              {
+                name: "x1yoga.fi.gy",
+                type: "A",
+                value: ["10.0.0.5"],
+                zone: "fi.gy",
+              },
+            ],
+          },
+        },
+      ]);
+    },
+  };
+  const facts = await resolveCaddyFromContext(
+    ctx as never,
+    { ...G, caddyModelName: "" } as never,
+    "x1yoga",
+  );
+  assertEquals(facts.modelName, "my-caddy");
+  assertEquals(facts.hostFqdn, "x1yoga.fi.gy");
+  assertEquals(facts.hostIp, "10.0.0.5");
+});
+
+Deno.test("resolveCaddyFromContext lists every caddy model with an exact command", async () => {
+  const ctx = {
+    definition: { name: "swamp-serve" },
+    globalArgs: { ...G, caddyModelName: "" },
+    definitionRepository: {
+      findAllGlobal: () =>
+        Promise.resolve([
+          {
+            definition: { id: "c1", name: "my-caddy" },
+            type: { raw: "@svendowideit/caddy" },
+          },
+          {
+            definition: { id: "c2", name: "eieio-caddy" },
+            type: { raw: "@svendowideit/caddy" },
+          },
+        ]),
+    },
+    readModelData: () => Promise.resolve([]),
+  };
   await assertRejects(
     () =>
       resolveCaddyFromContext(
-        { ...ctx, globalArgs: { ...G, caddyModelName: "" } } as never,
+        ctx as never,
         { ...G, caddyModelName: "" } as never,
       ),
     Error,
-    "caddyModelName is required",
+    "swamp model edit swamp-serve --global-arg caddyModelName=my-caddy",
   );
+  await assertRejects(
+    () =>
+      resolveCaddyFromContext(
+        ctx as never,
+        { ...G, caddyModelName: "" } as never,
+      ),
+    Error,
+    "swamp model edit swamp-serve --global-arg caddyModelName=eieio-caddy",
+  );
+});
+
+Deno.test("resolveCaddyFromContext tells the user how to create a caddy model", async () => {
+  const ctx = {
+    definition: { name: "swamp-serve" },
+    globalArgs: { ...G, caddyModelName: "" },
+    definitionRepository: { findAllGlobal: () => Promise.resolve([]) },
+    readModelData: () => Promise.resolve([]),
+  };
+  await assertRejects(
+    () =>
+      resolveCaddyFromContext(
+        ctx as never,
+        { ...G, caddyModelName: "" } as never,
+      ),
+    Error,
+    "swamp workflow run @svendowideit/caddy-setup",
+  );
+});
+
+Deno.test("discoverCaddyModels enriches choices from the desired resource", async () => {
+  const ctx = {
+    globalArgs: { ...G, caddyModelName: "" },
+    definitionRepository: {
+      findAllGlobal: () =>
+        Promise.resolve([
+          {
+            definition: { id: "c1", name: "my-caddy" },
+            type: { raw: "@svendowideit/caddy" },
+          },
+          {
+            definition: { id: "x1", name: "not-a-caddy" },
+            type: { raw: "@svendowideit/other" },
+          },
+        ]),
+    },
+    readModelData: () =>
+      Promise.resolve([
+        {
+          attributes: {
+            baseDomain: "fi.gy",
+            target: "x1yoga",
+            dnsRecords: [
+              {
+                name: "x1yoga.fi.gy",
+                type: "A",
+                value: ["10.10.13.208"],
+                zone: "fi.gy",
+              },
+            ],
+          },
+        },
+      ]),
+  };
+  const choices = await discoverCaddyModels(ctx as never, "swamp-serve");
+  assertEquals(choices.length, 1);
+  assertEquals(choices[0].name, "my-caddy");
+  assertEquals(choices[0].baseDomain, "fi.gy");
+  assertEquals(choices[0].target, "x1yoga");
+  assertEquals(choices[0].hostIp, "10.10.13.208");
+  assertEquals(
+    choices[0].selectCommand,
+    "swamp model edit swamp-serve --global-arg caddyModelName=my-caddy",
+  );
+  assertEquals(
+    describeCaddyChoice(choices[0]),
+    "my-caddy (baseDomain fi.gy, target x1yoga, A 10.10.13.208)",
+  );
+});
+
+Deno.test("caddy guidance has exact commands and no <model> placeholders", () => {
+  const choices = [
+    {
+      name: "my-caddy",
+      baseDomain: "fi.gy",
+      target: "x1yoga",
+      hostIp: "10.10.13.208",
+      selectCommand:
+        "swamp model edit swamp-serve --global-arg caddyModelName=my-caddy",
+    },
+  ];
+  const lines = renderCaddyGuidance("swamp-serve", choices, "my-caddy");
+  const text = lines.join("\n");
+  assertEquals(text.includes("<model>"), false);
+  assertEquals(
+    text.includes(
+      "swamp model edit swamp-serve --global-arg caddyModelName=my-caddy",
+    ),
+    true,
+  );
+
+  const none = renderCaddyGuidance("swamp-serve", [], "");
+  const noneText = none.join("\n");
+  assertEquals(noneText.includes("<model>"), false);
+  assertEquals(
+    noneText.includes("swamp workflow run @svendowideit/caddy-setup"),
+    true,
+  );
+  assertEquals(
+    renderCaddyChoiceError(choices).includes("<"),
+    false,
+  );
+  assertEquals(renderNoCaddyError().includes("<"), false);
 });
 
 Deno.test("resolveCaddyFromContext reads the caddy 'desired' resource", async () => {

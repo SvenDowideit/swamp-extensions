@@ -522,27 +522,17 @@ current **and** the running Caddy config already equals what the upgrade would
 apply (the same desired-vs-actual check `plan`/`audit` do — proven against the
 live config, not assumed), `upgradeCheck` reports
 `DONE — already up to date … Nothing to upgrade`, the discovery list marks it
-`DONE` and omits its upgrade command, and the workflow skips the approval gate
-and every mutating step. Re-running the upgrade is then a genuine no-op.
+`DONE` and omits its upgrade command, and the workflow makes no mutating steps.
+Re-running the upgrade is then a genuine no-op.
 
-It then **pauses at one approval gate** so you can run those commands (the
-capability is granted on resume by a placed `@svendowideit/sudo` step, operation
-`setcap`, whose elevation ladder must find a route — sudo/doas/polkit/container —
-the host actually grants; a DNS token is a secret, so the report names the model's
-`environmentFile` to write instead of asking for it over a signal). Approve and
-resume:
-
-```sh
-# The run suspends at the gate; approve, then resume to rebuild/restart.
-swamp workflow approvals
-swamp workflow approve @svendowideit/caddy-upgrade confirm
-swamp workflow resume @svendowideit/caddy-upgrade
-```
-
-On resume it migrates the model definition, rebuilds the binary only when a
-wanted module (including the always-on `caddy-host-dns` and
-`caddy-teapot-module`) is missing, re-grants `CAP_NET_BIND_SERVICE`, regenerates
-the systemd unit from the current global args, restarts the service, re-applies
+It then **performs the repair automatically** — there is no approval gate. It
+migrates the model definition, rebuilds the binary only when a wanted module
+(including the always-on `caddy-host-dns` and `caddy-teapot-module`) is missing,
+re-grants `CAP_NET_BIND_SERVICE` through a placed `@svendowideit/sudo` step
+(operation `setcap`, whose elevation ladder must find a route — sudo/doas/
+polkit/container — that the host actually grants), regenerates the systemd unit
+from the current global args, restarts the service, recovers a stale autosave
+that replays the local-CA root-trust failure, and re-applies
 the status page and any declared DNS records, and **re-runs the gap report** so
 the run ends by telling you exactly what is still missing — and **where to see
 it**: the status-page URL and how to test it (`curl` for `/` 200, `/teapot` 418,

@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/caddy"
-version: "2026.11.07.3"
+version: "2026.11.07.4"
 description: >
   Caddy reverse-proxy and service management for a Linux host with systemd.
 
@@ -80,8 +80,9 @@ description: >
       # several it lists them and stops without changing anything, printing the
       # command for each. It prints a gap report (everything missing to serve:
       # capability for 80/443, baseDomain, ACME email, TLS, DNS records) with the
-      # exact fix command for each, then pauses for approval before
-      # rebuilding/restarting.
+      # exact fix command for each, then rebuilds/restarts and applies TLS/DNS
+      # automatically. A stale autosave that replays the local-CA root-trust
+      # failure is recovered automatically; no manual steps.
       swamp workflow run @svendowideit/caddy-upgrade
       swamp workflow run @svendowideit/caddy-upgrade --input model=my-caddy
 
@@ -312,16 +313,16 @@ description: >
     Before changing anything it prints a gap report: every setting that stops
     Caddy serving (capability to bind 80/443, baseDomain, ACME email, TLS, DNS
     provider/records, a stale binary) with the exact command to fix each. It
-    pauses at one approval gate, then rebuilds the binary if stale, re-grants the
-    capability, regenerates the unit, and restarts; and re-runs the gap report so
-    you see what is left. Idempotent:
+    then runs the repair automatically: rebuilds the binary if stale, re-grants
+    the capability, recovers a stale autosave, regenerates the unit, restarts,
+    and applies TLS/DNS; and re-runs the gap report so you see what is left.
+    There is no approval gate and no manual recovery step for the default run.
+    Idempotent:
 
         swamp workflow run @svendowideit/caddy-upgrade --input model=my-caddy
 
-    Approve the gate with `swamp workflow approve @svendowideit/caddy-upgrade
-    confirm` then `swamp workflow resume @svendowideit/caddy-upgrade`. Secrets
-    (a DNS token) are never collected over a signal — the gap report names the
-    model's environmentFile to write instead.
+    A DNS token is a secret, so the gap report names the model's environmentFile
+    to write instead of asking for it over a signal.
 
     If the capability step fails, the gap report prints the exact
     @svendowideit/sudo command to run (targeting the model's

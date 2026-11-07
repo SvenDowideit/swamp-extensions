@@ -5712,7 +5712,7 @@ type CheckContext = {
 /** Model definition for the Caddy reverse-proxy and service manager. */
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.11.07.3",
+  version: "2026.11.07.4",
   reports: ["@svendowideit/caddy-status"],
   globalArguments: GlobalArgsSchema,
   checks: {
@@ -6125,6 +6125,20 @@ export const model = {
         "TLS/DNS steps apply the desired config. No global argument change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.07.4",
+      description: "Removes the caddy-upgrade approval gate. check-before is " +
+        "informational and the workflow proceeds straight into the automatic " +
+        "repair (install, capability, unit, restart with stale-autosave " +
+        "recovery, status page, TLS/DNS, final check). check-before no longer " +
+        "prints the verbose 'To change any of these' command list; it prints " +
+        "the configuration summary, the measured serving state, and only the " +
+        "actual gaps. A known local-CA root-trust service gap is reported as " +
+        "automatically recovered by the restart step, not as a manual command. " +
+        "The default upgrade is now exactly: pull the extension, run the " +
+        "workflow. No global argument or schema change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     install: {
@@ -6365,31 +6379,16 @@ export const model = {
               "Restarted {serviceName} so it runs the current binary and picks up the capability",
               { serviceName: g.serviceName },
             );
-            // Wait for it to settle, then verify it actually came back up. Caddy
-            // runs with --resume, so a bad autosave.json can crash-loop it on
-            // restart; without this check the method would report success while
-            // the service is down.
-            await waitForService(g.serviceName, 15);
-            const active = await isServiceActive(g.serviceName);
-            const adminUp = await checkAdminApi(g.adminApiAddr);
-            restarted = active;
-            if (!active) {
-              const capHint = args.setCapabilities && !canBindPrivilegedPorts
-                ? " The rebuilt binary also lacks CAP_NET_BIND_SERVICE (elevation via @svendowideit/sudo failed), which would stop it binding 80/443."
-                : "";
-              throw new Error(
-                `Caddy service ${g.serviceName} did not restart cleanly after rebuilding the binary. ` +
-                  `Check: journalctl --user -u ${g.serviceName} -n 50. ` +
-                  `A common cause is a stale ~/.config/caddy/autosave.json that resumes a config using modules the binary no longer has; ` +
-                  `swamp does not delete it — move it aside and restart if that is the case.${capHint}`,
-              );
-            }
-            if (!adminUp) {
-              context.logger?.info(
-                "Restarted {serviceName}, but the admin API at {adminApiAddr} is not reachable yet",
-                { serviceName: g.serviceName, adminApiAddr: g.adminApiAddr },
-              );
-            }
+            // Caddy runs with --resume, so a bad autosave.json can crash-loop it
+            // on restart. ensureCaddyRunning moves a known stale autosave aside
+            // and retries automatically, then throws with the journal if it
+            // still cannot stay up.
+            const runningNow = await ensureCaddyRunning(
+              context,
+              g,
+              g.serviceName,
+            );
+            restarted = runningNow.active;
           }
         }
 
@@ -7202,15 +7201,11 @@ export const model = {
           );
         }
         // Verify it came back: Caddy resumes autosave.json, so a stale config
-        // using an absent module can crash-loop it on restart.
-        await waitForService(g.serviceName, 15);
-        if (!(await isServiceActive(g.serviceName))) {
-          throw new Error(
-            `Caddy service ${g.serviceName} did not restart cleanly after upgrade. ` +
-              `Check: journalctl --user -u ${g.serviceName} -n 50. ` +
-              `A stale ~/.config/caddy/autosave.json resuming a config with modules the binary lacks is a common cause.`,
-          );
-        }
+        // using an absent module (or the local-CA root-trust install) can
+        // crash-loop it on restart. ensureCaddyRunning recovers the known root
+        // trust/autosave case automatically and throws with the journal
+        // otherwise.
+        await ensureCaddyRunning(context, g, g.serviceName);
 
         context.logger?.info(
           "Upgraded Caddy to {version} and restarted {serviceName}",
@@ -7530,40 +7525,6 @@ export const model = {
             "Upgrade check for {name}: DONE — already up to date (type version current; the running Caddy config already matches what the upgrade would apply; service healthy). Nothing to upgrade.",
             { name },
           );
-        } else {
-          // Not up to date: show how to change each setting, and list what
-          // blocks serving. A confirmation gate is only meaningful if the user
-          // can see what they might correct and how. Brace-containing command
-          // values are passed as props so they are not read as placeholders.
-          context.logger?.info(
-            "To change any of these (then re-run):\n" +
-              "  baseDomain      {domainCmd}\n" +
-              "  email / TLS     {tlsCmd}\n" +
-              "  DNS provider    {providerCmd}\n" +
-              "  DNS records     {recordsCmd}\n" +
-              "  bind 80/443     {setcapCmd}\n" +
-              "  service         {serviceCmd}",
-            {
-              domainCmd: editModel(
-                '.globalArguments.baseDomain = "YOUR.DOMAIN"',
-              ),
-              tlsCmd:
-                `swamp model method run ${name} configureTls --input email=you@example.com --input 'subjects:json=["*.YOUR.DOMAIN"]'`,
-              providerCmd:
-                `swamp model method run ${name} configureTls --input dnsProvider=<provider>   # multi-field providers also --input providerConfig=...`,
-              recordsCmd: `${
-                editModel(
-                  ".globalArguments.dnsRecords = [/* record objects */]",
-                )
-              }  then  swamp model method run ${name} applyDnsRecords`,
-              setcapCmd: capabilityGrantCommand(
-                g.sudoInstanceKey,
-                binPath,
-                ["cap_net_bind_service=+ep"],
-              ),
-              serviceCmd: `swamp model method run ${name} startService`,
-            },
-          );
         }
 
         interface Gap {
@@ -7576,17 +7537,18 @@ export const model = {
 
         // Host-level gaps — independent of any domain.
         if (!serviceActive) {
-          const tail = await journalTail(serviceName);
+          const tail = await journalTail(serviceName, 12);
           const hint = rootTrustFailureHint(tail, name);
           gaps.push({
             id: "service-inactive",
-            message:
-              "The Caddy systemd user service is not active, so nothing is " +
-              "listening." +
-              (tail ? `\nLast journal lines:\n${tail}` : ""),
-            command: hint ||
-              `journalctl --user -u ${serviceName} -n 50; ` +
-                `swamp model method run ${name} startService`,
+            message: hint
+              ? "Caddy is not active; the known local-CA root-trust failure is recovered automatically by the upgrade's restart step."
+              : "The Caddy systemd user service is not active, so nothing is " +
+                "listening." +
+                (tail ? `\nLast journal lines:\n${tail}` : ""),
+            command: hint
+              ? `swamp workflow run @svendowideit/caddy-upgrade`
+              : `swamp model method run ${name} startService`,
           });
         }
         if (!canBind) {

@@ -1,34 +1,61 @@
 id: 5add36ac-50d1-4042-b5c5-5af5e4820b8b
 name: '@svendowideit/caddy-upgrade'
-description: "Upgrade the Caddy managed by @svendowideit/caddy \u2014 with no model name to\nremember \u2014 and tell you exactly what is still missing.\n\nRun it after updating the extension (`swamp extension update`). Caddy global\narguments only take effect on the next method run, and a replaced binary drops\nits capability, so a version bump alone is not enough.\n\nIt first discovers every @svendowideit/caddy model this repo defines (read from\nthe model definitions on disk, so a never-run model is found and the\nauto-created scratch instance never is). If the repo defines exactly one model\nit is upgraded automatically. If it defines more than one, the run lists them\n(with the exact command to upgrade each) and finishes without changing\nanything \u2014 then run the one you want:\n\n  swamp workflow run @svendowideit/caddy-upgrade\n  swamp workflow run @svendowideit/caddy-upgrade --input model=otel-caddy\n\nIt then prints the configuration it found for that model (baseDomain, ACME\n\
-  email, TLS subjects, DNS provider, records) and a gap report: every setting\nthat stops Caddy serving \u2014 the capability to bind 80/443, a baseDomain, an ACME\nemail, TLS, a DNS provider and records, a stale binary, service health \u2014 each\nwith the exact command to fix it. Confirm the configuration is right (run any\ncorrection command first), then approve; it rebuilds the binary if stale,\nre-grants the capability, regenerates the unit, and restarts, then re-runs the\ngap report so you can see what is left. Every step runs in order (no parallel\ncalls against one model), and is idempotent \u2014 re-running is safe.\n\n  # The run suspends at the gate; approve and resume:\n  swamp workflow approvals\n  swamp workflow approve @svendowideit/caddy-upgrade confirm\n  swamp workflow resume @svendowideit/caddy-upgrade\n\nTo (re)configure TLS as part of the same run, name the provider:\n  swamp workflow run @svendowideit/caddy-upgrade \\\n    --input model=otel-caddy --input dnsProvider=gandi\
-  \ \\\n    --input 'providerConfig:json={\"bearer_token\":\"GANDI_TOKEN\"}'\n"
+description: |
+  Upgrade the Caddy managed by @svendowideit/caddy — with no model name to
+  remember — and repair what it can automatically.
+
+  Run it after updating the extension (`swamp extension update`). Caddy global
+  arguments only take effect on the next method run, and a replaced binary drops
+  its capability, so a version bump alone is not enough.
+
+  It first discovers every @svendowideit/caddy model this repo defines (read from
+  the model definitions on disk, so a never-run model is found and the
+  auto-created scratch instance never is). If the repo defines exactly one model
+  it is upgraded automatically. If it defines more than one, the run lists them
+  (with the exact command to upgrade each) and finishes without changing
+  anything — then run the one you want:
+
+    swamp workflow run @svendowideit/caddy-upgrade
+    swamp workflow run @svendowideit/caddy-upgrade --input model=otel-caddy
+
+  It then prints the configuration it found for that model (baseDomain, ACME
+  email, TLS subjects, DNS provider, records) and a gap report: every setting
+  that stops Caddy serving — the capability to bind 80/443, a baseDomain, an ACME
+  email, TLS, a DNS provider and records, a stale binary, service health — each
+  with the exact command to fix it. It then performs the repair automatically:
+  rebuilds the binary if stale, re-grants CAP_NET_BIND_SERVICE through the placed
+  @svendowideit/sudo step, recovers a stale autosave that replays the local-CA
+  root-trust failure, regenerates the unit, restarts, and applies TLS/DNS. There
+  is no approval gate and no manual recovery step for the default run. Every step
+  runs in order (no parallel calls against one model), and is idempotent —
+  re-running is safe.
+
+  To (re)configure TLS as part of the same run, name the provider:
+    swamp workflow run @svendowideit/caddy-upgrade \
+      --input model=otel-caddy --input dnsProvider=gandi \
+      --input 'providerConfig:json={"bearer_token":"GANDI_TOKEN"}'
 inputs:
   properties:
     model:
       type: string
       default: ''
-      description: 'The @svendowideit/caddy model to upgrade. Leave empty (the default) to auto-upgrade the single model the repo defines, or to list the models (changing nothing) when there is more than one.
-
-        '
+      description: |
+        The @svendowideit/caddy model to upgrade. Leave empty (the default) to auto-upgrade the single model the repo defines, or to list the models (changing nothing) when there is more than one.
     dnsProvider:
       type: string
       default: ''
-      description: 'Optional DNS provider (e.g. gandi, cloudflare) to (re)configure TLS with after the upgrade. Empty leaves the existing TLS configuration alone.
-
-        '
+      description: |
+        Optional DNS provider (e.g. gandi, cloudflare) to (re)configure TLS with after the upgrade. Empty leaves the existing TLS configuration alone.
     providerConfig:
       type: object
       default: {}
-      description: 'Optional provider credential field -> environment variable map, for multi-field providers, e.g. {"bearer_token":"GANDI_TOKEN"} for Gandi.
-
-        '
+      description: |
+        Optional provider credential field -> environment variable map, for multi-field providers, e.g. {"bearer_token":"GANDI_TOKEN"} for Gandi.
     force:
       type: boolean
       default: false
-      description: 'Force a fresh Caddy binary build even when all wanted modules are already present. Use this to pick up newer commits of bundled modules (for example caddy-host-dns) when the installed binary is stale.
-
-        '
+      description: |
+        Force a fresh Caddy binary build even when all wanted modules are already present. Use this to pick up newer commits of bundled modules (for example caddy-host-dns) when the installed binary is stale.
   required: []
 tags:
   swamp: caddy
@@ -53,10 +80,10 @@ jobs:
   dependsOn: []
   weight: 0
 - name: upgrade
-  description: Report the configuration and gaps, confirm, then rebuild/re-unit/restart and re-report. Every step targets one model and runs strictly in order (each depends on the previous), so nothing contends on the model lock.
+  description: Report the configuration and gaps, then rebuild/re-unit/restart and re-report automatically. Every step targets one model and runs strictly in order (each depends on the previous), so nothing contends on the model lock.
   steps:
   - name: check-before
-    description: "Print the configuration found for this model and every gap that stops it serving \u2014 capability to bind 80/443, baseDomain, ACME email, TLS, DNS provider/records, stale binary, service health \u2014 each with the exact command to fix it."
+    description: Print the configuration found for this model and every gap that stops it serving — capability to bind 80/443, baseDomain, ACME email, TLS, DNS provider/records, stale binary, service health — each with the exact command to fix it.
     guard: ${{ inputs.model == "" && data.latest("caddy-upgrade-scan", "targets").?attributes.?count.orValue(0) != 1 }}
     task:
       type: model_method
@@ -64,18 +91,6 @@ jobs:
       modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("") }}'
       methodName: upgradeCheck
     dependsOn: []
-    weight: 0
-    allowFailure: false
-  - name: confirm
-    description: 'Interactive gate: the configuration and gap report are printed above. If they are correct, approve; if not, run the correction command shown in the report first, then approve. Skipped entirely when the single target model is already up to date (nothing to do).'
-    guard: ${{ inputs.model == "" && (data.latest("caddy-upgrade-scan", "targets").?attributes.?count.orValue(0) != 1 || data.latest("caddy-upgrade-scan", "targets").?attributes.?models[0].?upToDate.orValue(false)) }}
-    task:
-      type: manual_approval
-      prompt: The configuration for this model, and the command to change each setting, are printed above. If it is all correct, approve to continue. Otherwise run the relevant command above, then approve. Approving rebuilds the binary if its modules are stale, re-grants CAP_NET_BIND_SERVICE, regenerates the systemd unit, and restarts Caddy. If this model uses a DNS provider, make sure its token is in the model's environmentFile before approving.
-    dependsOn:
-    - step: check-before
-      condition:
-        type: succeeded
     weight: 0
     allowFailure: false
   - name: install
@@ -91,7 +106,7 @@ jobs:
         configureStatusPage: false
         force: ${{ inputs.force }}
     dependsOn:
-    - step: confirm
+    - step: check-before
       condition:
         type: succeeded
     weight: 0
@@ -132,7 +147,7 @@ jobs:
     weight: 0
     allowFailure: false
   - name: normalize-serving
-    description: "Make the model's automatic-HTTPS / listen-address settings match what it wants (public HTTPS) and what this host can do (bind 80/443), correcting and persisting them \u2014 e.g. leaving the unprivileged high-port preset now that the binary can bind privileged ports. Skipped when there is nothing to correct. (grant-capability above already restored CAP_NET_BIND_SERVICE, so there is no separate setcap here.)"
+    description: Make the model's automatic-HTTPS / listen-address settings match what it wants (public HTTPS) and what this host can do (bind 80/443), correcting and persisting them — e.g. leaving the unprivileged high-port preset now that the binary can bind privileged ports. Skipped when there is nothing to correct. (grant-capability above already restored CAP_NET_BIND_SERVICE, so there is no separate setcap here.)
     guard: ${{ inputs.model == "" && data.latest("caddy-upgrade-scan", "targets").?attributes.?count.orValue(0) != 1 }}
     task:
       type: model_method

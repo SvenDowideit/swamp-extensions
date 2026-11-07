@@ -812,6 +812,34 @@ Details:
   without rewriting the sudo model's persistent allowlist. The target is the
   `sudo-<sudoInstanceKey>` model (global `sudoInstanceKey`, default `default`),
   auto-created if absent.
+- **`getcap` is not proof that a process can bind 80/443.** A version-3
+  `security.capability` xattr carries a `rootid`: the uid of root in the user
+  namespace that wrote it. `setcap -n 1000` and a rootless container's
+  `setcap` produce `rootid 1000`; `getcap` still prints
+  `cap_net_bind_service=ep`, but the host kernel ignores the capability on
+  exec. The process gets `CapEff 0000000000000000` and bind fails with
+  `permission denied` even though the unit allows the cap and the filesystem is
+  not `nosuid`. `setCapabilities` reads the xattr (via `getfattr`, falling back
+  to `python3`), logs the rootid, and treats `rootid != 0` as **not applied**,
+  so the workflow runs the host-root `setcap` step instead of saying "already
+  satisfied". `upgradeCheck` reports
+  `file capabilities: ... (IGNORED: security.capability rootid 1000 ...)`.
+
+  Fix a host in that state by rewriting the xattr as host root, then re-running
+  the upgrade:
+
+  ```sh
+  # Run on the host (not inside a rootless container). This rewrites the xattr
+  # as version 2 / rootid 0, which the host kernel honours.
+  sudo setcap cap_net_bind_service=+ep /home/you/.local/bin/caddy
+  swamp workflow run @svendowideit/caddy-upgrade
+  ```
+
+  The test-factory test
+  `user-namespace-capability-is-not-proof-of-a-host-binding` reproduces the
+  exact t440s state (`setcap -n 1000`, `getcap` positive, direct `:443` bind
+  with `permission denied`), proves `upgradeCheck` says the cap is IGNORED, and
+  proves the workflow re-applies it as host root and serves on `:443`.
 - **The workflow verifies the grant and pauses if it did not take.** The sudo
   step is allowed to fail. `grant-capability` calls the sudo `run` with
   `requireSuccess=true`, so the sudo extension verifies `setcap` with `getcap`

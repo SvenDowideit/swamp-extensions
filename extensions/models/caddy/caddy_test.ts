@@ -64,6 +64,7 @@ import {
   model,
   parseAdminAddr,
   parseCaddyVersion,
+  parseCapabilityRootId,
   parseGetcap,
   parseManifestVersion,
   parseModules,
@@ -3440,6 +3441,33 @@ Deno.test("processStateText separates the running process from the binary", () =
     startTime: "now",
   }, "/home/alice/.local/bin/caddy");
   assertStringIncludes(unknown, "unreadable");
+});
+
+Deno.test("parseCapabilityRootId reads the t440s user-namespace rootid", () => {
+  // This is the actual xattr from t440s: v3, CAP_NET_BIND_SERVICE in the
+  // permitted+effective sets, and rootid 1000. getcap prints the capability,
+  // but the host kernel ignores it, so Caddy gets CapEff 0 and cannot bind
+  // :443. The workflow must not call this "already satisfied".
+  assertEquals(
+    parseCapabilityRootId(
+      "0100000300040000000000000000000000000000e8030000",
+    ),
+    1000,
+  );
+  // v3 written by host root: rootid 0, usable.
+  assertEquals(
+    parseCapabilityRootId(
+      "010000030004000000000000000000000000000000000000",
+    ),
+    0,
+  );
+  // v2 has no rootid field; it is host-usable.
+  assertEquals(
+    parseCapabilityRootId("0100000200040000000000000000000000000000"),
+    0,
+  );
+  assertEquals(parseCapabilityRootId(""), null);
+  assertEquals(parseCapabilityRootId("deadbeef"), null);
 });
 
 Deno.test("capabilitiesSatisfied treats getcap =ep as satisfying =+ep", () => {

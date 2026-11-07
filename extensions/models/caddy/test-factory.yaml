@@ -1211,6 +1211,127 @@ tests:
           systemctl --user stop caddy 2>/dev/null || true
           swamp model delete e2e-reboot --yes --force || true
         expect: { exitCode: 0 }
+  - name: user-namespace-capability-is-not-proof-of-a-host-binding
+    confirms: >
+      getcap can print cap_net_bind_service=ep for a capability written from a
+      user namespace (setcap -n 1000), while a process exec'd from that binary
+      gets CapEff 0000000000000000 and Caddy fails with `bind: permission
+      denied` on :443. caddy-upgrade must reject that getcap state, run the sudo
+      step to rewrite the xattr as host root, then restart and publish on :443.
+    cannot: >
+      must not treat getcap alone as proof, must not skip the sudo grant, must not
+      stay on 8080/8443, and must not report success without a host-usable
+      capability.
+    documents: README.md#privileged-ports-80443
+    runAs: tester
+    grants:
+      - { guest: harness, profile: sudo-nopasswd }
+    steps:
+      - name: create-source-model
+        run: |
+          swamp model create @svendowideit/caddy e2e-rootid-src \
+            --global-arg serviceName=caddy-rootid-src \
+            --global-arg adminApiAddr=localhost:2027 \
+            --global-arg configPath=/home/tester/.config/caddy/Caddyfile-src \
+            --global-arg baseDomain=example.com \
+            --global-arg letsEncryptEmail=admin@example.com
+        expect: { exitCode: 0 }
+      - name: install-source-binary
+        run: >
+          swamp model method run e2e-rootid-src installCaddy
+          --input setCapabilities=false --input configureStatusPage=false
+        expect: { exitCode: 0 }
+        timeoutSeconds: 300
+      - name: write-a-user-namespace-capability-like-t440s
+        run: |
+          cp "$HOME/.local/bin/caddy" "$HOME/.local/bin/caddy-rootid"
+          chmod +x "$HOME/.local/bin/caddy-rootid"
+          sudo -n setcap -n 1000 cap_net_bind_service=+ep "$HOME/.local/bin/caddy-rootid"
+          getcap "$HOME/.local/bin/caddy-rootid"
+        expect: { stdoutContains: ["cap_net_bind_service"] }
+      - name: harness-user-is-not-root
+        run: sh -c '[ "$(id -u)" != "0" ] && echo non-root'
+        expect: { stdoutContains: ["non-root"] }
+      - name: capability-is-the-t440s-user-namespace-rootid
+        run: |
+          python3 - <<'EOF'
+          import os
+          b = os.getxattr(os.path.expanduser("~/.local/bin/caddy-rootid"), "security.capability")
+          print("rootid:", int.from_bytes(b[-4:], "little") if len(b) >= 24 and b[0:4] == bytes([1,0,0,3]) else 0)
+          print("uid:", os.getuid())
+          EOF
+        expect: { stdoutContains: ["rootid: 1000"] }
+      - name: harness-requires-the-capability-for-low-ports
+        run: |
+          echo "unprivileged-port-start=$(cat /proc/sys/net/ipv4/ip_unprivileged_port_start)"
+          echo "runner-cap-eff=$(grep '^CapEff' /proc/self/status | awk '{print $2}')"
+        expect:
+          stdoutContains:
+            - "unprivileged-port-start=1024"
+            - "runner-cap-eff=0000000000000000"
+      - name: the-capped-binary-cannot-actually-bind-443
+        run: |
+          cat > "$HOME/caddy-443.Caddyfile" <<'CADDY'
+          {
+            admin off
+            auto_https off
+          }
+          :443 {
+            respond "ok"
+          }
+          CADDY
+          timeout 15 "$HOME/.local/bin/caddy-rootid" run \
+            --config "$HOME/caddy-443.Caddyfile" --adapter caddyfile 2>&1
+        expect:
+          exitCode: 1
+          stdoutContains:
+            - "bind: permission denied"
+            - ":443"
+      - name: delete-source-model
+        run: swamp model delete e2e-rootid-src --yes --force
+        expect: { exitCode: 0 }
+      - name: create-target-model
+        run: |
+          swamp model create @svendowideit/caddy e2e-rootid \
+            --global-arg caddyBinPath="$HOME/.local/bin/caddy-rootid" \
+            --global-arg serviceName=caddy-rootid \
+            --global-arg configPath="$HOME/.config/caddy/Caddyfile-rootid" \
+            --global-arg baseDomain=example.com \
+            --global-arg letsEncryptEmail=admin@example.com
+        expect: { exitCode: 0 }
+      - name: upgrade-replaces-the-namespaced-capability-with-host-root
+        run: swamp workflow run @svendowideit/caddy-upgrade --input model=e2e-rootid
+        expect:
+          exitCode: 0
+          outputContains:
+            - "rootid 1000"
+            - "Ran 'setcap' via"
+            - "verified=true"
+          outputNotContains:
+            - "listening on :8080"
+            - "listening on :8443"
+            - "Refusing to apply a privileged config"
+        timeoutSeconds: 300
+      - name: xattr-rootid-is-now-host-root
+        run: |
+          python3 - <<'EOF'
+          import os
+          b = os.getxattr(os.path.expanduser("~/.local/bin/caddy-rootid"), "security.capability")
+          print("rootid:", int.from_bytes(b[-4:], "little") if len(b) >= 24 and b[0:4] == bytes([1,0,0,3]) else 0)
+          EOF
+        expect: { stdoutContains: ["rootid: 0"] }
+      - name: live-config-binds-443
+        run: curl -s http://localhost:2019/config/ | jq -c '[.apps.http.servers[].listen[]]'
+        expect: { stdoutContains: [":443"], stdoutNotContains: [":8443"] }
+      - name: status-page-is-served-over-tls
+        run: curl -sk -o /dev/null -w '%{http_code}' https://localhost/
+        expect: { stdoutContains: ["200"], stdoutNotContains: ["000"] }
+      - name: cleanup
+        run: |
+          systemctl --user stop caddy-rootid 2>/dev/null || true
+          rm -f "$HOME/.local/bin/caddy-rootid" "$HOME/caddy-443.Caddyfile"
+          swamp model delete e2e-rootid --yes --force || true
+        expect: { exitCode: 0 }
   - name: elevation-sudo-grants-capability-and-binds-443
     confirms: >
       With a passwordless-`sudo` grant and a non-root harness, installCaddy grants

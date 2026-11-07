@@ -836,6 +836,10 @@ const SetCapabilitiesOutputSchema = z.object({
   /** The @svendowideit/sudo model the capability grant should target. */
   sudoModel: z.string(),
   capabilities: z.array(z.string()),
+  /** v3 security.capability rootid; 0 = host root/v2, null = unreadable. */
+  capabilityRootId: z.number().nullable().optional(),
+  /** False when getcap shows a capability the host kernel ignores. */
+  capabilityUsable: z.boolean().optional(),
   changed: z.boolean(),
   applied: z.boolean(),
   requiresSudo: z.boolean(),
@@ -4148,6 +4152,117 @@ async function readCapabilities(binPath: string): Promise<string[]> {
 }
 
 /**
+ * Parse the `security.capability` xattr bytes and return its version-3
+ * `rootid`. Returns 0 for a version-2 xattr (which has no rootid field) and
+ * null when the bytes are not a capability xattr.
+ *
+ * `rootid` is the uid of root in the user namespace that wrote the
+ * capability. `getcap` prints the capability even when rootid is non-zero, but
+ * the kernel ignores it on exec outside that namespace: the process gets
+ * `CapEff 0000000000000000` and binding :80/:443 fails with EACCES. This is
+ * exactly the case produced by `setcap -n 1000 ...` and by a rootless
+ * container's setcap.
+ */
+export function parseCapabilityRootId(hex: string): number | null {
+  const clean = hex.trim().replace(/^0x/i, "").replace(/[^0-9a-f]/gi, "");
+  if (clean.length < 8) return null;
+  const bytes: number[] = [];
+  for (let i = 0; i + 1 < clean.length; i += 2) {
+    bytes.push(parseInt(clean.slice(i, i + 2), 16));
+  }
+  // little-endian VFS_CAP_REVISION_2 = 0x02000001 (01 00 00 02)
+  if (bytes[0] === 1 && bytes[1] === 0 && bytes[2] === 0 && bytes[3] === 2) {
+    return 0;
+  }
+  // little-endian VFS_CAP_REVISION_3 = 0x03000001 (01 00 00 03); the trailing
+  // __le32 is rootid.
+  if (
+    bytes[0] === 1 && bytes[1] === 0 && bytes[2] === 0 && bytes[3] === 3 &&
+    bytes.length >= 24
+  ) {
+    return bytes[20] | (bytes[21] << 8) | (bytes[22] << 16) |
+      (bytes[23] << 24);
+  }
+  return null;
+}
+
+/**
+ * Read the raw `security.capability` xattr and return its rootid.
+ *
+ * `getfattr` is tried first (no interpreter needed); `python3` is the
+ * fallback because it is present on the hosts this extension targets. Returns
+ * null when neither can read the xattr, so callers must treat "unknown" as
+ * unknown rather than as proof of either state.
+ */
+export async function readCapabilityRootId(
+  binPath: string,
+): Promise<number | null> {
+  const ga = await runCmd("getfattr", [
+    "--absolute-names",
+    "-n",
+    "security.capability",
+    "-e",
+    "hex",
+    "--only-values",
+    binPath,
+  ]);
+  if (ga.code === 0) {
+    const parsed = parseCapabilityRootId(ga.stdout);
+    if (parsed !== null) return parsed;
+  }
+  const py = await runCmd("python3", [
+    "-c",
+    "import os,sys;print(os.getxattr(sys.argv[1],'security.capability').hex())",
+    binPath,
+  ]);
+  if (py.code === 0) return parseCapabilityRootId(py.stdout);
+  return null;
+}
+
+/** The file capability as written, plus whether this host can use it. */
+export interface FileCapabilityState {
+  /** Raw `getcap` output. This can be non-empty and still unusable. */
+  caps: string[];
+  /** Version-3 xattr rootid; 0 for host root/v2; null when unreadable. */
+  rootId: number | null;
+  /** Whether a process exec'd from this binary actually gets the capability. */
+  usable: boolean;
+}
+
+/**
+ * Read the file capability *and* its host-namespace effectiveness.
+ *
+ * `getcap` alone is not proof: a capability written from a user namespace
+ * (`setcap -n 1000`, a rootless container) is displayed by `getcap` but is
+ * ignored by the kernel when the binary is executed by a host user. The
+ * workflow must not say "already satisfied" in that state.
+ */
+export async function readFileCapabilityState(
+  binPath: string,
+): Promise<FileCapabilityState> {
+  const caps = await readCapabilities(binPath);
+  if (caps.length === 0) {
+    // Root can bind 80/443 without a file capability; a non-root user cannot.
+    let root = false;
+    try {
+      root = Deno.uid() === 0;
+    } catch {
+      root = false;
+    }
+    return { caps, rootId: null, usable: root };
+  }
+  const rootId = await readCapabilityRootId(binPath);
+  let usable = hasNetBindService(caps) && (rootId === null || rootId === 0);
+  try {
+    // root can bind privileged ports without a file capability.
+    if (Deno.uid() === 0) usable = true;
+  } catch {
+    // ignore
+  }
+  return { caps, rootId, usable };
+}
+
+/**
  * Report the file-capability grant a caller must apply itself.
  *
  * Caddy never elevates in-process. `context.runModel` is unavailable under
@@ -5670,7 +5785,7 @@ async function assessUpToDate(
     configInSync = false;
   }
   const binPath = expandHome(own.caddyBinPath || "~/.local/bin/caddy");
-  const canBind = canBindPrivilegedPortsNow(await readCapabilities(binPath));
+  const canBind = (await readFileCapabilityState(binPath)).usable;
   const serviceActive = await isServiceActive(own.serviceName);
   const missingModules = missingPlugins(
     withDefaultPlugins(own.plugins ?? []),
@@ -6090,7 +6205,7 @@ type CheckContext = {
 /** Model definition for the Caddy reverse-proxy and service manager. */
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.11.07.9",
+  version: "2026.11.07.10",
   reports: ["@svendowideit/caddy-status"],
   globalArguments: GlobalArgsSchema,
   checks: {
@@ -6609,6 +6724,22 @@ export const model = {
         "process-restart and wrong-process cases.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.07.10",
+      description:
+        "Stops treating getcap as proof that a Caddy process can bind 80/443. " +
+        "A version-3 security.capability xattr written from a user namespace " +
+        "(setcap -n 1000, a rootless container) is printed by getcap but ignored " +
+        "by the host kernel: the process gets CapEff 0 and bind fails with " +
+        "permission denied. The extension now reads the xattr rootid, logs it, " +
+        "and treats rootid != 0 as not applied, so the workflow runs the " +
+        "host-root setcap step instead of saying 'already satisfied'. The new " +
+        "test-factory test user-namespace-capability-is-not-proof-of-a-host-binding " +
+        "reproduces the t440s rootid-1000 state, proves the direct bind fails, " +
+        "then proves the workflow rewrites the xattr as host root and serves on " +
+        ":443. No schema change; existing models upgrade with no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     install: {
@@ -6813,8 +6944,9 @@ export const model = {
             binPath,
             PRIVILEGED_PORT_CAPABILITIES,
           );
-          capabilities = await readCapabilities(binPath);
-          canBindPrivilegedPorts = hasNetBindService(capabilities);
+          const capState = await readFileCapabilityState(binPath);
+          capabilities = capState.caps;
+          canBindPrivilegedPorts = capState.usable;
           if (canBindPrivilegedPorts) {
             context.logger?.info(
               "Granted CAP_NET_BIND_SERVICE to {binPath} via @svendowideit/sudo; Caddy can bind 80/443 as a user service",
@@ -6822,10 +6954,24 @@ export const model = {
             );
           } else {
             needsSudoForPorts = result.detail;
-            context.logger?.warning?.(
-              "Could not grant CAP_NET_BIND_SERVICE to {binPath}: {detail}",
-              { binPath, detail: result.detail },
-            );
+            if (
+              capabilities.length > 0 && capState.rootId !== null &&
+              capState.rootId !== 0
+            ) {
+              context.logger?.warning?.(
+                "getcap reports {caps} on {binPath}, but the security.capability xattr has rootid {rootId}; the kernel ignores it outside that user namespace. Re-apply it as host root.",
+                {
+                  caps: capabilities.join(" "),
+                  binPath,
+                  rootId: String(capState.rootId),
+                },
+              );
+            } else {
+              context.logger?.warning?.(
+                "Could not grant CAP_NET_BIND_SERVICE to {binPath}: {detail}",
+                { binPath, detail: result.detail },
+              );
+            }
           }
         }
 
@@ -6927,19 +7073,39 @@ export const model = {
         const binPath = expandHome(args.binPath ?? g.caddyBinPath);
         const capabilities = args.capabilities ?? PRIVILEGED_PORT_CAPABILITIES;
 
-        const before = await readCapabilities(binPath);
-        const already = capabilitiesSatisfied(before, capabilities);
+        const beforeState = await readFileCapabilityState(binPath);
+        const before = beforeState.caps;
+        // `getcap` is not proof. A capability written from a user namespace
+        // (setcap -n 1000, a rootless container) is printed by getcap but
+        // ignored by the kernel for host users. Treat it as missing so the
+        // workflow runs the elevation step again, as host root.
+        const already = capabilitiesSatisfied(before, capabilities) &&
+          beforeState.usable;
         const result = already
           ? { applied: true, detail: "already granted" }
           : await pendingCapabilityGrant(context, binPath, capabilities);
-        const after = await readCapabilities(binPath);
+        const afterState = await readFileCapabilityState(binPath);
+        const after = afterState.caps;
         // Root can bind 80/443 without a file capability; otherwise the
-        // requested capability must actually be present. This is the check the
+        // requested capability must actually be usable. This is the check the
         // post-grant workflow step uses to catch an elevation route that exits
         // 0 without applying setcap.
-        const applied = capabilitiesSatisfied(after, capabilities);
+        const applied = capabilitiesSatisfied(after, capabilities) &&
+          afterState.usable;
 
         if (!args.quiet) {
+          if (!already && before.length > 0 && !beforeState.usable) {
+            context.logger?.warning?.(
+              beforeState.rootId !== null && beforeState.rootId !== 0
+                ? "getcap reports {caps} on {binPath}, but the security.capability xattr has rootid {rootId}; the kernel ignores that capability outside the user namespace that wrote it. Re-applying it as host root is required — getcap alone is not proof."
+                : "getcap reports {caps} on {binPath}, but a privileged bind is not usable for this host user; re-applying the capability as host root is required.",
+              {
+                caps: before.join(" "),
+                binPath,
+                rootId: String(beforeState.rootId ?? "unknown"),
+              },
+            );
+          }
           if (applied) {
             if (already) {
               context.logger?.info(
@@ -6947,7 +7113,7 @@ export const model = {
                 {
                   binPath,
                   why: after.join(" ")
-                    ? "the file already has the capability"
+                    ? "the file already has a host-usable capability"
                     : "the process runs as root",
                 },
               );
@@ -6972,6 +7138,8 @@ export const model = {
             binPath,
             sudoModel: `sudo-${g.sudoInstanceKey}`,
             capabilities: after,
+            capabilityRootId: afterState.rootId,
+            capabilityUsable: afterState.usable,
             changed: !already,
             applied,
             requiresSudo: !applied,
@@ -7951,8 +8119,9 @@ export const model = {
         const typeVersion = ref?.typeVersion ?? "";
 
         const serviceActive = await isServiceActive(serviceName);
-        const caps = await readCapabilities(binPath);
-        const canBind = canBindPrivilegedPortsNow(caps);
+        const capState = await readFileCapabilityState(binPath);
+        const caps = capState.caps;
+        const canBind = capState.usable;
         const wanted = withDefaultPlugins(g.plugins ?? []);
         const compiled = await compiledPluginPaths(binPath);
         const missingModules = missingPlugins(wanted, compiled);
@@ -8033,10 +8202,14 @@ export const model = {
           },
         );
         context.logger?.info(
-          "Binary: {binPath}; file capabilities: {caps}",
+          "Binary: {binPath}; file capabilities: {caps}{ignored}",
           {
             binPath,
             caps: caps.join(" ") || "(none; root may still bind)",
+            ignored: caps.length > 0 && !canBind &&
+                capState.rootId !== null && capState.rootId !== 0
+              ? ` (IGNORED: security.capability rootid ${capState.rootId} was written from a user namespace; getcap shows it, but the host kernel does not grant it. Re-apply as host root.)`
+              : "",
           },
         );
         context.logger?.info(
@@ -8387,9 +8560,7 @@ export const model = {
         const g = context.globalArgs;
         const name = context.definition?.name ?? "";
         const binPath = expandHome(g.caddyBinPath);
-        const canBind = canBindPrivilegedPortsNow(
-          await readCapabilities(binPath),
-        );
+        const canBind = (await readFileCapabilityState(binPath)).usable;
         const own = await loadOwnDesired(context, g);
         const acmeEmail = g.letsEncryptEmail || own.tls?.email || "";
         const want = desiredServingSettings({

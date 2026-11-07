@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/caddy"
-version: "2026.11.07.9"
+version: "2026.11.07.10"
 description: >
   Caddy reverse-proxy and service management for a Linux host with systemd.
 
@@ -283,10 +283,20 @@ description: >
     execution, so the grant is its own placed workflow step driving the
     @svendowideit/sudo model — the caddy-setup and caddy-upgrade workflows do this
     (installCaddy takes setCapabilities=false; setCapabilities only checks and
-    reports). A config is never rejected for a privileged-port bind failure: until
-    the capability is granted, reconcile serves what is wanted on unprivileged
-    ports (:80 -> :8080, :443 -> :8443, plain HTTP) so Caddy always loads it, and
-    reapplies the desired settings once the capability arrives.
+    reports). A config that needs 80/443 is never silently moved to
+    unprivileged ports: the workflow pauses or stops with the exact setcap
+    command, and it never reports success while Caddy is on :8080/:8443.
+
+    getcap is not proof. A version-3 security.capability xattr written from a
+    user namespace (setcap -n 1000, or a rootless container) is printed by
+    getcap but ignored by the host kernel: the process gets CapEff 0 and bind
+    fails with permission denied. The extension reads the xattr rootid and
+    treats rootid != 0 as not applied, so the workflow runs the host-root
+    setcap step instead of saying "already satisfied". Fix a host that shows
+    this by re-applying the capability as host root, then re-run the upgrade:
+
+        sudo setcap cap_net_bind_service=+ep /home/you/.local/bin/caddy
+        swamp workflow run @svendowideit/caddy-upgrade
 
     A status page is wanted by default (opt out with configureStatusPage
     disabled=true): it answers on localhost and, once the port/TLS layer is up,

@@ -58,8 +58,8 @@
  * @module
  */
 import { z } from "npm:zod@4";
-import { join } from "jsr:@std/path@1";
-import { parse as parseYaml } from "jsr:@std/yaml@1";
+import { join } from "jsr:@std/path@1.1.6";
+import { parse as parseYaml } from "jsr:@std/yaml@1.2.0";
 
 // ---------------------------------------------------------------------------
 // Always-on Caddy modules + shared input schemas
@@ -7516,28 +7516,32 @@ export const model = {
           }
         }
 
-        const handle = await context.writeResource("upgradeCheck", "upgrade-check", {
-          model: name,
-          typeVersion,
-          currentVersion: model.version, // meta-factory-ignore version-source: the installed model-type version reported alongside the instance typeVersion, not the extension version
-          staleness: stalenessOf(typeVersion, model.version),
-          upToDate,
-          configInSync,
-          serviceName,
-          serviceActive,
-          canBindPrivilegedPorts: canBind,
-          missingModules,
-          baseDomain: g.baseDomain ?? "",
-          letsEncryptEmail: g.letsEncryptEmail ?? "",
-          tlsConfigured,
-          dnsProvider,
-          dnsRecordCount,
-          environmentFile: envFile,
-          environmentFileExists: envExists,
-          gaps,
-          ok: required.length === 0,
-          checkedAt: new Date().toISOString(),
-        });
+        const handle = await context.writeResource(
+          "upgradeCheck",
+          "upgrade-check",
+          {
+            model: name,
+            typeVersion,
+            currentVersion: model.version, // meta-factory-ignore version-source: the installed model-type version reported alongside the instance typeVersion, not the extension version
+            staleness: stalenessOf(typeVersion, model.version),
+            upToDate,
+            configInSync,
+            serviceName,
+            serviceActive,
+            canBindPrivilegedPorts: canBind,
+            missingModules,
+            baseDomain: g.baseDomain ?? "",
+            letsEncryptEmail: g.letsEncryptEmail ?? "",
+            tlsConfigured,
+            dnsProvider,
+            dnsRecordCount,
+            environmentFile: envFile,
+            environmentFileExists: envExists,
+            gaps,
+            ok: required.length === 0,
+            checkedAt: new Date().toISOString(),
+          },
+        );
         return { dataHandles: [handle] };
       },
     },

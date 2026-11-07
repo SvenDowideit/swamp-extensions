@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4487"><span class="tier A">A</span>Slackwater: swamp-club link page, consent and the link email</a><a href="#issue-4492"><span class="tier A">A</span>verify-build can hang for up to an hour when test workers st</a><a href="#issue-4495"><span class="tier A">A</span>swamp workflow validate fails a repo because of a pulled ext</a><a href="#issue-4485"><span class="tier A">A</span>workflow approvals offers a person refused on their own run </a><a href="#issue-4129"><span class="tier A">A</span>Over-limit contentMetadata publishes a blank extension page;</a><a href="#issue-4489"><span class="tier A">A</span>workflow run --json reports a succeeded run as failed, and h</a><a href="#issue-4474"><span class="tier A">A</span>Slackwater: bearer-only HTTP route for workflow actions</a><a href="#issue-4488"><span class="tier A">A</span>Deeply nested resource content overflows the stack: nested w</a><a href="#issue-4469"><span class="tier A">A</span>A method run writing thousands of resources reports &#39;Invalid</a><a href="#issue-4481"><span class="tier A">A</span>repo prune follow-ups: report failed writes apart from skips</a><a href="#issue-4473"><span class="tier A">A</span>Slackwater: grant conditions can read the client and the run</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4497"><span class="tier A">A</span>Telemetry integration tests can fail verify-build by leaving</a><a href="#issue-4487"><span class="tier A">A</span>Slackwater: swamp-club link page, consent and the link email</a><a href="#issue-4492"><span class="tier A">A</span>verify-build can hang for up to an hour when test workers st</a><a href="#issue-4495"><span class="tier A">A</span>swamp workflow validate fails a repo because of a pulled ext</a><a href="#issue-4485"><span class="tier A">A</span>workflow approvals offers a person refused on their own run </a><a href="#issue-4129"><span class="tier A">A</span>Over-limit contentMetadata publishes a blank extension page;</a><a href="#issue-4489"><span class="tier A">A</span>workflow run --json reports a succeeded run as failed, and h</a><a href="#issue-4474"><span class="tier A">A</span>Slackwater: bearer-only HTTP route for workflow actions</a><a href="#issue-4488"><span class="tier A">A</span>Deeply nested resource content overflows the stack: nested w</a><a href="#issue-4469"><span class="tier A">A</span>A method run writing thousands of resources reports &#39;Invalid</a><a href="#issue-4481"><span class="tier A">A</span>repo prune follow-ups: report failed writes apart from skips</a></aside><div>
 
 <article class="item" id="issue-4239">
 <h2><span class="tier S">S</span>swamp issue: file bugs, features and security reports against the platform source</h2>
@@ -76,6 +76,14 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-4497">
+<h2><span class="tier A">A</span>Telemetry integration tests can fail verify-build by leaving a temp directory behind, and try to send telemetry to production</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-07T17:15:42.459Z">2026-11-07T17:15:42.459Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4497" rel="noopener">lab#4497</a></div>
 </article>
 <article class="item" id="issue-4487">
 <h2><span class="tier A">A</span>Slackwater: swamp-club link page, consent and the link email</h2>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4481" rel="noopener">lab#4481</a></div>
 </article>
-<article class="item" id="issue-4473">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4473">
 <h2><span class="tier A">A</span>Slackwater: grant conditions can read the client and the run&#39;s initiator</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-11-06T17:56:07.925Z">2026-11-06T17:56:07.925Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4473" rel="noopener">lab#4473</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4475">
+<article class="item" id="issue-4475">
 <h2><span class="tier A">A</span>Slackwater: spike on delegated credentials through serve</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-11-06T17:42:38.625Z">2026-11-06T17:42:38.625Z</time></span></div>
@@ -1597,18 +1605,10 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
-<article class="item" id="issue-4497">
-<h2><span class="tier B">B</span>Telemetry integration tests can fail verify-build by leaving a temp directory behind, and try to send telemetry to production</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-07T16:55:41.608Z">2026-11-07T16:55:41.608Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4497" rel="noopener">lab#4497</a></div>
-</article>
 <article class="item" id="issue-4486">
 <h2><span class="tier B">B</span>Slackwater: integration registration and ceiling</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-07T16:32:36.820Z">2026-11-07T16:32:36.820Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-07T17:17:41.020Z">2026-11-07T17:17:41.020Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4486" rel="noopener">lab#4486</a></div>
@@ -1648,7 +1648,7 @@ footer .ver{color:var(--acc)}
 <section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4459">
 <h2><span class="tier C">C</span>Slackwater: let customers build integrations that drive workflows securely and auditably</h2>
 <p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-07T16:55:28.555Z">2026-11-07T16:55:28.555Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-07T17:22:11.734Z">2026-11-07T17:22:11.734Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4459" rel="noopener">lab#4459</a></div>
@@ -2463,12 +2463,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>299 items across 1 source(s) in this window:
-1 critical, 190 notable, 6 routine,
+1 critical, 191 notable, 5 routine,
 102 minor.</p>
 <ul><li><strong>issues</strong> — 299</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-07T17:01:43.805Z">2026-11-07T17:01:43.805Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-07T18:08:40.187Z">2026-11-07T18:08:40.187Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

@@ -1,4 +1,8 @@
-import { assertEquals, assertRejects } from "jsr:@std/assert@1";
+import {
+  assertEquals,
+  assertRejects,
+  assertStringIncludes,
+} from "jsr:@std/assert@1";
 
 import {
   isLocalRoute,
@@ -279,11 +283,177 @@ Deno.test("a container route is allowed for a local-only operation (runs on the 
       operation: "mount",
       args: { source: "/dev/sda1", target: "/mnt/data" },
       strategy: "auto",
+      requireSuccess: false,
     } as never,
     context as never,
   );
   assertEquals(written["result"].data.strategyUsed, "docker-run");
   assertEquals(written["result"].data.operation, "mount");
+});
+
+/** A docker route that exits 0/1, plus a getcap observation for setcap. */
+function setcapExec(
+  dockerCode = 0,
+  getcapStdout = "/usr/bin/x cap_net_bind_service=ep\n",
+) {
+  return (binary: string) =>
+    Promise.resolve({
+      stdout: binary === "getcap" ? getcapStdout : "machine-id",
+      stderr: binary === "getcap"
+        ? ""
+        : (dockerCode ? "setcap: operation not permitted" : ""),
+      code: binary === "getcap" ? 0 : dockerCode,
+      signal: null,
+      notFound: false,
+      timedOut: false,
+      truncated: false,
+    });
+}
+
+const SETCAP_ARGS = {
+  path: "/usr/bin/x",
+  capabilities: "cap_net_bind_service=+ep",
+};
+
+Deno.test("setcap run reports verified success and the host command", async () => {
+  const { context, written } = testContext(
+    globalArgs({
+      allowedOperations: ["setcap"],
+      strategyOrder: ["docker-run"],
+    }),
+    null,
+    setcapExec(),
+  );
+  await model.methods.run.execute(
+    {
+      operation: "setcap",
+      args: SETCAP_ARGS,
+      strategy: "auto",
+      allowedOperations: [],
+      requireSuccess: true,
+    },
+    context as never,
+  );
+  const data = written["result"].data;
+  assertEquals(data.outcome, "succeeded");
+  assertEquals(data.verified, true);
+  assertEquals(data.requiresUserAction, false);
+  assertEquals(data.failureReason, "");
+  assertStringIncludes(data.userCommand as string, "sudo");
+  assertStringIncludes(data.userCommand as string, "setcap");
+});
+
+Deno.test("setcap run detects a route that exited 0 without applying the capability", async () => {
+  const { context, written } = testContext(
+    globalArgs({
+      allowedOperations: ["setcap"],
+      strategyOrder: ["docker-run"],
+    }),
+    null,
+    setcapExec(0, ""),
+  );
+  await model.methods.run.execute(
+    {
+      operation: "setcap",
+      args: SETCAP_ARGS,
+      strategy: "auto",
+      allowedOperations: [],
+      requireSuccess: false,
+    },
+    context as never,
+  );
+  const data = written["result"].data;
+  assertEquals(data.outcome, "needs-user-action");
+  assertEquals(data.verified, false);
+  assertEquals(data.requiresUserAction, true);
+  assertStringIncludes(data.failureReason as string, "getcap");
+
+  const err = await assertRejects(
+    () =>
+      model.methods.run.execute(
+        {
+          operation: "setcap",
+          args: SETCAP_ARGS,
+          strategy: "auto",
+          allowedOperations: [],
+          requireSuccess: true,
+        },
+        context as never,
+      ),
+    Error,
+    "did not take effect",
+  );
+  assertStringIncludes(err.message, "needs-user-action");
+  assertStringIncludes(err.message, "sudo");
+  assertStringIncludes(err.message, "setcap");
+});
+
+Deno.test("setcap run reports a non-zero route as failed and throws with the route", async () => {
+  const exec = (
+    _binary: string,
+    args: string[],
+    _timeoutMs: number,
+  ) =>
+    Promise.resolve({
+      stdout: "",
+      stderr: args.includes("setcap") ? "setcap: operation not permitted" : "",
+      code: args.includes("setcap") ? 1 : 0,
+      signal: null,
+      notFound: false,
+      timedOut: false,
+      truncated: false,
+    });
+  const { context } = testContext(
+    globalArgs({ allowedOperations: ["setcap"], strategyOrder: ["sudo-n"] }),
+    null,
+    exec,
+  );
+  const err = await assertRejects(
+    () =>
+      model.methods.run.execute(
+        {
+          operation: "setcap",
+          args: SETCAP_ARGS,
+          strategy: "auto",
+          allowedOperations: [],
+          requireSuccess: true,
+        },
+        context as never,
+      ),
+    Error,
+    "did not take effect",
+  );
+  assertStringIncludes(err.message, "failed");
+  assertStringIncludes(err.message, "Route: sudo-n");
+  assertStringIncludes(err.message, "sudo");
+});
+
+Deno.test("run with no route writes a needs-user-action result before throwing", async () => {
+  const { context, written } = testContext(
+    globalArgs({ allowedOperations: ["setcap"], strategyOrder: [] }),
+  );
+  const err = await assertRejects(
+    () =>
+      model.methods.run.execute(
+        {
+          operation: "setcap",
+          args: SETCAP_ARGS,
+          strategy: "auto",
+          allowedOperations: [],
+          requireSuccess: false,
+        },
+        context as never,
+      ),
+    Error,
+    "No granted elevation route",
+  );
+  assertStringIncludes(err.message, "sudo");
+  assertEquals(written["result"].data.outcome, "needs-user-action");
+  assertEquals(written["result"].data.requiresUserAction, true);
+  assertStringIncludes(
+    written["result"].data.userCommand as string,
+    "sudo",
+  );
 });
 
 Deno.test("a remote route is filtered out for a local-only operation", async () => {
@@ -313,6 +483,7 @@ Deno.test("a remote route is filtered out for a local-only operation", async () 
           operation: "mount",
           args: { source: "/dev/sda1", target: "/mnt/data" },
           strategy: "auto",
+          requireSuccess: false,
         } as never,
         context as never,
       ),
@@ -408,6 +579,7 @@ Deno.test("run rejects an operation outside allowedOperations", async () => {
           operation: "mount",
           args: { source: "/a", target: "/b" },
           strategy: "auto",
+          requireSuccess: false,
           allowedOperations: [],
         },
         context as never,
@@ -430,6 +602,7 @@ Deno.test("run's allowedOperations method arg adds an opt-in operation without r
             capabilities: "cap_net_bind_service=+ep",
           },
           strategy: "auto",
+          requireSuccess: false,
           allowedOperations: [],
         },
         context as never,
@@ -450,6 +623,7 @@ Deno.test("run's allowedOperations method arg adds an opt-in operation without r
             capabilities: "cap_net_bind_service=+ep",
           },
           strategy: "auto",
+          requireSuccess: false,
           allowedOperations: ["setcap"],
         },
         context as never,
@@ -472,6 +646,7 @@ Deno.test("an empty allowlist falls back to the narrow default set", async () =>
           operation: "manageService",
           args: { unit: "x", action: "stop" },
           strategy: "auto",
+          requireSuccess: false,
           allowedOperations: [],
         },
         context as never,
@@ -486,6 +661,7 @@ Deno.test("an empty allowlist falls back to the narrow default set", async () =>
           operation: "installFile",
           args: { src: "/a", dest: "/b" },
           strategy: "auto",
+          requireSuccess: false,
           allowedOperations: [],
         },
         context as never,
@@ -504,6 +680,7 @@ Deno.test("run rejects an unknown operation id", async () => {
           operation: "nonsense",
           args: {},
           strategy: "auto",
+          requireSuccess: false,
           allowedOperations: [],
         },
         context as never,

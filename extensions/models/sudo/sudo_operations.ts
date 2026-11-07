@@ -33,6 +33,21 @@ export interface Operation {
   localOnly: boolean;
   /** Turn typed arguments into a shell-free argv. */
   build: (args: Record<string, unknown>) => BuildResult;
+  /**
+   * Optional local post-condition. The sudo extension runs `argv` on the host
+   * after the elevation route and reports whether the desired effect actually
+   * exists. Operations without this are reported as unverified rather than
+   * silently assumed to have worked.
+   */
+  verify?: (args: Record<string, unknown>) => {
+    argv: string[];
+    ok: (out: { stdout: string; stderr: string; code: number }) => boolean;
+    detail: (out: {
+      stdout: string;
+      stderr: string;
+      code: number;
+    }) => string;
+  };
 }
 
 /** Reject a value that would be interpreted as an option. */
@@ -425,6 +440,21 @@ export const OPERATIONS: Record<string, Operation> = {
       assertAbsoluteNoSymlinkIntent("path", a.path);
       assertNotOption("capabilities", a.capabilities);
       return { kind: "argv", argv: ["setcap", a.capabilities, a.path] };
+    },
+    // A route can exit 0 without the host file gaining the capability (for
+    // example a rootless container's user namespace). Prove the effect locally.
+    verify: (args) => {
+      const a = SetcapArgs.parse(args);
+      const wanted = a.capabilities.split(/\s+/).filter(Boolean);
+      return {
+        argv: ["getcap", a.path],
+        ok: (out) =>
+          out.code === 0 &&
+          wanted.every((cap) => out.stdout.includes(cap.split("=")[0])),
+        detail: (out) =>
+          out.stdout.trim() || out.stderr.trim() ||
+          "getcap reported no capabilities",
+      };
     },
   },
 };

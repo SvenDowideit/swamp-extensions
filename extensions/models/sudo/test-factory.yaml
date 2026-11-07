@@ -220,3 +220,135 @@ tests:
         expect:
           stdoutContains: ["ABSENT"]
           stdoutNotContains: ["CREATED"]
+
+  # ---- setcap effect verification and the user-action contract ------------
+  - name: setcap-run-verifies-the-effect
+    confirms: >
+      `run` is not satisfied by the route's exit code. After `sudo-n` runs
+      `setcap`, the extension runs `getcap` on the host and records
+      outcome=succeeded, verified=true, requiresUserAction=false only when the
+      capability is actually on the file.
+    cannot: >
+      must not report succeeded or verified=true when getcap does not show
+      CAP_NET_BIND_SERVICE.
+    documents: README.md#operations
+    steps:
+      - name: make-an-uncapable-target
+        run: |
+          cp /usr/bin/true /tmp/tf-setcap-target
+          chmod +x /tmp/tf-setcap-target
+          setcap -r /tmp/tf-setcap-target 2>/dev/null || true
+        expect: { exitCode: 0 }
+      - name: create-sudo-model
+        run: >
+          swamp model create @svendowideit/sudo sudo-setcap
+          --global-arg 'allowedOperations:json=["setcap"]'
+        expect: { exitCode: 0 }
+      - name: run-setcap-with-effect-required
+        run: |
+          swamp model method run sudo-setcap run \
+            --input operation=setcap \
+            --input requireSuccess=true \
+            --input 'args:json={"path":"/tmp/tf-setcap-target","capabilities":"cap_net_bind_service=+ep"}'
+        expect:
+          exitCode: 0
+          outputContains: ["succeeded", "verified=true"]
+          outputNotContains: ["needs-user-action", "did not take effect"]
+      - name: getcap-proves-the-effect
+        run: getcap /tmp/tf-setcap-target
+        expect:
+          stdoutContains: ["cap_net_bind_service"]
+
+  - name: setcap-run-detects-a-route-that-exited-zero-without-the-effect
+    confirms: >
+      A route can exit 0 without changing the host file. With a fake `sudo` that
+      always exits 0, `run` still fails (requireSuccess=true) with
+      outcome=needs-user-action, the real getcap observation, and the exact
+      `sudo setcap ...` command the user must run.
+    cannot: >
+      must not report succeeded just because the route exited 0, and must not
+      leave the caller without the command and the reason.
+    documents: README.md#operations
+    steps:
+      - name: make-an-uncapable-target
+        run: |
+          cp /usr/bin/true /tmp/tf-setcap-noop
+          chmod +x /tmp/tf-setcap-noop
+          setcap -r /tmp/tf-setcap-noop 2>/dev/null || true
+        expect: { exitCode: 0 }
+      - name: install-a-fake-sudo-that-exits-zero
+        run: |
+          mkdir -p /tmp/tf-fakebin
+          printf '#!/bin/sh\nexit 0\n' > /tmp/tf-fakebin/sudo
+          chmod +x /tmp/tf-fakebin/sudo
+        expect: { exitCode: 0 }
+      - name: create-sudo-model-pinned-to-sudo-n
+        run: >
+          swamp model create @svendowideit/sudo sudo-setcap-noop
+          --global-arg 'allowedOperations:json=["setcap"]'
+          --global-arg 'strategyOrder:json=["sudo-n"]'
+        expect: { exitCode: 0 }
+      - name: run-fails-with-the-real-reason
+        run: |
+          PATH=/tmp/tf-fakebin:$PATH \
+            swamp model method run sudo-setcap-noop run \
+              --input operation=setcap \
+              --input requireSuccess=true \
+              --input 'args:json={"path":"/tmp/tf-setcap-noop","capabilities":"cap_net_bind_service=+ep"}' 2>&1
+        expect:
+          exitCode: [1, 2]
+          outputContains:
+            - "did not take effect"
+            - "needs-user-action"
+            - "getcap reported no capabilities"
+            - "sudo 'setcap'"
+      - name: the-recorded-result-is-needs-user-action
+        run: |
+          swamp data query 'modelName == "sudo-setcap-noop" && specName == "result"' --json \
+            | jq -e '.results[0].content.outcome == "needs-user-action" and .results[0].content.requiresUserAction == true and (.results[0].content.userCommand | contains("sudo"))'
+        expect: { exitCode: 0 }
+
+  - name: setcap-run-with-no-route-records-the-user-command
+    confirms: >
+      With no elevation route at all, `run` still records a result before
+      throwing: outcome=needs-user-action, requiresUserAction=true, the reason
+      names the tried ladder, and userCommand is the exact `sudo setcap ...`
+      line. The caller can therefore pause and show it.
+    cannot: >
+      must not throw without recording the result, and must not omit the host
+      command.
+    documents: README.md#operations
+    runAs: tester
+    grants:
+      - { guest: harness, profile: sudo-none }
+    steps:
+      - name: make-an-uncapable-target
+        run: |
+          cp /usr/bin/true /tmp/tf-setcap-noroute
+          chmod +x /tmp/tf-setcap-noroute
+          setcap -r /tmp/tf-setcap-noroute 2>/dev/null || true
+        expect: { exitCode: 0 }
+      - name: create-sudo-model
+        run: >
+          swamp model create @svendowideit/sudo sudo-setcap-noroute
+          --global-arg 'allowedOperations:json=["setcap"]'
+          --global-arg 'strategyOrder:json=["sudo-n"]'
+        expect: { exitCode: 0 }
+      - name: run-fails-closed-with-the-command
+        run: |
+          swamp model method run sudo-setcap-noroute run \
+            --input operation=setcap \
+            --input requireSuccess=false \
+            --input 'args:json={"path":"/tmp/tf-setcap-noroute","capabilities":"cap_net_bind_service=+ep"}' 2>&1
+        expect:
+          exitCode: [1, 2]
+          outputContains:
+            - "No granted elevation route"
+            - "Run this on the host"
+            - "sudo 'setcap'"
+          outputNotContains: ["Password:", "AUTHENTICATING FOR"]
+      - name: the-recorded-result-is-needs-user-action
+        run: |
+          swamp data query 'modelName == "sudo-setcap-noroute" && specName == "result"' --json \
+            | jq -e '.results[0].content.outcome == "needs-user-action" and .results[0].content.requiresUserAction == true and (.results[0].content.userCommand | contains("sudo"))'
+        expect: { exitCode: 0 }

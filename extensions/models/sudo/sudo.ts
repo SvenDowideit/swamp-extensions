@@ -126,6 +126,12 @@ const RunArgsSchema = z.object({
   timeoutSeconds: z.number().int().positive().optional().describe(
     "Override the global execution timeout.",
   ),
+  requireSuccess: z.boolean().default(false).describe(
+    "Throw after writing the result when the operation did not take effect: a " +
+      "non-zero route exit, or a local post-condition (e.g. getcap for setcap) " +
+      "that disproves it. The error names the route, why it failed, and the " +
+      "exact host command to run. Default false keeps the record-only contract.",
+  ),
 });
 
 const RequestArgsSchema = z.object({
@@ -205,6 +211,20 @@ const ResultOutputSchema = z.object({
   requestId: z.string().nullable(),
   startedAt: z.string(),
   finishedAt: z.string(),
+  /** True when a local post-condition was run and passed; null when none exists. */
+  verified: z.boolean().nullable().default(null),
+  /** What the post-condition observed, for the user and the next step. */
+  verification: z.string().default(""),
+  /** The operation did not take effect and the user must act. */
+  requiresUserAction: z.boolean().default(false),
+  /** succeeded | needs-user-action | failed. */
+  outcome: z.enum(["succeeded", "needs-user-action", "failed"]).default(
+    "succeeded",
+  ),
+  /** A host command the user can run to apply the operation manually. */
+  userCommand: z.string().default(""),
+  /** Why the operation did not take effect (empty on success). */
+  failureReason: z.string().default(""),
 });
 
 const RequestOutputSchema = z.object({
@@ -696,6 +716,11 @@ type ExecFn = (
   timeoutMs: number,
 ) => Promise<Exec>;
 
+/** Quote one argv element for a POSIX shell, for the user-facing command. */
+function shellQuote(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
 /**
  * Execute a route's argv and record the outcome. Only the route id and target
  * program are written to `mechanism` — never the full argv, which may carry a
@@ -722,6 +747,7 @@ async function addRoute(
   const durationMs = Math.round(performance.now() - start);
   const finishedAt = new Date().toISOString();
   const elevationFailed = strategy.elevationFailed(exec.code, exec.stderr);
+  const failed = elevationFailed || exec.code !== 0;
 
   return {
     data: {
@@ -741,6 +767,15 @@ async function addRoute(
       requestId,
       startedAt,
       finishedAt,
+      verified: null,
+      verification: "",
+      requiresUserAction: failed,
+      outcome: failed ? "failed" : "succeeded",
+      userCommand: `sudo ${argv.map(shellQuote).join(" ")}`,
+      failureReason: failed
+        ? (exec.stderr.trim() || exec.stdout.trim() ||
+          "the elevation route did not complete the operation")
+        : "",
     },
   };
 }
@@ -803,7 +838,7 @@ function ladderReport(ladder: z.infer<typeof LadderEntrySchema>[]): string {
  */
 export const model = {
   type: "@svendowideit/sudo",
-  version: "2026.11.07.1",
+  version: "2026.11.07.2",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -879,6 +914,21 @@ export const model = {
         "and method calls are unchanged; an empty list behaves as before.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.07.2",
+      description:
+        "`run` now verifies the effect instead of trusting the route's exit " +
+        "code. Operations with a local post-condition (setcap -> getcap) " +
+        "record outcome= succeeded|needs-user-action|failed, verified, " +
+        "verification, requiresUserAction, userCommand and failureReason. A " +
+        "route that exits 0 without changing the host (e.g. setcap in a " +
+        "rootless container user namespace) is reported as needs-user-action " +
+        "with the exact `sudo ...` command, not as success. The new " +
+        "requireSuccess argument writes the result and then throws with the " +
+        "route, reason and command, so a workflow can pause and show it. " +
+        "Existing calls keep the record-only default.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     probe: {
@@ -950,7 +1000,7 @@ export const model = {
 
     run: {
       description:
-        "Execute a named operation through the resolved elevation route. Records exit code, output, and the route used; a non-zero program exit is recorded, not thrown.",
+        "Execute a named operation through the resolved elevation route. Records exit code, output, route, and whether the effect was locally verified. A non-zero program exit is recorded, not thrown, unless requireSuccess=true; then it writes the result and throws with the route, the reason, and the exact host command to run. Callers that need a human can use the result's requiresUserAction/userCommand/failureReason at a manual-approval step.",
       arguments: RunArgsSchema,
       execute: async (
         args: z.infer<typeof RunArgsSchema>,
@@ -997,11 +1047,38 @@ export const model = {
           context._exec,
         );
         if (!resolved.winner) {
-          throw new Error(
+          const reason =
             `No granted elevation route is available for '${args.operation}'. Tried:\n${
               ladderReport(resolved.ladder)
             }\n` +
-              `Configure a route (sudo/doas/polkit, a container runtime, sshHost, k8sNode, …) or run the 'probe' method to see the ladder.`,
+            `Configure a route (sudo/doas/polkit, a container runtime, sshHost, k8sNode, …) or run the 'probe' method to see the ladder.`;
+          const userCommand = `sudo ${built.argv.map(shellQuote).join(" ")}`;
+          await context.writeResource("result", "result", {
+            strategyUsed: "(none)",
+            operation: args.operation,
+            command: built.argv,
+            mechanism: "(none)",
+            exitCode: -1,
+            mechanismExitCode: -1,
+            elevationFailed: true,
+            stdout: "",
+            stderr: reason,
+            truncated: false,
+            ranAsUid: null,
+            durationMs: 0,
+            approvedBy: null,
+            requestId: null,
+            startedAt: new Date().toISOString(),
+            finishedAt: new Date().toISOString(),
+            verified: null,
+            verification: "",
+            requiresUserAction: true,
+            outcome: "needs-user-action",
+            userCommand,
+            failureReason: reason,
+          });
+          throw new Error(
+            `${reason}\nRun this on the host, then retry:\n  ${userCommand}`,
           );
         }
 
@@ -1015,15 +1092,57 @@ export const model = {
           null,
           context._exec,
         );
+        let verified: boolean | null = null;
+        let verification = "";
+        if (op.verify) {
+          const check = op.verify(args.args);
+          const observed = await (context._exec ?? runCmd)(
+            check.argv[0],
+            check.argv.slice(1),
+            timeoutMs,
+          );
+          verified = check.ok(observed);
+          verification = check.detail(observed);
+        }
+        const failed = data.elevationFailed || data.exitCode !== 0;
+        const requiresUserAction = failed || verified === false;
+        const outcome = requiresUserAction
+          ? (failed ? "failed" as const : "needs-user-action" as const)
+          : "succeeded" as const;
+        const failureReason = requiresUserAction
+          ? (failed
+            ? (data.failureReason || data.stderr.trim() || data.stdout.trim() ||
+              "the elevation route did not complete the operation")
+            : (verification ||
+              "the operation ran but the local post-condition did not see the effect"))
+          : "";
+        const result = {
+          ...data,
+          verified,
+          verification,
+          requiresUserAction,
+          outcome,
+          failureReason,
+        };
         context.logger?.info(
-          "Ran '{operation}' via {strategyUsed}: exit {exitCode}",
+          "Ran '{operation}' via {strategyUsed}: exit {exitCode}; {outcome}{verified}",
           {
             operation: args.operation,
             strategyUsed: data.strategyUsed,
             exitCode: data.exitCode,
+            outcome,
+            verified: verified === null ? "" : `; verified=${verified}`,
           },
         );
-        const handle = await context.writeResource("result", "result", data);
+        const handle = await context.writeResource("result", "result", result);
+        if (args.requireSuccess && requiresUserAction) {
+          throw new Error(
+            `Operation '${args.operation}' did not take effect (${outcome}).\n` +
+              `Route: ${data.strategyUsed} (exit ${data.mechanismExitCode})\n` +
+              `Why: ${failureReason}\n` +
+              `Run this on the host, then retry:\n  ${data.userCommand}`,
+          );
+        }
         return { dataHandles: [handle] };
       },
     },

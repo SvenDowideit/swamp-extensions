@@ -282,3 +282,31 @@ Deno.test("setcap builds a setcap argv with the capability and path", () => {
     argv: ["setcap", "cap_net_bind_service=+ep", "/usr/bin/x"],
   });
 });
+
+Deno.test("setcap verification proves the host file actually has the capability", () => {
+  const verify = getOperation("setcap")!.verify!({
+    path: "/usr/bin/x",
+    capabilities: "cap_net_bind_service=+ep",
+  });
+  assertEquals(verify.argv, ["getcap", "/usr/bin/x"]);
+  assertEquals(
+    verify.ok({
+      stdout: "/usr/bin/x cap_net_bind_service=ep\n",
+      stderr: "",
+      code: 0,
+    }),
+    true,
+  );
+  assertEquals(
+    verify.ok({ stdout: "", stderr: "", code: 0 }),
+    false,
+  );
+  assertEquals(
+    verify.ok({
+      stdout: "",
+      stderr: "getcap: /usr/bin/x: No such file or directory",
+      code: 1,
+    }),
+    false,
+  );
+});

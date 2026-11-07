@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/sudo"
-version: "2026.11.07.1"
+version: "2026.11.07.2"
 description: >
   Run one privileged operation on the host — install a package, restart a
   system service, set a sysctl — from any workflow, without writing sudo logic
@@ -12,9 +12,11 @@ description: >
     its arguments; the extension finds the first route the host has already
     granted — sudo, doas, polkit/run0, a container runtime you are in, an ssh
     root key, a held capability, or a cloud agent — and uses it. You never need
-    to know which: it returns the exit code, output, and uid, and keeps the
-    route invisible unless you ask for an audit. Nothing is brute-forced; if no
-    route is granted it fails cleanly, listing what it tried. Arbitrary
+    to know which: it returns the exit code, output, uid, and — where the
+    operation has a local post-condition — whether the effect actually landed.
+    It keeps the route invisible unless you ask for an audit. Nothing is
+    brute-forced; if no route is granted it fails cleanly, listing what it
+    tried. Arbitrary
     commands are a separate, approval-gated workflow, so the everyday path (a
     named operation) is safe to automate. Prefer it over ad-hoc `sudo` steps:
     it works without sudo, never hangs on a prompt, and records how it elevated.
@@ -155,6 +157,34 @@ description: >
     strategy to a local route to keep execution local.
 
     Read the full method, strategy and operation reference in the README.
+
+  OUTCOME — DID IT ACTUALLY HAPPEN?
+
+    The route's exit code is not proof of the effect. For operations with a
+    local post-condition, `run` checks the host afterwards: `setcap` runs
+    `getcap` on the target path. The result records:
+
+      outcome            succeeded | needs-user-action | failed
+      verified           true/false (null when the operation has no post-condition)
+      verification       what the check observed (e.g. the getcap line)
+      requiresUserAction true when the route failed or the effect was not seen
+      userCommand        the exact `sudo '<argv>' ...` line to run on the host
+      failureReason      the route's stderr, or the check's observation
+
+    A route can exit 0 without changing the host — for example, `setcap` inside
+    a rootless container's user namespace. That is reported as
+    `needs-user-action` with `verified=false` and the getcap observation, never
+    as success. By default the result is written and returned even on failure.
+    With `requireSuccess=true` the result is written first and then `run`
+    throws with the route, the reason, and `userCommand`. Callers that need a
+    human should pause at a manual-approval step, show that command and reason,
+    and re-check after the user runs it — they must not silently continue.
+
+      swamp model @svendowideit/sudo method run run sudo-default \
+        --input operation=setcap \
+        --input requireSuccess=true \
+        --input 'allowedOperations:json=["setcap"]' \
+        --input 'args:json={"path":"/home/you/.local/bin/caddy","capabilities":"cap_net_bind_service=+ep"}'
 
   UPGRADE
 

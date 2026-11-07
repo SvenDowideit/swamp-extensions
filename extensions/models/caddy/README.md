@@ -834,6 +834,34 @@ Details:
   system service, or keep it unprivileged on high ports (`listenAddrs=[":8080"]`,
   `autoHttps=off`) behind a separate TLS terminator.
 
+### Local CA root trust and service recovery
+
+Caddy's local CA normally installs its root certificate into the system trust
+store with `sudo`. This extension runs Caddy as a systemd **user** service, where
+that prompt cannot be answered, so Caddy would exit status 1 and crash-loop.
+The managed Caddyfile sets the `skip_install_trust` global option, and the
+applied JSON sets `apps.pki.certificate_authorities.local.install_trust=false`
+(the `caddy adapt` equivalent), so the root is never installed automatically;
+install it by hand if you want local CA certificates trusted.
+
+`startService` and `restartService` wait for the service to stay active and the
+admin API to answer. On the known root-certificate/sudo failure they
+**automatically move the stale autosave aside and retry once** from the managed
+config, so the default setup/upgrade is still just `swamp extension pull` +
+`swamp workflow run @svendowideit/caddy-upgrade`. The stale autosave is why
+`--resume` keeps replaying the old config even after `createService` wrote the
+new `skip_install_trust` Caddyfile; the restart recovers it, then the workflow’s
+TLS/DNS steps apply the desired config.
+
+Only if automatic recovery cannot move the file or Caddy still fails does the
+method throw with the last 50 journal lines and these manual steps:
+
+```sh
+mv ~/.config/caddy/autosave.json ~/.config/caddy/autosave.json.bak
+swamp model method run caddy startService
+swamp workflow run @svendowideit/caddy-upgrade
+```
+
 ### Static DNS records
 
 `@svendowideit/caddy` compiles `github.com/SvenDowideit/caddy-host-dns`

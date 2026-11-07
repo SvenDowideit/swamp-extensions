@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/caddy"
-version: "2026.11.07.1"
+version: "2026.11.07.3"
 description: >
   Caddy reverse-proxy and service management for a Linux host with systemd.
 
@@ -330,6 +330,18 @@ description: >
     that command, then resume the same run:
 
         swamp workflow resume @svendowideit/caddy-upgrade --run <run-id>
+
+    Caddy's local CA no longer installs its root certificate automatically
+    (`skip_install_trust`), because a systemd user service cannot answer sudo's
+    prompt. If an older autosave still crash-loops with "failed to install root
+    certificate", `startService`/`restartService` move it aside and retry from
+    the managed config automatically — the default upgrade remains just the
+    pull plus this workflow. If automatic recovery still fails, the error
+    includes the journal and these manual steps:
+
+        mv ~/.config/caddy/autosave.json ~/.config/caddy/autosave.json.bak
+        swamp model method run caddy startService
+        swamp workflow run @svendowideit/caddy-upgrade
 
   WHAT IT INSTALLS
 

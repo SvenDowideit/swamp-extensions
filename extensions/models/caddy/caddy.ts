@@ -760,6 +760,10 @@ const ServiceOutputSchema = z.object({
   active: z.boolean(),
   enabled: z.boolean(),
   adminApiReachable: z.boolean(),
+  /** True when the method recovered a known start failure (stale autosave). */
+  recovered: z.boolean().default(false),
+  /** The autosave file moved aside during recovery, if any. */
+  autosaveQuarantined: z.string().default(""),
   checkedAt: z.string(),
 });
 
@@ -1338,6 +1342,12 @@ export function renderMinimalConfig(
   if (autoHttps !== "on") {
     lines.push(`\tauto_https ${autoHttps}`);
   }
+  // Caddy's local CA tries to install its root certificate into the system
+  // trust store by default. This extension runs Caddy as an unprivileged
+  // *user* service, so that install shells out to `sudo`, cannot prompt, and
+  // exits the whole process with status 1. Never do that automatically; the
+  // root can be installed by hand where it is wanted.
+  lines.push("\tskip_install_trust");
   lines.push("}");
   lines.push("");
   return lines.join("\n");
@@ -3081,6 +3091,16 @@ export function baseConfig(
       http: {
         servers: { srv0 },
       },
+      // Caddy's local CA would otherwise install its root certificate into the
+      // system trust store via sudo. A systemd *user* service cannot answer the
+      // prompt, so Caddy exits status 1. This is the JSON equivalent of the
+      // Caddyfile global option `skip_install_trust` (verified with
+      // `caddy adapt`): apps.pki.certificate_authorities.local.install_trust=false.
+      pki: {
+        certificate_authorities: {
+          local: { install_trust: false },
+        },
+      },
     },
   };
 }
@@ -4152,6 +4172,149 @@ async function waitForAdminApi(
     if (Date.now() >= deadline) return false;
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
+}
+
+/** Last lines of a user service's journal, for a failure report. */
+async function journalTail(serviceName: string, lines = 50): Promise<string> {
+  const result = await runCmd("journalctl", [
+    "--user",
+    "-u",
+    serviceName,
+    "-n",
+    String(lines),
+    "--no-pager",
+    "-o",
+    "cat",
+  ]);
+  return (result.stdout || result.stderr).trim();
+}
+
+/**
+ * If Caddy's journal shows the local CA failing to install its root
+ * certificate, return the exact recovery command. A user service cannot
+ * answer sudo's password prompt, so Caddy exits status 1; the stale autosave
+ * keeps replaying the old config even after `createService` writes the new
+ * skip_install_trust Caddyfile.
+ */
+export function isRootTrustFailure(tail: string): boolean {
+  return /failed to install root certificate|pki\.ca\.local|failed to execute sudo|auth could not identify password/i
+    .test(tail);
+}
+
+export function rootTrustFailureHint(
+  tail: string,
+  modelName: string,
+): string {
+  if (!isRootTrustFailure(tail)) return "";
+  return [
+    "Caddy's local CA tried to install its root certificate into the system",
+    "trust store, but this is a systemd user service and sudo cannot prompt.",
+    "The extension now sets skip_install_trust. Automatic recovery moves a",
+    "stale autosave aside and restarts; if that did not happen, do it by hand:",
+    `  mv ${"~/.config/caddy/autosave.json"} ~/.config/caddy/autosave.json.bak`,
+    `  swamp model method run ${modelName} startService`,
+    "Then re-run the upgrade workflow to reapply the routes and TLS/DNS config.",
+  ].join("\n");
+}
+
+/** The autosave file Caddy's `--resume` loads, beside the managed Caddyfile. */
+export function autosavePathFor(configPath: string): string {
+  return join(dirnameOf(expandHome(configPath)), "autosave.json");
+}
+
+/** Move a stale autosave aside; returns its new path, or "" when absent. */
+async function quarantineAutosave(path: string): Promise<string> {
+  try {
+    await Deno.stat(path);
+  } catch {
+    return "";
+  }
+  const dest = `${path}.bak-${Date.now()}`;
+  await Deno.rename(path, dest);
+  return dest;
+}
+
+/** Build the failure error for a service that did not stay up. */
+async function serviceFailureError(
+  context: MethodContext,
+  serviceName: string,
+  adminApiAddr: string,
+  autosaveQuarantined = "",
+): Promise<Error> {
+  const modelName = context.definition?.name ?? "caddy";
+  const tail = await journalTail(serviceName);
+  const hint = autosaveQuarantined ? "" : rootTrustFailureHint(tail, modelName);
+  return new Error(
+    `Caddy service ${serviceName} did not stay active, or its admin API at ` +
+      `${adminApiAddr} is unreachable.\n` +
+      `Journal (last 50 lines):\n${tail || "(no journal output)"}` +
+      (autosaveQuarantined
+        ? `\n\nAutomatic recovery moved the stale autosave to ` +
+          `${autosaveQuarantined}, but Caddy still failed.`
+        : hint
+        ? `\n\n${hint}`
+        : ""),
+  );
+}
+
+/**
+ * Wait for Caddy to stay active and answer its admin API. On the known
+ * local-CA root-trust failure, move the stale autosave aside and retry once
+ * from the managed config. The default setup/upgrade workflow therefore needs
+ * no manual recovery step.
+ */
+async function ensureCaddyRunning(
+  context: MethodContext,
+  g: MethodContext["globalArgs"],
+  serviceName: string,
+): Promise<{
+  active: boolean;
+  adminApiReachable: boolean;
+  recovered: boolean;
+  autosaveQuarantined: string;
+}> {
+  let stayedActive = await waitForService(serviceName, 10);
+  let adminApiReachable = stayedActive &&
+    await waitForAdminApi(g.adminApiAddr, 10_000);
+  if (stayedActive && adminApiReachable) {
+    return {
+      active: true,
+      adminApiReachable: true,
+      recovered: false,
+      autosaveQuarantined: "",
+    };
+  }
+
+  const tail = await journalTail(serviceName);
+  if (isRootTrustFailure(tail)) {
+    const autosavePath = autosavePathFor(g.configPath);
+    const quarantined = await quarantineAutosave(autosavePath);
+    if (quarantined) {
+      context.logger?.warning?.(
+        "Caddy failed to start: its local CA tried to install the root certificate via sudo. Moved the stale autosave {from} to {to}; retrying from the managed config.",
+        { from: autosavePath, to: quarantined },
+      );
+      await systemctl(["restart", serviceName]);
+      stayedActive = await waitForService(serviceName, 10);
+      adminApiReachable = stayedActive &&
+        await waitForAdminApi(g.adminApiAddr, 10_000);
+      if (stayedActive && adminApiReachable) {
+        return {
+          active: true,
+          adminApiReachable: true,
+          recovered: true,
+          autosaveQuarantined: quarantined,
+        };
+      }
+      throw await serviceFailureError(
+        context,
+        serviceName,
+        g.adminApiAddr,
+        quarantined,
+      );
+    }
+  }
+  throw await serviceFailureError(context, serviceName, g.adminApiAddr);
 }
 
 /** A normalized admin API response (status + body text). */
@@ -5549,7 +5712,7 @@ type CheckContext = {
 /** Model definition for the Caddy reverse-proxy and service manager. */
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.11.07.1",
+  version: "2026.11.07.3",
   reports: ["@svendowideit/caddy-status"],
   globalArguments: GlobalArgsSchema,
   checks: {
@@ -5911,7 +6074,6 @@ export const model = {
         "argument adds setcap without rewriting the sudo model's persistent " +
         "allowlist. The step also " +
         "targets the caddy model's sudo-<sudoInstanceKey> model and reads " +
-        "targets the caddy model's sudo-<sudoInstanceKey> model and reads " +
         "binPath/sudoModel from the persistent install/capabilities/upgradeCheck " +
         "resource instead of data.findBySpec(...)[0], which is run-scoped and " +
         "failed on resume. caddy-setup gains a read-only check-capability step " +
@@ -5921,6 +6083,46 @@ export const model = {
         "copy-pasteable fix and the workflow can be resumed. install/setCapabilities/" +
         "upgradeCheck resources gain sudoModel (and upgradeCheck gains binPath) " +
         "additively.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.2",
+      description:
+        "Fixes the 2026.11.07.1 capability workflows using output spec names " +
+        "as data names. caddy-upgrade read data.latest(..., 'upgradeCheck'), " +
+        "but the data name is 'upgrade-check', so a resumed run failed with " +
+        "'No such key: attributes'. setCapabilities now writes the unique data " +
+        "name 'capability-command' (the old 'current' data remains readable, " +
+        "but is not used) and both caddy-setup and caddy-upgrade read it. " +
+        "caddy-upgrade gains the same read-only check-capability step as " +
+        "caddy-setup immediately before grant-capability, so the exact " +
+        "@svendowideit/sudo command is printed right before the attempt and a " +
+        "failed grant can be fixed by hand and resumed. Verified with a live " +
+        "data assert on upgrade-check and capability-command; no global " +
+        "argument or method-schema change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.3",
+      description:
+        "Stops the local CA from killing the user service. Caddy installs its " +
+        "local root certificate into the system trust store via sudo by " +
+        "default; a systemd user service cannot answer the prompt, so Caddy " +
+        "exited status 1 and crash-looped. The minimal Caddyfile uses the " +
+        "skip_install_trust global option, and the applied JSON sets " +
+        "apps.pki.certificate_authorities.local.install_trust=false (the JSON " +
+        "equivalent, verified with caddy adapt/validate), so the root is never " +
+        "installed automatically. startService and restartService now wait for the " +
+        "service to stay active and the admin API to answer. On the known " +
+        "root-cert/sudo failure they automatically move the stale autosave " +
+        "aside and retry once from the managed config, so the default upgrade " +
+        "is still just `swamp extension pull` + the workflow; no manual " +
+        "autosave command is needed. If automatic recovery cannot move the " +
+        "file or Caddy still fails, they throw with the last 50 journal lines " +
+        "and the exact manual recovery. upgradeCheck's service-inactive gap " +
+        "includes the same journal and hint. caddy-upgrade keeps the normal " +
+        "restart-then-TLS/DNS order; restart performs the recovery, then the " +
+        "TLS/DNS steps apply the desired config. No global argument change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -6263,7 +6465,7 @@ export const model = {
 
         const handle = await context.writeResource(
           "capabilities",
-          "current",
+          "capability-command",
           {
             binPath,
             sudoModel: `sudo-${g.sudoInstanceKey}`,
@@ -6363,24 +6565,21 @@ export const model = {
           );
         }
 
-        const active = await systemctl(["is-active", serviceName]);
         const enabled = await systemctl(["is-enabled", serviceName]);
-        // Give Caddy a moment to finish starting before declaring the admin API
-        // unreachable — it is up within seconds, and a single immediate check
-        // races the start.
-        const adminApiReachable = await waitForAdminApi(g.adminApiAddr, 10_000);
-
-        if (active.code !== 0) {
-          throw new Error(
-            `Caddy service ${serviceName} is not active: ${
-              active.stderr || active.stdout
-            }`,
-          );
-        }
+        // Give Caddy time to either stay up or crash; a single immediate check
+        // races the start and misses an auto-restart loop. On the known
+        // local-CA root-trust failure, ensureCaddyRunning moves the stale
+        // autosave aside and retries automatically, so the default workflow
+        // needs no manual recovery.
+        const running = await ensureCaddyRunning(context, g, serviceName);
 
         context.logger?.info(
-          "Caddy service {serviceName} is active; admin API reachable: {reachable}",
-          { serviceName, reachable: adminApiReachable },
+          "Caddy service {serviceName} is active; admin API reachable: {reachable}; recovered: {recovered}",
+          {
+            serviceName,
+            reachable: running.adminApiReachable,
+            recovered: running.recovered,
+          },
         );
 
         const handle = await context.writeResource("service", "current", {
@@ -6388,15 +6587,17 @@ export const model = {
           unitPath: expandHome(
             `~/.config/systemd/user/${serviceName}.service`,
           ),
-          active: active.code === 0,
+          active: running.active,
           enabled: enabled.code === 0,
-          adminApiReachable,
+          adminApiReachable: running.adminApiReachable,
+          recovered: running.recovered,
+          autosaveQuarantined: running.autosaveQuarantined,
           checkedAt: new Date().toISOString(),
         });
 
         // Ensure the default status page exists now the admin API is up (it may
         // not have been reachable during installCaddy).
-        if (adminApiReachable) {
+        if (running.adminApiReachable) {
           try {
             await applyStatusPage(
               { title: "Caddy", extraLinks: [], disabled: false },
@@ -7375,11 +7576,17 @@ export const model = {
 
         // Host-level gaps — independent of any domain.
         if (!serviceActive) {
+          const tail = await journalTail(serviceName);
+          const hint = rootTrustFailureHint(tail, name);
           gaps.push({
             id: "service-inactive",
             message:
-              "The Caddy systemd user service is not active, so nothing is listening.",
-            command: `swamp model method run ${name} startService`,
+              "The Caddy systemd user service is not active, so nothing is " +
+              "listening." +
+              (tail ? `\nLast journal lines:\n${tail}` : ""),
+            command: hint ||
+              `journalctl --user -u ${serviceName} -n 50; ` +
+                `swamp model method run ${name} startService`,
           });
         }
         if (!canBind) {
@@ -7724,17 +7931,21 @@ export const model = {
             }`,
           );
         }
-        context.logger?.info("Restarted Caddy service {serviceName}", {
-          serviceName,
-        });
+        const running = await ensureCaddyRunning(context, g, serviceName);
+        context.logger?.info(
+          "Restarted Caddy service {serviceName}; admin API reachable; recovered: {recovered}",
+          { serviceName, recovered: running.recovered },
+        );
         const handle = await context.writeResource("service", "current", {
           serviceName,
           unitPath: expandHome(
             `~/.config/systemd/user/${serviceName}.service`,
           ),
-          active: true,
+          active: running.active,
           enabled: true,
-          adminApiReachable: await checkAdminApi(g.adminApiAddr),
+          adminApiReachable: running.adminApiReachable,
+          recovered: running.recovered,
+          autosaveQuarantined: running.autosaveQuarantined,
           checkedAt: new Date().toISOString(),
         });
         return { dataHandles: [handle] };

@@ -137,13 +137,13 @@ jobs:
         task:
           type: model_method
           modelType: "@svendowideit/sudo"
-          modelName: '${{ data.latest(inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").attributes.firstModel, "capabilities").attributes.sudoModel }}'
+          modelName: '${{ data.latest(inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").attributes.firstModel, "capability-command").attributes.sudoModel }}'
           methodName: run
           inputs:
             operation: setcap
             allowedOperations: ["setcap"]
             args:
-              path: '${{ data.latest(inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").attributes.firstModel, "capabilities").attributes.binPath }}'
+              path: '${{ data.latest(inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").attributes.firstModel, "capability-command").attributes.binPath }}'
               capabilities: cap_net_bind_service=+ep
         dependsOn:
           - step: check-capability

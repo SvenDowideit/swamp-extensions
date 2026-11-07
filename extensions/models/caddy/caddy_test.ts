@@ -4,6 +4,7 @@ import {
   addRouteToConfig,
   adminApiUrlString,
   automaticHttpsConfig,
+  autosavePathFor,
   baseConfig,
   buildCurlArgs,
   buildFileServerRoute,
@@ -42,6 +43,7 @@ import {
   isDnsCredentialFailure,
   isGeneratedRoute,
   isHealthRoute,
+  isRootTrustFailure,
   isStatusPageRoute,
   isSwampRoute,
   isUpToDate,
@@ -73,6 +75,7 @@ import {
   renderTlsAutomation,
   renderUpgradeConfirmation,
   requiredCaddyModules,
+  rootTrustFailureHint,
   routeFileServerRoot,
   routeHostnames,
   routeId,
@@ -268,6 +271,28 @@ Deno.test("renderMinimalConfig is a valid empty Caddyfile with defaults", () => 
   const cfg = renderMinimalConfig();
   assertStringIncludes(cfg, "Managed by @svendowideit/caddy");
   assertStringIncludes(cfg, "{");
+  // A user service cannot answer sudo's root-cert install prompt; never try.
+  assertStringIncludes(cfg, "skip_install_trust");
+});
+
+Deno.test("rootTrustFailureHint names the stale-autosave recovery command", () => {
+  const hint = rootTrustFailureHint(
+    "caddy: failed to install root certificate: failed to execute sudo: exit status 1\n" +
+      "pam_unix(sudo:auth): auth could not identify password",
+    "caddy",
+  );
+  assertStringIncludes(hint, "mv ~/.config/caddy/autosave.json");
+  assertStringIncludes(hint, "swamp model method run caddy startService");
+  assertEquals(rootTrustFailureHint("service is fine", "caddy"), "");
+  assertEquals(
+    isRootTrustFailure("failed to install root certificate"),
+    true,
+  );
+  assertEquals(isRootTrustFailure("all good"), false);
+  assertEquals(
+    autosavePathFor("/home/alice/.config/caddy/Caddyfile"),
+    "/home/alice/.config/caddy/autosave.json",
+  );
 });
 
 Deno.test("renderMinimalConfig writes admin addr and auto_https when non-default", () => {
@@ -301,6 +326,11 @@ Deno.test("baseConfig uses the provided listen addresses", () => {
   const servers = http.servers as Record<string, unknown>;
   const srv0 = servers.srv0 as Record<string, unknown>;
   assertEquals(srv0.listen, [":8888", ":8443"]);
+  // A user service cannot answer sudo's root-cert install prompt.
+  const pki = apps.pki as Record<string, unknown>;
+  const authorities = pki.certificate_authorities as Record<string, unknown>;
+  const local = authorities.local as Record<string, unknown>;
+  assertEquals(local.install_trust, false);
 });
 
 Deno.test("automaticHttpsConfig maps modes to JSON fields", () => {

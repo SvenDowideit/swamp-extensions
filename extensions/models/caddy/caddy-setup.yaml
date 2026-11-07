@@ -1,3 +1,4 @@
+# meta-factory-ignore report-reality prerequisite-allow-failure: dns is optional and allowFailure; the final check is read-only and reports the gaps, it does not claim the optional DNS step succeeded.
 id: 6f3a1c2e-9b47-4d2e-8a51-0c9d2f4e7a10
 name: '@svendowideit/caddy-setup'
 description: |
@@ -5,10 +6,11 @@ description: |
 
   Run it after `swamp extension pull @svendowideit/caddy` and `swamp model create
   @svendowideit/caddy <name> --global-arg baseDomain=… --global-arg
-  letsEncryptEmail=…`. It reads the @svendowideit/caddy model this repo defines
-  (so a never-run model is found and the auto-created scratch instance never is);
-  if exactly one exists it is set up automatically, otherwise pass --input
-  model=<name>.
+  letsEncryptEmail=…`. It reads the @svendowideit/caddy models this repo defines
+  (so a never-run model is found and the auto-created scratch instance never is).
+  Models with the same (target, serviceName) are additive peers for ONE Caddy and
+  are set up together; models for different Caddy instances require
+  `--input model=<name>`, and the run fails with the list otherwise.
 
   In order it: installs the binary (granting CAP_NET_BIND_SERVICE through
   @svendowideit/sudo), (re)creates and starts the systemd user service,
@@ -30,7 +32,7 @@ inputs:
       type: string
       default: ''
       description: |
-        The @svendowideit/caddy model to set up. Empty (the default) uses the single model the repo defines, or stops when there is more than one.
+        The @svendowideit/caddy model to set up. Empty (the default) uses the one Caddy the repo defines; several models for that same (target, serviceName) are additive peers and are set up together. Name one only when the repo has models for different Caddy instances.
     email:
       type: string
       default: ''
@@ -57,7 +59,7 @@ tags:
   kind: setup
 jobs:
 - name: discover
-  description: Find every @svendowideit/caddy model this repo defines, so a single model is set up automatically and several are listed (changing nothing).
+  description: Find every @svendowideit/caddy model this repo defines, group the models that manage the same Caddy, and select one model to drive the setup. Several models for the same (target, serviceName) are additive and set up together; a repo with different Caddy instances and no model named fails with the list and the exact command.
   steps:
   - name: scan
     description: Discover and print the caddy model(s) in this repo.
@@ -66,6 +68,9 @@ jobs:
       modelType: '@svendowideit/caddy'
       modelName: caddy-setup-scan
       methodName: upgradeTargets
+      inputs:
+        model: ${{ inputs.model }}
+        requireSingle: ${{ inputs.model == "" }}
       globalArgs:
         serviceName: caddy-setup-scan
         target: caddy-setup-scan
@@ -75,15 +80,15 @@ jobs:
   dependsOn: []
   weight: 0
 - name: setup
-  description: Install, service, TLS, DNS and status page for one model, in the order that works. Every step is idempotent and each depends on the previous, so nothing contends on the model lock.
+  description: Install, service, TLS, DNS and status page for the selected model, in the order that works. Every step is idempotent and each depends on the previous, so nothing contends on the model lock; additive peer models for the same Caddy are merged by every method.
   steps:
   - name: install
     description: Download the Caddy binary (with the model's module packages). The capability is granted by the following step, never by the method.
-    guard: ${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?count.orValue(0) != 1 }}
+    guard: ${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?targetCount.orValue(0) != 1 }}
     task:
       type: model_method
       modelType: '@svendowideit/caddy'
-      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?firstModel.orValue("") }}'
+      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?upgradeModel.orValue("") }}'
       methodName: installCaddy
       inputs:
         setCapabilities: false
@@ -93,11 +98,11 @@ jobs:
     allowFailure: false
   - name: check-capability
     description: 'Read-only: report the exact @svendowideit/sudo command that grants CAP_NET_BIND_SERVICE, so if the next step cannot elevate the user has a copy-pasteable command, can run it, and can resume this workflow.'
-    guard: ${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?count.orValue(0) != 1 }}
+    guard: ${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?targetCount.orValue(0) != 1 }}
     task:
       type: model_method
       modelType: '@svendowideit/caddy'
-      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?firstModel.orValue("") }}'
+      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?upgradeModel.orValue("") }}'
       methodName: setCapabilities
     dependsOn:
     - step: install
@@ -106,63 +111,82 @@ jobs:
     weight: 0
     allowFailure: true
   - name: grant-capability
-    description: 'Grant CAP_NET_BIND_SERVICE to the Caddy binary so the unprivileged systemd user service can bind 80/443. This is its own placed step that drives the @svendowideit/sudo model''s `run` method (operation `setcap`) with allowedOperations ["setcap"], NOT a context.runModel call inside installCaddy: runModel is unavailable under swamp worker remote execution, whereas a placed model step dispatches to the worker — so when this workflow runs on a worker the elevation happens on that same worker. check-capability above prints the exact manual command if this step cannot elevate.'
-    guard: ${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?count.orValue(0) != 1 }}
+    description: 'Grant CAP_NET_BIND_SERVICE to the Caddy binary so the unprivileged systemd user service can bind 80/443. This is its own placed step that drives the @svendowideit/sudo model''s `run` method (operation `setcap`) with allowedOperations ["setcap"], NOT a context.runModel call inside installCaddy: runModel is unavailable under swamp worker remote execution, whereas a placed model step dispatches to the worker — so when this workflow runs on a worker the elevation happens on that same worker. Skipped when the capability is already on the binary. check-capability above prints the exact manual command if this step cannot elevate.'
+    guard: '${{ (inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?targetCount.orValue(0) != 1) || data.latest(inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").attributes.upgradeModel, "capability-command").?attributes.?applied.orValue(false) == true }}'
     task:
       type: model_method
       modelType: '@svendowideit/sudo'
-      modelName: '${{ data.latest(inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").attributes.firstModel, "capability-command").attributes.sudoModel }}'
+      modelName: '${{ data.latest(inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").attributes.upgradeModel, "capability-command").attributes.sudoModel }}'
       methodName: run
       inputs:
         operation: setcap
         allowedOperations:
         - setcap
+        requireSuccess: true
         args:
-          path: '${{ data.latest(inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").attributes.firstModel, "capability-command").attributes.binPath }}'
+          path: '${{ data.latest(inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").attributes.upgradeModel, "capability-command").attributes.binPath }}'
           capabilities: cap_net_bind_service=+ep
     dependsOn:
     - step: check-capability
       condition:
         type: completed
     weight: 0
+    allowFailure: true
+  - name: pause-if-capability-missing
+    description: 'Interactive gate: the sudo grant failed, so CAP_NET_BIND_SERVICE is not proven on the binary. Pause, print the exact @svendowideit/sudo command and the reason from the failed grant step, and let the user run it and decide to resume or reject. Nothing has been changed on the running service yet.'
+    guard: ${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?targetCount.orValue(0) != 1 }}
+    task:
+      type: manual_approval
+      prompt: |
+        The sudo grant failed, so CAP_NET_BIND_SERVICE is not applied to the
+        Caddy binary. The failed grant step above prints the exact route, why it
+        failed, and the command to run (it starts with
+        `swamp model @svendowideit/sudo method run ...`). Run it, then approve
+        to re-check and continue. If you reject, the workflow stops without
+        changing the running service. It will never move Caddy to 8080/8443.
+    dependsOn:
+    - step: grant-capability
+      condition:
+        type: failed
+    weight: 0
     allowFailure: false
-  - name: verify-capability
-    description: Re-read the binary capability after the sudo grant. If the selected elevation route exited 0 but getcap/the root check shows it was not applied, fail here with the exact command so the workflow stops at one clear step instead of producing later red TLS/DNS failures.
-    guard: ${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?count.orValue(0) != 1 }}
+  - name: retry-capability
+    description: Hard re-check after the user has run the grant command. Fails with the exact command if the capability is still not applied, so the run cannot proceed into a service that cannot bind 80/443.
+    guard: ${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?targetCount.orValue(0) != 1 }}
     task:
       type: model_method
       modelType: '@svendowideit/caddy'
-      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?firstModel.orValue("") }}'
+      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?upgradeModel.orValue("") }}'
       methodName: setCapabilities
       inputs:
         require: true
     dependsOn:
-    - step: grant-capability
+    - step: pause-if-capability-missing
       condition:
-        type: completed
+        type: always
     weight: 0
     allowFailure: false
   - name: create-service
     description: Write the systemd user unit from the model's current globals.
-    guard: ${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?count.orValue(0) != 1 }}
+    guard: ${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?targetCount.orValue(0) != 1 }}
     task:
       type: model_method
       modelType: '@svendowideit/caddy'
-      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?firstModel.orValue("") }}'
+      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?upgradeModel.orValue("") }}'
       methodName: createService
     dependsOn:
-    - step: verify-capability
+    - step: retry-capability
       condition:
-        type: completed
+        type: succeeded
     weight: 0
     allowFailure: false
   - name: start-service
     description: Start and enable the service, waiting for the admin API so the status page can be installed.
-    guard: ${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?count.orValue(0) != 1 }}
+    guard: ${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?targetCount.orValue(0) != 1 }}
     task:
       type: model_method
       modelType: '@svendowideit/caddy'
-      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?firstModel.orValue("") }}'
+      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?upgradeModel.orValue("") }}'
       methodName: startService
     dependsOn:
     - step: create-service
@@ -172,11 +196,11 @@ jobs:
     allowFailure: false
   - name: restart
     description: Restart so the running process loads the freshly written unit (its EnvironmentFile) and, above all, the CAP_NET_BIND_SERVICE capability that installCaddy just set on the binary — a file capability only takes effect at exec() time, so without this Caddy keeps failing to bind 80/443 with "permission denied".
-    guard: ${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?count.orValue(0) != 1 }}
+    guard: ${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?targetCount.orValue(0) != 1 }}
     task:
       type: model_method
       modelType: '@svendowideit/caddy'
-      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?firstModel.orValue("") }}'
+      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?upgradeModel.orValue("") }}'
       methodName: restartService
     dependsOn:
     - step: start-service
@@ -184,13 +208,73 @@ jobs:
         type: succeeded
     weight: 0
     allowFailure: false
-  - name: tls
-    description: Configure the TLS app. The DNS provider is inferred from the model's plugins (and the credential mapping from environmentFile) unless passed explicitly.
-    guard: ${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?count.orValue(0) != 1 }}
+  - name: status-page
+    description: Install the default status page and apply the desired server/routes. Runs after restart and before verify-serving, because it is the config apply that must bind the configured ports; a bind failure fails here with the exact command.
+    guard: ${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?targetCount.orValue(0) != 1 }}
     task:
       type: model_method
       modelType: '@svendowideit/caddy'
-      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?firstModel.orValue("") }}'
+      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?upgradeModel.orValue("") }}'
+      methodName: configureStatusPage
+    dependsOn:
+    - step: restart
+      condition:
+        type: succeeded
+    weight: 0
+    allowFailure: false
+  - name: verify-serving
+    description: 'Read-only serving check after the restart: measures whether the running process is actually on 80/443, not the 8080/8443 fallback, and records every gap with its exact fix command. It never degrades the service.'
+    guard: ${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?targetCount.orValue(0) != 1 }}
+    task:
+      type: model_method
+      modelType: '@svendowideit/caddy'
+      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?upgradeModel.orValue("") }}'
+      methodName: upgradeCheck
+    dependsOn:
+    - step: status-page
+      condition:
+        type: succeeded
+    weight: 0
+    allowFailure: false
+  - name: pause-if-not-serving
+    description: 'Interactive gate: the restarted process is not on 80/443. Pause, show the gaps and exact fix commands from the serving check, and let the user fix the host and decide to resume or reject. The extension never moves the service to 8080/8443.'
+    guard: '${{ data.latest(inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").attributes.upgradeModel, "upgrade-check").?attributes.?servingOk.orValue(false) == true }}'
+    task:
+      type: manual_approval
+      prompt: |
+        Caddy is not serving on 80/443. The serving check above lists every gap
+        and its exact fix command. Fix them on the host, then approve to
+        re-check and continue. If you reject, the workflow stops without
+        further changes. It will never move Caddy to 8080/8443.
+    dependsOn:
+    - step: verify-serving
+      condition:
+        type: succeeded
+    weight: 0
+    allowFailure: false
+  - name: reverify-serving
+    description: Hard re-check after the user has fixed the host. Fails with the gaps and exact commands if Caddy is still not on 80/443, so the run cannot report success for a degraded service.
+    guard: ${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?targetCount.orValue(0) != 1 }}
+    task:
+      type: model_method
+      modelType: '@svendowideit/caddy'
+      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?upgradeModel.orValue("") }}'
+      methodName: upgradeCheck
+      inputs:
+        requireServing: true
+    dependsOn:
+    - step: pause-if-not-serving
+      condition:
+        type: always
+    weight: 0
+    allowFailure: false
+  - name: tls
+    description: Configure the TLS app. The DNS provider is inferred from the model's plugins (and the credential mapping from environmentFile) unless passed explicitly.
+    guard: ${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?targetCount.orValue(0) != 1 }}
+    task:
+      type: model_method
+      modelType: '@svendowideit/caddy'
+      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?upgradeModel.orValue("") }}'
       methodName: configureTls
       inputs:
         email: ${{ inputs.email }}
@@ -198,18 +282,18 @@ jobs:
         providerConfig: ${{ inputs.providerConfig }}
         subjects: ${{ inputs.subjects }}
     dependsOn:
-    - step: restart
+    - step: reverify-serving
       condition:
-        type: completed
+        type: succeeded
     weight: 0
     allowFailure: true
   - name: dns
     description: Apply the model's declared static DNS records, through the provider configured above.
-    guard: ${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?count.orValue(0) != 1 }}
+    guard: ${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?targetCount.orValue(0) != 1 }}
     task:
       type: model_method
       modelType: '@svendowideit/caddy'
-      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?firstModel.orValue("") }}'
+      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?upgradeModel.orValue("") }}'
       methodName: applyDnsRecords
     dependsOn:
     - step: tls
@@ -217,30 +301,16 @@ jobs:
         type: completed
     weight: 0
     allowFailure: true
-  - name: status-page
-    description: Install the default status page (answers on localhost).
-    guard: ${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?count.orValue(0) != 1 }}
-    task:
-      type: model_method
-      modelType: '@svendowideit/caddy'
-      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?firstModel.orValue("") }}'
-      methodName: configureStatusPage
-    dependsOn:
-    - step: dns
-      condition:
-        type: completed
-    weight: 0
-    allowFailure: true
   - name: check
     description: Print the gap report so the run ends by telling you exactly what is still missing (if anything) and how to fix it.
-    guard: ${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?count.orValue(0) != 1 }}
+    guard: ${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?targetCount.orValue(0) != 1 }}
     task:
       type: model_method
       modelType: '@svendowideit/caddy'
-      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?firstModel.orValue("") }}'
+      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-setup-scan", "targets").?attributes.?upgradeModel.orValue("") }}'
       methodName: upgradeCheck
     dependsOn:
-    - step: status-page
+    - step: dns
       condition:
         type: always
     weight: 0

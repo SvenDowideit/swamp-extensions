@@ -216,8 +216,9 @@ Bundled idempotent workflows:
 # grant-capability (@svendowideit/sudo `run` of operation `setcap` — its own
 # placed step, never runModel) → createService → startService → restart →
 # configureTls (provider inferred from plugins) → applyDnsRecords →
-# configureStatusPage, then a closing gap report. A single caddy model is set up
-# automatically; with several it lists them.
+# configureStatusPage, then a closing gap report. Models for the same Caddy
+# are additive and set up together; only distinct Caddy instances need
+# --input model=<name> (and fail with the list otherwise).
 swamp workflow run @svendowideit/caddy-setup
 ```
 
@@ -430,16 +431,29 @@ swamp workflow run @svendowideit/caddy-upgrade
 The first step lists every `@svendowideit/caddy` model this repo defines — by
 reading the model *definitions* on disk, not stored state, so it finds a model
 that has never had a method run, and never mistakes the auto-created scratch
-instance for a real one. If the repo defines **exactly one model it is upgraded
-automatically**. If it defines **more than one, the run lists them and finishes
-without changing anything** (it does not fail), and prints the exact command for
-each:
+instance for a real one.
+
+**Several models for one Caddy are the normal case.** Models with the same
+`(target, serviceName)` are additive peers: routes, listen addresses and TLS
+subjects merge, and every method reconciles all of them. The workflow upgrades
+that Caddy automatically with no model name, and says so:
 
 ```
-  • otel-caddy — target xeon, service caddy, baseDomain otel.fi.gy, ACME email you@example.com, DNS provider gandi, typeVersion 2026.09.20.3 (upgradable)
-      upgrade it: swamp workflow run @svendowideit/caddy-upgrade --input model=otel-caddy
-  • caddy-lab — target xeon, service caddy-lab, baseDomain (unset), ...
-      upgrade it: swamp workflow run @svendowideit/caddy-upgrade --input model=caddy-lab
+All 2 model(s) target the same Caddy (xeon / caddy); their configurations are additive and will be upgraded together via caddy.
+```
+
+A model name is required **only when the repo defines more than one distinct
+Caddy** (different `serviceName` or `target`). In that case the run lists them
+and **fails** with the exact command for each — it does not finish “successfully”
+after skipping the work:
+
+```
+This repo defines 2 distinct Caddy targets (target / serviceName). Models that
+share a target are additive and upgraded together, but different targets each
+need their own run. Choose one:
+  • xeon / caddy: caddy, news-caddy  ->  --input model=caddy
+  • xeon / caddy-lab: caddy-lab  ->  --input model=caddy-lab
+  swamp workflow run @svendowideit/caddy-upgrade --input model=<name>
 ```
 
 The email and provider shown are what the model is actually **configured** with
@@ -448,7 +462,7 @@ The email and provider shown are what the model is actually **configured** with
 Copy and run the one you want:
 
 ```sh
-swamp workflow run @svendowideit/caddy-upgrade --input model=otel-caddy
+swamp workflow run @svendowideit/caddy-upgrade --input model=caddy-lab
 ```
 
 Why run it: a version bump alone is not enough. Global arguments only take
@@ -777,13 +791,14 @@ swamp model @svendowideit/sudo method run run sudo-caddy \
   --input 'args:json={"path":"/home/you/.local/bin/caddy","capabilities":"cap_net_bind_service=+ep"}'
 ```
 
-**A config is never rejected for a privileged-port bind failure.** Until the
-capability is granted, every reconcile serves what the model wants on
-unprivileged ports instead — `:80` → `:8080`, `:443` → `:8443`, over plain HTTP —
-so Caddy always loads the config and serves the status page + health contract on
-`http://localhost:8080`. The desired settings are kept and applied verbatim
-again (auto-HTTPS on, `:443`/`:80`) as soon as the capability is granted; nothing
-is lost in the meantime.
+**A privileged-port bind failure is never hidden by moving Caddy to high ports.**
+If the capability is not actually applied, the upgrade/setup workflow pauses at
+a manual-approval gate and prints the exact `@svendowideit/sudo` command. Run
+it, then approve to resume. If the restarted process still cannot bind 80/443,
+the workflow stops with the journal, the `getcap` state and the checks to run.
+It never changes the service to `:8080`/`:8443`; an intentionally unprivileged
+deployment is configured explicitly with `autoHttps=off` and high `listenAddrs`,
+not chosen silently on failure.
 
 Details:
 
@@ -797,27 +812,46 @@ Details:
   without rewriting the sudo model's persistent allowlist. The target is the
   `sudo-<sudoInstanceKey>` model (global `sudoInstanceKey`, default `default`),
   auto-created if absent.
-- **The workflow verifies the grant.** After the sudo step it runs
-  `setCapabilities require=true`. If the route exited 0 without `getcap` (or
-  root, which can bind without a capability) actually showing the capability,
-  the workflow fails at that one verify step with the exact command to run. If
-  the route fails outright, the workflow stops at the grant step; the preceding
-  `setCapabilities` output has the same command. Run it, then resume:
+- **The workflow verifies the grant and pauses if it did not take.** The sudo
+  step is allowed to fail. `grant-capability` calls the sudo `run` with
+  `requireSuccess=true`, so the sudo extension verifies `setcap` with `getcap`
+  on the host and fails if the effect is not there. The run then suspends at
+  `pause-if-capability-missing` with the exact command above and the reason from
+  the failed grant. Run it, then approve and resume. A hard
+  `setCapabilities require=true` re-check follows; if it still fails, the
+  workflow stops with that command. It never continues into a service that
+  cannot bind 80/443, and it never moves the service to high ports.
 
   ```sh
-  # The command is printed by the workflow and by `setCapabilities`, e.g.:
+  # The command is printed by the failed grant and by `setCapabilities`, e.g.:
   swamp model @svendowideit/sudo method run run sudo-default \
     --input operation=setcap \
+    --input requireSuccess=true \
     --input 'allowedOperations:json=["setcap"]' \
     --input 'args:json={"path":"/home/you/.local/bin/caddy","capabilities":"cap_net_bind_service=+ep"}'
 
-  swamp workflow resume @svendowideit/caddy-upgrade --run <run-id>
+  # After running it, release the paused workflow:
+  swamp workflow approve @svendowideit/caddy-upgrade pause-if-capability-missing
+  swamp workflow resume @svendowideit/caddy-upgrade
   ```
 
   The command targets the same `sudo-<sudoInstanceKey>` model the workflow uses,
   so running it makes the workflow's next attempt succeed. If no elevation route
-  is granted at all, the sudo extension reports exactly what it tried; run
+  is granted at all, the sudo extension reports exactly what it tried and still
+  records `userCommand`; run
   `swamp model @svendowideit/sudo method run probe sudo-<key>` to see the ladder.
+- **The workflow measures the running service after restart.** `verify-serving`
+  reads the live config and records `servingOk`. If Caddy is not on 80/443 it
+  suspends at `pause-if-not-serving` with every gap and exact command (including
+  moving a stale autosave aside), then `reverify-serving` is a hard gate. A
+  successful run ends on 80/443; otherwise the run is paused or failed with the
+  reason.
+
+  ```sh
+  # After fixing the host, release the paused workflow:
+  swamp workflow approve @svendowideit/caddy-upgrade pause-if-not-serving
+  swamp workflow resume @svendowideit/caddy-upgrade
+  ```
 - **Replacing the binary drops the capability.** `upgradeCaddy` and
   `installCaddy force=true` re-grant it automatically after writing a new
   binary; if you download a new binary by other means, re-run `setCapabilities`.

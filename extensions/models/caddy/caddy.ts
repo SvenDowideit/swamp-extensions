@@ -858,6 +858,8 @@ const UpgradeTargetSchema = z.object({
   name: z.string(),
   target: z.string(),
   serviceName: z.string(),
+  /** Identity of the Caddy instance: models with the same key are additive. */
+  targetKey: z.string().default(""),
   baseDomain: z.string(),
   letsEncryptEmail: z.string(),
   /** DNS provider, from the model's config or its plugins ("" if none). */
@@ -870,13 +872,49 @@ const UpgradeTargetSchema = z.object({
 
 const UpgradeTargetsOutputSchema = z.object({
   repoDir: z.string(),
+  /** Total model count, including additive peers for one Caddy. */
   count: z.number(),
   /** Comma-joined model names, for one-line messages. */
   names: z.string(),
-  /** The first model name, or "" — lets a workflow target the single model. */
+  /** The first model name, or "" — a stable hint, not the selection. */
   firstModel: z.string(),
+  /** Number of distinct (target, serviceName) Caddy instances. */
+  targetCount: z.number(),
+  /** The distinct target keys, for diagnostics. */
+  targetKeys: z.array(z.string()),
+  /**
+   * The model that drives the upgrade. When one Caddy is selected this is its
+   * representative model (all peers are still merged by every method); ""
+   * when the repo has several distinct Caddies and no model was chosen.
+   */
+  upgradeModel: z.string(),
   models: z.array(UpgradeTargetSchema),
   discoveredAt: z.string(),
+});
+
+const UpgradeTargetsArgsSchema = z.object({
+  model: z.string().default("").describe(
+    "The model to upgrade. Empty selects the single Caddy the repo defines. " +
+      "Multiple models with the same target/serviceName are additive peers " +
+      "for one Caddy and are upgraded together, not treated as a conflict.",
+  ),
+  requireSingle: z.boolean().default(false).describe(
+    "Fail with an actionable message unless there is exactly one distinct " +
+      "Caddy (or a model was named). The upgrade/setup workflows set this so " +
+      "a repo with several distinct Caddies cannot finish 'successfully' " +
+      "after doing nothing.",
+  ),
+});
+
+const UpgradeCheckArgsSchema = z.object({
+  requireServing: z.boolean().default(false).describe(
+    "Fail with the exact fix when the running Caddy is not actually listening " +
+      "on 80/443 (service inactive, binary lacks CAP_NET_BIND_SERVICE, or the " +
+      "running process is still on the 8080/8443 fallback). The upgrade " +
+      "workflow uses this as a hard gate after restart so a degraded service " +
+      "cannot be reported as a successful upgrade. It never moves the service " +
+      "to unprivileged ports.",
+  ),
 });
 
 const UpgradeGapSchema = z.object({
@@ -913,7 +951,14 @@ const UpgradeCheckOutputSchema = z.object({
   environmentFile: z.string(),
   environmentFileExists: z.boolean(),
   gaps: z.array(UpgradeGapSchema),
+  /** All required gaps (including TLS/DNS setup) are clear. */
   ok: z.boolean(),
+  /**
+   * The running service is actually on the desired privileged ports. Unlike
+   * `ok`, this ignores optional TLS/DNS setup gaps, so a partial config that is
+   * serving on 80/443 is still "serving".
+   */
+  servingOk: z.boolean().default(true),
   checkedAt: z.string(),
 });
 
@@ -2337,6 +2382,97 @@ export function validateDesiredState(s: DesiredState): string[] {
 /** The merge key for a Caddy: which host + which service name. */
 export function caddyTargetKey(target: string, serviceName: string): string {
   return `${target || "local"}\u0000${serviceName || "caddy"}`;
+}
+
+/** The part of an upgrade target the selector needs. */
+export interface UpgradeTargetRef {
+  name: string;
+  target: string;
+  serviceName: string;
+}
+
+/** Which Caddy a set of caddy models maps to, and which model drives it. */
+export interface UpgradeTargetSelection {
+  /** Number of distinct (target, serviceName) Caddy instances. */
+  targetCount: number;
+  targetKeys: string[];
+  /** The additive peers for the selected Caddy (empty when none is selected). */
+  group: UpgradeTargetRef[];
+  /** The model that drives the upgrade, or "" when a choice is still needed. */
+  upgradeModel: string;
+}
+
+/**
+ * Select the Caddy to upgrade.
+ *
+ * Several models with the same (target, serviceName) are additive peers for
+ * ONE Caddy: routes/listen addresses/TLS union, and every mutating method
+ * merges them. They are not competing configurations, so a repo with several
+ * such models is still a single-target upgrade. A model name is required only
+ * when the repo defines more than one distinct (target, serviceName).
+ */
+export function selectUpgradeTargets(
+  models: UpgradeTargetRef[],
+  requestedModel = "",
+  requireSingle = false,
+): UpgradeTargetSelection {
+  const targetKeys = [
+    ...new Set(models.map((m) => caddyTargetKey(m.target, m.serviceName))),
+  ];
+  const targetCount = targetKeys.length;
+  const names = models.map((m) => m.name);
+  if (requestedModel) {
+    const chosen = models.find((m) => m.name === requestedModel);
+    if (!chosen) {
+      throw new Error(
+        `No @svendowideit/caddy model named "${requestedModel}" was found in this repo. Available models: ${
+          names.join(", ") || "(none)"
+        }.`,
+      );
+    }
+    const key = caddyTargetKey(chosen.target, chosen.serviceName);
+    return {
+      targetCount,
+      targetKeys,
+      group: models.filter((m) =>
+        caddyTargetKey(m.target, m.serviceName) === key
+      ),
+      upgradeModel: chosen.name,
+    };
+  }
+  if (requireSingle && targetCount !== 1) {
+    if (targetCount === 0) {
+      throw new Error(
+        "No @svendowideit/caddy model was found in this repo — there is nothing to upgrade. Create one with `swamp model create @svendowideit/caddy <name> ...` first.",
+      );
+    }
+    const lines = targetKeys.map((key) => {
+      const group = models.filter((m) =>
+        caddyTargetKey(m.target, m.serviceName) === key
+      );
+      const first = group[0];
+      const target = first.target || "(local host)";
+      return `  • ${target} / ${first.serviceName}: ${
+        group.map((m) => m.name).join(", ")
+      }  ->  --input model=${first.name}`;
+    });
+    throw new Error(
+      `This repo defines ${targetCount} distinct Caddy targets (target / serviceName). Models that share a target are additive and upgraded together, but different targets each need their own run. Choose one:\n${
+        lines.join("\n")
+      }\n  swamp workflow run @svendowideit/caddy-upgrade --input model=<name>`,
+    );
+  }
+  const group = targetCount === 1
+    ? models.filter((m) =>
+      caddyTargetKey(m.target, m.serviceName) === targetKeys[0]
+    )
+    : [];
+  return {
+    targetCount,
+    targetKeys,
+    group,
+    upgradeModel: group.length > 0 ? group[0].name : "",
+  };
 }
 
 /** The Caddy `@id` we tag a route with, so reconcile only touches our own. */
@@ -4243,6 +4379,7 @@ async function quarantineAutosave(path: string): Promise<string> {
 /** Build the failure error for a service that did not stay up. */
 async function serviceFailureError(
   context: MethodContext,
+  g: MethodContext["globalArgs"],
   serviceName: string,
   adminApiAddr: string,
   autosaveQuarantined = "",
@@ -4250,6 +4387,22 @@ async function serviceFailureError(
   const modelName = context.definition?.name ?? "caddy";
   const tail = await journalTail(serviceName);
   const hint = autosaveQuarantined ? "" : rootTrustFailureHint(tail, modelName);
+  const binPath = expandHome(g.caddyBinPath);
+  const bindFailed = isPrivilegedBindFailure(tail);
+  const caps = bindFailed ? await readCapabilities(binPath) : [];
+  const bindHint = bindFailed
+    ? `\n\nThe service cannot bind 80/443. The binary ${binPath} reports: ${
+      caps.join(" ") || "(none)"
+    }.\n` +
+      `If the capability is missing, grant it:\n  ${
+        capabilityGrantCommand(g.sudoInstanceKey, binPath, [
+          "cap_net_bind_service=+ep",
+        ])
+      }\n` +
+      `If it is present, the process was started before it was applied; restart it:\n` +
+      `  swamp model method run ${modelName} restartService\n` +
+      `Then re-run the upgrade workflow. The extension will not move the service to unprivileged ports.`
+    : "";
   return new Error(
     `Caddy service ${serviceName} did not stay active, or its admin API at ` +
       `${adminApiAddr} is unreachable.\n` +
@@ -4259,7 +4412,8 @@ async function serviceFailureError(
           `${autosaveQuarantined}, but Caddy still failed.`
         : hint
         ? `\n\n${hint}`
-        : ""),
+        : "") +
+      bindHint,
   );
 }
 
@@ -4314,13 +4468,14 @@ async function ensureCaddyRunning(
       }
       throw await serviceFailureError(
         context,
+        g,
         serviceName,
         g.adminApiAddr,
         quarantined,
       );
     }
   }
-  throw await serviceFailureError(context, serviceName, g.adminApiAddr);
+  throw await serviceFailureError(context, g, serviceName, g.adminApiAddr);
 }
 
 /** A normalized admin API response (status + body text). */
@@ -4513,28 +4668,38 @@ export function isPrivilegedBindFailure(message: string): boolean {
 }
 
 /**
- * The same config on the unprivileged fallback ports. Used when the running
- * Caddy process cannot bind 80/443 despite what the file capability says
- * (e.g. the capability was set after the process started, or the host route
- * did not apply it). The extension owns the config, so it can safely serve the
- * status page/API on :8080/:8443 instead of returning a red failure.
+ * Build the actionable error for a running process that cannot bind 80/443.
+ *
+ * The binary may already carry CAP_NET_BIND_SERVICE (a file capability is
+ * applied at exec time), so the fix is a restart of the service, not a quiet
+ * move to unprivileged ports. The extension must never degrade the service:
+ * the user asked for 80/443, and a high-port fallback hides the failure.
  */
-export function degradeConfigForUnprivileged(config: CaddyConfig): CaddyConfig {
-  const next = structuredClone(config);
-  const apps = (next.apps ?? {}) as Record<string, unknown>;
-  const http = (apps.http ?? {}) as Record<string, unknown>;
-  const servers = (http.servers ?? {}) as Record<string, unknown>;
-  for (const value of Object.values(servers)) {
-    if (!value || typeof value !== "object") continue;
-    const server = value as Record<string, unknown>;
-    if (Array.isArray(server.listen)) {
-      server.listen = server.listen.map((p) =>
-        p === ":443" ? ":8443" : p === ":80" ? ":8080" : p
-      );
-    }
-    server.automatic_https = { disable: true };
-  }
-  return next;
+export function privilegedBindError(
+  modelName: string,
+  serviceName: string,
+  binPath: string,
+  capabilities: string[],
+  capabilityCommand = "",
+): Error {
+  const capText = capabilities.length ? capabilities.join(" ") : "(none)";
+  return new Error(
+    `Caddy could not bind 80/443: the running process lacks CAP_NET_BIND_SERVICE.\n` +
+      `The binary ${binPath} reports: ${capText}.\n` +
+      `If the capability is missing, grant it:\n  ${
+        capabilityCommand ||
+        `sudo 'setcap' 'cap_net_bind_service=+ep' '${binPath}'`
+      }\n` +
+      `The service was probably started before the capability was applied, or it is not exec'ing that binary. ` +
+      `Restart it so the new process picks the capability up:\n` +
+      `  swamp model method run ${modelName} restartService\n` +
+      `If it still fails, check:\n` +
+      `  getcap ${binPath}\n` +
+      `  systemctl --user status ${serviceName}\n` +
+      `  journalctl --user -u ${serviceName} -n 50\n` +
+      `  systemctl --user show ${serviceName} -p ExecStart -p NoNewPrivileges -p AmbientCapabilities -p CapabilityBoundingSet\n` +
+      `The extension will not move the service to unprivileged ports.`,
+  );
 }
 
 async function applyConfig(
@@ -4548,15 +4713,16 @@ async function applyConfig(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     if (isPrivilegedBindFailure(message)) {
-      context.logger?.warning?.(
-        "Caddy could not bind 80/443 (the running process lacks CAP_NET_BIND_SERVICE); applying the config on 8080/8443 instead. Grant the capability to serve on 80/443.",
+      const binPath = expandHome(g.caddyBinPath);
+      throw privilegedBindError(
+        context.definition?.name ?? "caddy",
+        g.serviceName,
+        binPath,
+        await readCapabilities(binPath),
+        capabilityGrantCommand(g.sudoInstanceKey, binPath, [
+          "cap_net_bind_service=+ep",
+        ]),
       );
-      await writeConfig(
-        g.adminApiAddr,
-        degradeConfigForUnprivileged(config),
-        g.adminApiToken,
-      );
-      return;
     }
     const canHeal = !!g.environmentFile && isDnsCredentialFailure(message) &&
       await isServiceActive(g.serviceName);
@@ -5313,45 +5479,6 @@ async function assessUpToDate(
 }
 
 /**
- * The listen addresses + autoHttps this host can actually serve *right now*.
- *
- * Settings are never rejected. If the binary cannot bind 80/443 (no
- * CAP_NET_BIND_SERVICE yet), the privileged ports are moved to unprivileged
- * equivalents (`:80` -> `:8080`, `:443` -> `:8443`) and automatic HTTPS is turned
- * off, so Caddy can still load the config and serve whatever is wanted — at
- * minimum the status page + health contract on localhost. The model's *desired*
- * settings are untouched and are applied verbatim again as soon as the
- * capability is granted.
- *
- * Pure, so it is cheap to unit test.
- */
-export function effectiveServeSettings(opts: {
-  listenAddrs: string[];
-  autoHttps: string;
-  canBindPrivilegedPorts: boolean;
-}): { listenAddrs: string[]; autoHttps: string; degraded: boolean } {
-  const { listenAddrs, autoHttps, canBindPrivilegedPorts } = opts;
-  if (canBindPrivilegedPorts) {
-    return { listenAddrs, autoHttps, degraded: false };
-  }
-  const remap = (addr: string): string => {
-    if (addr === ":80") return ":8080";
-    if (addr === ":443") return ":8443";
-    return addr;
-  };
-  const wanted = listenAddrs.length > 0 ? listenAddrs : [":443", ":80"];
-  const mapped = [...new Set(wanted.map(remap))];
-  const degraded = wanted.some((a) => a === ":80" || a === ":443");
-  return {
-    listenAddrs: mapped,
-    // No 80/443 means no ACME (HTTP-01/TLS-ALPN); serve plain HTTP rather than a
-    // site that can never obtain a certificate.
-    autoHttps: degraded ? "off" : autoHttps,
-    degraded,
-  };
-}
-
-/**
  * What the RUNNING config actually serves — measured from it, never assumed.
  *
  * `reachable: false` means the admin API could not be read, so nothing could be
@@ -5482,24 +5609,11 @@ async function applyReconcile(
     g.listenAddrs,
     g.autoHttps,
   );
-  // Never reject: if the binary cannot bind 80/443 yet, serve what is wanted on
-  // unprivileged ports (plain HTTP) so Caddy still loads the config and serves
-  // the status page + health contract. The desired settings are kept and applied
-  // again once the capability is granted.
-  const canBind = canBindPrivilegedPortsNow(
-    await readCapabilities(expandHome(g.caddyBinPath)),
-  );
-  const serve = effectiveServeSettings({
-    listenAddrs: merged.listenAddrs,
-    autoHttps: merged.autoHttps,
-    canBindPrivilegedPorts: canBind,
-  });
-  if (serve.degraded) {
-    context.logger?.info(
-      "The Caddy binary cannot bind 80/443 yet; serving what is wanted on {addrs} over plain HTTP until the capability is granted (the desired settings are kept and reapplied automatically)",
-      { addrs: serve.listenAddrs.join(", ") },
-    );
-  }
+  // Never silently degrade: apply exactly the desired serving settings. If the
+  // running process cannot bind 80/443, applyConfig throws with the journal,
+  // getcap state and the exact commands; the workflow pauses or fails with the
+  // reason. An intentionally unprivileged model sets autoHttps=off and high
+  // listenAddrs explicitly.
   // The status page is the page served on localhost; it must report MEASURED
   // reality. Refresh its install facts (binary version, file capability,
   // compiled plugins) from the binary now, so a stale snapshot stored when
@@ -5516,7 +5630,7 @@ async function applyReconcile(
   }
   const next = buildReconciledConfig(
     current,
-    { ...merged, listenAddrs: serve.listenAddrs, autoHttps: serve.autoHttps },
+    { ...merged, listenAddrs: merged.listenAddrs, autoHttps: merged.autoHttps },
     extensionVersionOf(context.extensionFile),
   );
   // A config that uses a module the binary lacks fails to load with a cryptic
@@ -5760,7 +5874,7 @@ type CheckContext = {
 /** Model definition for the Caddy reverse-proxy and service manager. */
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.11.07.5",
+  version: "2026.11.07.7",
   reports: ["@svendowideit/caddy-status"],
   globalArguments: GlobalArgsSchema,
   checks: {
@@ -6205,6 +6319,42 @@ export const model = {
         "unprivileged fallback. No global argument change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.07.6",
+      description:
+        "Fixes the default upgrade skipping additive models. Several caddy " +
+        "models with the same (target, serviceName) are additive peers for ONE " +
+        "Caddy, not competing configs; caddy-upgrade and caddy-setup now group " +
+        "by that key and upgrade the group as one Caddy with no model name. A " +
+        "model name is required only when the repo defines distinct Caddy " +
+        "instances, and then the scan fails with the list and the exact " +
+        "--input model=<name> commands instead of completing successfully " +
+        "after every step was skipped. upgradeTargets gains `model` and " +
+        "`requireSingle` arguments and reports targetCount/targetKeys/" +
+        "upgradeModel per model; existing arguments and outputs are unchanged " +
+        "additively. Adds unit coverage for the selection and test-factory " +
+        "coverage for the additive-group upgrade and the hard failure on " +
+        "distinct targets.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.7",
+      description:
+        "Stops hiding privilege failures. The 8080/8443 automatic fallback is " +
+        "removed: applyConfig now throws with the journal, getcap state and the " +
+        "exact commands instead of moving the service to high ports. The " +
+        "upgrade/setup workflows call the sudo run with requireSuccess=true, " +
+        "skip the grant when the capability is already on the binary, and pause " +
+        "at a manual-approval gate when the grant fails, showing the exact " +
+        "command and reason. After restart they measure the running config; if " +
+        "it is not on 80/443 they pause with the gaps and commands, then a hard " +
+        "re-check follows. A successful run ends with the configured 80/443 " +
+        "service or a paused/failed run with the reason — never a silent " +
+        "degraded service. Adds passing/failing test-factory coverage for the " +
+        "verified setcap, the silent no-op, the no-route case, the pause, and " +
+        "the no-fallback behavior.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     install: {
@@ -6484,6 +6634,12 @@ export const model = {
               { version: verified.version, capabilities },
             );
           } catch (err) {
+            if (
+              err instanceof Error &&
+              err.message.startsWith("Caddy could not bind 80/443")
+            ) {
+              throw err;
+            }
             context.logger?.info(
               "Skipped status page (admin API not reachable yet): {error}",
               { error: err instanceof Error ? err.message : String(err) },
@@ -6681,6 +6837,12 @@ export const model = {
               context,
             );
           } catch (err) {
+            if (
+              err instanceof Error &&
+              err.message.startsWith("Caddy could not bind 80/443")
+            ) {
+              throw err;
+            }
             context.logger?.info("Skipped status page: {error}", {
               error: err instanceof Error ? err.message : String(err),
             });
@@ -7345,10 +7507,10 @@ export const model = {
 
     upgradeTargets: {
       description:
-        "Discover every @svendowideit/caddy model this repo defines, with the settings an upgrade needs — no model name required",
-      arguments: z.object({}),
+        "Discover every @svendowideit/caddy model this repo defines, group models that manage the same Caddy, and select the model that drives an upgrade — no model name required for the normal single-Caddy repo",
+      arguments: UpgradeTargetsArgsSchema,
       execute: async (
-        _args: Record<string, never>,
+        args: z.infer<typeof UpgradeTargetsArgsSchema>,
         context: MethodContext,
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const repoDir = context.repoDir ?? Deno.cwd();
@@ -7375,6 +7537,7 @@ export const model = {
           name: string;
           target: string;
           serviceName: string;
+          targetKey: string;
           baseDomain: string;
           letsEncryptEmail: string;
           dnsProvider: string;
@@ -7401,8 +7564,9 @@ export const model = {
           }
           models.push({
             name: r.name,
-            target: r.target || "(local host)",
+            target: r.target,
             serviceName: r.serviceName,
+            targetKey: caddyTargetKey(r.target, r.serviceName),
             baseDomain: r.baseDomain,
             letsEncryptEmail: configured?.tls?.email || r.letsEncryptEmail,
             dnsProvider: configured?.tls?.dnsProvider ||
@@ -7412,6 +7576,12 @@ export const model = {
             upToDate,
           });
         }
+        const initialKeys = [
+          ...new Set(
+            models.map((m) => caddyTargetKey(m.target, m.serviceName)),
+          ),
+        ];
+        const singleCaddy = initialKeys.length === 1;
         if (models.length === 0) {
           context.logger?.warning?.(
             "No @svendowideit/caddy model found under {repoDir} — there is nothing to upgrade.",
@@ -7427,7 +7597,7 @@ export const model = {
               "  • {name} — target {target}, service {service}, baseDomain {domain}, ACME email {email}, DNS provider {provider}, typeVersion {v} ({staleness})",
               {
                 name: m.name,
-                target: m.target,
+                target: m.target || "(local host)",
                 service: m.serviceName,
                 domain: m.baseDomain || "(unset)",
                 email: m.letsEncryptEmail || "(unset)",
@@ -7440,6 +7610,10 @@ export const model = {
               context.logger?.info(
                 "      DONE — already up to date (nothing to upgrade)",
               );
+            } else if (singleCaddy) {
+              context.logger?.info(
+                "      part of the same Caddy — upgraded together with its other model(s)",
+              );
             } else {
               context.logger?.info(
                 "      upgrade it: swamp workflow run @svendowideit/caddy-upgrade --input model={name}",
@@ -7447,6 +7621,25 @@ export const model = {
               );
             }
           }
+        }
+        // The scan is the workflow's preflight: when a choice is required,
+        // fail loudly with the list and exact commands instead of letting
+        // every step be skipped and the run look successful.
+        const selection = selectUpgradeTargets(
+          models,
+          args.model,
+          args.requireSingle,
+        );
+        if (singleCaddy && models.length > 1) {
+          context.logger?.info(
+            "All {count} model(s) target the same Caddy ({target} / {service}); their configurations are additive and will be upgraded together via {model}.",
+            {
+              count: models.length,
+              target: models[0].target || "(local host)",
+              service: models[0].serviceName,
+              model: selection.upgradeModel,
+            },
+          );
         }
         const handle = await context.writeResource(
           "upgradeTargets",
@@ -7456,6 +7649,9 @@ export const model = {
             count: models.length,
             names: models.map((m) => m.name).join(", "),
             firstModel: models.length > 0 ? models[0].name : "",
+            targetCount: selection.targetCount,
+            targetKeys: selection.targetKeys,
+            upgradeModel: selection.upgradeModel,
             models,
             discoveredAt: new Date().toISOString(),
           },
@@ -7467,9 +7663,9 @@ export const model = {
     upgradeCheck: {
       description:
         "Report everything blocking this Caddy from serving — the capability to bind 80/443, baseDomain/ACME email, TLS, DNS provider/records, a stale binary, service health — each with the exact command to fix it",
-      arguments: z.object({}),
+      arguments: UpgradeCheckArgsSchema,
       execute: async (
-        _args: Record<string, never>,
+        args: z.infer<typeof UpgradeCheckArgsSchema>,
         context: MethodContext,
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const g = context.globalArgs;
@@ -7652,8 +7848,12 @@ export const model = {
             message:
               `CAP_NET_BIND_SERVICE is set on the binary, but the running Caddy is listening on ${
                 live.listenAddrs.join(", ") || "(no ports)"
-              } rather than 80/443 — the running process has not picked the capability up. Restart the service after setcap.`,
-            command: `swamp model method run ${name} restartService`,
+              } rather than 80/443 — the running process has not picked the capability up. A stale autosave can also pin the old unprivileged ports. Restart from the managed config after moving it aside.`,
+            command:
+              `mv ${autosavePathFor(g.configPath)} ${
+                autosavePathFor(g.configPath)
+              }.bak 2>/dev/null || true\n` +
+              `      swamp model method run ${name} restartService`,
           });
         }
         if (missingModules.length > 0) {
@@ -7795,6 +7995,15 @@ export const model = {
         }
 
         const required = gaps.filter((gap) => !gap.optional);
+        const servingIds = new Set([
+          "service-inactive",
+          "cannot-bind-privileged-ports",
+          "capability-not-in-effect",
+        ]);
+        const servingBlockers = required.filter((gap) =>
+          servingIds.has(gap.id)
+        );
+        const servingOk = live.reachable && servingBlockers.length === 0;
         if (required.length === 0) {
           context.logger?.info(
             "Upgrade check for {name}: ready — nothing blocks Caddy serving.",
@@ -7840,9 +8049,30 @@ export const model = {
             environmentFileExists: envExists,
             gaps,
             ok: required.length === 0,
+            servingOk,
             checkedAt: new Date().toISOString(),
           },
         );
+        if (args.requireServing) {
+          const blockers = [...servingBlockers];
+          if (!live.reachable) {
+            blockers.push({
+              id: "live-config-unreachable",
+              message:
+                `The admin API at ${g.adminApiAddr} is unreachable, so the running Caddy's ports cannot be verified.`,
+              command: `swamp model method run ${name} restartService`,
+            });
+          }
+          if (!servingOk) {
+            throw new Error(
+              `Caddy is not serving on 80/443:\n` +
+                blockers.map((gap) =>
+                  `  ✗ ${gap.message}\n      fix: ${gap.command}`
+                ).join("\n") +
+                `\n\nThe extension will not move the service to unprivileged ports. Fix the above, then re-run: swamp workflow run @svendowideit/caddy-upgrade`,
+            );
+          }
+        }
         return { dataHandles: [handle] };
       },
     },
@@ -8277,7 +8507,7 @@ async function applyStatusPage(
       "Status page removed (reconciled)",
       { changed: summary.changed },
     );
-    const handle = await context.writeResource("statusPage", "current", {
+    const handle = await context.writeResource("statusPage", "status-page", {
       modelName: context.definition?.name ?? "",
       hostnames: statusPageHostnames(),
       title: args.title,
@@ -8360,7 +8590,7 @@ async function applyStatusPage(
     },
   );
 
-  const handle = await context.writeResource("statusPage", "current", {
+  const handle = await context.writeResource("statusPage", "status-page", {
     modelName: context.definition?.name ?? "",
     hostnames: statusPageHostnames(),
     title: args.title,

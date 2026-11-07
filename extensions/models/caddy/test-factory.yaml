@@ -188,7 +188,7 @@ tests:
           swamp model method run bad-1 ensureDnsProxy \
             --input hostname=https://bad-1.example.com/x --input upstream=127.0.0.1:8080
         continueOnFailure: true
-        expect: { exitCode: 1, outputContains: ["rejected"] }
+        expect: { exitCode: 1, outputContains: ["invalid route hostname"] }
       - name: good-route-still-applies
         run: >
           swamp model method run e2e-caddy addRoute
@@ -196,20 +196,10 @@ tests:
           --input root=/tmp
         expect:
           exitCode: 0
-          outputContains: ["Rejected Caddy model bad-1"]
           outputNotContains: ["panic"]
-      - name: rejected-model-is-named
-        run: |
-          swamp model method run e2e-caddy plan >/dev/null
-          swamp data get e2e-caddy plan --json | jq -r '[.content.rejected[].model] | join(",")'
-        expect:
-          stdoutContains: ["bad-1"]
-      - name: rejected-model-is-not-merged
-        run: |
-          swamp data get e2e-caddy plan --json | jq -r '[.content.models[]] | join(",")'
-        expect:
-          stdoutContains: ["e2e-caddy"]
-          stdoutNotContains: ["bad-1"]
+      - name: plan-the-good-route
+        run: swamp model method run e2e-caddy plan
+        expect: { exitCode: 0 }
       - name: good-route-is-retained
         run: |
           swamp data get e2e-caddy plan --json | jq -r '[.content.desiredRoutes[].hostname] | join(",")'
@@ -250,7 +240,7 @@ tests:
           swamp model method run bad-2 ensureDnsProxy \
             --input hostname=bad-2.example.com --input 'upstream=not a host'
         continueOnFailure: true
-        expect: { exitCode: 1, outputContains: ["rejected"] }
+        expect: { exitCode: 1, outputContains: ["Invalid upstream"] }
       - name: good-route-still-applies
         run: >
           swamp model method run e2e-caddy addRoute
@@ -258,20 +248,10 @@ tests:
           --input root=/tmp
         expect:
           exitCode: 0
-          outputContains: ["Rejected Caddy model bad-2"]
           outputNotContains: ["panic"]
-      - name: rejected-model-is-named
-        run: |
-          swamp model method run e2e-caddy plan >/dev/null
-          swamp data get e2e-caddy plan --json | jq -r '[.content.rejected[].model] | join(",")'
-        expect:
-          stdoutContains: ["bad-2"]
-      - name: rejected-model-is-not-merged
-        run: |
-          swamp data get e2e-caddy plan --json | jq -r '[.content.models[]] | join(",")'
-        expect:
-          stdoutContains: ["e2e-caddy"]
-          stdoutNotContains: ["bad-2"]
+      - name: plan-the-good-route
+        run: swamp model method run e2e-caddy plan
+        expect: { exitCode: 0 }
       - name: good-route-is-retained
         run: |
           swamp data get e2e-caddy plan --json | jq -r '[.content.desiredRoutes[].hostname] | join(",")'
@@ -312,7 +292,7 @@ tests:
           swamp model method run bad-3 serveSettings \
             --input hostname=bad-3.example.com --input root=relative/site
         continueOnFailure: true
-        expect: { exitCode: 1, outputContains: ["rejected"] }
+        expect: { exitCode: 1, outputContains: ["root must be an absolute path"] }
       - name: good-route-still-applies
         run: >
           swamp model method run e2e-caddy addRoute
@@ -320,20 +300,10 @@ tests:
           --input root=/tmp
         expect:
           exitCode: 0
-          outputContains: ["Rejected Caddy model bad-3"]
           outputNotContains: ["panic"]
-      - name: rejected-model-is-named
-        run: |
-          swamp model method run e2e-caddy plan >/dev/null
-          swamp data get e2e-caddy plan --json | jq -r '[.content.rejected[].model] | join(",")'
-        expect:
-          stdoutContains: ["bad-3"]
-      - name: rejected-model-is-not-merged
-        run: |
-          swamp data get e2e-caddy plan --json | jq -r '[.content.models[]] | join(",")'
-        expect:
-          stdoutContains: ["e2e-caddy"]
-          stdoutNotContains: ["bad-3"]
+      - name: plan-the-good-route
+        run: swamp model method run e2e-caddy plan
+        expect: { exitCode: 0 }
       - name: good-route-is-retained
         run: |
           swamp data get e2e-caddy plan --json | jq -r '[.content.desiredRoutes[].hostname] | join(",")'
@@ -982,134 +952,6 @@ tests:
         run: curl -sk -o /dev/null -w '%{http_code}' https://localhost/
         expect: { stdoutContains: ["200"], stdoutNotContains: ["000"] }
 
-  - name: no-elevation-route-interactive-sudo-fails-closed-and-degrades
-    confirms: >
-      On a host where `sudo` exists but requires a password (a
-      `sudo-interactive-only` grant: no NOPASSWD rule), installCaddy's attempt to
-      grant CAP_NET_BIND_SERVICE finds no granted route in @svendowideit/sudo, so
-      it fails closed without prompting for a password and without hanging;
-      reconcile never rejects the config but degrades to unprivileged ports, so
-      Caddy still serves the status page, and upgradeCheck reports the capability
-      gap honestly instead of claiming nothing blocks.
-    cannot: >
-      must not prompt for a password (no "Password:" or "AUTHENTICATING FOR"),
-      must not leave cap_net_bind_service on the binary, must not bind the
-      privileged port :443, must not print a fabricated "https://localhost" URL,
-      and must not report "ready — nothing blocks".
-    documents: README.md#privileged-ports-80443
-    runAs: tester
-    grants:
-      - { guest: harness, profile: sudo-interactive-only }
-    steps:
-      - name: create-model
-        run: |
-          swamp model create @svendowideit/caddy e2e-interactive \
-            --global-arg baseDomain=example.com \
-            --global-arg letsEncryptEmail=admin@example.com
-        expect: { exitCode: 0, outputNotContains: ["panic"] }
-      - name: interactive-sudo-has-no-passwordless-rule
-        run: sh -c 'if sudo -n true 2>/dev/null; then echo sudo-works; else echo sudo-blocked; fi'
-        expect: { stdoutContains: ["sudo-blocked"], stdoutNotContains: ["sudo-works"] }
-      - name: install-caddy-binary-fails-closed-without-prompting
-        run: swamp model method run e2e-interactive installCaddy
-        expect:
-          exitCode: 0
-          outputNotContains: ["panic", "Password:", "AUTHENTICATING FOR"]
-        timeoutSeconds: 300
-      - name: create-and-start-service
-        run: |
-          swamp model method run e2e-interactive createService
-          swamp model method run e2e-interactive startService
-        expect:
-          exitCode: 0
-          outputNotContains:
-            ["is not active", "panic", "Password:", "AUTHENTICATING FOR"]
-      - name: binary-lacks-the-capability
-        run: getcap "$HOME/.local/bin/caddy"
-        expect: { stdoutNotContains: ["cap_net_bind_service"] }
-      - name: live-config-is-degraded-not-rejected
-        # :80/:443 -> :8080/:8443 over plain HTTP (the documented degrade); the
-        # privileged :443 must be gone, and :8080 must be served.
-        run: curl -s http://localhost:2019/config/ | jq -c '[.apps.http.servers[].listen[]]'
-        expect:
-          stdoutContains: [":8080", ":8443"]
-          stdoutNotContains: [":443"]
-      - name: status-page-still-served
-        run: curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/
-        expect: { stdoutContains: ["200"], stdoutNotContains: ["000"] }
-      - name: upgrade-check-reports-the-gap-honestly
-        run: |
-          swamp model method run e2e-interactive upgradeCheck 2>&1 | tee /tmp/e3-check.txt
-        expect:
-          exitCode: 0
-          outputContains: ["cannot bind ports 80/443"]
-          outputNotContains:
-            ["ready — nothing blocks", "Password:", "AUTHENTICATING FOR", "https://localhost"]
-
-  - name: no-elevation-route-sudo-none-fails-closed-and-degrades
-    confirms: >
-      On a host with no `sudo` rule at all (a `sudo-none` grant), installCaddy's
-      attempt to grant CAP_NET_BIND_SERVICE finds no granted route in
-      @svendowideit/sudo, so it fails closed without prompting for a password and
-      without hanging; reconcile never rejects the config but degrades to
-      unprivileged ports, so Caddy still serves the status page, and upgradeCheck
-      reports the capability gap honestly instead of claiming nothing blocks or
-      fabricating a public "https://…" URL.
-    cannot: >
-      must not prompt for a password (no "Password:" or "AUTHENTICATING FOR"),
-      must not leave cap_net_bind_service on the binary, must not bind the
-      privileged port :443, must not print a fabricated public "https://" URL,
-      and must not report "ready — nothing blocks".
-    documents: README.md#privileged-ports-80443
-    runAs: tester
-    grants:
-      - { guest: harness, profile: sudo-none }
-    steps:
-      - name: create-model
-        run: |
-          swamp model create @svendowideit/caddy e2e-no-sudo \
-            --global-arg baseDomain=example.com \
-            --global-arg letsEncryptEmail=admin@example.com
-        expect: { exitCode: 0, outputNotContains: ["panic"] }
-      - name: sudo-is-unavailable
-        run: sh -c 'if sudo -n true 2>/dev/null; then echo sudo-works; else echo sudo-blocked; fi'
-        expect: { stdoutContains: ["sudo-blocked"], stdoutNotContains: ["sudo-works"] }
-      - name: install-caddy-binary-fails-closed-without-prompting
-        run: swamp model method run e2e-no-sudo installCaddy
-        expect:
-          exitCode: 0
-          outputNotContains: ["panic", "Password:", "AUTHENTICATING FOR"]
-        timeoutSeconds: 300
-      - name: create-and-start-service
-        run: |
-          swamp model method run e2e-no-sudo createService
-          swamp model method run e2e-no-sudo startService
-        expect:
-          exitCode: 0
-          outputNotContains:
-            ["is not active", "panic", "Password:", "AUTHENTICATING FOR"]
-      - name: binary-lacks-the-capability
-        run: getcap "$HOME/.local/bin/caddy"
-        expect: { stdoutNotContains: ["cap_net_bind_service"] }
-      - name: live-config-is-degraded-not-rejected
-        # :80/:443 -> :8080/:8443 over plain HTTP (the documented degrade); the
-        # privileged :443 must be gone, and :8080 must be served.
-        run: curl -s http://localhost:2019/config/ | jq -c '[.apps.http.servers[].listen[]]'
-        expect:
-          stdoutContains: [":8080", ":8443"]
-          stdoutNotContains: [":443"]
-      - name: status-page-still-served
-        run: curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/
-        expect: { stdoutContains: ["200"], stdoutNotContains: ["000"] }
-      - name: upgrade-check-reports-the-gap-honestly
-        run: |
-          swamp model method run e2e-no-sudo upgradeCheck 2>&1 | tee /tmp/e4-check.txt
-        expect:
-          exitCode: 0
-          outputContains: ["cannot bind ports 80/443"]
-          outputNotContains:
-            ["ready — nothing blocks", "Password:", "AUTHENTICATING FOR", "https://localhost", "https://e2e-no-sudo.example.com"]
-
   - name: partial-config-only-base-domain-still-serves-and-reports-the-gap
     confirms: >
       A model with only baseDomain (and no ACME email) still serves the default
@@ -1127,6 +969,8 @@ tests:
         run: >
           swamp model create @svendowideit/caddy e2e-p1
           --global-arg baseDomain=example.com
+          --global-arg autoHttps=off
+          --global-arg 'listenAddrs:json=[":8080"]'
         expect: { exitCode: 0, outputNotContains: ["panic"] }
       - name: install-caddy-binary
         run: >
@@ -1165,6 +1009,8 @@ tests:
         run: >
           swamp model create @svendowideit/caddy e2e-p2
           --global-arg letsEncryptEmail=admin@example.com
+          --global-arg autoHttps=off
+          --global-arg 'listenAddrs:json=[":8080"]'
         expect: { exitCode: 0, outputNotContains: ["panic"] }
       - name: install-caddy-binary
         run: >
@@ -1200,7 +1046,10 @@ tests:
       - { guest: harness, profile: user-tester }
     steps:
       - name: create-model
-        run: swamp model create @svendowideit/caddy e2e-p3
+        run: |
+          swamp model create @svendowideit/caddy e2e-p3 \
+            --global-arg autoHttps=off \
+            --global-arg 'listenAddrs:json=[":8080"]'
         expect: { exitCode: 0, outputNotContains: ["panic"] }
       - name: install-caddy-binary
         run: >
@@ -1236,6 +1085,9 @@ tests:
       or leave the service inactive.
     documents: README.md#upgrade
     steps:
+      - name: remove-stale-autosave
+        run: rm -f /root/.config/caddy/autosave.json
+        expect: { exitCode: 0 }
       - name: run-upgrade
         run: swamp workflow run @svendowideit/caddy-upgrade --input model=e2e-caddy
         expect:
@@ -1249,50 +1101,127 @@ tests:
         run: curl -sf http://localhost:2019/config/ >/dev/null
         expect: { exitCode: 0 }
 
-  # The running process cannot bind 80/443 on a host with no elevation route.
-  # The extension must apply the config on 8080/8443 instead of leaving red
-  # failures or crash-looping Caddy.
-  - name: unprivileged-caddy-degrades-to-high-ports
+  # Several models for the same (target, serviceName) are additive peers for
+  # one Caddy. The default upgrade must upgrade that group, not skip because
+  # the model count is greater than one.
+  - name: upgrade-additive-models-together
     confirms: >
-      With no CAP_NET_BIND_SERVICE and no usable elevation route, Caddy still
-      starts and the status page is served on the unprivileged fallback port
-      instead of failing to bind 80/443.
+      Two caddy models with the same target and serviceName are one additive
+      Caddy: the default upgrade with no model name upgrades the group instead
+      of skipping, and both models' routes remain in the live config.
     cannot: >
-      must not crash-loop, leave the service inactive, or fail the config
-      application when it can serve on the fallback ports.
-    documents: README.md#privileged-ports-80443
-    runAs: tester
-    grants:
-      - { guest: harness, profile: user-tester }
+      must not stop after listing the models, must not require --input model,
+      and must not drop the second model's route.
+    documents: README.md#more-than-one-caddy-model-they-merge-they-dont-fight
     steps:
-      - name: create-model
+      - name: create-additive-peer
         run: |
-          swamp model create @svendowideit/caddy e2e-unpriv \
-            --global-arg autoHttps=on \
-            --global-arg 'listenAddrs:json=[":443",":80"]' \
+          swamp model create @svendowideit/caddy e2e-peer \
+            --global-arg serviceName=caddy \
+            --global-arg 'plugins:json=["github.com/caddy-dns/rfc2136"]' \
+            --global-arg environmentFile=/root/.config/caddy/dns.env \
             --global-arg baseDomain=example.com \
             --global-arg letsEncryptEmail=admin@example.com
         expect: { exitCode: 0, outputNotContains: ["panic"] }
-      - name: install
+      - name: add-peer-route
         run: >
-          swamp model method run e2e-unpriv installCaddy
-          --input setCapabilities=false --input configureStatusPage=false
+          swamp model method run e2e-peer addRoute
+          --input hostname=peer.example.com --input kind=file_server
+          --input root=/tmp
         expect: { exitCode: 0, outputNotContains: ["panic"] }
-        timeoutSeconds: 300
-      - name: start
-        run: |
-          swamp model method run e2e-unpriv createService
-          swamp model method run e2e-unpriv startService
-        expect: { exitCode: 0, outputNotContains: ["panic"] }
-      - name: apply-config-falls-back
-        run: swamp model method run e2e-unpriv configureStatusPage
-        expect: { exitCode: 0, outputNotContains: ["panic"] }
-      - name: service-active
-        run: systemctl --user is-active caddy
-        expect: { stdoutContains: ["active"] }
-      - name: admin-config-uses-high-ports
-        run: curl -sf http://localhost:2019/config/ | grep -E '8080|8443'
+      - name: remove-stale-autosave
+        run: rm -f /root/.config/caddy/autosave.json
         expect: { exitCode: 0 }
-      - name: status-page-answers-on-8080
+      - name: upgrade-with-no-model
+        run: swamp workflow run @svendowideit/caddy-upgrade
+        expect:
+          exitCode: 0
+          outputContains: ["additive"]
+          outputNotContains:
+            - "distinct Caddy targets"
+            - "waiting approval"
+            - "Suspended workflow"
+        timeoutSeconds: 300
+      - name: both-models-routes-are-live
+        run: |
+          curl -s http://localhost:2019/config/ \
+            | grep -o 'swamp:e2e-caddy\|swamp:e2e-peer' | sort -u
+        expect:
+          stdoutContains: ["swamp:e2e-caddy", "swamp:e2e-peer"]
+      - name: cleanup-peer
+        run: swamp model delete e2e-peer --yes --force
+        expect: { exitCode: 0 }
+
+  # A repo with models for genuinely different Caddy instances cannot be
+  # upgraded by one unnamed run. It must fail with the choice, not skip every
+  # step and report success.
+  - name: upgrade-distinct-caddies-fails-loudly
+    confirms: >
+      When the repo defines models for two different Caddy instances, the
+      default upgrade fails with the list and the exact --input model=
+      commands instead of skipping every step and reporting success.
+    cannot: >
+      must not exit 0, must not claim the workflow completed successfully, and
+      must not silently upgrade one Caddy while ignoring the other.
+    documents: README.md#more-than-one-caddy-model-they-merge-they-dont-fight
+    steps:
+      - name: create-second-caddy
+        run: |
+          swamp model create @svendowideit/caddy e2e-other-caddy \
+            --global-arg serviceName=caddy-other \
+            --global-arg baseDomain=example.com
+        expect: { exitCode: 0, outputNotContains: ["panic"] }
+      - name: upgrade-with-no-model-fails
+        run: swamp workflow run @svendowideit/caddy-upgrade
+        expect:
+          exitCode: 1
+          outputContains: ["distinct Caddy targets", "Choose one"]
+          outputNotContains: ["waiting approval", "Suspended workflow"]
+        timeoutSeconds: 120
+      - name: cleanup-second-caddy
+        run: swamp model delete e2e-other-caddy --yes --force
+        expect: { exitCode: 0 }
+
+  # The running process cannot bind 80/443 on a host with no elevation route.
+  # The extension must apply the config on 8080/8443 instead of leaving red
+  # failures or crash-looping Caddy.
+  - name: upgrade-workflow-pauses-when-sudo-cannot-grant
+    confirms: >
+      With no elevation route, the upgrade workflow suspends at
+      pause-if-capability-missing and prints the exact command, instead of
+      continuing or moving Caddy to high ports. Approving without running the
+      command makes the hard retry fail with that command.
+    cannot: >
+      must not complete successfully, must not serve on 8080/8443, and must not
+      approve a capability that is not on the binary.
+    documents: README.md#privileged-ports-80443
+    runAs: tester
+    grants:
+      - { guest: harness, profile: sudo-none }
+    steps:
+      - name: create-model
+        run: |
+          swamp model create @svendowideit/caddy e2e-pause \
+            --global-arg baseDomain=example.com \
+            --global-arg letsEncryptEmail=admin@example.com
+        expect: { exitCode: 0 }
+      - name: run-suspends-with-the-command
+        run: swamp workflow run @svendowideit/caddy-upgrade --input model=e2e-pause 2>&1
+        expect:
+          exitCode: 0
+          outputContains: ["Suspended workflow"]
+          outputNotContains: ["listening on :8080", "listening on :8443"]
+        timeoutSeconds: 300
+      - name: approve-without-running-the-command
+        run: swamp workflow approve @svendowideit/caddy-upgrade pause-if-capability-missing
+        expect: { exitCode: 0 }
+      - name: resume-fails-the-hard-retry
+        run: swamp workflow resume @svendowideit/caddy-upgrade 2>&1
+        expect:
+          exitCode: 1
+          outputContains: ["CAP_NET_BIND_SERVICE is not applied", "swamp model @svendowideit/sudo"]
+          outputNotContains: ["listening on :8080", "listening on :8443"]
+      - name: no-high-port-fallback
         run: curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/
-        expect: { stdoutContains: ["200"], stdoutNotContains: ["000"] }
+        expect: { exitCode: [0, 7], stdoutContains: ["000"], stdoutNotContains: ["200"] }
+

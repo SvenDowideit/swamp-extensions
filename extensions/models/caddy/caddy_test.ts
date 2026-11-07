@@ -3,6 +3,7 @@ import {
   assertEquals,
   assertRejects,
   assertStringIncludes,
+  assertThrows,
 } from "jsr:@std/assert@1";
 
 import {
@@ -26,7 +27,6 @@ import {
   configuredListens,
   DEFAULT_CADDY_PLUGINS,
   defaultStatusHostnames,
-  degradeConfigForUnprivileged,
   deriveHostname,
   deriveRouteDnsTls,
   desiredServingSettings,
@@ -36,7 +36,6 @@ import {
   dnsProviderFromEnvKeys,
   dnsProviderFromPlugins,
   dnsProviderPlugin,
-  effectiveServeSettings,
   ensureFileServerRoute,
   ensureRoute,
   ensureServerDefaults,
@@ -68,6 +67,7 @@ import {
   parseManifestVersion,
   parseModules,
   parseUpstream,
+  privilegedBindError,
   providerConfigFromEnvKeys,
   reconcileProxyServices,
   removeRouteFromConfig,
@@ -87,6 +87,7 @@ import {
   routeHostnames,
   routeId,
   routeUpstream,
+  selectUpgradeTargets,
   stalenessOf,
   statusPageHostnames,
   statusPageLinks,
@@ -282,26 +283,26 @@ Deno.test("renderMinimalConfig is a valid empty Caddyfile with defaults", () => 
   assertStringIncludes(cfg, "skip_install_trust");
 });
 
-Deno.test("isPrivilegedBindFailure and degradeConfigForUnprivileged handle a real :443 bind error", () => {
+Deno.test("isPrivilegedBindFailure detects a :443 bind error and never degrades", () => {
   const message =
     "loading new config: http app module: start: listening on :443: listen tcp :443: bind: permission denied";
   assertEquals(isPrivilegedBindFailure(message), true);
   assertEquals(isPrivilegedBindFailure("some other error"), false);
-  const degraded = degradeConfigForUnprivileged({
-    apps: {
-      http: {
-        servers: {
-          srv0: { listen: [":443", ":80"], routes: [] },
-        },
-      },
-    },
-  });
-  const server = ((degraded.apps as Record<string, unknown>).http as Record<
-    string,
-    unknown
-  >).servers as Record<string, Record<string, unknown>>;
-  assertEquals(server.srv0.listen, [":8443", ":8080"]);
-  assertEquals(server.srv0.automatic_https, { disable: true });
+  const err = privilegedBindError(
+    "caddy",
+    "caddy",
+    "/home/me/.local/bin/caddy",
+    ["cap_net_bind_service=ep"],
+  );
+  assertStringIncludes(err.message, "could not bind 80/443");
+  assertStringIncludes(
+    err.message,
+    "swamp model method run caddy restartService",
+  );
+  assertStringIncludes(
+    err.message,
+    "will not move the service to unprivileged ports",
+  );
 });
 
 Deno.test("rootTrustFailureHint names the stale-autosave recovery command", () => {
@@ -1619,6 +1620,83 @@ Deno.test("caddyTargetKey merges same host+service and separates others", () => 
   assert(
     caddyTargetKey("host-a", "caddy") !== caddyTargetKey("host-a", "caddy-2"),
   );
+});
+
+Deno.test("selectUpgradeTargets treats same-target models as one additive Caddy", () => {
+  const selection = selectUpgradeTargets(
+    [
+      { name: "caddy", target: "", serviceName: "caddy" },
+      { name: "news-caddy", target: "", serviceName: "caddy" },
+    ],
+    "",
+    true,
+  );
+  assertEquals(selection.targetCount, 1);
+  assertEquals(selection.group.map((m) => m.name), ["caddy", "news-caddy"]);
+  assertEquals(selection.upgradeModel, "caddy");
+});
+
+Deno.test("selectUpgradeTargets fails with commands for distinct Caddies", () => {
+  const err = assertThrows(
+    () =>
+      selectUpgradeTargets(
+        [
+          { name: "caddy", target: "", serviceName: "caddy" },
+          { name: "news-caddy", target: "", serviceName: "caddy" },
+          { name: "lab", target: "", serviceName: "caddy-lab" },
+        ],
+        "",
+        true,
+      ),
+    Error,
+  );
+  const message = err.message;
+  assertStringIncludes(message, "2 distinct Caddy targets");
+  assertStringIncludes(message, "caddy, news-caddy");
+  assertStringIncludes(message, "--input model=caddy");
+  assertStringIncludes(message, "--input model=lab");
+});
+
+Deno.test("selectUpgradeTargets fails instead of silently doing nothing", () => {
+  const err = assertThrows(
+    () => selectUpgradeTargets([], "", true),
+    Error,
+  );
+  assertStringIncludes(err.message, "nothing to upgrade");
+});
+
+Deno.test("selectUpgradeTargets honours an explicit model and its additive peers", () => {
+  const selection = selectUpgradeTargets(
+    [
+      { name: "caddy", target: "", serviceName: "caddy" },
+      { name: "news-caddy", target: "", serviceName: "caddy" },
+      { name: "lab", target: "", serviceName: "caddy-lab" },
+    ],
+    "news-caddy",
+    true,
+  );
+  assertEquals(selection.targetCount, 2);
+  assertEquals(selection.group.map((m) => m.name), ["caddy", "news-caddy"]);
+  assertEquals(selection.upgradeModel, "news-caddy");
+});
+
+Deno.test("selectUpgradeTargets rejects an unknown explicit model", () => {
+  const err = assertThrows(
+    () =>
+      selectUpgradeTargets(
+        [
+          { name: "caddy", target: "", serviceName: "caddy" },
+        ],
+        "typo",
+        true,
+      ),
+    Error,
+  );
+  assertStringIncludes(
+    err.message,
+    'No @svendowideit/caddy model named "typo"',
+  );
+  assertStringIncludes(err.message, "caddy");
 });
 
 Deno.test("mergeDesired unions routes from several models", () => {
@@ -3273,49 +3351,6 @@ Deno.test("buildReconciledConfig puts the manifest extension version on the stat
 // ---------------------------------------------------------------------------
 // Never reject: degrade to bindable ports so the config always loads
 // ---------------------------------------------------------------------------
-
-Deno.test("effectiveServeSettings keeps 80/443 when the binary can bind them", () => {
-  assertEquals(
-    effectiveServeSettings({
-      listenAddrs: [":443", ":80"],
-      autoHttps: "on",
-      canBindPrivilegedPorts: true,
-    }),
-    { listenAddrs: [":443", ":80"], autoHttps: "on", degraded: false },
-  );
-});
-
-Deno.test("effectiveServeSettings degrades 80/443 to unprivileged ports otherwise", () => {
-  const s = effectiveServeSettings({
-    listenAddrs: [":443", ":80"],
-    autoHttps: "on",
-    canBindPrivilegedPorts: false,
-  });
-  assertEquals(s.listenAddrs, [":8443", ":8080"]);
-  assertEquals(s.autoHttps, "off");
-  assertEquals(s.degraded, true);
-});
-
-Deno.test("effectiveServeSettings leaves already-unprivileged ports untouched", () => {
-  const s = effectiveServeSettings({
-    listenAddrs: [":8888", ":8443"],
-    autoHttps: "off",
-    canBindPrivilegedPorts: false,
-  });
-  assertEquals(s.listenAddrs, [":8888", ":8443"]);
-  assertEquals(s.autoHttps, "off");
-  assertEquals(s.degraded, false);
-});
-
-Deno.test("effectiveServeSettings degrades the default port set when none is given", () => {
-  const s = effectiveServeSettings({
-    listenAddrs: [],
-    autoHttps: "on",
-    canBindPrivilegedPorts: false,
-  });
-  assertEquals(s.listenAddrs, [":8443", ":8080"]);
-  assertEquals(s.degraded, true);
-});
 
 Deno.test("providerConfigFromEnvKeys maps a provider's field to the declared env var", () => {
   assertEquals(providerConfigFromEnvKeys("gandi", ["GANDI_BEARER_TOKEN"]), {

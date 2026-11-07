@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/caddy"
-version: "2026.11.07.5"
+version: "2026.11.07.7"
 description: >
   Caddy reverse-proxy and service management for a Linux host with systemd.
 
@@ -71,18 +71,21 @@ description: >
       # the capability as its own placed @svendowideit/sudo step (operation
       # setcap — never runModel, which cannot run on a worker), create/start the
       # service, configure TLS (provider inferred from plugins), apply DNS
-      # records, and install the status page. A single caddy model is set up
-      # automatically; with several it lists them.
+      # records, and install the status page. Models for the same Caddy are
+      # additive and set up together; only a repo with distinct Caddy instances
+      # needs --input model=<name> (and fails with the list otherwise).
       swamp workflow run @svendowideit/caddy-setup
 
-      # Upgrade the Caddy this repo manages after updating the extension. With a
-      # single caddy model it upgrades automatically (no name to remember); with
-      # several it lists them and stops without changing anything, printing the
-      # command for each. It prints a gap report (everything missing to serve:
-      # capability for 80/443, baseDomain, ACME email, TLS, DNS records) with the
-      # exact fix command for each, then rebuilds/restarts and applies TLS/DNS
-      # automatically. A stale autosave that replays the local-CA root-trust
-      # failure is recovered automatically; no manual steps.
+      # Upgrade the Caddy this repo manages after updating the extension. Models
+      # with the same (target, serviceName) are additive peers for one Caddy and
+      # are upgraded together with no name to remember. Only when the repo has
+      # models for different Caddy instances does the run require a model name,
+      # and it fails with the list plus the exact command instead of reporting
+      # success after skipping the work. It prints a gap report (everything
+      # missing to serve: capability for 80/443, baseDomain, ACME email, TLS, DNS
+      # records) with the exact fix command for each, then rebuilds/restarts and
+      # applies TLS/DNS automatically. A stale autosave that replays the local-CA
+      # root-trust failure is recovered automatically; no manual steps.
       swamp workflow run @svendowideit/caddy-upgrade
       swamp workflow run @svendowideit/caddy-upgrade --input model=my-caddy
 
@@ -305,23 +308,28 @@ description: >
 
     Update the extension (`swamp extension update`), then run the upgrade
     workflow. It reads the caddy model definitions on disk — you never need to
-    know a name: a single model is upgraded automatically, and when there are
-    several it lists them, changes nothing, and prints the command for each:
+    know a name. Models with the same (target, serviceName) are additive peers
+    for one Caddy and are upgraded together; only a repo with models for
+    different Caddy instances needs a model name, and then the run fails with
+    the list and the exact command (it does not report success after skipping
+    the work):
 
         swamp workflow run @svendowideit/caddy-upgrade
+        swamp workflow run @svendowideit/caddy-upgrade --input model=my-caddy
 
     Before changing anything it prints a gap report: every setting that stops
     Caddy serving (capability to bind 80/443, baseDomain, ACME email, TLS, DNS
     provider/records, a stale binary) with the exact command to fix each. It
     then runs the repair automatically: rebuilds the binary if stale, re-grants
-    the capability, recovers a stale autosave, regenerates the unit, restarts,
-    and applies TLS/DNS; and re-runs the gap report so you see what is left.
-    There is no approval gate and no manual recovery step for the default run.
-    The capability grant is verified after the sudo step: if the route exited 0
-    without actually applying setcap, the workflow stops at that one step with
-    the exact command rather than producing later red TLS/DNS failures. A
-    running process that still cannot bind 80/443 is served on 8080/8443
-    instead of crash-looping. Idempotent:
+    the capability, regenerates the unit, restarts, and applies TLS/DNS; and
+    re-runs the gap report so you see what is left. If the sudo grant fails, the
+    run pauses at `pause-if-capability-missing` with the exact command and the
+    reason; run it, then approve and resume. After the restart it measures the
+    running config; if Caddy is not on 80/443 it pauses at
+    `pause-if-not-serving` with the gaps and commands, then a hard re-check
+    follows. A run either ends on the configured 80/443 service or is paused or
+    failed with the reason — it never moves the service to 8080/8443.
+    Idempotent:
 
         swamp workflow run @svendowideit/caddy-upgrade --input model=my-caddy
 
@@ -334,6 +342,7 @@ description: >
     method argument, so the model's persistent allowlist is unchanged). Run
     that command, then resume the same run:
 
+        swamp workflow approve @svendowideit/caddy-upgrade pause-if-capability-missing
         swamp workflow resume @svendowideit/caddy-upgrade --run <run-id>
 
     Caddy's local CA no longer installs its root certificate automatically

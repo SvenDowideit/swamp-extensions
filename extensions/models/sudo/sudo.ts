@@ -838,7 +838,7 @@ function ladderReport(ladder: z.infer<typeof LadderEntrySchema>[]): string {
  */
 export const model = {
   type: "@svendowideit/sudo",
-  version: "2026.11.07.3",
+  version: "2026.11.07.4",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -941,6 +941,17 @@ export const model = {
         "`sudo setcap ...` command. The caddy-upgrade workflow can now fail " +
         "the grant and show that raw command instead of looping through the " +
         "same route. No schema or argument change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.4",
+      description:
+        "Fixes the setcap verifier's argv: `sh -c script name path` now passes " +
+        "the target path as $1. The .3 verifier passed the path as $0, so it " +
+        "read an empty path, failed with FileNotFoundError and reported " +
+        "needs-user-action even when setcap had worked. The verifier still " +
+        "requires xattr rootid 0, rejects a rootless/namespaced capability, and " +
+        "keeps the raw `sudo setcap ...` userCommand. No schema or argument change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1092,7 +1103,7 @@ export const model = {
             failureReason: reason,
           });
           throw new Error(
-            `${reason}\nRun this on the host, then retry:\n  ${userCommand}`,
+            `${reason}\n\nRun this exact command on the host, then retry:\n\n    ${userCommand}\n`,
           );
         }
 
@@ -1153,8 +1164,9 @@ export const model = {
           throw new Error(
             `Operation '${args.operation}' did not take effect (${outcome}).\n` +
               `Route: ${data.strategyUsed} (exit ${data.mechanismExitCode})\n` +
-              `Why: ${failureReason}\n` +
-              `Run this on the host, then retry:\n  ${data.userCommand}`,
+              `Why: ${failureReason}\n\n` +
+              `Run this exact command on the host, then retry:\n\n` +
+              `    ${data.userCommand}\n`,
           );
         }
         return { dataHandles: [handle] };

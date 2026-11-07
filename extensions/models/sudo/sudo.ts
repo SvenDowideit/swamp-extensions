@@ -118,6 +118,11 @@ const RunArgsSchema = z.object({
     "Typed arguments for the operation.",
   ),
   strategy: z.string().default("auto").describe("Pin one route, or 'auto'."),
+  allowedOperations: z.array(z.string()).default([]).describe(
+    "Extra operations allowed for this call, merged into the model's " +
+      "allowedOperations. Use this for opt-in operations such as setcap " +
+      "without rewriting the model's global allowlist.",
+  ),
   timeoutSeconds: z.number().int().positive().optional().describe(
     "Override the global execution timeout.",
   ),
@@ -798,7 +803,7 @@ function ladderReport(ladder: z.infer<typeof LadderEntrySchema>[]): string {
  */
 export const model = {
   type: "@svendowideit/sudo",
-  version: "2026.10.26.1",
+  version: "2026.11.07.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -862,6 +867,16 @@ export const model = {
         "PATH. Docker/podman/nerdctl probes on NixOS now prove host root " +
         "instead of failing on missing /bin/cat or /usr/bin/id. No schema or " +
         "resource-shape change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.1",
+      description:
+        "The `run` method gains an optional `allowedOperations` argument. " +
+        "It is merged into the model's global allowedOperations for that call, " +
+        "so a caller can grant an opt-in operation (for example setcap) " +
+        "without rewriting the model's persistent allowlist. Existing models " +
+        "and method calls are unchanged; an empty list behaves as before.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -943,12 +958,17 @@ export const model = {
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const g = context.globalArgs;
 
-        // An empty allowlist (the schema default) means "the narrow default
-        // set", so a bare model instance behaves as documented; a caller
-        // passing [] explicitly gets exactly that fallback too.
-        const allowed = g.allowedOperations.length > 0
+        // An empty global allowlist (the schema default) means "the narrow
+        // default set", so a bare model instance behaves as documented. A
+        // per-call allowedOperations list adds to it, so an opt-in operation
+        // (setcap, mount, …) can be granted for one call without rewriting the
+        // model's persistent global allowlist.
+        const globalAllowed = g.allowedOperations.length > 0
           ? g.allowedOperations
           : DEFAULT_ALLOWED_OPERATIONS;
+        const allowed = [
+          ...new Set([...globalAllowed, ...(args.allowedOperations ?? [])]),
+        ];
         if (!allowed.includes(args.operation)) {
           throw new Error(
             `Operation '${args.operation}' is not allowed. allowedOperations: ${

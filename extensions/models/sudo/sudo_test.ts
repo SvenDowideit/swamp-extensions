@@ -408,11 +408,54 @@ Deno.test("run rejects an operation outside allowedOperations", async () => {
           operation: "mount",
           args: { source: "/a", target: "/b" },
           strategy: "auto",
+          allowedOperations: [],
         },
         context as never,
       ),
     Error,
     "not allowed",
+  );
+});
+
+Deno.test("run's allowedOperations method arg adds an opt-in operation without replacing globals", async () => {
+  const { context } = testContext({ allowedOperations: [], strategyOrder: [] });
+  // setcap is opt-in, so without the method arg the allowlist gate refuses it.
+  await assertRejects(
+    () =>
+      model.methods.run.execute(
+        {
+          operation: "setcap",
+          args: {
+            path: "/tmp/caddy",
+            capabilities: "cap_net_bind_service=+ep",
+          },
+          strategy: "auto",
+          allowedOperations: [],
+        },
+        context as never,
+      ),
+    Error,
+    "not allowed",
+  );
+  // With the method arg it passes the allowlist gate and reaches route
+  // resolution (which fails here because the test has no strategy route):
+  // the global allowedOperations were not rewritten.
+  await assertRejects(
+    () =>
+      model.methods.run.execute(
+        {
+          operation: "setcap",
+          args: {
+            path: "/tmp/caddy",
+            capabilities: "cap_net_bind_service=+ep",
+          },
+          strategy: "auto",
+          allowedOperations: ["setcap"],
+        },
+        context as never,
+      ),
+    Error,
+    "No granted elevation route",
   );
 });
 
@@ -429,6 +472,7 @@ Deno.test("an empty allowlist falls back to the narrow default set", async () =>
           operation: "manageService",
           args: { unit: "x", action: "stop" },
           strategy: "auto",
+          allowedOperations: [],
         },
         context as never,
       ),
@@ -442,6 +486,7 @@ Deno.test("an empty allowlist falls back to the narrow default set", async () =>
           operation: "installFile",
           args: { src: "/a", dest: "/b" },
           strategy: "auto",
+          allowedOperations: [],
         },
         context as never,
       ),
@@ -455,7 +500,12 @@ Deno.test("run rejects an unknown operation id", async () => {
   await assertRejects(
     () =>
       model.methods.run.execute(
-        { operation: "nonsense", args: {}, strategy: "auto" },
+        {
+          operation: "nonsense",
+          args: {},
+          strategy: "auto",
+          allowedOperations: [],
+        },
         context as never,
       ),
     Error,

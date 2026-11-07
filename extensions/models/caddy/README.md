@@ -792,9 +792,9 @@ swamp model @svendowideit/sudo method run run sudo-caddy \
 ```
 
 **A privileged-port bind failure is never hidden by moving Caddy to high ports.**
-If the capability is not actually applied, the upgrade/setup workflow pauses at
-a manual-approval gate and prints the exact `@svendowideit/sudo` command. Run
-it, then approve to resume. If the restarted process still cannot bind 80/443,
+If the capability is not host-usable, the upgrade/setup workflow pauses at a
+manual-approval gate and prints the **raw host command**
+`sudo setcap cap_net_bind_service=+ep <path>`. Run it, then approve to resume. If the restarted process still cannot bind 80/443,
 the workflow stops with the journal, the `getcap` state and the checks to run.
 It never changes the service to `:8080`/`:8443`; an intentionally unprivileged
 deployment is configured explicitly with `autoHttps=off` and high `listenAddrs`,
@@ -802,14 +802,17 @@ not chosen silently on failure.
 
 Details:
 
-- `setCapabilities` is read-only by default: it checks the binary and prints
-  the exact **`@svendowideit/sudo`** command that grants the capability
-  (declared in this extension's `dependencies`, pulled automatically). Caddy
+- `setCapabilities` is read-only by default: it checks the binary, records the
+  placed **`@svendowideit/sudo`** step (declared in this extension's
+  `dependencies`, pulled automatically), and prints the **raw host**
+  `sudo setcap cap_net_bind_service=+ep <path>` command as the fallback. Caddy
   never calls `sudo` itself. The `caddy-setup` and `caddy-upgrade` workflows run
-  that command as their own placed step, passing the
-  `allowedOperations=["setcap"]` method argument, so the elevation happens on
-  the same host/worker and `setcap` (which is opt-in by default) is allowed
-  without rewriting the sudo model's persistent allowlist. The target is the
+  that placed step, passing the `allowedOperations=["setcap"]` method argument,
+  so the elevation happens on the same host/worker and `setcap` (which is opt-in
+  by default) is allowed without rewriting the sudo model's persistent
+  allowlist. If the route cannot elevate, or it exits 0 but writes a namespaced
+  capability (`rootid != 0`, e.g. a rootless `docker-run`), the raw command is
+  the user-facing fallback. The target is the
   `sudo-<sudoInstanceKey>` model (global `sudoInstanceKey`, default `default`),
   auto-created if absent.
 - **`getcap` is not proof that a process can bind 80/443.** A version-3
@@ -842,31 +845,30 @@ Details:
   proves the workflow re-applies it as host root and serves on `:443`.
 - **The workflow verifies the grant and pauses if it did not take.** The sudo
   step is allowed to fail. `grant-capability` calls the sudo `run` with
-  `requireSuccess=true`, so the sudo extension verifies `setcap` with `getcap`
-  on the host and fails if the effect is not there. The run then suspends at
-  `pause-if-capability-missing` with the exact command above and the reason from
-  the failed grant. Run it, then approve and resume. A hard
-  `setCapabilities require=true` re-check follows; if it still fails, the
-  workflow stops with that command. It never continues into a service that
-  cannot bind 80/443, and it never moves the service to high ports.
+  `requireSuccess=true`, so the sudo extension verifies the effect on the host
+  and fails if it is not there. The setcap verifier reads the
+  `security.capability` xattr rootid, not just `getcap`: a route that exits 0
+  but writes a namespaced capability (`rootid 1000`, e.g. the `docker-run`
+  route on a rootless daemon) is reported as `needs-user-action`, because the
+  host kernel ignores it. The run then suspends at
+  `pause-if-capability-missing` with the **raw host command**, not another
+  `swamp model` command. Run it, then approve and resume:
 
   ```sh
-  # The command is printed by the failed grant and by `setCapabilities`, e.g.:
-  swamp model @svendowideit/sudo method run run sudo-default \
-    --input operation=setcap \
-    --input requireSuccess=true \
-    --input 'allowedOperations:json=["setcap"]' \
-    --input 'args:json={"path":"/home/you/.local/bin/caddy","capabilities":"cap_net_bind_service=+ep"}'
+  # Printed by the failed grant and by the hard re-check. Run it on the host,
+  # as a user who can elevate (sudo or doas):
+  sudo setcap cap_net_bind_service=+ep /home/you/.local/bin/caddy
 
   # After running it, release the paused workflow:
   swamp workflow approve @svendowideit/caddy-upgrade pause-if-capability-missing
   swamp workflow resume @svendowideit/caddy-upgrade
   ```
 
-  The command targets the same `sudo-<sudoInstanceKey>` model the workflow uses,
-  so running it makes the workflow's next attempt succeed. If no elevation route
-  is granted at all, the sudo extension reports exactly what it tried and still
-  records `userCommand`; run
+  A hard `setCapabilities require=true` re-check follows; if it still fails, the
+  workflow stops with that raw command. It never continues into a service that
+  cannot bind 80/443, and it never moves the service to high ports. If no
+  elevation route is granted at all, the sudo extension reports exactly what it
+  tried and still records `userCommand`; run
   `swamp model @svendowideit/sudo method run probe sudo-<key>` to see the ladder.
 - **The config apply and the running-service check are hard.** `status-page`
   applies the desired server/routes; if the running process cannot bind 80/443

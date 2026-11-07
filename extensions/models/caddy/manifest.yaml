@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/caddy"
-version: "2026.11.07.10"
+version: "2026.11.07.11"
 description: >
   Caddy reverse-proxy and service management for a Linux host with systemd.
 
@@ -110,6 +110,10 @@ description: >
         --input operation=setcap \
         --input 'allowedOperations:json=["setcap"]' \
         --input 'args:json={"path":"/home/you/.local/bin/caddy","capabilities":"cap_net_bind_service=+ep"}'
+
+      # If no elevation route can apply it, run the raw command on the host,
+      # then resume the workflow (do not loop back through a swamp command):
+      sudo setcap cap_net_bind_service=+ep /home/you/.local/bin/caddy
 
       # Install the default status page that answers on http://localhost and
       # https://localhost (done automatically by installCaddy/startService).
@@ -345,11 +349,11 @@ description: >
     A DNS token is a secret, so the gap report names the model's environmentFile
     to write instead of asking for it over a signal.
 
-    If the capability step fails, the gap report prints the exact
-    @svendowideit/sudo command to run (targeting the model's
-    `sudo-<sudoInstanceKey>` model and passing the `allowedOperations ["setcap"]`
-    method argument, so the model's persistent allowlist is unchanged). Run
-    that command, then resume the same run:
+    If the capability step fails, the gap report prints the RAW host command
+    `sudo setcap cap_net_bind_service=+ep <path>`; the placed
+    @svendowideit/sudo step is attempted first, but a failed route or a
+    namespaced result (rootid != 0) must not send the user back through the
+    same route. Run the raw command, then resume the same run:
 
         swamp workflow approve @svendowideit/caddy-upgrade pause-if-capability-missing
         swamp workflow resume @svendowideit/caddy-upgrade --run <run-id>

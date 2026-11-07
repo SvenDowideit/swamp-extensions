@@ -4290,6 +4290,19 @@ export function capabilityGrantCommand(
     }"}'`;
 }
 
+/**
+ * The command the user must run themselves when no elevation route can apply
+ * the capability. This is deliberately the raw host command, not a `swamp
+ * model`/workflow command: a failed or namespaced capability grant must not
+ * send the user back into the same route that just produced it.
+ */
+export function rawCapabilityGrantCommand(
+  binPath: string,
+  capabilities: string[] = PRIVILEGED_PORT_CAPABILITIES,
+): string {
+  return `sudo setcap ${capabilities.join(" ")} ${binPath}`;
+}
+
 function pendingCapabilityGrant(
   context: MethodContext,
   binPath: string,
@@ -4298,13 +4311,9 @@ function pendingCapabilityGrant(
   if (capabilities.length === 0) {
     return { applied: true, detail: "no capabilities requested" };
   }
-  const command = capabilityGrantCommand(
-    context.globalArgs.sudoInstanceKey,
-    binPath,
-    capabilities,
-  );
+  const command = rawCapabilityGrantCommand(binPath, capabilities);
   context.logger?.info(
-    "Granting {caps} to {binPath} must be a placed step (runModel is unavailable on a worker): {command}",
+    "Granting {caps} to {binPath} is the placed @svendowideit/sudo step the workflow runs. If no route can elevate, run this on the host, then resume:\n  {command}",
     { caps: capabilities.join(" "), binPath, command },
   );
   return { applied: false, detail: command };
@@ -4547,10 +4556,8 @@ async function serviceFailureError(
     ? `\n\nThe service cannot bind 80/443. The binary ${binPath} reports: ${
       caps.join(" ") || "(none)"
     }.\n` +
-      `If the capability is missing, grant it:\n  ${
-        capabilityGrantCommand(g.sudoInstanceKey, binPath, [
-          "cap_net_bind_service=+ep",
-        ])
+      `If the capability is missing, run this on the host, then restart:\n  ${
+        rawCapabilityGrantCommand(binPath, ["cap_net_bind_service=+ep"])
       }\n` +
       `If it is present, the process was started before it was applied; restart it:\n` +
       `  swamp model method run ${modelName} restartService\n` +
@@ -5053,9 +5060,7 @@ async function applyConfig(
         g.serviceName,
         binPath,
         await readCapabilities(binPath),
-        capabilityGrantCommand(g.sudoInstanceKey, binPath, [
-          "cap_net_bind_service=+ep",
-        ]),
+        rawCapabilityGrantCommand(binPath, ["cap_net_bind_service=+ep"]),
         diagnosis,
       );
     }
@@ -6205,7 +6210,7 @@ type CheckContext = {
 /** Model definition for the Caddy reverse-proxy and service manager. */
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.11.07.10",
+  version: "2026.11.07.11",
   reports: ["@svendowideit/caddy-status"],
   globalArguments: GlobalArgsSchema,
   checks: {
@@ -6738,6 +6743,20 @@ export const model = {
         "reproduces the t440s rootid-1000 state, proves the direct bind fails, " +
         "then proves the workflow rewrites the xattr as host root and serves on " +
         ":443. No schema change; existing models upgrade with no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.11",
+      description:
+        "Capability failures now tell the user the raw host command " +
+        "`sudo setcap cap_net_bind_service=+ep <path>`, not another swamp model " +
+        "command. A docker-run/rootless route can exit 0 and getcap-verify while " +
+        "writing a namespaced capability (rootid != 0); the sudo extension's " +
+        ".4 setcap verifier rejects it, and caddy's pause/retry fallbacks print " +
+        "the raw command. Adds namespaced-capability-hard-retry-prints-the-raw-command, " +
+        "which sets the t440s rootid-1000 xattr and proves the hard re-check " +
+        "prints the raw command and does not apply a config. No schema change; " +
+        "existing models upgrade with no changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -8293,12 +8312,10 @@ export const model = {
           gaps.push({
             id: "cannot-bind-privileged-ports",
             message:
-              "Caddy cannot bind ports 80/443 (needed for the HTTP-01 certificate challenge): the binary lacks CAP_NET_BIND_SERVICE. Granting it is delegated to the @svendowideit/sudo extension.",
-            command: capabilityGrantCommand(
-              g.sudoInstanceKey,
-              binPath,
-              ["cap_net_bind_service=+ep"],
-            ),
+              "Caddy cannot bind ports 80/443 (needed for the HTTP-01 certificate challenge): the binary lacks a host-usable CAP_NET_BIND_SERVICE. The workflow's placed @svendowideit/sudo step tries to grant it; if no route can elevate, run the raw command below on the host.",
+            command: rawCapabilityGrantCommand(binPath, [
+              "cap_net_bind_service=+ep",
+            ]),
           });
         }
         if (canBind && processState.netBind === false) {

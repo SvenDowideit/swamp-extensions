@@ -1048,12 +1048,14 @@ Deno.test("setCapabilities never elevates in-process (no runModel)", async () =>
   assertEquals(captured.requiresSudo, true);
   assertEquals(captured.sudoModel, "sudo-default");
   const command = String(captured.command);
-  assert(command.includes("@svendowideit/sudo"));
-  assert(command.includes("run sudo-default"));
-  assert(command.includes("allowedOperations"));
-  assert(command.includes("setcap"));
-  // No bare `sudo setcap …` invocation is emitted any more.
-  assert(!command.includes("sudo setcap"));
+  // The user-facing fallback is the raw host command, not another swamp model
+  // command: a failed or namespaced capability grant must not loop the user
+  // back through the same route.
+  assert(command.includes("sudo setcap"));
+  assert(command.includes("cap_net_bind_service=+ep"));
+  assert(command.includes("/nonexistent/caddy"));
+  assert(!command.includes("@svendowideit/sudo"));
+  assert(!command.includes("swamp model"));
 });
 
 Deno.test("setCapabilities require fails with the exact command when not applied", async () => {

@@ -133,17 +133,17 @@ jobs:
     weight: 0
     allowFailure: true
   - name: pause-if-capability-missing
-    description: 'Interactive gate: the sudo grant failed, so CAP_NET_BIND_SERVICE is not proven on the binary. Pause, print the exact @svendowideit/sudo command and the reason from the failed grant step, and let the user run it and decide to resume or reject. Nothing has been changed on the running service yet.'
+    description: 'Interactive gate: the sudo grant failed, so CAP_NET_BIND_SERVICE is not host-usable on the binary. Pause, print the raw `sudo setcap` command and the reason from the failed grant step, and let the user run it and decide to resume or reject. Nothing has been changed on the running service yet.'
     guard: ${{ inputs.model == "" && data.latest("caddy-setup-scan", "targets").?attributes.?targetCount.orValue(0) != 1 }}
     task:
       type: manual_approval
       prompt: |
-        The sudo grant failed, so CAP_NET_BIND_SERVICE is not applied to the
+        The sudo grant failed, so CAP_NET_BIND_SERVICE is not host-usable on the
         Caddy binary. The failed grant step above prints the exact route, why it
-        failed, and the command to run (it starts with
-        `swamp model @svendowideit/sudo method run ...`). Run it, then approve
-        to re-check and continue. If you reject, the workflow stops without
-        changing the running service. It will never move Caddy to 8080/8443.
+        failed, and the raw command to run on the host (it starts with
+        `sudo setcap ...`). Run it, then approve to re-check and continue. If
+        you reject, the workflow stops without changing the running service. It
+        will never move Caddy to 8080/8443.
     dependsOn:
     - step: grant-capability
       condition:

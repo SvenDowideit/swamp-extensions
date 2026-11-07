@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/caddy"
-version: "2026.10.25.1"
+version: "2026.11.07.1"
 description: >
   Caddy reverse-proxy and service management for a Linux host with systemd.
 
@@ -42,12 +42,16 @@ description: >
 
   DEPENDENCIES
 
-    `@svendowideit/sudo` — pulled automatically. Granting CAP_NET_BIND_SERVICE so
-    the unprivileged user service can bind 80/443 (the setcap that caddy applies
-    after it writes a binary) is delegated to that extension's elevation ladder,
-    so caddy never calls `sudo` itself. Otherwise it needs only the swamp CLI, a
-    Linux host with systemd user services, and network access to caddyserver.com
-    to download the binary.
+    `@svendowideit/sudo` — pulled automatically, and this release needs
+    **2026.11.07.1 or newer** because the capability step uses that version's
+    `run` method `allowedOperations` argument. Update it explicitly when
+    upgrading an existing host: `swamp extension pull @svendowideit/sudo
+    --channel beta`. Granting CAP_NET_BIND_SERVICE so the unprivileged user
+    service can bind 80/443 (the setcap that caddy applies after it writes a
+    binary) is delegated to that extension's elevation ladder, so caddy never
+    calls `sudo` itself. Otherwise it needs only the swamp CLI, a Linux host
+    with systemd user services, and network access to caddyserver.com to
+    download the binary.
 
   RUN
 
@@ -99,8 +103,8 @@ description: >
       # own step driving the @svendowideit/sudo model — exactly what the
       # caddy-setup/caddy-upgrade workflows do. Path must be absolute.
       swamp model @svendowideit/sudo method run run sudo-caddy \
-        --global-arg 'allowedOperations:json=["setcap"]' \
         --input operation=setcap \
+        --input 'allowedOperations:json=["setcap"]' \
         --input 'args:json={"path":"/home/you/.local/bin/caddy","capabilities":"cap_net_bind_service=+ep"}'
 
       # Install the default status page that answers on http://localhost and
@@ -318,6 +322,14 @@ description: >
     confirm` then `swamp workflow resume @svendowideit/caddy-upgrade`. Secrets
     (a DNS token) are never collected over a signal — the gap report names the
     model's environmentFile to write instead.
+
+    If the capability step fails, the gap report prints the exact
+    @svendowideit/sudo command to run (targeting the model's
+    `sudo-<sudoInstanceKey>` model and passing the `allowedOperations ["setcap"]`
+    method argument, so the model's persistent allowlist is unchanged). Run
+    that command, then resume the same run:
+
+        swamp workflow resume @svendowideit/caddy-upgrade --run <run-id>
 
   WHAT IT INSTALLS
 

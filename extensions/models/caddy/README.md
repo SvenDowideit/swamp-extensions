@@ -125,6 +125,14 @@ declared state, the only wait is Caddy's own ACME issuance. To keep it short:
 swamp extension pull @svendowideit/caddy
 ```
 
+This release requires **`@svendowideit/sudo` 2026.11.07.1 or newer** — it uses
+that version's `run` method `allowedOperations` argument for the capability
+grant. On an existing host, update it explicitly:
+
+```sh
+swamp extension pull @svendowideit/sudo --channel beta
+```
+
 Requires Linux with systemd user services, and network access to
 `caddyserver.com` to download the binary. See
 [Requirements](#requirements) for details.
@@ -774,8 +782,8 @@ own workflow step — a caddy method cannot do it in-process because
 # by hand, run the @svendowideit/sudo model's `run` with operation `setcap`
 # (path must be absolute). setCapabilities only checks and reports.
 swamp model @svendowideit/sudo method run run sudo-caddy \
-  --global-arg 'allowedOperations:json=["setcap"]' \
   --input operation=setcap \
+  --input 'allowedOperations:json=["setcap"]' \
   --input 'args:json={"path":"/home/you/.local/bin/caddy","capabilities":"cap_net_bind_service=+ep"}'
 ```
 
@@ -789,19 +797,32 @@ is lost in the meantime.
 
 Details:
 
-- `setCapabilities` grants the capability by delegating `setcap` to the
-  **`@svendowideit/sudo`** extension (declared in this extension's
-  `dependencies`, pulled automatically): caddy never calls `sudo` itself. The
-  sudo extension resolves whichever elevation route the host already grants
-  (sudo, doas, polkit/run0, a held capability, a container runtime, …) and runs
-  `setcap` through it, so it works even without passwordless sudo. The target is
-  the `sudo-<sudoInstanceKey>` model (global `sudoInstanceKey`, default
-  `default`), auto-created if absent, with `setcap` added to that call's
-  allowlist because it is opt-in.
-- If no elevation route is granted, the sudo extension reports exactly what it
-  tried and the capability is not applied — the `capabilities` resource records
-  `applied: false` and the reason. Run `swamp model @svendowideit/sudo method run
-  probe sudo-<key>` to see the ladder on this host.
+- `setCapabilities` is read-only: it checks the binary and prints the exact
+  **`@svendowideit/sudo`** command that grants the capability (declared in this
+  extension's `dependencies`, pulled automatically). Caddy never calls `sudo`
+  itself. The `caddy-setup` and `caddy-upgrade` workflows run that command as
+  their own placed step, passing the `allowedOperations=["setcap"]` method
+  argument, so the elevation happens on the same host/worker and `setcap`
+  (which is opt-in by default) is allowed without rewriting the sudo model's
+  persistent allowlist. The target is the `sudo-<sudoInstanceKey>` model (global
+  `sudoInstanceKey`, default `default`), auto-created if absent.
+- If that grant step fails, the gap report / `setCapabilities` output has the
+  exact command to run. Run it, then resume the workflow:
+
+  ```sh
+  # The command is printed by the workflow and by `setCapabilities`, e.g.:
+  swamp model @svendowideit/sudo method run run sudo-default \
+    --input operation=setcap \
+    --input 'allowedOperations:json=["setcap"]' \
+    --input 'args:json={"path":"/home/you/.local/bin/caddy","capabilities":"cap_net_bind_service=+ep"}'
+
+  swamp workflow resume @svendowideit/caddy-upgrade --run <run-id>
+  ```
+
+  The command targets the same `sudo-<sudoInstanceKey>` model the workflow uses,
+  so running it makes the workflow's next attempt succeed. If no elevation route
+  is granted at all, the sudo extension reports exactly what it tried; run
+  `swamp model @svendowideit/sudo method run probe sudo-<key>` to see the ladder.
 - **Replacing the binary drops the capability.** `upgradeCaddy` and
   `installCaddy force=true` re-grant it automatically after writing a new
   binary; if you download a new binary by other means, re-run `setCapabilities`.

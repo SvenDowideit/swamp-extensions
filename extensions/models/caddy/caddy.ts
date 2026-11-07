@@ -710,6 +710,8 @@ const ConfigureStatusPageArgsSchema = z.object({
 
 const InstallOutputSchema = z.object({
   binPath: z.string(),
+  /** The @svendowideit/sudo model the capability grant should target. */
+  sudoModel: z.string(),
   version: z.string(),
   arch: z.string(),
   plugins: z.array(z.string()),
@@ -815,6 +817,8 @@ const UpgradeOutputSchema = z.object({
 
 const SetCapabilitiesOutputSchema = z.object({
   binPath: z.string(),
+  /** The @svendowideit/sudo model the capability grant should target. */
+  sudoModel: z.string(),
   capabilities: z.array(z.string()),
   changed: z.boolean(),
   applied: z.boolean(),
@@ -885,6 +889,10 @@ const UpgradeCheckOutputSchema = z.object({
   configInSync: z.boolean().default(false),
   serviceName: z.string(),
   serviceActive: z.boolean(),
+  /** The Caddy binary the capability grant must target. */
+  binPath: z.string(),
+  /** The @svendowideit/sudo model the capability grant should target. */
+  sudoModel: z.string(),
   canBindPrivilegedPorts: z.boolean(),
   missingModules: z.array(z.string()),
   baseDomain: z.string(),
@@ -3953,6 +3961,20 @@ async function readCapabilities(binPath: string): Promise<string[]> {
  *
  * This helper only reports the grant; it never calls runModel and never throws.
  */
+export function capabilityGrantCommand(
+  sudoInstanceKey: string,
+  binPath: string,
+  capabilities: string[],
+): string {
+  return `swamp model @svendowideit/sudo method run run sudo-` +
+    `${sudoInstanceKey} ` +
+    `--input operation=setcap ` +
+    `--input 'allowedOperations:json=["setcap"]' ` +
+    `--input 'args:json={"path":"${binPath}","capabilities":"${
+      capabilities.join(" ")
+    }"}'`;
+}
+
 function pendingCapabilityGrant(
   context: MethodContext,
   binPath: string,
@@ -3961,13 +3983,11 @@ function pendingCapabilityGrant(
   if (capabilities.length === 0) {
     return { applied: true, detail: "no capabilities requested" };
   }
-  const command = `swamp model @svendowideit/sudo method run run sudo-` +
-    `${context.globalArgs.sudoInstanceKey} ` +
-    `--global-arg 'allowedOperations:json=["setcap"]' ` +
-    `--input operation=setcap ` +
-    `--input 'args:json={"path":"${binPath}","capabilities":"${
-      capabilities.join(" ")
-    }"}'`;
+  const command = capabilityGrantCommand(
+    context.globalArgs.sudoInstanceKey,
+    binPath,
+    capabilities,
+  );
   context.logger?.info(
     "Granting {caps} to {binPath} must be a placed step (runModel is unavailable on a worker): {command}",
     { caps: capabilities.join(" "), binPath, command },
@@ -5529,7 +5549,7 @@ type CheckContext = {
 /** Model definition for the Caddy reverse-proxy and service manager. */
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.10.25.1",
+  version: "2026.11.07.1",
   reports: ["@svendowideit/caddy-status"],
   globalArguments: GlobalArgsSchema,
   checks: {
@@ -5849,7 +5869,7 @@ export const model = {
       toVersion: "2026.10.17.2",
       description:
         // swamp-quality-ignore long-line
-        'Caddy no longer elevates in-process. installCaddy\'s setCapabilities arg (now default false) and the setCapabilities method only check for CAP_NET_BIND_SERVICE and, when it is missing, report the exact placed step to run; neither calls context.runModel any more, because runModel is unavailable under swamp worker remote execution. Granting the capability is now its own workflow step in @svendowideit/caddy-setup and @svendowideit/caddy-upgrade: a model_method on @svendowideit/sudo (method run, operation setcap, globalArgs.allowedOperations ["setcap"]), so a workflow dispatched to a worker runs the elevation on that same worker. A workflow that uses a caddy model must add that step (or setCapabilities:false and grant the capability itself). No global argument or resource-shape change.',
+        "Caddy no longer elevates in-process. installCaddy's setCapabilities arg (now default false) and the setCapabilities method only check for CAP_NET_BIND_SERVICE and, when it is missing, report the exact placed step to run; neither calls context.runModel any more, because runModel is unavailable under swamp worker remote execution. Granting the capability is now its own workflow step in @svendowideit/caddy-setup and @svendowideit/caddy-upgrade: a model_method on @svendowideit/sudo (method run, operation setcap, with setcap added to the call's allowedOperations), so a workflow dispatched to a worker runs the elevation on that same worker. A workflow that uses a caddy model must add that step (or setCapabilities:false and grant the capability itself). No global argument or resource-shape change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
@@ -5878,6 +5898,29 @@ export const model = {
       description:
         // swamp-quality-ignore long-line
         "Adds the one-call addRoute method and per-model validation. addRoute(hostname, kind, upstream/root) is idempotent and delegates to ensureDnsProxy/serveSettings, so an agent can add a route without editing a Caddyfile or running the caddy binary. validateDesiredState now checks each model's baseDomain, listenAddrs, routeIp, routes, TLS subjects/provider env names, DNS records and adminApiAddr; an invalid model is logged by name as rejected and excluded from the merged config, while valid peers still apply. materializeDesired records a model's desired state without applying it, for plan/reconcile tests. The default status page now labels DNS-only and DNS+TLS names with their DNS value (instead of calling every name 'status page (this page)') and adds a Desired vs live drift section. The existing --resume persistence and DNS/TLS derivation are unchanged. No global argument changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.1",
+      description:
+        "Fixes the CAP_NET_BIND_SERVICE grant in caddy-setup/caddy-upgrade. " +
+        "Their grant-capability step now passes the allowedOperations=['setcap'] " +
+        "run-method argument to the @svendowideit/sudo model, which is required " +
+        "because setcap is opt-in; previously the step failed with 'Operation " +
+        "setcap is not allowed'. Unlike a globalArgs override, the method " +
+        "argument adds setcap without rewriting the sudo model's persistent " +
+        "allowlist. The step also " +
+        "targets the caddy model's sudo-<sudoInstanceKey> model and reads " +
+        "targets the caddy model's sudo-<sudoInstanceKey> model and reads " +
+        "binPath/sudoModel from the persistent install/capabilities/upgradeCheck " +
+        "resource instead of data.findBySpec(...)[0], which is run-scoped and " +
+        "failed on resume. caddy-setup gains a read-only check-capability step " +
+        "that prints the exact sudo command before the grant; upgradeCheck and " +
+        "setCapabilities now include binPath/sudoModel and print the exact " +
+        "command (the same one the workflow runs), so a failed grant has a " +
+        "copy-pasteable fix and the workflow can be resumed. install/setCapabilities/" +
+        "upgradeCheck resources gain sudoModel (and upgradeCheck gains binPath) " +
+        "additively.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -6150,6 +6193,7 @@ export const model = {
 
         const handle = await context.writeResource("install", "current", {
           binPath,
+          sudoModel: `sudo-${g.sudoInstanceKey}`,
           version: verified.version,
           arch,
           plugins,
@@ -6222,6 +6266,7 @@ export const model = {
           "current",
           {
             binPath,
+            sudoModel: `sudo-${g.sudoInstanceKey}`,
             capabilities: after,
             changed: !already,
             applied,
@@ -7310,8 +7355,11 @@ export const model = {
                   ".globalArguments.dnsRecords = [/* record objects */]",
                 )
               }  then  swamp model method run ${name} applyDnsRecords`,
-              setcapCmd:
-                `swamp model method run ${name} setCapabilities   # elevates via @svendowideit/sudo`,
+              setcapCmd: capabilityGrantCommand(
+                g.sudoInstanceKey,
+                binPath,
+                ["cap_net_bind_service=+ep"],
+              ),
               serviceCmd: `swamp model method run ${name} startService`,
             },
           );
@@ -7339,7 +7387,11 @@ export const model = {
             id: "cannot-bind-privileged-ports",
             message:
               "Caddy cannot bind ports 80/443 (needed for the HTTP-01 certificate challenge): the binary lacks CAP_NET_BIND_SERVICE. Granting it is delegated to the @svendowideit/sudo extension.",
-            command: `swamp model method run ${name} setCapabilities`,
+            command: capabilityGrantCommand(
+              g.sudoInstanceKey,
+              binPath,
+              ["cap_net_bind_service=+ep"],
+            ),
           });
         } else if (
           live.reachable && !live.httpsReady && g.autoHttps !== "off"
@@ -7528,6 +7580,8 @@ export const model = {
             configInSync,
             serviceName,
             serviceActive,
+            binPath,
+            sudoModel: `sudo-${g.sudoInstanceKey}`,
             canBindPrivilegedPorts: canBind,
             missingModules,
             baseDomain: g.baseDomain ?? "",

@@ -966,8 +966,11 @@ Deno.test("setCapabilities never elevates in-process (no runModel)", async () =>
   assertEquals(runModelCalls, 0);
   assertEquals(captured.applied, false);
   assertEquals(captured.requiresSudo, true);
+  assertEquals(captured.sudoModel, "sudo-default");
   const command = String(captured.command);
   assert(command.includes("@svendowideit/sudo"));
+  assert(command.includes("run sudo-default"));
+  assert(command.includes("allowedOperations"));
   assert(command.includes("setcap"));
   // No bare `sudo setcap …` invocation is emitted any more.
   assert(!command.includes("sudo setcap"));

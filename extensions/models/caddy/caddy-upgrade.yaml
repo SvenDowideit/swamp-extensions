@@ -94,7 +94,7 @@ jobs:
     task:
       type: model_method
       modelType: '@svendowideit/caddy'
-      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?upgradeModel.orValue("") }}'
+      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?upgradeModel.orValue(data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("")) }}'
       methodName: upgradeCheck
     dependsOn: []
     weight: 0
@@ -105,7 +105,7 @@ jobs:
     task:
       type: model_method
       modelType: '@svendowideit/caddy'
-      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?upgradeModel.orValue("") }}'
+      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?upgradeModel.orValue(data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("")) }}'
       methodName: installCaddy
       inputs:
         setCapabilities: false
@@ -124,7 +124,7 @@ jobs:
     task:
       type: model_method
       modelType: '@svendowideit/caddy'
-      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?upgradeModel.orValue("") }}'
+      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?upgradeModel.orValue(data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("")) }}'
       methodName: setCapabilities
     dependsOn:
     - step: install
@@ -134,11 +134,11 @@ jobs:
     allowFailure: true
   - name: grant-capability
     description: 'Re-grant CAP_NET_BIND_SERVICE (a replaced binary drops it). Its own placed step driving the @svendowideit/sudo model''s `run` method (operation `setcap`) with the allowedOperations ["setcap"] method argument, never a context.runModel call inside installCaddy: runModel is unavailable under swamp worker remote execution, whereas a placed model step dispatches to the worker, so the elevation happens on the same worker the workflow runs on. Skipped when the capability is already on the binary. check-capability above prints the exact manual command if this step cannot elevate.'
-    guard: '${{ (inputs.model == "" && data.latest("caddy-upgrade-scan", "targets").?attributes.?targetCount.orValue(0) != 1) || data.latest(inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").attributes.upgradeModel, "capability-command").?attributes.?applied.orValue(false) == true }}'
+    guard: '${{ (inputs.model == "" && data.latest("caddy-upgrade-scan", "targets").?attributes.?targetCount.orValue(0) != 1) || data.latest(inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?upgradeModel.orValue(data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("")), "capability-command").?attributes.?applied.orValue(false) == true }}'
     task:
       type: model_method
       modelType: '@svendowideit/sudo'
-      modelName: '${{ data.latest(inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").attributes.upgradeModel, "capability-command").attributes.sudoModel }}'
+      modelName: '${{ data.latest(inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?upgradeModel.orValue(data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("")), "capability-command").?attributes.?sudoModel.orValue("") }}'
       methodName: run
       inputs:
         operation: setcap
@@ -146,7 +146,7 @@ jobs:
         - setcap
         requireSuccess: true
         args:
-          path: '${{ data.latest(inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").attributes.upgradeModel, "capability-command").attributes.binPath }}'
+          path: '${{ data.latest(inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?upgradeModel.orValue(data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("")), "capability-command").?attributes.?binPath.orValue("") }}'
           capabilities: cap_net_bind_service=+ep
     dependsOn:
     - step: check-capability
@@ -163,7 +163,7 @@ jobs:
         The sudo grant failed, so CAP_NET_BIND_SERVICE is not host-usable on the
         Caddy binary. Run this exact command on the host:
 
-            sudo setcap cap_net_bind_service=+ep ${{ data.latest(inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").attributes.upgradeModel, "capability-command").?attributes.?binPath.orValue("<the Caddy binary path>") }}
+            sudo setcap cap_net_bind_service=+ep ${{ data.latest(inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?upgradeModel.orValue(data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("")), "capability-command").?attributes.?binPath.orValue("<the Caddy binary path>") }}
 
         Then approve and resume. The failed grant step above shows the route and
         reason. Rejecting leaves the running service untouched. The workflow
@@ -180,7 +180,7 @@ jobs:
     task:
       type: model_method
       modelType: '@svendowideit/caddy'
-      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?upgradeModel.orValue("") }}'
+      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?upgradeModel.orValue(data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("")) }}'
       methodName: setCapabilities
       inputs:
         require: true
@@ -196,7 +196,7 @@ jobs:
     task:
       type: model_method
       modelType: '@svendowideit/caddy'
-      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?upgradeModel.orValue("") }}'
+      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?upgradeModel.orValue(data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("")) }}'
       methodName: normalizeServingSettings
     dependsOn:
     - step: retry-capability
@@ -210,7 +210,7 @@ jobs:
     task:
       type: model_method
       modelType: '@svendowideit/caddy'
-      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?upgradeModel.orValue("") }}'
+      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?upgradeModel.orValue(data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("")) }}'
       methodName: createService
     dependsOn:
     - step: normalize-serving
@@ -224,7 +224,7 @@ jobs:
     task:
       type: model_method
       modelType: '@svendowideit/caddy'
-      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?upgradeModel.orValue("") }}'
+      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?upgradeModel.orValue(data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("")) }}'
       methodName: restartService
     dependsOn:
     - step: recreate-unit
@@ -238,7 +238,7 @@ jobs:
     task:
       type: model_method
       modelType: '@svendowideit/caddy'
-      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?upgradeModel.orValue("") }}'
+      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?upgradeModel.orValue(data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("")) }}'
       methodName: configureStatusPage
     dependsOn:
     - step: restart
@@ -252,7 +252,7 @@ jobs:
     task:
       type: model_method
       modelType: '@svendowideit/caddy'
-      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?upgradeModel.orValue("") }}'
+      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?upgradeModel.orValue(data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("")) }}'
       methodName: upgradeCheck
       inputs:
         requireServing: true
@@ -268,7 +268,7 @@ jobs:
     task:
       type: model_method
       modelType: '@svendowideit/caddy'
-      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?upgradeModel.orValue("") }}'
+      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?upgradeModel.orValue(data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("")) }}'
       methodName: configureTls
       inputs:
         dnsProvider: ${{ inputs.dnsProvider }}
@@ -285,7 +285,7 @@ jobs:
     task:
       type: model_method
       modelType: '@svendowideit/caddy'
-      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?upgradeModel.orValue("") }}'
+      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?upgradeModel.orValue(data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("")) }}'
       methodName: applyDnsRecords
     dependsOn:
     - step: tls
@@ -299,7 +299,7 @@ jobs:
     task:
       type: model_method
       modelType: '@svendowideit/caddy'
-      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?upgradeModel.orValue("") }}'
+      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?upgradeModel.orValue(data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("")) }}'
       methodName: upgradeCheck
     dependsOn:
     - step: dns

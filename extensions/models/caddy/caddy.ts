@@ -6210,7 +6210,7 @@ type CheckContext = {
 /** Model definition for the Caddy reverse-proxy and service manager. */
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.11.07.12",
+  version: "2026.11.07.13",
   reports: ["@svendowideit/caddy-status"],
   globalArguments: GlobalArgsSchema,
   checks: {
@@ -6772,6 +6772,18 @@ export const model = {
         "asserts the literal path command is in the approval output and that " +
         "'it starts with' is not. No schema change; existing models upgrade with " +
         "no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.13",
+      description:
+        "Fixes the workflow expression failure 'No such key: upgradeModel' on " +
+        "hosts with older caddy-upgrade-scan/caddy-setup-scan data. Every model " +
+        "selector now reads `.?attributes.?upgradeModel.orValue(firstModel)` and " +
+        "the capability-command fields are optional, so the workflows start even " +
+        "when the persisted scan data predates upgradeModel. The approval prompt " +
+        "still prints the literal raw `sudo setcap ... <binPath>` command. No " +
+        "schema change; existing models upgrade with no changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

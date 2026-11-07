@@ -1,4 +1,9 @@
-import { assert, assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
+import {
+  assert,
+  assertEquals,
+  assertRejects,
+  assertStringIncludes,
+} from "jsr:@std/assert@1";
 
 import {
   addRouteToConfig,
@@ -21,6 +26,7 @@ import {
   configuredListens,
   DEFAULT_CADDY_PLUGINS,
   defaultStatusHostnames,
+  degradeConfigForUnprivileged,
   deriveHostname,
   deriveRouteDnsTls,
   desiredServingSettings,
@@ -43,6 +49,7 @@ import {
   isDnsCredentialFailure,
   isGeneratedRoute,
   isHealthRoute,
+  isPrivilegedBindFailure,
   isRootTrustFailure,
   isStatusPageRoute,
   isSwampRoute,
@@ -273,6 +280,28 @@ Deno.test("renderMinimalConfig is a valid empty Caddyfile with defaults", () => 
   assertStringIncludes(cfg, "{");
   // A user service cannot answer sudo's root-cert install prompt; never try.
   assertStringIncludes(cfg, "skip_install_trust");
+});
+
+Deno.test("isPrivilegedBindFailure and degradeConfigForUnprivileged handle a real :443 bind error", () => {
+  const message =
+    "loading new config: http app module: start: listening on :443: listen tcp :443: bind: permission denied";
+  assertEquals(isPrivilegedBindFailure(message), true);
+  assertEquals(isPrivilegedBindFailure("some other error"), false);
+  const degraded = degradeConfigForUnprivileged({
+    apps: {
+      http: {
+        servers: {
+          srv0: { listen: [":443", ":80"], routes: [] },
+        },
+      },
+    },
+  });
+  const server = ((degraded.apps as Record<string, unknown>).http as Record<
+    string,
+    unknown
+  >).servers as Record<string, Record<string, unknown>>;
+  assertEquals(server.srv0.listen, [":8443", ":8080"]);
+  assertEquals(server.srv0.automatic_https, { disable: true });
 });
 
 Deno.test("rootTrustFailureHint names the stale-autosave recovery command", () => {
@@ -988,7 +1017,10 @@ Deno.test("setCapabilities never elevates in-process (no runModel)", async () =>
     },
     // deno-lint-ignore no-explicit-any
   } as any;
-  await model.methods.setCapabilities.execute({ quiet: true }, ctx);
+  await model.methods.setCapabilities.execute(
+    { quiet: true, require: false },
+    ctx,
+  );
 
   // A caddy method must never call runModel: it is unavailable under swamp
   // worker remote execution. Elevation is a placed workflow step instead, so
@@ -1004,6 +1036,33 @@ Deno.test("setCapabilities never elevates in-process (no runModel)", async () =>
   assert(command.includes("setcap"));
   // No bare `sudo setcap …` invocation is emitted any more.
   assert(!command.includes("sudo setcap"));
+});
+
+Deno.test("setCapabilities require fails with the exact command when not applied", async () => {
+  const ctx = {
+    globalArgs: {
+      caddyBinPath: "/nonexistent/caddy",
+      adminApiAddr: "localhost:2019",
+      configPath: "~/.config/caddy/Caddyfile",
+      autoHttps: "on",
+      listenAddrs: [":443", ":80"],
+      serviceName: "caddy",
+      plugins: [],
+      sudoInstanceKey: "default",
+    },
+    logger: { info: () => {}, warning: () => {} },
+    writeResource: () => Promise.resolve({ name: "capability-command" }),
+    // deno-lint-ignore no-explicit-any
+  } as any;
+  await assertRejects(
+    () =>
+      model.methods.setCapabilities.execute(
+        { quiet: true, require: true },
+        ctx,
+      ),
+    Error,
+    "CAP_NET_BIND_SERVICE is not applied",
+  );
 });
 
 Deno.test("defaultStatusHostnames is the default for configured names, minus routed", () => {

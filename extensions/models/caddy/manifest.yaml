@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/caddy"
-version: "2026.11.07.4"
+version: "2026.11.07.5"
 description: >
   Caddy reverse-proxy and service management for a Linux host with systemd.
 
@@ -317,7 +317,11 @@ description: >
     the capability, recovers a stale autosave, regenerates the unit, restarts,
     and applies TLS/DNS; and re-runs the gap report so you see what is left.
     There is no approval gate and no manual recovery step for the default run.
-    Idempotent:
+    The capability grant is verified after the sudo step: if the route exited 0
+    without actually applying setcap, the workflow stops at that one step with
+    the exact command rather than producing later red TLS/DNS failures. A
+    running process that still cannot bind 80/443 is served on 8080/8443
+    instead of crash-looping. Idempotent:
 
         swamp workflow run @svendowideit/caddy-upgrade --input model=my-caddy
 

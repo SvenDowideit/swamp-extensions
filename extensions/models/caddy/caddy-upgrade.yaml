@@ -146,6 +146,22 @@ jobs:
         type: completed
     weight: 0
     allowFailure: false
+  - name: verify-capability
+    description: Re-read the binary capability after the sudo grant. If the selected elevation route exited 0 but getcap/the root check shows it was not applied, fail here with the exact command so the workflow stops at one clear step instead of producing later red TLS/DNS failures.
+    guard: ${{ inputs.model == "" && data.latest("caddy-upgrade-scan", "targets").?attributes.?count.orValue(0) != 1 }}
+    task:
+      type: model_method
+      modelType: '@svendowideit/caddy'
+      modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("") }}'
+      methodName: setCapabilities
+      inputs:
+        require: true
+    dependsOn:
+    - step: grant-capability
+      condition:
+        type: completed
+    weight: 0
+    allowFailure: false
   - name: normalize-serving
     description: Make the model's automatic-HTTPS / listen-address settings match what it wants (public HTTPS) and what this host can do (bind 80/443), correcting and persisting them — e.g. leaving the unprivileged high-port preset now that the binary can bind privileged ports. Skipped when there is nothing to correct. (grant-capability above already restored CAP_NET_BIND_SERVICE, so there is no separate setcap here.)
     guard: ${{ inputs.model == "" && data.latest("caddy-upgrade-scan", "targets").?attributes.?count.orValue(0) != 1 }}
@@ -155,7 +171,7 @@ jobs:
       modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-upgrade-scan", "targets").?attributes.?firstModel.orValue("") }}'
       methodName: normalizeServingSettings
     dependsOn:
-    - step: grant-capability
+    - step: verify-capability
       condition:
         type: completed
     weight: 0

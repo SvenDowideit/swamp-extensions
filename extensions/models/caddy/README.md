@@ -573,7 +573,7 @@ it exposes, with its per-run arguments:
 | Method | Arguments | Purpose |
 | ------ | --------- | ------- |
 | `installCaddy` | `plugins` (array), `force` (boolean), `setCapabilities` (boolean, default false), `configureStatusPage` (boolean, default true) | Download the binary (with module packages compiled in — `caddy-host-dns` and `caddy-teapot-module` are always added), place it at `caddyBinPath`, verify it runs (`caddy version` + `caddy list-modules`), check for `CAP_NET_BIND_SERVICE` (see [Privileged ports](#privileged-ports-80443) — the grant is a separate workflow step, never a method), and install the status page + health contract when the admin API is up. **Rebuilds automatically when the existing binary is missing a wanted/built-in module** (not just when the file is absent). If it rebuilt a *running* service it restarts and waits for the service — failing with a `journalctl` hint if it did not come back (Caddy runs `--resume`, so a stale `autosave.json` can crash-loop it). The `install` resource reports `rebuilt`, `missingPluginsBeforeBuild`, and `restarted`. |
-| `setCapabilities` | `capabilities` (array), `binPath` (string), `quiet` (boolean) | Check for `CAP_NET_BIND_SERVICE` on the binary and, when it is missing, report the exact placed step that grants it (a `@svendowideit/sudo` `run` of operation `setcap`). It never elevates in-process — `context.runModel` is unavailable under swamp worker remote execution — so a workflow must run that step itself (`caddy-setup`/`caddy-upgrade` do). Records `applied`, `requiresSudo` and the command to run. |
+| `setCapabilities` | `capabilities` (array), `binPath` (string), `quiet` (boolean), `require` (boolean) | Check for `CAP_NET_BIND_SERVICE` on the binary and, when it is missing, report the exact placed step that grants it (a `@svendowideit/sudo` `run` of operation `setcap`). It never elevates in-process — `context.runModel` is unavailable under swamp worker remote execution — so a workflow must run that step itself (`caddy-setup`/`caddy-upgrade` do). Records `applied`, `requiresSudo` and the command. With `require=true` it throws that command when the capability was not actually applied, which is how the workflows verify a route that exited 0 without taking effect. Root counts as applied (it can bind without a file capability). |
 | `normalizeServingSettings` | none | Reconcile `autoHttps` / `listenAddrs` with what the model wants and what the host can do: once the binary can bind privileged ports (CAP_NET_BIND_SERVICE) and the model wants public HTTPS (`baseDomain` + ACME email), correct the unprivileged high-port / HTTPS-off preset back to `autoHttps=on`, `listenAddrs=[":443",":80"]` **and persist it to the model**. Idempotent; a no-op when already right. |
 | `configureStatusPage` | `title` (string), `extraLinks` (array of `{label,url}`), `disabled` (boolean) | Install (or, with `disabled=true`, remove) the status page answering `/` (200) on the status/default hostnames, plus the health contract (`/teapot` → 418, other → 404). Idempotent. |
 | `plan` | none | Read-only: for **one** Caddy, merge all its models' desired state, compute the config that would be applied, read the live config, and record desired/actual routes, `onlyDesired`/`onlyActual` drift, foreign routes, the desired DNS records, and both full configs for diffing. Changes nothing. |
@@ -787,17 +787,22 @@ is lost in the meantime.
 
 Details:
 
-- `setCapabilities` is read-only: it checks the binary and prints the exact
-  **`@svendowideit/sudo`** command that grants the capability (declared in this
-  extension's `dependencies`, pulled automatically). Caddy never calls `sudo`
-  itself. The `caddy-setup` and `caddy-upgrade` workflows run that command as
-  their own placed step, passing the `allowedOperations=["setcap"]` method
-  argument, so the elevation happens on the same host/worker and `setcap`
-  (which is opt-in by default) is allowed without rewriting the sudo model's
-  persistent allowlist. The target is the `sudo-<sudoInstanceKey>` model (global
-  `sudoInstanceKey`, default `default`), auto-created if absent.
-- If that grant step fails, the gap report / `setCapabilities` output has the
-  exact command to run. Run it, then resume the workflow:
+- `setCapabilities` is read-only by default: it checks the binary and prints
+  the exact **`@svendowideit/sudo`** command that grants the capability
+  (declared in this extension's `dependencies`, pulled automatically). Caddy
+  never calls `sudo` itself. The `caddy-setup` and `caddy-upgrade` workflows run
+  that command as their own placed step, passing the
+  `allowedOperations=["setcap"]` method argument, so the elevation happens on
+  the same host/worker and `setcap` (which is opt-in by default) is allowed
+  without rewriting the sudo model's persistent allowlist. The target is the
+  `sudo-<sudoInstanceKey>` model (global `sudoInstanceKey`, default `default`),
+  auto-created if absent.
+- **The workflow verifies the grant.** After the sudo step it runs
+  `setCapabilities require=true`. If the route exited 0 without `getcap` (or
+  root, which can bind without a capability) actually showing the capability,
+  the workflow fails at that one verify step with the exact command to run. If
+  the route fails outright, the workflow stops at the grant step; the preceding
+  `setCapabilities` output has the same command. Run it, then resume:
 
   ```sh
   # The command is printed by the workflow and by `setCapabilities`, e.g.:

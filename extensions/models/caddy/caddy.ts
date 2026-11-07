@@ -553,6 +553,12 @@ const SetCapabilitiesArgsSchema = z.object({
   quiet: z.boolean().default(false).describe(
     "Suppress the log message describing the command",
   ),
+  require: z.boolean().default(false).describe(
+    "Fail with the exact grant command when the capability is not actually " +
+      "present after the check. The upgrade/setup workflows set this after " +
+      "the sudo grant so a route that exits 0 without applying it cannot be " +
+      "mistaken for success.",
+  ),
 });
 
 const ServiceArgsSchema = z.object({
@@ -4500,6 +4506,37 @@ async function reloadServiceUnitAndRestart(g: GlobalArgs): Promise<void> {
  * expected behaviour, so it logs progress rather than failing; only a genuinely
  * missing credential stops, with an actionable message.
  */
+/** Whether a config load failed because the process cannot bind 80/443. */
+export function isPrivilegedBindFailure(message: string): boolean {
+  return /bind: permission denied/i.test(message) &&
+    /:(?:443|80)\b/.test(message);
+}
+
+/**
+ * The same config on the unprivileged fallback ports. Used when the running
+ * Caddy process cannot bind 80/443 despite what the file capability says
+ * (e.g. the capability was set after the process started, or the host route
+ * did not apply it). The extension owns the config, so it can safely serve the
+ * status page/API on :8080/:8443 instead of returning a red failure.
+ */
+export function degradeConfigForUnprivileged(config: CaddyConfig): CaddyConfig {
+  const next = structuredClone(config);
+  const apps = (next.apps ?? {}) as Record<string, unknown>;
+  const http = (apps.http ?? {}) as Record<string, unknown>;
+  const servers = (http.servers ?? {}) as Record<string, unknown>;
+  for (const value of Object.values(servers)) {
+    if (!value || typeof value !== "object") continue;
+    const server = value as Record<string, unknown>;
+    if (Array.isArray(server.listen)) {
+      server.listen = server.listen.map((p) =>
+        p === ":443" ? ":8443" : p === ":80" ? ":8080" : p
+      );
+    }
+    server.automatic_https = { disable: true };
+  }
+  return next;
+}
+
 async function applyConfig(
   context: MethodContext,
   g: GlobalArgs,
@@ -4510,6 +4547,17 @@ async function applyConfig(
     return;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    if (isPrivilegedBindFailure(message)) {
+      context.logger?.warning?.(
+        "Caddy could not bind 80/443 (the running process lacks CAP_NET_BIND_SERVICE); applying the config on 8080/8443 instead. Grant the capability to serve on 80/443.",
+      );
+      await writeConfig(
+        g.adminApiAddr,
+        degradeConfigForUnprivileged(config),
+        g.adminApiToken,
+      );
+      return;
+    }
     const canHeal = !!g.environmentFile && isDnsCredentialFailure(message) &&
       await isServiceActive(g.serviceName);
     if (!canHeal) {
@@ -5712,7 +5760,7 @@ type CheckContext = {
 /** Model definition for the Caddy reverse-proxy and service manager. */
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.11.07.4",
+  version: "2026.11.07.5",
   reports: ["@svendowideit/caddy-status"],
   globalArguments: GlobalArgsSchema,
   checks: {
@@ -6139,6 +6187,24 @@ export const model = {
         "workflow. No global argument or schema change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.07.5",
+      description:
+        "Verifies the capability grant instead of trusting the elevation " +
+        "route's exit code. setCapabilities gains `require` (default false) " +
+        "and treats root-or-capability as applied; caddy-setup and caddy-upgrade " +
+        "now run a post-grant setCapabilities(require=true) step that fails with " +
+        "the exact sudo command when the selected route exited 0 but did not " +
+        "apply setcap. The workflow therefore stops at one clear capability " +
+        "step instead of continuing into red status-page/TLS/DNS failures. As a " +
+        "second safety net, applyConfig catches a real " +
+        "'bind: permission denied' on :80/:443 and re-applies the same config " +
+        "on :8080/:8443 with automatic HTTPS disabled, so a running process " +
+        "that still lacks the capability keeps Caddy up rather than crash-looping. " +
+        "Adds test-factory coverage for the no-approval upgrade and the " +
+        "unprivileged fallback. No global argument change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     install: {
@@ -6446,7 +6512,12 @@ export const model = {
           ? { applied: true, detail: "already granted" }
           : await pendingCapabilityGrant(context, binPath, capabilities);
         const after = await readCapabilities(binPath);
-        const applied = capabilities.every((c) => after.includes(c));
+        // Root can bind 80/443 without a file capability; otherwise the
+        // requested capability must actually be present. This is the check the
+        // post-grant workflow step uses to catch an elevation route that exits
+        // 0 without applying setcap.
+        const applied = canBindPrivilegedPortsNow(after) ||
+          capabilities.every((c) => after.includes(c));
 
         if (!args.quiet) {
           if (applied) {
@@ -6479,6 +6550,13 @@ export const model = {
             checkedAt: new Date().toISOString(),
           },
         );
+        if (args.require && !applied) {
+          throw new Error(
+            `CAP_NET_BIND_SERVICE is not applied to ${binPath}; the selected ` +
+              `elevation route did not take effect. Run this command, then ` +
+              `resume the workflow:\n  ${result.detail}`,
+          );
+        }
         return { dataHandles: [handle] };
       },
     },

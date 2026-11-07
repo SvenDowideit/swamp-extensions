@@ -187,8 +187,8 @@ tests:
         run: |
           swamp model method run bad-1 ensureDnsProxy \
             --input hostname=https://bad-1.example.com/x --input upstream=127.0.0.1:8080
-          continueOnFailure: true
-          expect: { outputContains: ["rejected"] }
+        continueOnFailure: true
+        expect: { exitCode: 1, outputContains: ["rejected"] }
       - name: good-route-still-applies
         run: >
           swamp model method run e2e-caddy addRoute
@@ -249,8 +249,8 @@ tests:
         run: |
           swamp model method run bad-2 ensureDnsProxy \
             --input hostname=bad-2.example.com --input 'upstream=not a host'
-          continueOnFailure: true
-          expect: { outputContains: ["rejected"] }
+        continueOnFailure: true
+        expect: { exitCode: 1, outputContains: ["rejected"] }
       - name: good-route-still-applies
         run: >
           swamp model method run e2e-caddy addRoute
@@ -311,8 +311,8 @@ tests:
         run: |
           swamp model method run bad-3 serveSettings \
             --input hostname=bad-3.example.com --input root=relative/site
-          continueOnFailure: true
-          expect: { outputContains: ["rejected"] }
+        continueOnFailure: true
+        expect: { exitCode: 1, outputContains: ["rejected"] }
       - name: good-route-still-applies
         run: >
           swamp model method run e2e-caddy addRoute
@@ -373,7 +373,7 @@ tests:
       - name: stage-bad-model
         run: |
           swamp model method run bad-4 materializeDesired
-          expect: { exitCode: 0 }
+        expect: { exitCode: 0 }
       - name: good-route-still-applies
         run: >
           swamp model method run e2e-caddy addRoute
@@ -434,7 +434,7 @@ tests:
       - name: stage-bad-model
         run: |
           swamp model method run bad-5 materializeDesired
-          expect: { exitCode: 0 }
+        expect: { exitCode: 0 }
       - name: good-route-still-applies
         run: >
           swamp model method run e2e-caddy addRoute
@@ -495,7 +495,7 @@ tests:
       - name: stage-bad-model
         run: |
           swamp model method run bad-6 materializeDesired
-          expect: { exitCode: 0 }
+        expect: { exitCode: 0 }
       - name: good-route-still-applies
         run: >
           swamp model method run e2e-caddy addRoute
@@ -556,7 +556,7 @@ tests:
       - name: stage-bad-model
         run: |
           swamp model method run bad-7 materializeDesired
-          expect: { exitCode: 0 }
+        expect: { exitCode: 0 }
       - name: good-route-still-applies
         run: >
           swamp model method run e2e-caddy addRoute
@@ -617,7 +617,7 @@ tests:
       - name: stage-bad-model
         run: |
           swamp model method run bad-8 materializeDesired
-          expect: { exitCode: 0 }
+        expect: { exitCode: 0 }
       - name: good-route-still-applies
         run: >
           swamp model method run e2e-caddy addRoute
@@ -678,7 +678,7 @@ tests:
       - name: stage-bad-model
         run: |
           swamp model method run bad-9 materializeDesired
-          expect: { exitCode: 0 }
+        expect: { exitCode: 0 }
       - name: good-route-still-applies
         run: >
           swamp model method run e2e-caddy addRoute
@@ -739,7 +739,7 @@ tests:
       - name: stage-bad-model
         run: |
           swamp model method run bad-10 materializeDesired
-          expect: { exitCode: 0 }
+        expect: { exitCode: 0 }
       - name: good-route-still-applies
         run: >
           swamp model method run e2e-caddy addRoute
@@ -906,6 +906,15 @@ tests:
         run: swamp model method run e2e-sudo installCaddy
         expect: { exitCode: 0, outputNotContains: ["panic"] }
         timeoutSeconds: 300
+      - name: grant-capability
+        run: |
+          swamp model @svendowideit/sudo method run run sudo-default \
+            --input operation=setcap \
+            --input 'allowedOperations:json=["setcap"]' \
+            --input 'args:json={"path":"'"$HOME"'/.local/bin/caddy","capabilities":"cap_net_bind_service=+ep"}'
+        expect:
+          exitCode: 0
+          outputNotContains: ["not allowed", "No granted elevation route", "panic"]
       - name: create-and-start-service
         run: |
           swamp model method run e2e-sudo createService
@@ -949,6 +958,15 @@ tests:
         run: swamp model method run e2e-doas installCaddy
         expect: { exitCode: 0, outputNotContains: ["panic"] }
         timeoutSeconds: 300
+      - name: grant-capability
+        run: |
+          swamp model @svendowideit/sudo method run run sudo-default \
+            --input operation=setcap \
+            --input 'allowedOperations:json=["setcap"]' \
+            --input 'args:json={"path":"'"$HOME"'/.local/bin/caddy","capabilities":"cap_net_bind_service=+ep"}'
+        expect:
+          exitCode: 0
+          outputNotContains: ["not allowed", "No granted elevation route", "panic"]
       - name: create-and-start-service
         run: |
           swamp model method run e2e-doas createService
@@ -1204,3 +1222,77 @@ tests:
         expect:
           outputContains: ["No baseDomain is set"]
           outputNotContains: ["ready — nothing blocks"]
+
+  # ---- caddy-upgrade UX + unprivileged fallback (2026.11.07.4+) ------------
+  # The upgrade workflow must not require an approval gate or a manual recovery
+  # command, and it must leave Caddy active.
+  - name: upgrade-workflow-runs-without-approval
+    confirms: >
+      @svendowideit/caddy-upgrade runs to completion without suspending for
+      approval, and leaves the Caddy service active with its admin API
+      reachable.
+    cannot: >
+      must not suspend on a manual approval, print a manual recovery command,
+      or leave the service inactive.
+    documents: README.md#upgrade
+    steps:
+      - name: run-upgrade
+        run: swamp workflow run @svendowideit/caddy-upgrade --input model=e2e-caddy
+        expect:
+          exitCode: 0
+          outputNotContains: ["waiting approval", "Suspended workflow"]
+        timeoutSeconds: 300
+      - name: service-stays-active
+        run: systemctl --user is-active caddy
+        expect: { stdoutContains: ["active"] }
+      - name: admin-api-answers
+        run: curl -sf http://localhost:2019/config/ >/dev/null
+        expect: { exitCode: 0 }
+
+  # The running process cannot bind 80/443 on a host with no elevation route.
+  # The extension must apply the config on 8080/8443 instead of leaving red
+  # failures or crash-looping Caddy.
+  - name: unprivileged-caddy-degrades-to-high-ports
+    confirms: >
+      With no CAP_NET_BIND_SERVICE and no usable elevation route, Caddy still
+      starts and the status page is served on the unprivileged fallback port
+      instead of failing to bind 80/443.
+    cannot: >
+      must not crash-loop, leave the service inactive, or fail the config
+      application when it can serve on the fallback ports.
+    documents: README.md#privileged-ports-80443
+    runAs: tester
+    grants:
+      - { guest: harness, profile: user-tester }
+    steps:
+      - name: create-model
+        run: |
+          swamp model create @svendowideit/caddy e2e-unpriv \
+            --global-arg autoHttps=on \
+            --global-arg 'listenAddrs:json=[":443",":80"]' \
+            --global-arg baseDomain=example.com \
+            --global-arg letsEncryptEmail=admin@example.com
+        expect: { exitCode: 0, outputNotContains: ["panic"] }
+      - name: install
+        run: >
+          swamp model method run e2e-unpriv installCaddy
+          --input setCapabilities=false --input configureStatusPage=false
+        expect: { exitCode: 0, outputNotContains: ["panic"] }
+        timeoutSeconds: 300
+      - name: start
+        run: |
+          swamp model method run e2e-unpriv createService
+          swamp model method run e2e-unpriv startService
+        expect: { exitCode: 0, outputNotContains: ["panic"] }
+      - name: apply-config-falls-back
+        run: swamp model method run e2e-unpriv configureStatusPage
+        expect: { exitCode: 0, outputNotContains: ["panic"] }
+      - name: service-active
+        run: systemctl --user is-active caddy
+        expect: { stdoutContains: ["active"] }
+      - name: admin-config-uses-high-ports
+        run: curl -sf http://localhost:2019/config/ | grep -E '8080|8443'
+        expect: { exitCode: 0 }
+      - name: status-page-answers-on-8080
+        run: curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/
+        expect: { stdoutContains: ["200"], stdoutNotContains: ["000"] }

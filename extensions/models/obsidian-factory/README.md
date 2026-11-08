@@ -302,8 +302,11 @@ Obsidian factory**. The tick writes `.obsidian/plugins/obsidian-factory/data.jso
 with the repo path as the default when it is missing, so the button works after
 a reload without manual setup. Override the repo path, swamp binary, agent or
 model in **Settings → Community plugins → Obsidian Factory** if needed. The
-button runs the workflow with `execFile` (no shell), passes the current factory
-hash, and shows a notice when the tick starts and finishes.
+button runs the workflow with `spawn` (no shell), passes the current factory
+hash, and shows a persistent **status bar** entry: `Factory: ticking Ns`, then
+`Factory: done` or `Factory: failed`. The status bar opens the live **factory
+tick log**; the **Show factory tick log** command works too. On failure the log
+opens automatically.
 
 **From the CLI.**
 

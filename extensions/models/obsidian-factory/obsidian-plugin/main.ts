@@ -12,7 +12,7 @@ import {
   TextComponent,
   TFile,
 } from "obsidian";
-import { execFile } from "child_process";
+import { spawn } from "child_process";
 import { createHash } from "crypto";
 import { readFileSync } from "fs";
 import {
@@ -52,6 +52,12 @@ const DEFAULT_SETTINGS: FactorySettings = {
 export default class ObsidianFactoryPlugin extends Plugin {
   settings: FactorySettings = { ...DEFAULT_SETTINGS };
   private originalOpenLinkText: OpenLinkText | null = null;
+  private statusItem: HTMLElement | null = null;
+  private tickRunning = false;
+  private tickLog = "";
+  private tickLastLine = "";
+  private tickStartedAt = 0;
+  private tickTimer: number | null = null;
 
   override async onload(): Promise<void> {
     await this.loadSettings();
@@ -135,6 +141,16 @@ export default class ObsidianFactoryPlugin extends Plugin {
       () => void this.tickFactory(),
     );
     this.addSettingTab(new FactorySettingTab(this.app, this));
+
+    this.statusItem = this.addStatusBarItem();
+    this.statusItem.addClass("factory-status");
+    this.statusItem.setText("Factory: idle");
+    this.statusItem.addEventListener("click", () => this.showLog());
+    this.addCommand({
+      id: "show-tick-log",
+      name: "Show factory tick log",
+      callback: () => this.showLog(),
+    });
   }
 
   async loadSettings(): Promise<void> {
@@ -147,10 +163,16 @@ export default class ObsidianFactoryPlugin extends Plugin {
 
   private async tickFactory(): Promise<void> {
     await this.loadSettings();
+    if (this.tickRunning) {
+      new Notice("Factory tick is already running.");
+      this.showLog();
+      return;
+    }
     const repo = this.settings.repoPath.trim();
     if (!repo) {
+      this.setStatus("Factory: needs repo path");
       new Notice(
-        "Set the swamp repo path in Settings -> Community plugins -> Obsidian Factory.",
+        "The tick has no repo path. Run obsidian-board tick or set it in Settings -> Community plugins -> Obsidian Factory.",
       );
       return;
     }
@@ -179,25 +201,92 @@ export default class ObsidianFactoryPlugin extends Plugin {
     if (this.settings.model.trim()) {
       args.push("--input", `model=${this.settings.model.trim()}`);
     }
-    new Notice("Obsidian factory tick started.");
-    execFile(
+    this.tickLog = "";
+    this.tickLastLine = "";
+    this.tickRunning = true;
+    this.tickStartedAt = Date.now();
+    this.startTickTimer();
+    this.appendLog(
+      `$ ${this.settings.swampBinary || "swamp"} ${args.join(" ")}\n\n`,
+    );
+    new Notice(
+      "Obsidian factory tick started. Click the status bar for the log.",
+    );
+    const child = spawn(
       this.settings.swampBinary || "swamp",
       args,
-      { cwd: repo, maxBuffer: 10 * 1024 * 1024 },
-      (error, _stdout, stderr) => {
-        if (error) {
-          new Notice(
-            `Obsidian factory tick failed: ${
-              (stderr || error.message || "").slice(0, 300)
-            }`,
-          );
-        } else {
-          new Notice("Obsidian factory tick finished.");
-        }
-      },
+      { cwd: repo, env: process.env },
     );
+    child.stdout?.on("data", (data) => this.appendLog(data.toString()));
+    child.stderr?.on("data", (data) => this.appendLog(data.toString()));
+    child.on("error", (error) => this.finishTick(false, error.message));
+    child.on("close", (code) => {
+      this.finishTick(code === 0, `exit ${code ?? "unknown"}`);
+    });
   }
 
+  private setStatus(text: string): void {
+    this.statusItem?.setText(text);
+  }
+
+  private startTickTimer(): void {
+    this.stopTickTimer();
+    const tick = () => {
+      const seconds = Math.floor((Date.now() - this.tickStartedAt) / 1000);
+      const tail = this.tickLastLine
+        ? ` | ${this.tickLastLine.slice(0, 70)}`
+        : "";
+      this.setStatus(`Factory: ticking ${seconds}s${tail}`);
+    };
+    tick();
+    this.tickTimer = globalThis.setInterval(tick, 1000);
+  }
+
+  private stopTickTimer(): void {
+    if (this.tickTimer !== null) {
+      globalThis.clearInterval(this.tickTimer);
+      this.tickTimer = null;
+    }
+  }
+
+  private appendLog(text: string): void {
+    if (!text) return;
+    this.tickLog += text;
+    if (this.tickLog.length > 200_000) {
+      this.tickLog = this.tickLog.slice(-200_000);
+    }
+    const lines = text.split(/\r?\n/).map((line) => line.trim()).filter(
+      Boolean,
+    );
+    if (lines.length > 0) {
+      const ansi = new RegExp(
+        `${String.fromCharCode(27)}\\[[0-9;]*m`,
+        "g",
+      );
+      this.tickLastLine = lines[lines.length - 1].replace(ansi, "");
+    }
+  }
+
+  private finishTick(ok: boolean, detail: string): void {
+    this.tickRunning = false;
+    this.stopTickTimer();
+    this.setStatus(ok ? "Factory: done" : "Factory: failed");
+    this.appendLog(`\n${ok ? "✓" : "✗"} ${detail}\n`);
+    new Notice(
+      ok
+        ? "Factory tick finished. Click the status bar to read the log."
+        : `Factory tick failed: ${detail}`,
+    );
+    if (!ok) this.showLog();
+  }
+
+  private showLog(): void {
+    if (!this.tickLog) {
+      new Notice("No factory tick has run yet.");
+      return;
+    }
+    new TickLogModal(this.app, () => this.tickLog).open();
+  }
   override onunload(): void {
     if (this.originalOpenLinkText) {
       (this.app.workspace as unknown as WorkspaceWithOpenLinkText)
@@ -419,6 +508,35 @@ class CardDialog extends Modal {
         }
       }
     }
+  }
+}
+
+class TickLogModal extends Modal {
+  private logEl: HTMLElement | null = null;
+  private timer: number | null = null;
+
+  constructor(app: App, private getLog: () => string) {
+    super(app);
+  }
+
+  override onOpen(): void {
+    this.titleEl.setText("Factory tick log");
+    this.logEl = this.contentEl.createEl("pre", { cls: "factory-tick-log" });
+    this.refresh();
+    this.timer = globalThis.setInterval(() => this.refresh(), 500);
+  }
+
+  private refresh(): void {
+    if (!this.logEl) return;
+    const log = this.getLog();
+    this.logEl.setText(log || "No tick output yet.");
+    this.logEl.scrollTop = this.logEl.scrollHeight;
+  }
+
+  override onClose(): void {
+    if (this.timer !== null) globalThis.clearInterval(this.timer);
+    this.timer = null;
+    this.contentEl.empty();
   }
 }
 

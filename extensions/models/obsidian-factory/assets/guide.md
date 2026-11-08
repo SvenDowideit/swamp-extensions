@@ -72,7 +72,9 @@ button works after a reload without manual setup. Override the repo path, swamp
 binary or agent in **Settings → Community plugins → Obsidian Factory** if
 needed. The tick runs the board-first housekeeping, refreshes the queue and
 starts one agent to work the factory columns. The agent stops at your columns
-and never publishes.
+and never publishes. The status bar shows **ticking / done / failed**; click it
+or run **Show factory tick log** to read the live output. A failure opens the
+log automatically.
 
 ## Moving a card with buttons
 

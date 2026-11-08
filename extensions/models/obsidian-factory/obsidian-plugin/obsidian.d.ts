@@ -23,6 +23,7 @@ declare module "obsidian" {
       callback: () => void,
     ): HTMLElement;
     addSettingTab(tab: PluginSettingTab): void;
+    addStatusBarItem(): HTMLElement;
     loadData(): Promise<unknown>;
     saveData(data: unknown): Promise<void>;
   }

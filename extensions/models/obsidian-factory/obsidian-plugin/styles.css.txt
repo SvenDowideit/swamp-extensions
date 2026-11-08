@@ -51,3 +51,18 @@
   padding-top: 0.75rem;
   margin-bottom: 0.75rem;
 }
+
+.factory-status {
+  cursor: pointer;
+}
+
+.factory-tick-log {
+  max-height: 60vh;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-family: var(--font-monospace);
+  font-size: var(--font-ui-smaller);
+  background: var(--background-secondary);
+  padding: 0.75rem;
+  border-radius: var(--radius-s);
+}

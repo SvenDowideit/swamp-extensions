@@ -383,7 +383,7 @@ footer .ver{color:var(--acc)}
 <ul>
 <li><strong>Start:</strong> an idempotency key is required, scoped to person, client and workflow and kept on the run&#39;s record. A retry gets the first run, and other inpu</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/guide.md" rel="noopener">.claude/skills/swamp/references/workflow/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/local-dashboard.md" rel="noopener">design/surfaces/local-dashboard.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/guide.md" rel="noopener">.claude/skills/swamp/references/workflow/guide.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261106.213325.0-sha.15084752" rel="noopener">release v20261106.213325.0-sha.15084752</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/15084752e403573e9b573d9d91f8bfb8279c0246" rel="noopener">15084752</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3654" rel="noopener">#3654</a>𝗔 <a href="https://swamp-club.com/lab/4474" rel="noopener">lab#4474</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261106-204821-0-sha-087900af">
@@ -662,7 +662,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Serve&#39;s spans join the member&#39;s trace.</strong> Members send <code>traceparent</code>. Serve opens a datastore request&#39;s span after authentication and adopts only the trace and span ids; it keeps its own sampling decision, so a member can neither force nor suppress serve&#39;s recording. Authentication runs in its own root span, which the request span links to. A follower re-parents forwarded requests on its own span.</li>
 <li><strong>No command waits on telemetry (macOS and Linux).</strong> A command only appends its entry to the spool. When the spool has entries and no sender holds the sender lock, it starts a detached internal sender (spawned the way the Litestream supervisor is) and exits. The sender drains the spool with a per-request timeout and records the flush result. The repo id reaches it through its env, never argv. Windows</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/operations.md" rel="noopener">design/operations.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261106.094050.0-sha.fcdd7e60" rel="noopener">release v20261106.094050.0-sha.fcdd7e60</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/fcdd7e60eb7db24ab5de0cb7bdc7cfbc2e3eb750" rel="noopener">fcdd7e60</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3642" rel="noopener">#3642</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4374" rel="noopener">#4374</a>𝗔 <a href="https://swamp-club.com/lab/4457" rel="noopener">lab#4457</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261106-092615-0-sha-81aef049">
@@ -1134,7 +1134,7 @@ footer .ver{color:var(--acc)}
 <li><strong>A <code>hold</code> label (configurable) or the time limit:</strong> ends the watch with no transition.</li>
 <li><strong>Every case:</strong> writes a new <code>prWatch</code> record. If a nested step fails, it records that step a</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/github-pr/SKILL.md" rel="noopener">.claude/skills/github-pr/SKILL.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/issue-lifecycle/SKILL.md" rel="noopener">.claude/skills/issue-lifecycle/SKILL.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/issue-lifecycle/references/implementation.md" rel="noopener">.claude/skills/issue-lifecycle/references/implementation.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/extensions/models/README.md" rel="noopener">extensions/models/README.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/github-pr/SKILL.md" rel="noopener">.claude/skills/github-pr/SKILL.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261104.225848.0-sha.b42dd1ac" rel="noopener">release v20261104.225848.0-sha.b42dd1ac</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b42dd1ac63c899e1cba75efae9d7d3dd1ce96c11" rel="noopener">b42dd1ac</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3621" rel="noopener">#3621</a>𝗔 <a href="https://swamp-club.com/lab/4408" rel="noopener">lab#4408</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261104-223735-0-sha-c8544938">
@@ -2018,7 +2018,7 @@ footer .ver{color:var(--acc)}
 <li>The control-socket verbs (protocol 5/6) share the same checks:</li>
 <li><code>queryData</code> runs the same sorted query as a si</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution-telemetry.md" rel="noopener">design/enablers/remote-execution-telemetry.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261102.233404.0-sha.5105f268" rel="noopener">release v20261102.233404.0-sha.5105f268</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/5105f2684fc29247fbb8e55d0c8150a2d5d63d92" rel="noopener">5105f268</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3577" rel="noopener">#3577</a>𝗔 <a href="https://swamp-club.com/lab/4322" rel="noopener">lab#4322</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261102-230648-0-sha-fb59d890">
@@ -3298,7 +3298,7 @@ footer .ver{color:var(--acc)}
 <ul><li><strong>fix</strong> — 98</li><li><strong>feat</strong> — 25</li><li><strong>perf</strong> — 4</li><li><strong>docs</strong> — 3</li><li><strong>test</strong> — 3</li><li><strong>chore</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-08T01:03:10.408Z">2026-11-08T01:03:10.408Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-08T02:23:57.749Z">2026-11-08T02:23:57.749Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4506"><span class="tier A">A</span>feat(workflows): the fan-out lane engine: a fanOut job plans</a><a href="#issue-4161"><span class="tier A">A</span>deployment: getLogs method (deployment-aware pod log tailing</a><a href="#issue-4222"><span class="tier A">A</span>Add expiring service-account token requests and authorizatio</a><a href="#issue-4371"><span class="tier A">A</span>Agents.md: consider not using H1 &#39;Project&#39; inside managed bl</a><a href="#issue-4422"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-4461"><span class="tier A">A</span>Terminal report renderer prints HTML entities in table cells</a><a href="#issue-4486"><span class="tier A">A</span>Slackwater: integration registration and ceiling</a><a href="#issue-4497"><span class="tier A">A</span>Telemetry integration tests can fail verify-build by leaving</a><a href="#issue-4487"><span class="tier A">A</span>Slackwater: swamp-club link page, consent and the link email</a><a href="#issue-4492"><span class="tier A">A</span>verify-build can hang for up to an hour when test workers st</a><a href="#issue-4495"><span class="tier A">A</span>swamp workflow validate fails a repo because of a pulled ext</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4511"><span class="tier A">A</span>Observability never slows or breaks a command: the span expo</a><a href="#issue-4428"><span class="tier A">A</span>Cloudflare codegen: a self-referencing request body overflow</a><a href="#issue-4436"><span class="tier A">A</span>Cloudflare codegen: a oneOf/anyOf inside a multi-member allO</a><a href="#issue-4509"><span class="tier A">A</span>swamp dashboard: trusted-host / bind option so it can be rea</a><a href="#issue-4514"><span class="tier A">A</span>issue-lifecycle: code conformance review is the final gate b</a><a href="#issue-4504"><span class="tier A">A</span>A worker enrolling into a waiting queue can get its step bef</a><a href="#issue-4506"><span class="tier A">A</span>feat(workflows): the fan-out lane engine: a fanOut job plans</a><a href="#issue-4161"><span class="tier A">A</span>deployment: getLogs method (deployment-aware pod log tailing</a><a href="#issue-4222"><span class="tier A">A</span>Add expiring service-account token requests and authorizatio</a><a href="#issue-4371"><span class="tier A">A</span>Agents.md: consider not using H1 &#39;Project&#39; inside managed bl</a><a href="#issue-4422"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a></aside><div>
 
 <article class="item" id="issue-4239">
 <h2><span class="tier S">S</span>swamp issue: file bugs, features and security reports against the platform source</h2>
@@ -76,6 +76,54 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-4511">
+<h2><span class="tier A">A</span>Observability never slows or breaks a command: the span exporter caps its connections, and no command waits on telemetry or pays slower start-up (F36, F33 from #4374)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-08T02:21:07.778Z">2026-11-08T02:21:07.778Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4511" rel="noopener">lab#4511</a></div>
+</article>
+<article class="item" id="issue-4428">
+<h2><span class="tier A">A</span>Cloudflare codegen: a self-referencing request body overflows the stack in normalizeProperty</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-08T02:15:33.658Z">2026-11-08T02:15:33.658Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4428" rel="noopener">lab#4428</a></div>
+</article>
+<article class="item" id="issue-4436">
+<h2><span class="tier A">A</span>Cloudflare codegen: a oneOf/anyOf inside a multi-member allOf is dropped</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-08T02:15:33.468Z">2026-11-08T02:15:33.468Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4436" rel="noopener">lab#4436</a></div>
+</article>
+<article class="item" id="issue-4509">
+<h2><span class="tier A">A</span>swamp dashboard: trusted-host / bind option so it can be reached through a reverse proxy</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-08T02:11:51.139Z">2026-11-08T02:11:51.139Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4509" rel="noopener">lab#4509</a></div>
+</article>
+<article class="item" id="issue-4514">
+<h2><span class="tier A">A</span>issue-lifecycle: code conformance review is the final gate before the PR, after verification</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-08T01:08:05.882Z">2026-11-08T01:08:05.882Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4514" rel="noopener">lab#4514</a></div>
+</article>
+<article class="item" id="issue-4504">
+<h2><span class="tier A">A</span>A worker enrolling into a waiting queue can get its step before it can accept it, failing the step</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-08T01:03:52.780Z">2026-11-08T01:03:52.780Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4504" rel="noopener">lab#4504</a></div>
 </article>
 <article class="item" id="issue-4506">
 <h2><span class="tier A">A</span>feat(workflows): the fan-out lane engine: a fanOut job plans against serve&#39;s worker pool and runs one pinned lane per matching worker</h2>
@@ -117,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4422" rel="noopener">lab#4422</a></div>
 </article>
-<article class="item" id="issue-4461">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4461">
 <h2><span class="tier A">A</span>Terminal report renderer prints HTML entities in table cells: a &#39; in a header shows as &amp;#39;</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-07T21:50:38.935Z">2026-11-07T21:50:38.935Z</time></span></div>
@@ -165,7 +213,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4495" rel="noopener">lab#4495</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4485">
+<article class="item" id="issue-4485">
 <h2><span class="tier A">A</span>workflow approvals offers a person refused on their own run a cancel that serve refuses without admin</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-06T23:53:25.955Z">2026-11-06T23:53:25.955Z</time></span></div>
@@ -1661,45 +1709,21 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
-<article class="item" id="issue-4514">
-<h2><span class="tier B">B</span>issue-lifecycle: code conformance review is the final gate before the PR, after verification</h2>
+<article class="item" id="issue-4516">
+<h2><span class="tier B">B</span>feat(workflows): fan-out runs resume, retry and recover on their frozen plan, re-running only the lanes that did not succeed, and show the plan in log and JSON output</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-08T00:53:03.476Z">2026-11-08T00:53:03.476Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-08T02:19:41.186Z">2026-11-08T02:19:41.186Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4514" rel="noopener">lab#4514</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4516" rel="noopener">lab#4516</a></div>
 </article>
 <article class="item" id="issue-4512">
 <h2><span class="tier B">B</span>A member&#39;s behavior run rewrote its read model for 19 minutes (6.9 GB) and ignored SIGTERM (F37 from #4374)</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-08T00:51:59.794Z">2026-11-08T00:51:59.794Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-08T02:08:52.636Z">2026-11-08T02:08:52.636Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4512" rel="noopener">lab#4512</a></div>
-</article>
-<article class="item" id="issue-4509">
-<h2><span class="tier B">B</span>swamp dashboard: trusted-host / bind option so it can be reached through a reverse proxy</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-08T00:44:35.614Z">2026-11-08T00:44:35.614Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4509" rel="noopener">lab#4509</a></div>
-</article>
-<article class="item" id="issue-4511">
-<h2><span class="tier B">B</span>Observability never slows or breaks a command: the span exporter caps its connections, and no command waits on telemetry or pays slower start-up (F36, F33 from #4374)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-08T00:42:12.435Z">2026-11-08T00:42:12.435Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4511" rel="noopener">lab#4511</a></div>
-</article>
-<article class="item" id="issue-4504">
-<h2><span class="tier B">B</span>A worker enrolling into a waiting queue can get its step before it can accept it, failing the step</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-07T23:40:53.297Z">2026-11-07T23:40:53.297Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4504" rel="noopener">lab#4504</a></div>
 </article>
 <article class="item" id="issue-4465">
 <h2><span class="tier B">B</span>Dashboard data item page cannot show an item once its behavior definition is deleted, though the data remains</h2>
@@ -1733,7 +1757,23 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4374" rel="noopener">lab#4374</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4433">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4517">
+<h2><span class="tier C">C</span>Cloudflare codegen: a nested properties-beside-oneOf required list can be read as the PUT body&#39;s complete required list</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-08T02:08:53.226Z">2026-11-08T02:08:53.226Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4517" rel="noopener">lab#4517</a></div>
+</article>
+<article class="item" id="issue-4515">
+<h2><span class="tier C">C</span>Docs: swamp dashboard --port, --trusted-hosts and its new lifetime (swamp-club#4513, #4509)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-08T01:18:02.877Z">2026-11-08T01:18:02.877Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4515" rel="noopener">lab#4515</a></div>
+</article>
+<article class="item" id="issue-4433">
 <h2><span class="tier C">C</span>stagecraft tracker: tidy up external relations (duplicate entries, id case, second lookup)</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-11-07T21:32:59.237Z">2026-11-07T21:32:59.237Z</time></span></div>
@@ -1748,22 +1788,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4476" rel="noopener">lab#4476</a></div>
-</article>
-<article class="item" id="issue-4428">
-<h2><span class="tier C">C</span>Cloudflare codegen: a self-referencing request body overflows the stack in normalizeProperty</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-07T21:25:29.383Z">2026-11-07T21:25:29.383Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4428" rel="noopener">lab#4428</a></div>
-</article>
-<article class="item" id="issue-4436">
-<h2><span class="tier C">C</span>Cloudflare codegen: a oneOf/anyOf inside a multi-member allOf is dropped</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-07T21:25:21.335Z">2026-11-07T21:25:21.335Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4436" rel="noopener">lab#4436</a></div>
 </article>
 <article class="item" id="issue-4459">
 <h2><span class="tier C">C</span>Slackwater: let customers build integrations that drive workflows securely and auditably</h2>
@@ -2566,13 +2590,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>312 items across 1 source(s) in this window:
-1 critical, 198 notable, 9 routine,
+<p>315 items across 1 source(s) in this window:
+1 critical, 204 notable, 6 routine,
 104 minor.</p>
-<ul><li><strong>issues</strong> — 312</li></ul></section>
+<ul><li><strong>issues</strong> — 315</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-08T01:03:10.408Z">2026-11-08T01:03:10.408Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-08T02:23:57.749Z">2026-11-08T02:23:57.749Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

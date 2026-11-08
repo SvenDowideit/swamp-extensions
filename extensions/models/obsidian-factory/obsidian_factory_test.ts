@@ -1,6 +1,8 @@
 /**
  * Unit tests for the pure helpers in obsidian_factory.ts.
  */
+import archiveBase from "./assets/archive.base.yaml" with { type: "text" };
+import boardBase from "./assets/board.base.yaml" with { type: "text" };
 import {
   addEnabledPlugin,
   appendActivity,
@@ -1243,12 +1245,8 @@ Deno.test("the outcome enum is done, deleted or duplicate plus optional detail",
   assert(vault.notes.has(CARD_PATH), "card kept");
 });
 
-Deno.test("Archive.base shows only archived cards grouped by outcome", async () => {
-  const asset = async (name: string) =>
-    await Deno.readTextFile(
-      new URL(`./assets/${name}`, import.meta.url),
-    );
-  const archive = parseYaml(await asset("archive.base.yaml")) as {
+Deno.test("Archive.base shows only archived cards grouped by outcome", () => {
+  const archive = parseYaml(archiveBase) as {
     filters: { and: unknown[] };
     properties: Record<string, unknown>;
     views: Array<{
@@ -1288,7 +1286,7 @@ Deno.test("Archive.base shows only archived cards grouped by outcome", async () 
     );
   }
 
-  const board = parseYaml(await asset("board.base.yaml")) as {
+  const board = parseYaml(boardBase) as {
     filters: { and: unknown[] };
   };
   const boardFilters = JSON.stringify(board.filters);

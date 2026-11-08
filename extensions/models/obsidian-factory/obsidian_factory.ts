@@ -3828,7 +3828,7 @@ async function executeQueue(
 /** The tracker: stagecraft's contract 1 over an Obsidian board. */
 export const model = {
   type: "@svendowideit/obsidian-factory",
-  version: "2026.11.08.27",
+  version: "2026.11.08.28",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -4063,6 +4063,16 @@ export const model = {
         "unarchive workflows, the plugin's Archive and Unarchive commands and " +
         "dialog button with optional webhook settings. No global-argument or " +
         "resource schema changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.28",
+      description:
+        "Fix the Archive.base asset test to import the YAML as text instead " +
+        "of reading the filesystem, so the extension test suite runs without " +
+        "--allow-read. The plugin also pins pi's configured default " +
+        "provider/model when its model setting is empty, preventing a weak " +
+        "last-used local model from hallucinating the tick.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

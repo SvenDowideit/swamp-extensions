@@ -3194,18 +3194,20 @@ async function executeQueue(
     const newInput = terminal ? shouldReopenTerminal(card, column) : true;
     let releasePrepared = false;
     if (column === "Please Release" && run) {
-      const checks = await context.readModelData(
-        key,
-        "evidence-release-checks",
-      );
-      const reports = await context.readModelData(
-        key,
-        "evidence-release-report",
-      );
-      const releases = await context.readModelData(key, "evidence-release");
-      const check = checks.length > 0 ? checks[0].attributes : null;
-      releasePrepared = reports.length > 0 && releases.length === 0 &&
-        isRecord(check) && check.status === "passed";
+      const evidence = await context.readModelData(key, "evidence");
+      const find = (name: string) =>
+        evidence.find((item) => item.name === name);
+      const checks = find("evidence-release-checks");
+      const reports = find("evidence-release-report");
+      const releases = find("evidence-release");
+      const check = checks ? checks.attributes : null;
+      const payload = isRecord(check) && isRecord(check.payload)
+        ? check.payload
+        : null;
+      const passed = (isRecord(check) && check.status === "passed") ||
+        (payload !== null && payload.status === "passed");
+      releasePrepared = reports !== undefined && releases === undefined &&
+        passed;
     }
     const action = queueActionFor(
       column,
@@ -3249,7 +3251,7 @@ async function executeQueue(
 /** The tracker: stagecraft's contract 1 over an Obsidian board. */
 export const model = {
   type: "@svendowideit/obsidian-factory",
-  version: "2026.11.08.19",
+  version: "2026.11.08.20",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -3410,6 +3412,15 @@ export const model = {
       description:
         "Put the move buttons and Open in editor at the top of the card face " +
         "and the dialog, in one action row, as the person asked.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.20",
+      description:
+        "Fix the prepared-release wait: stagecraft evidence lives under the " +
+        "'evidence' spec, so look up evidence-release-checks/report/release " +
+        "by data name. A prepared Please Release card now waits for the human " +
+        "publish instead of rerunning checks.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -48,13 +48,15 @@ jobs:
         dependsOn: []
         weight: 0
         allowFailure: false
-      - name: queue
-        description: Refresh the card-column queue after the tick.
+      - name: brief
+        description: Read the board/queue and hand the agent a self-contained brief.
         task:
           type: model_method
           modelType: "@svendowideit/obsidian-factory"
           modelName: obsidian-board
-          methodName: queue
+          methodName: brief
+          inputs:
+            repo: ${{ inputs.repo }}
         dependsOn:
           - step: housekeeping
             condition:
@@ -72,22 +74,17 @@ jobs:
             workdir: ${{ inputs.repo }}
             agent: ${{ inputs.agent }}
             model: ${{ inputs.model }}
-            systemPrompt: |
-              You are the Obsidian factory tick agent. The card column is the
-              only source of truth; the work item stage is an internal ledger.
-              Read .agents/skills/obsidian-factory/SKILL.md and follow it.
-              Do not reset a work item for a card move. Do not publish.
-            prompt: |
-              Tick the Obsidian idea factory in this repo. Start by reading the
-              actual board columns and the queue. Act on every card in a factory
-              work column, wait on the person's columns, record progress, and
-              stop at any human gate. Do not run git push or swamp extension push.
+            systemPrompt: ${{ data.latest("obsidian-board", "brief").?attributes.?systemPrompt.orValue("") }}
+            prompt: ${{ data.latest("obsidian-board", "brief").?attributes.?prompt.orValue("") }}
         dependsOn:
-          - step: queue
+          - step: brief
             condition:
               type: succeeded
         weight: 0
         allowFailure: true
     dependsOn: []
     weight: 0
+reports:
+  require:
+    - "@svendowideit/obsidian-factory-tick-report"
 version: 1

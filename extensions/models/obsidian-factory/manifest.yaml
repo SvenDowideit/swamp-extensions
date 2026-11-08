@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/obsidian-factory"
-version: "2026.11.08.24"
+version: "2026.11.08.25"
 description: >
   An Obsidian Bases board that is a stagecraft tracker: ideas arrive on one
   uncharacterised card, become category cards and proposed actions, then move
@@ -120,6 +120,8 @@ dependencies:
   - "@maphew/agent-task"
 workflows:
   - workflows/obsidian-factory-tick.yaml
+reports:
+  - obsidian_factory_tick_report.ts
 additionalFiles:
   - README.md
   - LICENSE.txt

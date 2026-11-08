@@ -491,7 +491,7 @@ ${ok ? "\u2713" : "\u2717"} ${detail}
   async openCard(file) {
     try {
       const raw = await this.app.vault.read(file);
-      new CardDialog(this.app, file, readableCard(raw)).open();
+      new CardDialog(this.app, file, readableCard(raw), raw).open();
     } catch (error) {
       new import_obsidian.Notice(
         `Could not open ${file.basename}: ${error instanceof Error ? error.message : String(error)}`
@@ -499,11 +499,22 @@ ${ok ? "\u2713" : "\u2717"} ${detail}
     }
   }
 };
+async function copyToClipboard(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    new import_obsidian.Notice("Copied to clipboard");
+  } catch (error) {
+    new import_obsidian.Notice(
+      `Could not copy: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
+}
 var CardDialog = class extends import_obsidian.Modal {
-  constructor(app, file, card) {
+  constructor(app, file, card, raw) {
     super(app);
     this.file = file;
     this.card = card;
+    this.raw = raw;
   }
   onOpen() {
     this.modalEl.addClass("factory-card-dialog");
@@ -563,6 +574,10 @@ var CardDialog = class extends import_obsidian.Modal {
     const actions = this.contentEl.createDiv({
       cls: "factory-dialog-actions"
     });
+    const copy = actions.createEl("button", { text: "Copy card markdown" });
+    copy.addEventListener("click", () => {
+      void copyToClipboard(this.raw);
+    });
     const close = actions.createEl("button", { text: "Close" });
     close.addEventListener("click", () => this.close());
   }
@@ -599,21 +614,50 @@ var TickLogModal = class extends import_obsidian.Modal {
   }
   logEl = null;
   timer = null;
+  pauseButton = null;
+  paused = false;
+  lastLog = "";
   onOpen() {
     this.titleEl.setText("Factory tick log");
+    const actions = this.contentEl.createDiv({
+      cls: "factory-dialog-actions factory-tick-log-actions"
+    });
+    const copy = actions.createEl("button", { text: "Copy log" });
+    copy.addEventListener("click", () => {
+      void copyToClipboard(this.getLog());
+    });
+    this.pauseButton = actions.createEl("button", { text: "Pause" });
+    this.pauseButton.addEventListener("click", () => {
+      this.paused = !this.paused;
+      if (this.pauseButton) {
+        this.pauseButton.setText(this.paused ? "Resume" : "Pause");
+      }
+      if (!this.paused) this.refresh();
+    });
+    const close = actions.createEl("button", { text: "Close" });
+    close.addEventListener("click", () => this.close());
     this.logEl = this.contentEl.createEl("pre", { cls: "factory-tick-log" });
     this.refresh();
     this.timer = globalThis.setInterval(() => this.refresh(), 500);
   }
+  selectionInsideLog() {
+    const selection = document.getSelection();
+    if (!selection || selection.isCollapsed || !this.logEl) return false;
+    return this.logEl.contains(selection.anchorNode) || this.logEl.contains(selection.focusNode);
+  }
   refresh() {
-    if (!this.logEl) return;
+    if (!this.logEl || this.paused) return;
     const log = this.getLog();
+    if (log === this.lastLog) return;
+    this.lastLog = log;
+    if (this.selectionInsideLog()) return;
     this.logEl.setText(log || "No tick output yet.");
     this.logEl.scrollTop = this.logEl.scrollHeight;
   }
   onClose() {
     if (this.timer !== null) globalThis.clearInterval(this.timer);
     this.timer = null;
+    this.pauseButton = null;
     this.contentEl.empty();
   }
 };

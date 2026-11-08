@@ -66,3 +66,24 @@
   padding: 0.75rem;
   border-radius: var(--radius-s);
 }
+
+.factory-card-dialog,
+.factory-card-dialog *,
+.factory-tick-log,
+.factory-tick-log * {
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+.factory-card-dialog button,
+.factory-dialog-actions button {
+  user-select: none;
+  cursor: pointer;
+}
+
+.factory-tick-log-actions {
+  justify-content: flex-start;
+  border-top: none;
+  padding-top: 0;
+  margin-bottom: 0.5rem;
+}

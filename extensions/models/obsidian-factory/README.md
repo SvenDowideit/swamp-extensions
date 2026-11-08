@@ -291,9 +291,14 @@ person sees the decisions without scrolling.
 The extension ships `@svendowideit/obsidian-factory-tick`, a workflow that:
 
 1. runs `obsidian-board tick` (board first, then housekeeping),
-2. refreshes the queue,
-3. starts one headless agent with `@maphew/agent-task` (`run`), telling it to
-   read `.agents/skills/obsidian-factory/SKILL.md` and work the board columns.
+2. runs `obsidian-board brief`: it reads the board, writes the queue and builds
+   a self-contained prompt naming every card, its column and its action,
+3. starts one headless agent with `@maphew/agent-task` (`run`) using that brief.
+   The brief orders the agent to read `.agents/skills/obsidian-factory/SKILL.md`
+   first, act only on `work`/`claim` rows, and **not** read `context.md` or any
+   other unrelated project task file. A generic "tick the factory" prompt let
+   the agent wander into unrelated repository work; the brief removes that
+   ambiguity.
 
 The agent stops at the person's columns and never publishes.
 
@@ -306,7 +311,14 @@ button runs the workflow with `spawn` (no shell), passes the current factory
 hash, and shows a persistent **status bar** entry: `Factory: ticking Ns`, then
 `Factory: done` or `Factory: failed`. The status bar opens the live **factory
 tick log**; the **Show factory tick log** command works too. On failure the log
-opens automatically.
+opens automatically. The log has **Copy log** and **Pause** actions and its text
+is selectable; the card dialog has **Copy card markdown** and is also
+selectable, so either can go straight into an issue or a prompt.
+
+The workflow declares `@svendowideit/obsidian-factory-tick-report`. Its
+end-of-run summary is the board snapshot, every card's column/action, and the
+agent's duration, exit code and output — rather than only the three step names
+the generic workflow summary shows.
 
 **From the CLI.**
 

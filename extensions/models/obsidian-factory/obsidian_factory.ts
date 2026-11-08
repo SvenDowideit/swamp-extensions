@@ -244,6 +244,21 @@ const QueueSchema = z.object({
   timestamp: z.string(),
 });
 
+const BriefSchema = z.object({
+  prompt: z.string(),
+  systemPrompt: z.string(),
+  board: z.array(QueueCardSchema),
+  counts: z.object({
+    claim: z.number(),
+    work: z.number(),
+    reconcile: z.number(),
+    done: z.number(),
+    wait: z.number(),
+  }),
+  repo: z.string(),
+  timestamp: z.string(),
+});
+
 const TickSchema = z.object({
   board: z.array(QueueCardSchema),
   counts: z.object({
@@ -3211,6 +3226,103 @@ async function executeTick(
   return { dataHandles: [handle] };
 }
 
+/** Build the self-contained prompt the tick agent receives. */
+export function buildTickPrompt(
+  repo: string,
+  cards: Array<z.infer<typeof QueueCardSchema>>,
+  counts: z.infer<typeof QueueSchema>["counts"],
+): { prompt: string; systemPrompt: string } {
+  const work = cards.filter((card) =>
+    card.action === "work" || card.action === "claim"
+  );
+  const board = cards.map((card) =>
+    `- ${card.id} [${card.column}] action=${card.action} ` +
+    `stage=${card.stage || "-"} cycle=${card.cycle} ` +
+    `title=${JSON.stringify(card.title)}`
+  ).join("\n");
+  const workLines = work.length === 0
+    ? "- (none: every card is waiting on the person or is done)"
+    : work.map((card) =>
+      `- ${card.id} [${card.column}] action=${card.action} ` +
+      `stage=${card.stage || "-"} cycle=${card.cycle} ` +
+      `title=${JSON.stringify(card.title)} path=${card.path}`
+    ).join("\n");
+  const prompt = [
+    "You are the Obsidian factory tick agent. Work ONLY on the board in this",
+    "repository; do not work on any other project task.",
+    "",
+    `Repository: ${repo || "(the current working directory)"}`,
+    `Board snapshot: ${cards.length} cards ` +
+    `(${counts.work} work, ${counts.claim} claim, ${counts.wait} wait, ` +
+    `${counts.done} done).`,
+    "",
+    "Every card and its action:",
+    board || "- (the board is empty)",
+    "",
+    "Cards you must act on now:",
+    workLines,
+    "",
+    "RULES:",
+    "1. Your FIRST action is to read `.agents/skills/obsidian-factory/SKILL.md`",
+    "   in this repository and follow it. Load the stagecraft skill it names.",
+    "2. Do NOT read context.md, BLOG_PLAN.md, TODO.md, release-train.md, or",
+    "   any other project task/context file. They describe unrelated work.",
+    "   Do NOT use /testbed.",
+    "3. Act only on rows with action work or claim. wait and done are the",
+    "   person's columns: leave them untouched.",
+    "4. For each work row: read the card, do the column's work, use the",
+    "   obsidian-board behavior (never edit the vault by hand), record the",
+    "   stage artifact, update At a glance and Plan, and tick the Plan tasks",
+    "   and tests as you complete them.",
+    "5. A card move is the person's decision: do not reset, pause or ask for",
+    "   a legal transition. If the ledger disagrees with the column, the card",
+    "   wins.",
+    "6. Stop at Proposed, Work Planned and User Acceptance. Never publish.",
+    "7. At the end, print a short `Factory tick result` section naming every",
+    "   card you touched and what changed. If you could not do a card, say why.",
+    "",
+    "The queue is also available with:",
+    '  swamp data query \'behaviorName == "obsidian-board" && name == "queue"\' --select content --single --json',
+  ].join("\n");
+  const systemPrompt = [
+    "You are the Obsidian factory tick agent. Read",
+    "`.agents/skills/obsidian-factory/SKILL.md` first and follow it. The card",
+    "column is the only truth; the work item is an internal ledger. Do not read",
+    "context.md or unrelated project task files. Do not publish. Stop at the",
+    "person's columns.",
+  ].join("\n");
+  return { prompt, systemPrompt };
+}
+
+/** Read the board, write the queue and write the self-contained tick brief. */
+async function executeBrief(
+  args: { repo: string },
+  context: FactoryContext,
+): Promise<{
+  dataHandles: Array<{ name: string }>;
+  prompt: string;
+}> {
+  const queue = await executeQueue({}, context);
+  const { prompt, systemPrompt } = buildTickPrompt(
+    args.repo,
+    queue.cards,
+    queue.counts,
+  );
+  const handle = await context.writeResource("brief", "brief", {
+    prompt,
+    systemPrompt,
+    board: queue.cards,
+    counts: queue.counts,
+    repo: args.repo,
+    timestamp: nowIso(),
+  });
+  context.logger.info("Wrote tick brief for {count} cards ({work} to work)", {
+    count: queue.cards.length,
+    work: queue.counts.work + queue.counts.claim,
+  });
+  return { dataHandles: [handle], prompt };
+}
+
 async function executeQueue(
   args: { status?: string; kind?: CardKind },
   context: FactoryContext,
@@ -3324,7 +3436,7 @@ async function executeQueue(
 /** The tracker: stagecraft's contract 1 over an Obsidian board. */
 export const model = {
   type: "@svendowideit/obsidian-factory",
-  version: "2026.11.08.24",
+  version: "2026.11.08.25",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -3530,6 +3642,16 @@ export const model = {
         "under Obsidian's minimal PATH.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.25",
+      description:
+        "Add the brief method and resource: the tick hands the agent a " +
+        "self-contained board/queue snapshot and hard rules (read the factory " +
+        "skill, do not read unrelated project context, act only on work/claim " +
+        "rows). Add a workflow-scope tick report with board, queue and agent " +
+        "output; make the card and tick-log dialogs selectable and copyable.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     description: {
@@ -3554,6 +3676,13 @@ export const model = {
       description:
         "Every card with its board column, stagecraft stage and the next action",
       schema: QueueSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    brief: {
+      description:
+        "The self-contained prompt and board/queue snapshot handed to the tick agent",
+      schema: BriefSchema,
       lifetime: "infinite",
       garbageCollection: 10,
     },
@@ -3648,6 +3777,16 @@ export const model = {
         kind: z.enum(CARD_KINDS).optional(),
       }),
       execute: executeQueue,
+    },
+    brief: {
+      description:
+        "Write the self-contained tick brief: the board snapshot, the exact queue, and the rules for the agent. Replaces a generic prompt the agent can misread.",
+      arguments: z.object({
+        repo: z.string().default("").describe(
+          "Absolute path to the swamp repository the agent must work in",
+        ),
+      }),
+      execute: executeBrief,
     },
     tick: {
       description:

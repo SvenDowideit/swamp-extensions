@@ -61,8 +61,9 @@ once first. Click a card link in the native Kanban view (or run **Open factory
 card as dialog**).
 The dialog shows the title, **At a glance** (including **Needs your input**), the
 brief and the Plan. It omits frontmatter, the Definition section and the
-Activity log; **Open in editor** is the path to the rest. The plugin only reads
-the note.
+Activity log; **Open in editor** is the path to the rest. **Copy card markdown**
+copies the whole note for reuse, and the dialog text is selectable. The plugin
+only reads the note.
 
 ## Ticking the factory
 
@@ -70,10 +71,15 @@ Use the ribbon icon or the command **Tick the Obsidian factory**. The tick
 sets the plugin's default repo path in `data.json` when it is missing, so the
 button works after a reload without manual setup. Override the repo path, swamp
 binary or agent in **Settings → Community plugins → Obsidian Factory** if
-needed. The tick runs the board-first housekeeping, refreshes the queue and
-starts one agent to work the factory columns. The agent stops at your columns
-and never publishes. The status bar shows **ticking / done / failed**; click it
-or run **Show factory tick log** to read the live output. A failure opens the log automatically. The Tick process adds the common agent
+needed. The tick runs the board-first housekeeping, builds a brief that names
+the board and queue, and starts one agent to work the factory columns. The
+brief tells the agent to read the factory skill first and not to wander into
+unrelated project files. The agent stops at your columns and never publishes.
+The status bar shows **ticking / done / failed**; click it or run **Show factory
+tick log** to read the live output. The log has **Copy log** and **Pause** and
+is selectable; the card dialog has **Copy card markdown** and is selectable
+too. A failure opens the log automatically. The workflow report shows the
+board, queue and the agent output. The Tick process adds the common agent
 directories and nvm Node bins to PATH, so an agent that needs `node` can run
 even when Obsidian's own PATH is minimal.
 

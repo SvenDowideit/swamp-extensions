@@ -420,7 +420,7 @@ export default class ObsidianFactoryPlugin extends Plugin {
   private async openCard(file: TFile): Promise<void> {
     try {
       const raw = await this.app.vault.read(file);
-      new CardDialog(this.app, file, readableCard(raw)).open();
+      new CardDialog(this.app, file, readableCard(raw), raw).open();
     } catch (error) {
       new Notice(
         `Could not open ${file.basename}: ${
@@ -431,11 +431,25 @@ export default class ObsidianFactoryPlugin extends Plugin {
   }
 }
 
+async function copyToClipboard(text: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text);
+    new Notice("Copied to clipboard");
+  } catch (error) {
+    new Notice(
+      `Could not copy: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+}
+
 class CardDialog extends Modal {
   constructor(
     app: App,
     private file: TFile,
     private card: ReturnType<typeof readableCard>,
+    private raw: string,
   ) {
     super(app);
   }
@@ -504,6 +518,10 @@ class CardDialog extends Modal {
     const actions = this.contentEl.createDiv({
       cls: "factory-dialog-actions",
     });
+    const copy = actions.createEl("button", { text: "Copy card markdown" });
+    copy.addEventListener("click", () => {
+      void copyToClipboard(this.raw);
+    });
     const close = actions.createEl("button", { text: "Close" });
     close.addEventListener("click", () => this.close());
   }
@@ -544,6 +562,9 @@ class CardDialog extends Modal {
 class TickLogModal extends Modal {
   private logEl: HTMLElement | null = null;
   private timer: number | null = null;
+  private pauseButton: HTMLButtonElement | null = null;
+  private paused = false;
+  private lastLog = "";
 
   constructor(app: App, private getLog: () => string) {
     super(app);
@@ -551,14 +572,43 @@ class TickLogModal extends Modal {
 
   override onOpen(): void {
     this.titleEl.setText("Factory tick log");
+    const actions = this.contentEl.createDiv({
+      cls: "factory-dialog-actions factory-tick-log-actions",
+    });
+    const copy = actions.createEl("button", { text: "Copy log" });
+    copy.addEventListener("click", () => {
+      void copyToClipboard(this.getLog());
+    });
+    this.pauseButton = actions.createEl("button", { text: "Pause" });
+    this.pauseButton.addEventListener("click", () => {
+      this.paused = !this.paused;
+      if (this.pauseButton) {
+        this.pauseButton.setText(this.paused ? "Resume" : "Pause");
+      }
+      if (!this.paused) this.refresh();
+    });
+    const close = actions.createEl("button", { text: "Close" });
+    close.addEventListener("click", () => this.close());
+
     this.logEl = this.contentEl.createEl("pre", { cls: "factory-tick-log" });
     this.refresh();
     this.timer = globalThis.setInterval(() => this.refresh(), 500);
   }
 
+  private selectionInsideLog(): boolean {
+    const selection = document.getSelection();
+    if (!selection || selection.isCollapsed || !this.logEl) return false;
+    return this.logEl.contains(selection.anchorNode) ||
+      this.logEl.contains(selection.focusNode);
+  }
+
   private refresh(): void {
-    if (!this.logEl) return;
+    if (!this.logEl || this.paused) return;
     const log = this.getLog();
+    if (log === this.lastLog) return;
+    this.lastLog = log;
+    // Never destroy a selection the user is making while the tick streams.
+    if (this.selectionInsideLog()) return;
     this.logEl.setText(log || "No tick output yet.");
     this.logEl.scrollTop = this.logEl.scrollHeight;
   }
@@ -566,6 +616,7 @@ class TickLogModal extends Modal {
   override onClose(): void {
     if (this.timer !== null) globalThis.clearInterval(this.timer);
     this.timer = null;
+    this.pauseButton = null;
     this.contentEl.empty();
   }
 }

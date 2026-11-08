@@ -6,6 +6,7 @@ import {
   appendActivity,
   appendBullet,
   applyManagedSections,
+  buildTickPrompt,
   cardDisplay,
   cardMatches,
   cardSummary,
@@ -713,4 +714,81 @@ Deno.test("validateRelation refuses self, duplicate parent and cycles", () => {
     "a ticket with duplicates cannot become one",
     "duplicate with duplicates",
   );
+});
+
+Deno.test("buildTickPrompt makes the agent act only on work cards", () => {
+  const cards = [
+    {
+      id: "fac-12",
+      display: "fac-12 Inventory",
+      title: "Inventory ESPHome devices",
+      kind: "action" as const,
+      column: "Please Plan",
+      path: "Factory/Cards/fac-12.md",
+      project: "",
+      key: "fac-12",
+      stage: "plan",
+      cycle: 1,
+      era: "e",
+      terminal: false,
+      moves: ["Work Planned"],
+      action: "work" as const,
+    },
+    {
+      id: "fac-5",
+      display: "fac-5 Tick",
+      title: "Tick webhook",
+      kind: "action" as const,
+      column: "User Acceptance",
+      path: "Factory/Cards/fac-5.md",
+      project: "",
+      key: "fac-5",
+      stage: "acceptance",
+      cycle: 1,
+      era: "e",
+      terminal: false,
+      moves: [],
+      action: "wait" as const,
+    },
+  ];
+  const { prompt, systemPrompt } = buildTickPrompt("/repo", cards, {
+    claim: 0,
+    work: 1,
+    reconcile: 0,
+    done: 0,
+    wait: 1,
+  });
+  assert(prompt.includes("fac-12"), "work card is named");
+  assert(prompt.includes("Cards you must act on now"), "work section");
+  assert(prompt.includes("Do NOT read context.md"), "context file refused");
+  assert(prompt.includes("Do NOT use /testbed"), "testbed refused");
+  assert(
+    prompt.includes(".agents/skills/obsidian-factory/SKILL.md"),
+    "skill first",
+  );
+  assert(systemPrompt.includes("only truth"), "system prompt states the truth");
+  assert(
+    !prompt.includes("fac-5 [User Acceptance] action=wait\n"),
+    "wait not in work list",
+  );
+});
+
+Deno.test("buildTickPrompt explains an all-waiting board", () => {
+  const { prompt } = buildTickPrompt("/repo", [{
+    id: "fac-1",
+    display: "fac-1",
+    title: "Waiting",
+    kind: "action" as const,
+    column: "Proposed",
+    path: "Factory/Cards/fac-1.md",
+    project: "",
+    key: "fac-1",
+    stage: "",
+    cycle: 0,
+    era: "",
+    terminal: false,
+    moves: [],
+    action: "wait" as const,
+  }], { claim: 0, work: 0, reconcile: 0, done: 0, wait: 1 });
+  assert(prompt.includes("every card is waiting"), "all-waiting note");
 });

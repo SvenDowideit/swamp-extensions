@@ -3251,7 +3251,7 @@ async function executeQueue(
 /** The tracker: stagecraft's contract 1 over an Obsidian board. */
 export const model = {
   type: "@svendowideit/obsidian-factory",
-  version: "2026.11.08.20",
+  version: "2026.11.08.21",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -3421,6 +3421,14 @@ export const model = {
         "'evidence' spec, so look up evidence-release-checks/report/release " +
         "by data name. A prepared Please Release card now waits for the human " +
         "publish instead of rerunning checks.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.21",
+      description:
+        "Add the tick workflow and the plugin Tick action: housekeeping, " +
+        "queue, then one @maphew/agent-task run. The plugin gets settings for " +
+        "repo path, swamp binary, agent and model, plus a ribbon/command.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

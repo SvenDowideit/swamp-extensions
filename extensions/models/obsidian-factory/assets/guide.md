@@ -64,6 +64,14 @@ brief and the Plan. It omits frontmatter, the Definition section and the
 Activity log; **Open in editor** is the path to the rest. The plugin only reads
 the note.
 
+## Ticking the factory
+
+Use the ribbon icon or the command **Tick the Obsidian factory**. Set the swamp
+repo path, swamp binary and agent in **Settings → Community plugins → Obsidian
+Factory**. The tick runs the board-first housekeeping, refreshes the queue and
+starts one agent to work the factory columns. The agent stops at your columns
+and never publishes.
+
 ## Moving a card with buttons
 
 The optional plugin shows the documented normal moves as buttons at the top of

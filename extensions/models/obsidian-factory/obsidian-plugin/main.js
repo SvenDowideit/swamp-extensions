@@ -23,6 +23,9 @@ __export(main_exports, {
 });
 module.exports = __toCommonJS(main_exports);
 var import_obsidian = require("obsidian");
+var import_child_process = require("child_process");
+var import_crypto = require("crypto");
+var import_fs = require("fs");
 
 // model.ts
 function stripFrontmatter(raw) {
@@ -157,9 +160,17 @@ function readableCard(raw) {
 }
 
 // main.ts
+var DEFAULT_SETTINGS = {
+  repoPath: "",
+  swampBinary: "swamp",
+  agent: "pi",
+  model: ""
+};
 var ObsidianFactoryPlugin = class extends import_obsidian.Plugin {
+  settings = { ...DEFAULT_SETTINGS };
   originalOpenLinkText = null;
-  onload() {
+  async onload() {
+    await this.loadSettings();
     this.registerDomEvent(document, "click", (event) => {
       void this.onClick(event);
     }, true);
@@ -213,6 +224,70 @@ var ObsidianFactoryPlugin = class extends import_obsidian.Plugin {
       this.decorateCards();
     }));
     workspaceEvents.onLayoutReady(() => this.decorateCards());
+    this.addCommand({
+      id: "tick-factory",
+      name: "Tick the Obsidian factory",
+      callback: () => {
+        void this.tickFactory();
+      }
+    });
+    this.addRibbonIcon(
+      "refresh-cw",
+      "Tick the Obsidian factory",
+      () => void this.tickFactory()
+    );
+    this.addSettingTab(new FactorySettingTab(this.app, this));
+  }
+  async loadSettings() {
+    this.settings = { ...DEFAULT_SETTINGS, ...await this.loadData() };
+  }
+  async saveSettings() {
+    await this.saveData(this.settings);
+  }
+  tickFactory() {
+    const repo = this.settings.repoPath.trim();
+    if (!repo) {
+      new import_obsidian.Notice(
+        "Set the swamp repo path in Settings -> Community plugins -> Obsidian Factory."
+      );
+      return;
+    }
+    const factory = `${repo.replace(/\/+$/, "")}/models/@swamp/stagecraft/factory/obsidian-idea-factory.yaml`;
+    let factoryDefinition = "";
+    try {
+      factoryDefinition = (0, import_crypto.createHash)("sha256").update((0, import_fs.readFileSync)(factory)).digest("hex");
+    } catch {
+      new import_obsidian.Notice(`Could not read ${factory}; ticking without a repin hash.`);
+    }
+    const args = [
+      "workflow",
+      "run",
+      "@svendowideit/obsidian-factory-tick",
+      "--input",
+      `repo=${repo}`,
+      "--input",
+      `factoryDefinition=${factoryDefinition}`,
+      "--input",
+      `agent=${this.settings.agent || "pi"}`
+    ];
+    if (this.settings.model.trim()) {
+      args.push("--input", `model=${this.settings.model.trim()}`);
+    }
+    new import_obsidian.Notice("Obsidian factory tick started.");
+    (0, import_child_process.execFile)(
+      this.settings.swampBinary || "swamp",
+      args,
+      { cwd: repo, maxBuffer: 10 * 1024 * 1024 },
+      (error, _stdout, stderr) => {
+        if (error) {
+          new import_obsidian.Notice(
+            `Obsidian factory tick failed: ${(stderr || error.message || "").slice(0, 300)}`
+          );
+        } else {
+          new import_obsidian.Notice("Obsidian factory tick finished.");
+        }
+      }
+    );
   }
   onunload() {
     if (this.originalOpenLinkText) {
@@ -403,6 +478,43 @@ var CardDialog = class extends import_obsidian.Modal {
         }
       }
     }
+  }
+};
+var FactorySettingTab = class extends import_obsidian.PluginSettingTab {
+  plugin;
+  constructor(app, plugin) {
+    super(app, plugin);
+    this.plugin = plugin;
+  }
+  display() {
+    const { containerEl } = this;
+    containerEl.empty();
+    new import_obsidian.Setting(containerEl).setName("Swamp repo path").setDesc("Absolute path to the swamp repository that owns the board.").addText(
+      (text) => text.setPlaceholder("/home/me/src/swamp-project").setValue(this.plugin.settings.repoPath).onChange(async (value) => {
+        this.plugin.settings.repoPath = value.trim();
+        await this.plugin.saveSettings();
+      })
+    );
+    new import_obsidian.Setting(containerEl).setName("Swamp binary").setDesc("The swamp executable used by the Tick button.").addText(
+      (text) => text.setPlaceholder("swamp").setValue(this.plugin.settings.swampBinary).onChange(async (value) => {
+        this.plugin.settings.swampBinary = value.trim() || "swamp";
+        await this.plugin.saveSettings();
+      })
+    );
+    new import_obsidian.Setting(containerEl).setName("Agent").setDesc(
+      "Headless agent for the tick: pi, claude, codex, opencode or kilo."
+    ).addText(
+      (text) => text.setPlaceholder("pi").setValue(this.plugin.settings.agent).onChange(async (value) => {
+        this.plugin.settings.agent = value.trim() || "pi";
+        await this.plugin.saveSettings();
+      })
+    );
+    new import_obsidian.Setting(containerEl).setName("Model").setDesc("Optional provider/model for the agent; empty uses its default.").addText(
+      (text) => text.setPlaceholder("").setValue(this.plugin.settings.model).onChange(async (value) => {
+        this.plugin.settings.model = value.trim();
+        await this.plugin.saveSettings();
+      })
+    );
   }
 };
 module.exports = module.exports.default || module.exports;

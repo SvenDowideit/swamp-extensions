@@ -1,7 +1,20 @@
 // @ts-nocheck: Obsidian resolves the module at runtime; the local obsidian.d.ts is for the editor and esbuild bundles the file.
 /// <reference lib="dom" />
 /// <reference path="./obsidian.d.ts" />
-import { App, MarkdownRenderer, Modal, Notice, Plugin, TFile } from "obsidian";
+import {
+  App,
+  MarkdownRenderer,
+  Modal,
+  Notice,
+  Plugin,
+  PluginSettingTab,
+  Setting,
+  TextComponent,
+  TFile,
+} from "obsidian";
+import { execFile } from "child_process";
+import { createHash } from "crypto";
+import { readFileSync } from "fs";
 import {
   isCardPath,
   movesForStatus,
@@ -22,10 +35,26 @@ type OpenLinkText = (
 
 type WorkspaceWithOpenLinkText = { openLinkText: OpenLinkText };
 
+interface FactorySettings {
+  repoPath: string;
+  swampBinary: string;
+  agent: string;
+  model: string;
+}
+
+const DEFAULT_SETTINGS: FactorySettings = {
+  repoPath: "",
+  swampBinary: "swamp",
+  agent: "pi",
+  model: "",
+};
+
 export default class ObsidianFactoryPlugin extends Plugin {
+  settings: FactorySettings = { ...DEFAULT_SETTINGS };
   private originalOpenLinkText: OpenLinkText | null = null;
 
-  override onload(): void {
+  override async onload(): Promise<void> {
+    await this.loadSettings();
     this.registerDomEvent(document, "click", (event) => {
       void this.onClick(event);
     }, true);
@@ -92,6 +121,80 @@ export default class ObsidianFactoryPlugin extends Plugin {
       this.decorateCards();
     }));
     workspaceEvents.onLayoutReady(() => this.decorateCards());
+
+    this.addCommand({
+      id: "tick-factory",
+      name: "Tick the Obsidian factory",
+      callback: () => {
+        void this.tickFactory();
+      },
+    });
+    this.addRibbonIcon(
+      "refresh-cw",
+      "Tick the Obsidian factory",
+      () => void this.tickFactory(),
+    );
+    this.addSettingTab(new FactorySettingTab(this.app, this));
+  }
+
+  async loadSettings(): Promise<void> {
+    this.settings = { ...DEFAULT_SETTINGS, ...(await this.loadData()) };
+  }
+
+  async saveSettings(): Promise<void> {
+    await this.saveData(this.settings);
+  }
+
+  private tickFactory(): void {
+    const repo = this.settings.repoPath.trim();
+    if (!repo) {
+      new Notice(
+        "Set the swamp repo path in Settings -> Community plugins -> Obsidian Factory.",
+      );
+      return;
+    }
+    const factory = `${
+      repo.replace(/\/+$/, "")
+    }/models/@swamp/stagecraft/factory/obsidian-idea-factory.yaml`;
+    let factoryDefinition = "";
+    try {
+      factoryDefinition = createHash("sha256")
+        .update(readFileSync(factory))
+        .digest("hex");
+    } catch {
+      new Notice(`Could not read ${factory}; ticking without a repin hash.`);
+    }
+    const args = [
+      "workflow",
+      "run",
+      "@svendowideit/obsidian-factory-tick",
+      "--input",
+      `repo=${repo}`,
+      "--input",
+      `factoryDefinition=${factoryDefinition}`,
+      "--input",
+      `agent=${this.settings.agent || "pi"}`,
+    ];
+    if (this.settings.model.trim()) {
+      args.push("--input", `model=${this.settings.model.trim()}`);
+    }
+    new Notice("Obsidian factory tick started.");
+    execFile(
+      this.settings.swampBinary || "swamp",
+      args,
+      { cwd: repo, maxBuffer: 10 * 1024 * 1024 },
+      (error, _stdout, stderr) => {
+        if (error) {
+          new Notice(
+            `Obsidian factory tick failed: ${
+              (stderr || error.message || "").slice(0, 300)
+            }`,
+          );
+        } else {
+          new Notice("Obsidian factory tick finished.");
+        }
+      },
+    );
   }
 
   override onunload(): void {
@@ -315,5 +418,69 @@ class CardDialog extends Modal {
         }
       }
     }
+  }
+}
+
+class FactorySettingTab extends PluginSettingTab {
+  plugin: ObsidianFactoryPlugin;
+
+  constructor(app: App, plugin: ObsidianFactoryPlugin) {
+    super(app, plugin);
+    this.plugin = plugin;
+  }
+
+  display(): void {
+    const { containerEl } = this;
+    containerEl.empty();
+    new Setting(containerEl)
+      .setName("Swamp repo path")
+      .setDesc("Absolute path to the swamp repository that owns the board.")
+      .addText((text: TextComponent) =>
+        text
+          .setPlaceholder("/home/me/src/swamp-project")
+          .setValue(this.plugin.settings.repoPath)
+          .onChange(async (value) => {
+            this.plugin.settings.repoPath = value.trim();
+            await this.plugin.saveSettings();
+          })
+      );
+    new Setting(containerEl)
+      .setName("Swamp binary")
+      .setDesc("The swamp executable used by the Tick button.")
+      .addText((text: TextComponent) =>
+        text
+          .setPlaceholder("swamp")
+          .setValue(this.plugin.settings.swampBinary)
+          .onChange(async (value) => {
+            this.plugin.settings.swampBinary = value.trim() || "swamp";
+            await this.plugin.saveSettings();
+          })
+      );
+    new Setting(containerEl)
+      .setName("Agent")
+      .setDesc(
+        "Headless agent for the tick: pi, claude, codex, opencode or kilo.",
+      )
+      .addText((text: TextComponent) =>
+        text
+          .setPlaceholder("pi")
+          .setValue(this.plugin.settings.agent)
+          .onChange(async (value) => {
+            this.plugin.settings.agent = value.trim() || "pi";
+            await this.plugin.saveSettings();
+          })
+      );
+    new Setting(containerEl)
+      .setName("Model")
+      .setDesc("Optional provider/model for the agent; empty uses its default.")
+      .addText((text: TextComponent) =>
+        text
+          .setPlaceholder("")
+          .setValue(this.plugin.settings.model)
+          .onChange(async (value) => {
+            this.plugin.settings.model = value.trim();
+            await this.plugin.saveSettings();
+          })
+      );
   }
 }

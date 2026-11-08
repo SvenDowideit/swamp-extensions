@@ -15,7 +15,16 @@ declare module "obsidian" {
       id: string;
       name: string;
       checkCallback?: (checking: boolean) => boolean | void;
+      callback?: () => void;
     }): void;
+    addRibbonIcon(
+      icon: string,
+      title: string,
+      callback: () => void,
+    ): HTMLElement;
+    addSettingTab(tab: PluginSettingTab): void;
+    loadData(): Promise<unknown>;
+    saveData(data: unknown): Promise<void>;
   }
   export class App {
     workspace: Workspace;
@@ -79,5 +88,22 @@ declare module "obsidian" {
   }
   export class Notice {
     constructor(message: string);
+  }
+  export class TextComponent {
+    setPlaceholder(value: string): TextComponent;
+    setValue(value: string): TextComponent;
+    onChange(callback: (value: string) => void | Promise<void>): TextComponent;
+  }
+  export class Setting {
+    constructor(containerEl: HTMLElement);
+    setName(value: string): Setting;
+    setDesc(value: string): Setting;
+    addText(callback: (text: TextComponent) => void): Setting;
+  }
+  export class PluginSettingTab {
+    app: App;
+    containerEl: HTMLElement;
+    constructor(app: App, plugin: Plugin);
+    display(): void;
   }
 }

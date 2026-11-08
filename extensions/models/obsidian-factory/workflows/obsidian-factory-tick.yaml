@@ -1,0 +1,93 @@
+id: b371d601-6439-427e-966e-88fb95d2e7bc
+name: "@svendowideit/obsidian-factory-tick"
+description: |
+  Tick the Obsidian idea factory: run the board-first housekeeping tick, refresh
+  the queue, then start one headless agent that follows the obsidian-factory
+  skill and does the work the card columns ask for. The agent stops at the
+  person's columns and never publishes.
+
+  Local callers (the Tick button) need no token. A remote caller can put this
+  workflow behind a swamp serve webhook route with a secret; see the extension
+  README.
+tags: {}
+inputs:
+  properties:
+    repo:
+      type: string
+      minLength: 1
+      description: Absolute path to the swamp repository that owns the board.
+    factoryDefinition:
+      type: string
+      default: ""
+      description: SHA-256 of the factory model file, or empty to skip the repin.
+    agent:
+      type: string
+      default: "pi"
+      enum: ["claude", "codex", "opencode", "kilo", "pi"]
+      description: Headless agent binary to launch.
+    model:
+      type: string
+      default: ""
+      description: Optional provider/model for the agent.
+  required: ["repo"]
+jobs:
+  - name: tick
+    description: Housekeeping, queue, then one agent.
+    steps:
+      - name: housekeeping
+        description: Read the board first and run the idempotent tick.
+        task:
+          type: model_method
+          modelType: "@svendowideit/obsidian-factory"
+          modelName: obsidian-board
+          methodName: tick
+          inputs:
+            factoryDefinition: ${{ inputs.factoryDefinition }}
+            upgradeDefinitions: true
+            dryRun: false
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: queue
+        description: Refresh the card-column queue after the tick.
+        task:
+          type: model_method
+          modelType: "@svendowideit/obsidian-factory"
+          modelName: obsidian-board
+          methodName: queue
+        dependsOn:
+          - step: housekeeping
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: agent
+        description: Start one headless agent to work the board.
+        task:
+          type: model_method
+          modelType: "@maphew/agent-task"
+          modelName: obsidian-agent-task
+          methodName: run
+          inputs:
+            workdir: ${{ inputs.repo }}
+            agent: ${{ inputs.agent }}
+            model: ${{ inputs.model }}
+            systemPrompt: |
+              You are the Obsidian factory tick agent. The card column is the
+              only source of truth; the work item stage is an internal ledger.
+              Read .agents/skills/obsidian-factory/SKILL.md and follow it.
+              Do not reset a work item for a card move. Do not publish.
+            prompt: |
+              Tick the Obsidian idea factory in this repo. Start by reading the
+              actual board columns and the queue. Act on every card in a factory
+              work column, wait on the person's columns, record progress, and
+              stop at any human gate. Do not run git push or swamp extension push.
+        dependsOn:
+          - step: queue
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+    dependsOn: []
+    weight: 0
+version: 1

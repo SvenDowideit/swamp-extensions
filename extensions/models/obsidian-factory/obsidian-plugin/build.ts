@@ -5,7 +5,7 @@ await build({
   absWorkingDir: decodeURIComponent(here.pathname),
   entryPoints: ["main.ts"],
   bundle: true,
-  external: ["obsidian"],
+  external: ["obsidian", "child_process", "crypto", "fs"],
   format: "cjs",
   platform: "browser",
   target: "es2022",

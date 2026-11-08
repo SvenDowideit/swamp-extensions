@@ -286,6 +286,46 @@ and treats new or changed words as feedback. The card is top-heavy on purpose:
 while `## Questions` and `## Feedback` sit above the `## Plan` detail, so the
 person sees the decisions without scrolling.
 
+### Ticking the factory
+
+The extension ships `@svendowideit/obsidian-factory-tick`, a workflow that:
+
+1. runs `obsidian-board tick` (board first, then housekeeping),
+2. refreshes the queue,
+3. starts one headless agent with `@maphew/agent-task` (`run`), telling it to
+   read `.agents/skills/obsidian-factory/SKILL.md` and work the board columns.
+
+The agent stops at the person's columns and never publishes.
+
+**From the plugin.** The plugin adds a ribbon icon and the command **Tick the
+Obsidian factory**. Set the swamp repo path, swamp binary, agent and optional
+model in **Settings → Community plugins → Obsidian Factory**. The button runs
+the workflow with `execFile` (no shell), passes the current factory hash, and
+shows a notice when the tick starts and finishes.
+
+**From the CLI.**
+
+```sh
+swamp workflow run @svendowideit/obsidian-factory-tick   --input repo=/home/me/src/swamp-project   --input agent=pi
+```
+
+`@maphew/agent-task` is a declared dependency and is pulled with this
+extension. A remote caller can put the workflow behind a `swamp serve` webhook:
+
+```yaml
+# .swamp/serve.yaml
+webhooks:
+  - route: /hooks/obsidian-tick
+    workflow: "@svendowideit/obsidian-factory-tick"
+    secret: "@env=OBSIDIAN_TICK_TOKEN"
+    scheme: generic
+```
+
+Set the repo input once with
+`swamp workflow trigger set @svendowideit/obsidian-factory-tick --input repo=/path/to/repo`,
+then reload/restart serve. The route secret is mandatory; use TLS. The local
+ribbon/command needs no token. The factory still never publishes.
+
 ### The card dialog plugin
 
 The optional plugin opens a factory card as a read-only prose dialog instead of

@@ -441,7 +441,9 @@ export function queueActionFor(
   hasRun: boolean,
   terminal: boolean,
   newInput: boolean,
+  releasePrepared = false,
 ): "claim" | "work" | "wait" | "done" {
+  if (column === "Please Release" && releasePrepared) return "wait";
   if (column === "Done") return "done";
   if (column === "Uncharacterised" || column === "Category") {
     if (!hasRun) return "claim";
@@ -3155,7 +3157,28 @@ async function executeQueue(
     // ledger and is never consulted for the action; if it disagrees, the card
     // wins. Only an inbox/category needs the new-input check for reopening.
     const newInput = terminal ? shouldReopenTerminal(card, column) : true;
-    const action = queueActionFor(column, Boolean(run), terminal, newInput);
+    let releasePrepared = false;
+    if (column === "Please Release" && run) {
+      const checks = await context.readModelData(
+        key,
+        "evidence-release-checks",
+      );
+      const reports = await context.readModelData(
+        key,
+        "evidence-release-report",
+      );
+      const releases = await context.readModelData(key, "evidence-release");
+      const check = checks.length > 0 ? checks[0].attributes : null;
+      releasePrepared = reports.length > 0 && releases.length === 0 &&
+        isRecord(check) && check.status === "passed";
+    }
+    const action = queueActionFor(
+      column,
+      Boolean(run),
+      terminal,
+      newInput,
+      releasePrepared,
+    );
     counts[action]++;
     rows.push({
       id: card.frontmatter.id,
@@ -3190,7 +3213,7 @@ async function executeQueue(
 /** The tracker: stagecraft's contract 1 over an Obsidian board. */
 export const model = {
   type: "@svendowideit/obsidian-factory",
-  version: "2026.11.08.16",
+  version: "2026.11.08.17",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -3327,6 +3350,15 @@ export const model = {
         "Fix stripManaged to remove every copy of a managed block, not only " +
         "the first. Repeated setPlan calls had left duplicate Plan blocks and " +
         "duplicated task/test lines.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.17",
+      description:
+        "A prepared Please Release card now waits for the human publish. Once " +
+        "release-checks passed and a release-report exists, the queue action " +
+        "is wait instead of rerunning the release checks. The factory never " +
+        "runs git push or swamp extension push.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

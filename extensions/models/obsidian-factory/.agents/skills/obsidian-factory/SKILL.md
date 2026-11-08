@@ -225,7 +225,7 @@ The column decides the work. The work item's stage is only a ledger.
 | Please Implement | Implement the accepted plan. |
 | Please Test | Run the tests. |
 | User Acceptance | Wait for the person to try the work. |
-| Please Release | Run the full suite and release. |
+| Please Release | Run the full suite and prepare the release. If the checks passed and a release report exists but no release evidence, wait for the human publish: the factory never runs `git push` or `swamp extension push`. |
 | Done | Done. |
 
 If the person moves a card forward, backward or across steps, the card is in
@@ -233,6 +233,11 @@ that column; do that column's work. Do not reset, pause, ask for a legal
 transition, or call it a mismatch. If the ledger cannot represent the column,
 start a new work item on the current definition and keep the old one as
 history; the card is unchanged. The card's activity log records the move.
+
+A prepared Please Release card is a human gate. Once `release-checks` passed and
+a `release-report` exists, the queue action is `wait`; do not rerun the checks.
+The person publishes with `git push` and `swamp extension push`, then records the
+release or moves the card to Done. The factory never publishes.
 
 A board move is the person's word for *that* decision. You do not need to ask
 again for the same move.

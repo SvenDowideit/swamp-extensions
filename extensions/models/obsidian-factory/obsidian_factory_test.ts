@@ -19,6 +19,7 @@ import {
   nextId,
   parseActivity,
   parseCard,
+  queueActionFor,
   removeBullet,
   renderDefinitionSection,
   renderPlanSection,
@@ -300,6 +301,75 @@ Deno.test("renderSummarySection puts the person's input first", () => {
     section.split("Which repo owns the change?").length,
     2,
     "question is not repeated in Unknown",
+  );
+});
+
+Deno.test("queueActionFor follows the card column, not the work item stage", () => {
+  assertEquals(
+    queueActionFor("Work Planned", true, false, true),
+    "wait",
+    "work planned waits",
+  );
+  assertEquals(
+    queueActionFor("Proposed", true, false, true),
+    "wait",
+    "proposed waits",
+  );
+  assertEquals(
+    queueActionFor("User Acceptance", true, false, true),
+    "wait",
+    "acceptance waits",
+  );
+  assertEquals(
+    queueActionFor("Please Implement", true, false, true),
+    "work",
+    "implement works even if the ledger is elsewhere",
+  );
+  assertEquals(
+    queueActionFor("Please Plan", true, false, true),
+    "work",
+    "plan works even if the ledger is elsewhere",
+  );
+  assertEquals(
+    queueActionFor("Please Test", true, false, true),
+    "work",
+    "test works",
+  );
+  assertEquals(
+    queueActionFor("Please Release", true, false, true),
+    "work",
+    "release works",
+  );
+  assertEquals(
+    queueActionFor("Please Implement", false, false, true),
+    "claim",
+    "no ledger yet",
+  );
+  assertEquals(
+    queueActionFor("Please Implement", true, true, true),
+    "claim",
+    "terminal ledger reopens",
+  );
+  assertEquals(queueActionFor("Done", true, true, true), "done", "done");
+  assertEquals(
+    queueActionFor("Uncharacterised", true, true, false),
+    "wait",
+    "empty inbox waits",
+  );
+  assertEquals(
+    queueActionFor("Uncharacterised", true, true, true),
+    "claim",
+    "new thought reopens",
+  );
+  assertEquals(
+    queueActionFor("Category", true, true, false),
+    "wait",
+    "no new idea waits",
+  );
+  assertEquals(
+    queueActionFor("Category", true, true, true),
+    "claim",
+    "new idea reopens",
   );
 });
 

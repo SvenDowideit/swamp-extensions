@@ -252,7 +252,12 @@ activity block.
 The bundled skill `obsidian-factory` describes the board-driven loop for the
 `obsidian-idea-factory` stagecraft factory: Uncharacterised → Category →
 Proposed → Please Plan → Work Planned → Please Implement → Please Test → User
-Acceptance → Please Release → Done. The factory definition is the repository's
+Acceptance → Please Release → Done. The card is the only source of truth: its
+column and content decide the work. stagecraft is an internal execution ledger;
+its stage, cycle and era are implementation details and never override the card.
+A card move — forward, backward or skipping a step — is normal; the factory does
+that column's work and records it, without resetting, pausing or asking for a
+legal transition. The factory definition is the repository's
 `models/@swamp/stagecraft/factory/obsidian-idea-factory.yaml`; the skill tells an
 agent how to read the board, claim and drive work items, record what each stage
 did and learned, and treat a card move as the person's decision. The person may

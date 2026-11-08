@@ -15,18 +15,21 @@ This is the agent skill for a board-driven stagecraft factory. Load the
 `stagecraft` skill too: it defines the work-item loop, the propulsion rule and
 the human-stop rules. This page adds the Obsidian board.
 
-## The two sources of truth
+## The only source of truth
 
-- **The board is the tracker.** `@svendowideit/obsidian-factory` stores each
-  ticket as a note in `Factory/Cards`, and the Bases Kanban view grouped by
-  `note.status` is the board. A card's column is its ticket status.
-- **stagecraft is the state machine.** `obsidian-idea-factory` pins the stages,
-  products and transitions. The work item's journal is in swamp data; every
-  publish replays it to the card's activity log and status.
+**The card is the state.** Its column and its content are the only truth. The
+Bases Kanban column is the ticket status; the note body is the ticket body.
 
-A card move is a person's decision. A stagecraft work-item write is the
-factory's. Never overwrite a person's card move just to make the board match
-stagecraft; reconcile the work item to the card instead.
+**stagecraft is an internal execution ledger.** Its stage, cycle and era are
+implementation details. They never override the card. If the ledger disagrees
+with the card, **the card wins**. Do not reset, pause, ask for a legal
+transition, or call it a mismatch. Do the work the card's column implies and
+record it in the ledger. If the ledger cannot represent the column, start a new
+work item on the current definition and keep the old one as history; the card
+is unchanged.
+
+A card move — forward, backward or skipping a step — is normal. It is the
+person's instruction, not an exception.
 
 ## The card has three kinds of writing
 
@@ -143,22 +146,17 @@ swamp behavior run obsidian-idea-factory validate
    `swamp behavior run obsidian-board queue`, then
    `swamp data query 'behaviorName == "obsidian-board" && name == "queue"' --select content --single --json`.
    Each row has `id`, `kind`, `column`, `key`, `stage`, `cycle`, `era`,
-   `terminal` and an `action`:
-   - `claim` — no work item yet; run the claim workflow.
-   - `work` — the card and the stage already agree; do the stage's work.
-   - `reconcile` — the person moved the card out of the stage's column; treat
-     the column as their instruction (see the table below).
-   - `done` — the work item is terminal and the card has no new input; leave
-     it.
-   - `wait` — nothing to do yet.
-
-   A `claim` row can also mean a finished work item should be reopened: the
-   inbox has new thoughts, a category has more ideas than its last proposal
-   covered, or a finished action card was moved back to **Proposed**. Claiming
-   again starts a new work item at `route`; do not reset the old one. To reopen
-   a finished action, move it to Proposed, not straight to a later column: the
-   new work item starts at `route`, and `proposed` is the stage that re-anchors
-   the card before planning.
+   `terminal` and an `action`. The action is derived from **the card's column**,
+   not the work item's stage:
+   - `work` — the card is in a column the factory works; do that column's work.
+   - `wait` — the card is in a person's column (Proposed, Work Planned, User
+     Acceptance) or has no new input; wait for the person.
+   - `claim` — the factory needs a ledger entry (a work item) before work, or a
+     finished one should be reopened. Claiming starts a new work item; keep the
+     old one as history.
+   - `done` — the card is Done.
+   - `reconcile` is no longer emitted. If an old queue has it, treat it as a
+     legacy hint only.
 3. **Read the card** you will work on:
    `swamp behavior run obsidian-board readCard --input id=<id>`.
 4. **Claim new cards** through the shipped workflow, never with a hand-made
@@ -194,33 +192,31 @@ swamp behavior run obsidian-idea-factory validate
    functionality added, functionality removed, and known/unknown. Use
    `--input-file` for long arrays.
 
-## Reconciling a card move
+## What the card column means
 
-The board's column is the person's instruction. Read it as follows.
+The column decides the work. The work item's stage is only a ledger.
 
-| Card is in | Work item is at | What to do |
-| --- | --- | --- |
-| Proposed | `route` / `proposed` | The card is not ready for planning. Leave it; the person is refining it. |
-| Please Plan | `proposed` | The person has asked for a plan. Record `refined-brief` from the card (title, brief, project, questions), then take the manual `plan` transition with `confirm=true`. |
-| Work Planned | `plan-cleanup` | The factory has not published yet. Publish; then the card is in Work Planned. |
-| Please Plan | `work-planned` | The person sent the plan back. Read the whole card, not only `## Feedback`; quote every new or changed word as `plan-feedback` (recordedBy person, on their behalf), then take the manual `revise` transition. |
-| Work Planned | `implement` | The person sent the work back from implementation. Record `implementation-feedback` with their words, or the observed move when they added none, then take the manual `return` transition. The accepted plan is kept; the work item is back at Work Planned. |
-| Please Plan | `implement` | The person wants the plan revised during implementation. Record `implementation-feedback`, then take the manual `revise` transition into plan. |
-| Work Planned / Please Plan | `test` or `release` | Stop and report: this factory has no manual way back from test/release to work-planned yet. Do not invent one. |
-| Please Implement | `work-planned` | The person accepted the plan. Record `implementation-brief` from the card, then take the manual `implement` transition. |
-| Please Test | `implement` | The factory has not finished the stage. Do the implement work first; publish when it is done. |
-| Please Implement | `test` | Tests failed, or the person sent it back. Record their feedback and take the manual `revise` transition into `implement`. |
-| User Acceptance | `test` | The factory has passed the tests. Publish; the card moves to User Acceptance. |
-| Please Plan / Please Implement / Please Test | `acceptance` | The person sent it back to that phase. Read the whole card, not only `## Feedback`; quote every new or changed word as `acceptance-feedback`, then take the matching manual transition. |
-| Please Release | `acceptance` | The person accepted it. Record `release-go`, then take the manual `release` transition. |
-| Done | anywhere | The work item should be terminal. If it is not, ask before forcing anything. |
+| Card column | What the factory does |
+| --- | --- |
+| Uncharacterised | Triage new thoughts; wait if the inbox is empty. |
+| Category | Propose from new ideas; wait if there are no new ideas. |
+| Proposed | Wait for the person to refine the brief. |
+| Please Plan | Plan or re-plan. |
+| Work Planned | Wait for the person to read the plan. |
+| Please Implement | Implement the accepted plan. |
+| Please Test | Run the tests. |
+| User Acceptance | Wait for the person to try the work. |
+| Please Release | Run the full suite and release. |
+| Done | Done. |
 
-If a card is in a column that is not a legal move from its stage, stop and ask
-the person. Do not invent a transition.
+If the person moves a card forward, backward or across steps, the card is in
+that column; do that column's work. Do not reset, pause, ask for a legal
+transition, or call it a mismatch. If the ledger cannot represent the column,
+start a new work item on the current definition and keep the old one as
+history; the card is unchanged. The card's activity log records the move.
 
 A board move is the person's word for *that* decision. You do not need to ask
-again for the same move, but you must record the move in the journal with
-`onBehalfOf` naming them when the method takes it.
+again for the same move.
 
 ## Stage notes
 

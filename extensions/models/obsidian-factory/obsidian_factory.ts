@@ -432,6 +432,37 @@ export function statusId(name: string): string {
   return slugify(name);
 }
 
+/**
+ * What the factory should do, decided by the card's column alone. The work
+ * item's stage is an execution ledger and never overrides the card.
+ */
+export function queueActionFor(
+  column: string,
+  hasRun: boolean,
+  terminal: boolean,
+  newInput: boolean,
+): "claim" | "work" | "wait" | "done" {
+  if (column === "Done") return "done";
+  if (column === "Uncharacterised" || column === "Category") {
+    if (!hasRun) return "claim";
+    if (terminal) return newInput ? "claim" : "wait";
+    return "work";
+  }
+  if (
+    column === "Proposed" || column === "Work Planned" ||
+    column === "User Acceptance"
+  ) {
+    return "wait";
+  }
+  if (
+    column === "Please Plan" || column === "Please Implement" ||
+    column === "Please Test" || column === "Please Release"
+  ) {
+    return hasRun && !terminal ? "work" : "claim";
+  }
+  return "wait";
+}
+
 /** The next id for a prefix, from the cards already on the board. */
 export function nextId(prefix: string, ids: string[]): string {
   const pattern = new RegExp(`^${prefix}-(\\d+)$`);
@@ -2889,7 +2920,6 @@ async function executeQueue(
     const column = typeof card.frontmatter.status === "string"
       ? card.frontmatter.status
       : "";
-    let action: z.infer<typeof QueueCardSchema>["action"] = "claim";
     let stage = "";
     let cycle = 0;
     let era = "";
@@ -2901,27 +2931,12 @@ async function executeQueue(
       cycle = typeof count === "number" ? count : 0;
       era = typeof run.era === "string" ? run.era : "";
       terminal = run.status === "terminal";
-      if (terminal) {
-        // A terminal work item is not restarted by a publish timestamp: the
-        // publish itself updates the card. Reopen only when the card has new
-        // input the finished work did not see. The inbox has unprocessed
-        // bullets; a category has more ideas than its last proposal covered;
-        // an action that left Done was deliberately reopened.
-        action = shouldReopenTerminal(card, column) ? "claim" : "done";
-      } else {
-        const expected = context.globalArgs.stageColumns[stage];
-        if (stage === "route" || expected === undefined) {
-          action = "work";
-        } else if (expected !== "" && column !== expected) {
-          action = card.frontmatter.kind === "inbox" ||
-              card.frontmatter.kind === "category"
-            ? "work"
-            : "reconcile";
-        } else {
-          action = "work";
-        }
-      }
     }
+    // The card's column decides the work. The work item's stage/cycle is a
+    // ledger and is never consulted for the action; if it disagrees, the card
+    // wins. Only an inbox/category needs the new-input check for reopening.
+    const newInput = terminal ? shouldReopenTerminal(card, column) : true;
+    const action = queueActionFor(column, Boolean(run), terminal, newInput);
     counts[action]++;
     rows.push({
       id: card.frontmatter.id,
@@ -2956,7 +2971,7 @@ async function executeQueue(
 /** The tracker: stagecraft's contract 1 over an Obsidian board. */
 export const model = {
   type: "@svendowideit/obsidian-factory",
-  version: "2026.11.08.10",
+  version: "2026.11.08.11",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -3042,6 +3057,16 @@ export const model = {
         "Board first on every tick: read the actual card columns and queue " +
         "actions before any housekeeping, and report them in the tick data and " +
         "log. The tick no longer assumes the work item stage is the board.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.11",
+      description:
+        "Derive the queue action from the card column, not the work item " +
+        "stage. The card is the only source of truth; stagecraft is an " +
+        "internal ledger. A card in Work Planned, Proposed or User Acceptance " +
+        "waits; a card in Please Plan, Please Implement, Please Test or Please " +
+        "Release works. No reset or pause for a card move.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

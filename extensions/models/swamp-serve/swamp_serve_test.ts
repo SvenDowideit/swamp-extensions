@@ -1,4 +1,5 @@
-import { assertEquals, assertRejects } from "jsr:@std/assert@1";
+import { assertEquals, assertRejects, assertThrows } from "jsr:@std/assert@1";
+import { parse as parseYaml } from "jsr:@std/yaml@1.2.0";
 
 import {
   absoluteRepoDir,
@@ -12,6 +13,7 @@ import {
   expandHome,
   extractVersion,
   hostnamesFor,
+  mergeServeConfig,
   model,
   parseCaddyFacts,
   renderCaddyChoiceError,
@@ -287,6 +289,85 @@ Deno.test("renderServeConfigYaml renders list options", () => {
   );
   assertEquals(yaml.includes("trusted-hosts:"), true);
   assertEquals(yaml.includes("- a.example"), true);
+});
+
+Deno.test("mergeServeConfig preserves webhooks and triggers", () => {
+  const existing = [
+    "# keep this comment",
+    "port: 1234",
+    "webhooks:",
+    "  - route: /hooks/linkdrop",
+    '    workflow: "@svendowideit/capture-linkdrop"',
+    '    scheme: "@svendowideit/linkdrop-open"',
+    "    secret: unused",
+    "    config: {}",
+    "triggers:",
+    '  "@svendowideit/bom-weather":',
+    '    schedule: "30 6 * * *"',
+    "trusted-hosts:",
+    "  - old.example",
+    "",
+  ].join("\n");
+
+  const yaml = mergeServeConfig(existing, G as never, ["swamp.x.example"]);
+  const cfg = parseYaml(yaml) as Record<string, unknown>;
+
+  // Managed keys are rewritten from the model.
+  assertEquals(cfg.port, 9090);
+  assertEquals(cfg.host, "127.0.0.1");
+  assertEquals(cfg["hot-reload"], true);
+  assertEquals(cfg["trusted-hosts"], ["swamp.x.example"]);
+
+  // Everything the model does not own survives unchanged.
+  assertEquals(cfg.webhooks, [
+    {
+      route: "/hooks/linkdrop",
+      workflow: "@svendowideit/capture-linkdrop",
+      scheme: "@svendowideit/linkdrop-open",
+      secret: "unused",
+      config: {},
+    },
+  ]);
+  assertEquals(cfg.triggers, {
+    "@svendowideit/bom-weather": { schedule: "30 6 * * *" },
+  });
+  assertEquals(yaml.includes("# keep this comment"), true);
+  assertEquals(yaml.endsWith("\n"), true);
+});
+
+Deno.test("mergeServeConfig clears managed keys the model no longer sets", () => {
+  const existing = "port: 1234\ntrusted-hosts:\n  - old.example\n";
+  const cfg = parseYaml(
+    mergeServeConfig(existing, G as never, []),
+  ) as Record<string, unknown>;
+  assertEquals(cfg.port, 9090);
+  assertEquals("trusted-hosts" in cfg, false);
+});
+
+Deno.test("mergeServeConfig builds a fresh config when no file exists", () => {
+  const cfg = parseYaml(
+    mergeServeConfig(null, G as never, []),
+  ) as Record<string, unknown>;
+  assertEquals(cfg.port, 9090);
+  assertEquals(cfg.dashboard, true);
+  assertEquals((cfg.auth as Record<string, unknown>).mode, "none");
+  assertEquals("trusted-hosts" in cfg, false);
+});
+
+Deno.test("mergeServeConfig refuses invalid YAML instead of overwriting", () => {
+  assertThrows(
+    () => mergeServeConfig("port: [unclosed\n", G as never),
+    Error,
+    "Invalid YAML",
+  );
+});
+
+Deno.test("mergeServeConfig refuses a non-mapping root", () => {
+  assertThrows(
+    () => mergeServeConfig("- one\n- two\n", G as never),
+    Error,
+    "mapping",
+  );
 });
 
 Deno.test("scalarToYaml quotes empty and special strings", () => {

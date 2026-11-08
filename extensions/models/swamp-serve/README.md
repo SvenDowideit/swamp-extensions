@@ -129,6 +129,17 @@ The rest of the global arguments have defaults.
 | `autoTrustedHosts` | boolean | `true` | Add the derived serve/dashboard hostnames to `--trusted-hosts`. |
 | `command` | string | `""` | Full override for the unit's `ExecStart` (empty = rendered). |
 
+`configure` treats the serve config as shared state. It merges the model's
+options into the existing `.swamp/serve.yaml` and only rewrites the keys it
+owns: `port`, `host`, `dashboard`, `hot-reload`, `auto-resume`, `trust-proxy`,
+`schedule`, `auth` and `trusted-hosts`. Every other top-level key — most
+importantly a `webhooks:` list registered by another extension (for example
+`@svendowideit/linkdrop`) and any `triggers:` — is preserved, along with
+comments and key order. A managed key the model no longer sets (such as an
+emptied `trusted-hosts`) is removed. If the file is not valid YAML, or its root
+is not a mapping, the run fails and leaves the file untouched rather than
+silently replacing a config it cannot understand.
+
 Method arguments: `installBinary` takes `version`/`force`; `ensureService` takes
 `restart`; `ensureTelemetry` takes `endpoint`; `remove` takes `removeRoutes`.
 
@@ -220,7 +231,7 @@ and one workflow. Methods:
 | `resolve` | none | Read the Caddy model and derive `swamp.<host FQDN>` / `dashboard.<host FQDN>` from its own A record; writes `topology`. When `caddyModelName` is empty, auto-selects the only installed Caddy, or errors with the exact choice commands. No side effects. |
 | `installBinary` | `version`, `force` | Install swamp when absent (pinned `installVersion`), else report; never overwrites an existing binary unless `force`. |
 | `updateBinary` | none | Run `swamp update`, then restart the service so it execs the new build. |
-| `configure` | none | Write `.swamp/serve.yaml` and validate it with `swamp serve check-config`. |
+| `configure` | none | Merge the model's options into `.swamp/serve.yaml` (preserving keys it does not own, notably `webhooks` and `triggers`) and validate it with `swamp serve check-config`. |
 | `ensureService` | `restart` | Render the unit (command + OTLP environment) and create/restart it via `@svendowideit/systemd-service`. |
 | `ensureTelemetry` | `endpoint` | Read the settings contract, apply the OTLP environment, restart. |
 | `ensureDns` | none | Verify the Caddy model owns the two A records (it reconciles only its own `dnsRecords`); reports any missing. |
@@ -330,10 +341,13 @@ pprof/`--inspect` sidecar is left for later; it is intentionally out of scope.
 ### Extending and testing
 
 The pure helpers — `deriveHostnames`, `parseCaddyFacts`, `renderExecStart`,
-`renderUnitEnvironment`, `renderServeConfig(Yaml)`, `buildTelemetryEnv`,
-`describeOptions` — are exported and unit-tested, so a change to the command
-line, the YAML shape or the telemetry mapping is verified without touching a
-host. The methods run the swamp binary itself (`--version`, `update`) and
+`renderUnitEnvironment`, `renderServeConfig(Yaml)`, `mergeServeConfig`,
+`buildTelemetryEnv`, `describeOptions` — are exported and unit-tested, so a
+change to the command line, the YAML shape or the telemetry mapping is verified
+without touching a host. `mergeServeConfig` parses the existing document with
+`yaml` (`parseDocument`) rather than a plain object round-trip, which is what
+keeps unmanaged keys, comments and ordering intact; its tests cover a config
+carrying a LinkDrop `webhooks` entry and a `triggers` block. The methods run the swamp binary itself (`--version`, `update`) and
 `systemctl` through the injectable `CommandRunner`; **cross-model calls go
 through `context.runModel` / `context.readModelData`**, never a `swamp` CLI
 subprocess (a subprocess reloads the extensions and re-locks the datastore, which

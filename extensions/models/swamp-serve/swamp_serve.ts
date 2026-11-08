@@ -36,6 +36,7 @@
  * @module
  */
 import { z } from "npm:zod@4";
+import { parseDocument } from "npm:yaml@2.9.1";
 
 // ---------------------------------------------------------------------------
 // Global arguments
@@ -653,6 +654,73 @@ export function renderServeConfigYaml(
   trustedHosts: string[] = g.trustedHosts,
 ): string {
   return toYaml(renderServeConfig(g, trustedHosts), 0) + "\n";
+}
+
+/**
+ * Top-level serve.yaml keys this model owns. `configure` rewrites these and
+ * leaves every other key untouched, so resources registered by other
+ * extensions (notably `webhooks` and `triggers`) survive a setup re-run.
+ */
+export const MANAGED_SERVE_CONFIG_KEYS = [
+  "port",
+  "host",
+  "dashboard",
+  "hot-reload",
+  "auto-resume",
+  "trust-proxy",
+  "schedule",
+  "auth",
+  "trusted-hosts",
+] as const;
+
+/**
+ * Merge the model's rendered options into an existing `serve.yaml` text.
+ *
+ * The serve config is shared: `@svendowideit/linkdrop` (and other extensions)
+ * register `webhooks`, and scheduled workflows can add `triggers`. Rewriting
+ * the file from a plain object silently deleted those. Editing the parsed YAML
+ * document instead preserves every top-level key this model does not own, plus
+ * comments and key order. Managed keys absent from the rendered config are
+ * removed (so an emptied `trustedHosts` clears `trusted-hosts`).
+ *
+ * Pass `null` when the file does not exist yet. Invalid YAML or a root that is
+ * not a mapping throws rather than overwriting a config we cannot understand.
+ */
+export function mergeServeConfig(
+  existingText: string | null,
+  g: ServeGlobals,
+  trustedHosts: string[] = g.trustedHosts,
+): string {
+  const doc = parseDocument(existingText ?? "");
+  if (doc.errors.length > 0) {
+    throw new Error(
+      `Invalid YAML in existing serve config: ${doc.errors[0].message}`,
+    );
+  }
+  let data: unknown;
+  try {
+    data = doc.toJS();
+  } catch (error) {
+    throw new Error(
+      "Cannot parse existing serve config: " +
+        (error instanceof Error ? error.message : String(error)),
+    );
+  }
+  if (data !== null && (typeof data !== "object" || Array.isArray(data))) {
+    throw new Error("existing serve config must contain a YAML mapping");
+  }
+
+  const rendered = renderServeConfig(g, trustedHosts);
+  for (const key of MANAGED_SERVE_CONFIG_KEYS) {
+    if (key in rendered) {
+      doc.setIn([key], rendered[key]);
+    } else {
+      doc.deleteIn([key]);
+    }
+  }
+
+  const yaml = doc.toString({ lineWidth: 0 });
+  return yaml.endsWith("\n") ? yaml : `${yaml}\n`;
 }
 
 /** Minimal YAML serialiser for the serve config's shape. */
@@ -1538,7 +1606,7 @@ export function configPathFor(g: ServeGlobals): string {
 /** The swamp model definition for `@svendowideit/swamp-serve`. */
 export const model = {
   type: "@svendowideit/swamp-serve",
-  version: "2026.11.07.1",
+  version: "2026.11.08.1",
   globalArguments: GlobalArgsSchema,
   checks: {
     "valid-config": {
@@ -1646,6 +1714,18 @@ export const model = {
         "copy-pasteable update command for every option instead of a " +
         "placeholder model name. A final `guidance` step always runs in the " +
         "workflow.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
+      description:
+        "configure now merges into an existing .swamp/serve.yaml instead of " +
+        "replacing it. Only the keys this model owns (port, host, dashboard, " +
+        "hot-reload, auto-resume, trust-proxy, schedule, auth, trusted-hosts) " +
+        "are rewritten, so webhooks registered by other extensions (for " +
+        "example @svendowideit/linkdrop) and triggers survive a setup re-run; " +
+        "comments and key order are preserved. Invalid YAML or a non-mapping " +
+        "root is rejected without overwriting the file.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1876,12 +1956,30 @@ export const model = {
         const g = context.globalArgs;
         const path = configPathFor(g);
         const trustedHosts = await resolveTrustedHosts(context, g);
-        const yaml = renderServeConfigYaml(g, trustedHosts);
+
+        // Merge into the existing document: serve.yaml also carries keys this
+        // model does not own (webhooks registered by other extensions,
+        // triggers), which a wholesale write would delete.
+        let existing: string | null = null;
+        try {
+          existing = await Deno.readTextFile(path);
+        } catch (error) {
+          if (!(error instanceof Deno.errors.NotFound)) {
+            throw new Error(
+              `Cannot read existing serve config ${path}: ` +
+                (error instanceof Error ? error.message : String(error)),
+            );
+          }
+        }
+
+        const yaml = mergeServeConfig(existing, g, trustedHosts);
         const slash = path.lastIndexOf("/");
         if (slash > 0) {
           await Deno.mkdir(path.slice(0, slash), { recursive: true });
         }
-        await Deno.writeTextFile(path, yaml);
+        const tmp = `${path}.tmp-${crypto.randomUUID()}`;
+        await Deno.writeTextFile(tmp, yaml);
+        await Deno.rename(tmp, path);
 
         const check = await runSwamp([
           "serve",
@@ -1909,6 +2007,7 @@ export const model = {
           {
             path,
             written: true,
+            mergedIntoExisting: existing !== null,
             port: g.port,
             host: g.host,
             dashboard: g.dashboard,

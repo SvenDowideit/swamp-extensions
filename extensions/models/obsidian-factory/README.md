@@ -70,7 +70,8 @@ Method arguments:
 | `readCard` | `id` |
 | `updateCard` | `id`, `title`, `body`, `status`, `project` |
 | `setSummary` | `id`, `stage`, `planStatus`, `known`, `unknown`, `next` |
-| `setPlan` | `id`, `status`, `summary`, `tasks`, `tests`, `existing`, `added`, `removed`, `known`, `unknown` |
+| `setPlan` | `id`, `status`, `summary`, `tasks`, `tests`, `existing`, `added`, `removed`, `known`, `unknown`, `acceptEdits` |
+| `markPlanProgress` | `id`, `tasks` (`match`, `done`), `tests` (`match`, `done`), `acceptEdits` |
 | `setDefinition` | `id`, `status`, `note` |
 | `installCardCss` | `force` |
 | `migrateCards` | none |
@@ -224,6 +225,10 @@ activity block.
   Restart Obsidian once to load the bundle; replacing `main.js` is not loaded
   into the running app without a reload. If the plugin was never enabled, add it
   in **Settings -> Community plugins** if you passed `enable=false`.
+- **`markPlanProgress`** — ticks or unticks Plan task/test checkboxes by a
+  unique text match, updates the stored plan hash, and refuses a person-edited
+  plan unless `acceptEdits=true`. This is how the factory keeps the visible
+  checklist in step with the work.
 - **`capture`** — appends a timestamped bullet under the inbox's `## Thoughts`.
 - **`scan`** — writes `board`, a summary of every card with `id`, `display`,
   `title`, `kind`, `status`, `path`, `updated`, `project`, `ideaCount` and
@@ -299,6 +304,15 @@ Escape close the dialog. The plugin only reads the note; it never writes.
 The bundle is built from `obsidian-plugin/main.ts` by
 `obsidian-plugin/build.ts` with pinned esbuild, and `main.js.sha256.txt` is checked
 before install. The native Kanban works without the plugin.
+
+**Source and packaging.** The source is
+`obsidian-plugin/main.ts`, `model.ts` and `obsidian.d.ts`; `build.ts` builds
+`main.js` and `main.js.sha256.txt`. The built `main.js` is committed and listed
+under `binaries:` in `manifest.yaml`; the source, hash, plugin manifest and CSS
+are listed under `additionalFiles:`. `swamp extension pull` ships all of them, so
+a user does not need Deno or esbuild: `installBoardPlugin` reads the bundled
+files from the installed extension and writes them into
+`.obsidian/plugins/obsidian-factory`.
 
 ### Safety
 

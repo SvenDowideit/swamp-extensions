@@ -738,6 +738,55 @@ ${input.note}
 ${DEFINITION_END}`;
 }
 
+/** Tick or untick Plan task/test checkboxes by matching text. */
+export function updatePlanCheckboxes(
+  block: string,
+  updates: {
+    tasks?: Array<{ match: string; done: boolean }>;
+    tests?: Array<{ match: string; done: boolean }>;
+  },
+): { block: string; changed: number; unmatched: string[] } {
+  const lines = block.split(/\r?\n/);
+  const remaining = new Map<string, number>();
+  for (const update of [...(updates.tasks ?? []), ...(updates.tests ?? [])]) {
+    remaining.set(update.match, (remaining.get(update.match) ?? 0) + 1);
+  }
+  let section: "task" | "test" | "" = "";
+  let changed = 0;
+  for (let i = 0; i < lines.length; i++) {
+    const heading = /^#{1,6}\s+(.*)$/.exec(lines[i]);
+    if (heading) {
+      const name = heading[1].trim().toLowerCase();
+      section = name === "tasks" ? "task" : name === "tests" ? "test" : "";
+      continue;
+    }
+    const checkbox = /^(\s*)- \[( |x|X)\]\s+(.*)$/.exec(lines[i]);
+    if (!checkbox || section === "") continue;
+    const text = checkbox[3];
+    const list = section === "task"
+      ? (updates.tasks ?? [])
+      : (updates.tests ?? []);
+    const update = list.find((item) =>
+      text.toLowerCase().includes(item.match.toLowerCase())
+    );
+    if (!update) continue;
+    const mark = update.done ? "x" : " ";
+    if (checkbox[2].toLowerCase() !== mark) changed++;
+    lines[i] = `${checkbox[1]}- [${mark}] ${text}`;
+    remaining.set(
+      update.match,
+      Math.max(0, (remaining.get(update.match) ?? 1) - 1),
+    );
+  }
+  return {
+    block: lines.join("\n"),
+    changed,
+    unmatched: [...remaining.entries()]
+      .filter(([, count]) => count > 0)
+      .map(([match]) => match),
+  };
+}
+
 /** Render the human-readable, checkbox-tracked Plan section. */
 export function renderPlanSection(input: PlanInput): string {
   const at = input.updatedAt ?? nowIso();
@@ -2425,6 +2474,65 @@ async function executeSetSummary(
   return { dataHandles: [handle] };
 }
 
+async function executeMarkPlanProgress(
+  args: {
+    id: string;
+    tasks?: Array<{ match: string; done: boolean }>;
+    tests?: Array<{ match: string; done: boolean }>;
+    acceptEdits?: boolean;
+  },
+  context: FactoryContext,
+): Promise<{ dataHandles: Array<{ name: string }> }> {
+  context.logger.info("Updating plan progress on {id}", { id: args.id });
+  const card = await findCard(context, args.id);
+  if (!card) throw new Error(`no card '${args.id}'`);
+  const block = extractManaged(card.body, PLAN_BEGIN, PLAN_END);
+  if (block === null) throw new Error(`card '${args.id}' has no Plan section`);
+  if (args.acceptEdits !== true) {
+    const problem = await managedEditProblem(
+      block,
+      card.frontmatter.swampPlanHash,
+    );
+    if (problem) {
+      throw new Error(
+        "managed section 'plan' was edited by a person; read the current " +
+          "section, copy the changed words into the stage feedback, then retry " +
+          "with acceptEdits=true. Current section:\n" + problem,
+      );
+    }
+  }
+  const updated = updatePlanCheckboxes(block, {
+    tasks: args.tasks ?? [],
+    tests: args.tests ?? [],
+  });
+  if (updated.changed > 0) {
+    card.frontmatter.swampPlanHash = await hashText(updated.block);
+    card.body = upsertManaged(
+      card.body,
+      PLAN_BEGIN,
+      PLAN_END,
+      updated.block,
+      PLAN_HEADINGS,
+    );
+    await writeCardNote(context, card);
+  }
+  const handle = await context.writeResource(
+    "operation",
+    `operation-${crypto.randomUUID()}`,
+    {
+      operation: "markPlanProgress",
+      id: card.frontmatter.id,
+      path: card.path,
+      changed: updated.changed > 0,
+      detail: updated.unmatched.length > 0
+        ? `unmatched: ${updated.unmatched.join(", ")}`
+        : undefined,
+      timestamp: nowIso(),
+    },
+  );
+  return { dataHandles: [handle] };
+}
+
 async function executeSetPlan(
   args: {
     id: string;
@@ -3078,7 +3186,7 @@ async function executeQueue(
 /** The tracker: stagecraft's contract 1 over an Obsidian board. */
 export const model = {
   type: "@svendowideit/obsidian-factory",
-  version: "2026.11.08.14",
+  version: "2026.11.08.15",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -3199,6 +3307,14 @@ export const model = {
         "community-plugins.json with a backup, and report the required restart. " +
         "The plugin now intercepts workspace.openLinkText for card paths, so " +
         "clicking a Bases Kanban card opens the dialog instead of navigating.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.15",
+      description:
+        "Add markPlanProgress: tick or untick Plan task/test checkboxes by a " +
+        "unique text match, update the plan hash, and refuse a person-edited " +
+        "plan unless acceptEdits=true. The implement/test/release prompts use it.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -3331,6 +3447,23 @@ export const model = {
         dryRun: z.boolean().default(false),
       }),
       execute: executeTick,
+    },
+    markPlanProgress: {
+      description:
+        "Tick or untick Plan task/test checkboxes by matching text, and update the stored plan hash. Refuses a person-edited plan unless acceptEdits=true.",
+      arguments: z.object({
+        id: z.string().min(1),
+        tasks: z.array(z.object({
+          match: z.string().min(1),
+          done: z.boolean(),
+        })).default([]),
+        tests: z.array(z.object({
+          match: z.string().min(1),
+          done: z.boolean(),
+        })).default([]),
+        acceptEdits: z.boolean().default(false),
+      }),
+      execute: executeMarkPlanProgress,
     },
     setDefinition: {
       description:

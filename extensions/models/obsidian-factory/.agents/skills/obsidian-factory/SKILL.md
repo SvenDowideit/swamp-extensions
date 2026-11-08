@@ -197,6 +197,20 @@ swamp behavior run obsidian-idea-factory validate
    functionality added, functionality removed, and known/unknown. Use
    `--input-file` for long arrays.
 
+## Progress tracking
+
+The `## Plan` section is a live checklist. As work happens, mark the matching
+task or test done with:
+
+```sh
+swamp behavior run obsidian-board markPlanProgress --input id=<card>   --input 'tasks=[{"match":"Add archiveCard","done":true}]'   --input 'tests=[{"match":"round-trip preserves content","done":true}]'
+```
+
+Mark only what actually happened. A test is done only after it ran and passed;
+a task is done only when the work is complete. Do not mark the whole list done
+at hand-off. If `markPlanProgress` refuses because the plan was edited, quote
+that edit into the stage feedback and retry with `acceptEdits=true`.
+
 ## What the card column means
 
 The column decides the work. The work item's stage is only a ledger.

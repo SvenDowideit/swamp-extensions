@@ -31,6 +31,7 @@ import {
   splitFrontmatter,
   statusId,
   stripActivity,
+  updatePlanCheckboxes,
   upsertManaged,
   validateRelation,
 } from "./obsidian_factory.ts";
@@ -303,6 +304,49 @@ Deno.test("renderSummarySection puts the person's input first", () => {
     2,
     "question is not repeated in Unknown",
   );
+});
+
+Deno.test("updatePlanCheckboxes ticks matching tasks and tests only", () => {
+  const block = [
+    "<!-- swamp:plan:begin -->",
+    "## Plan",
+    "### Tasks",
+    "- [ ] Build the plugin",
+    "- [ ] Update the docs",
+    "### Tests",
+    "- [ ] dialog prose",
+    "- [ ] installer hash",
+    "### Known / Unknown",
+    "- [ ] not a task",
+    "<!-- swamp:plan:end -->",
+  ].join("\n");
+  const updated = updatePlanCheckboxes(block, {
+    tasks: [{ match: "Build the plugin", done: true }],
+    tests: [{ match: "dialog prose", done: true }],
+  });
+  assert(updated.block.includes("- [x] Build the plugin"), "task ticked");
+  assert(
+    updated.block.includes("- [ ] Update the docs"),
+    "other task untouched",
+  );
+  assert(updated.block.includes("- [x] dialog prose"), "test ticked");
+  assert(
+    updated.block.includes("- [ ] installer hash"),
+    "other test untouched",
+  );
+  assert(
+    updated.block.includes("- [ ] not a task"),
+    "outside sections untouched",
+  );
+  assertEquals(updated.changed, 2, "two changes");
+  const again = updatePlanCheckboxes(updated.block, {
+    tasks: [{ match: "Build the plugin", done: true }],
+  });
+  assertEquals(again.changed, 0, "idempotent");
+  const missed = updatePlanCheckboxes(block, {
+    tasks: [{ match: "missing", done: true }],
+  });
+  assertEquals(missed.unmatched, ["missing"], "unmatched reported");
 });
 
 Deno.test("addEnabledPlugin adds the id once and keeps valid JSON", () => {

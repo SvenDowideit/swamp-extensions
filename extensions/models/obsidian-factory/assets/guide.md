@@ -75,11 +75,12 @@ Each card has three kinds of writing:
   here so they are visible without scrolling.
 - **`## Questions` and `## Feedback`** — sit above the Plan, so they are easy
   to reach. Any new or changed word anywhere on the card is feedback.
-- **`## Plan`** — a checkbox list of tasks and tests, what existing
+- **`## Plan`** — a live checkbox list of tasks and tests, what existing
   functionality changes, what functionality is added or removed, and the
-  known/unknown lists. It is written as a draft by the plan stage and marked
-  final after the adversarial review and cleanup. It is detail to scroll to,
-  not the first thing you must read.
+  known/unknown lists. The factory ticks a task when it is actually done and a
+  test when it has run and passed. It is written as a draft by the plan stage
+  and marked final after the adversarial review and cleanup. It is detail to
+  scroll to, not the first thing you must read.
 - **`## Activity`** — the detailed agent journal. Use it for deep
   investigations; it is not the summary.
 

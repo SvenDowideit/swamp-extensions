@@ -242,6 +242,14 @@ const QueueSchema = z.object({
 });
 
 const TickSchema = z.object({
+  board: z.array(QueueCardSchema),
+  counts: z.object({
+    claim: z.number(),
+    work: z.number(),
+    reconcile: z.number(),
+    done: z.number(),
+    wait: z.number(),
+  }),
   cli: z.object({
     status: z.enum([
       "already",
@@ -2808,6 +2816,14 @@ async function executeTick(
   context: FactoryContext,
 ): Promise<{ dataHandles: Array<{ name: string }> }> {
   context.logger.info("Ticking the Obsidian factory");
+  // Board first: read the actual columns before any housekeeping or work.
+  // A card's column is the person's instruction; the work item must follow it.
+  const queue = await executeQueue({}, context);
+  context.logger.info("Board at tick start: {board}", {
+    board: queue.cards.map((card) =>
+      `${card.id} [${card.column}] ${card.action}`
+    ).join(" | "),
+  });
   const dryRun = args.dryRun === true;
   const cli = await enableObsidianCli(dryRun);
   const css = await ensureCardCss(context, dryRun);
@@ -2819,8 +2835,9 @@ async function executeTick(
       args.factoryDefinition ?? "",
       dryRun,
     );
-  await executeQueue({}, context);
   const handle = await context.writeResource("tick", "tick", {
+    board: queue.cards,
+    counts: queue.counts,
     cli,
     css,
     migrated,
@@ -2837,7 +2854,17 @@ async function executeTick(
 async function executeQueue(
   args: { status?: string; kind?: CardKind },
   context: FactoryContext,
-): Promise<{ dataHandles: Array<{ name: string }> }> {
+): Promise<{
+  dataHandles: Array<{ name: string }>;
+  cards: Array<z.infer<typeof QueueCardSchema>>;
+  counts: {
+    claim: number;
+    work: number;
+    reconcile: number;
+    done: number;
+    wait: number;
+  };
+}> {
   context.logger.info("Queueing the board for {factory}", {
     factory: context.globalArgs.factory,
   });
@@ -2923,13 +2950,13 @@ async function executeQueue(
     statuses: context.globalArgs.statuses,
     timestamp: nowIso(),
   });
-  return { dataHandles: [handle] };
+  return { dataHandles: [handle], cards: rows, counts };
 }
 
 /** The tracker: stagecraft's contract 1 over an Obsidian board. */
 export const model = {
   type: "@svendowideit/obsidian-factory",
-  version: "2026.11.08.9",
+  version: "2026.11.08.10",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -3007,6 +3034,14 @@ export const model = {
         "Collapse an empty duplicated heading (for example two ## Questions " +
         "in a row) on every card write and during migration. No global " +
         "argument or resource schema changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.10",
+      description:
+        "Board first on every tick: read the actual card columns and queue " +
+        "actions before any housekeeping, and report them in the tick data and " +
+        "log. The tick no longer assumes the work item stage is the board.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -103,7 +103,15 @@ swamp behavior run obsidian-idea-factory validate
 
 ## One tick
 
-1. **Run the factory tick.** It is idempotent and does the housekeeping:
+0. **Board first. Every tick starts by reading the actual card columns.** Run
+   `swamp behavior run obsidian-board scan` and `queue`, or read the tick
+   report's `board` and `counts`. A card's column is the person's instruction;
+   the work item follows it. Act on every `reconcile` row **before** any
+   housekeeping or implementation. Never assume a card is where the work item
+   says it is. If a card is in a column the work item cannot enter, stop and
+   report it; do not ignore it.
+1. **Run the factory tick.** The tick now reads and reports the actual board
+   first, then does the idempotent housekeeping:
    - installs and keeps current the card CSS snippet, and sets Obsidian's global
      `cli: true` flag (with backups). The snippet still needs a reload or a
      one-time enable in **Settings → Appearance → CSS snippets**: Obsidian only
@@ -196,6 +204,9 @@ The board's column is the person's instruction. Read it as follows.
 | Please Plan | `proposed` | The person has asked for a plan. Record `refined-brief` from the card (title, brief, project, questions), then take the manual `plan` transition with `confirm=true`. |
 | Work Planned | `plan-cleanup` | The factory has not published yet. Publish; then the card is in Work Planned. |
 | Please Plan | `work-planned` | The person sent the plan back. Read the whole card, not only `## Feedback`; quote every new or changed word as `plan-feedback` (recordedBy person, on their behalf), then take the manual `revise` transition. |
+| Work Planned | `implement` | The person sent the work back from implementation. Record `implementation-feedback` with their words, or the observed move when they added none, then take the manual `return` transition. The accepted plan is kept; the work item is back at Work Planned. |
+| Please Plan | `implement` | The person wants the plan revised during implementation. Record `implementation-feedback`, then take the manual `revise` transition into plan. |
+| Work Planned / Please Plan | `test` or `release` | Stop and report: this factory has no manual way back from test/release to work-planned yet. Do not invent one. |
 | Please Implement | `work-planned` | The person accepted the plan. Record `implementation-brief` from the card, then take the manual `implement` transition. |
 | Please Test | `implement` | The factory has not finished the stage. Do the implement work first; publish when it is done. |
 | Please Implement | `test` | Tests failed, or the person sent it back. Record their feedback and take the manual `revise` transition into `implement`. |
@@ -248,7 +259,10 @@ again for the same move, but you must record the move in the journal with
   Planned.
 - **implement** — two agents in parallel: one writes completeness and
   correctness tests, one implements. Record `tests`, `implementation` and
-  `implement-report`. Both agents work in the card's `project` path.
+  `implement-report`. Both agents work in the card's `project` path. If the
+  person moves the card back to Work Planned, record `implementation-feedback`
+  and take the manual `return` transition; if they move it to Please Plan, take
+  `revise` into plan.
 - **test** — run the full test suite named by the plan. Record `checks` with one
   result per command, and `test-report`. A failed check sends the card back to
   Please Implement.

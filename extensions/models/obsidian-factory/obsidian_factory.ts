@@ -3324,7 +3324,7 @@ async function executeQueue(
 /** The tracker: stagecraft's contract 1 over an Obsidian board. */
 export const model = {
   type: "@svendowideit/obsidian-factory",
-  version: "2026.11.08.23",
+  version: "2026.11.08.24",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -3519,6 +3519,15 @@ export const model = {
         "Add a persistent Obsidian status bar for the tick (ticking Ns, done, " +
         "failed) and a live factory tick log modal, opened by the status bar " +
         "or the Show factory tick log command; failures open the log.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.24",
+      description:
+        "Give the spawned tick a PATH that includes ~/.pi/agent/bin, " +
+        "~/.local/bin, ~/.opencode/bin and the nvm Node bins. This fixes the " +
+        "agent exiting 127 because pi's #!/usr/bin/env node could not find node " +
+        "under Obsidian's minimal PATH.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

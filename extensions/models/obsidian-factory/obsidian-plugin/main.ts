@@ -14,7 +14,7 @@ import {
 } from "obsidian";
 import { spawn } from "child_process";
 import { createHash } from "crypto";
-import { readFileSync } from "fs";
+import { existsSync, readdirSync, readFileSync } from "fs";
 import {
   isCardPath,
   movesForStatus,
@@ -40,6 +40,36 @@ interface FactorySettings {
   swampBinary: string;
   agent: string;
   model: string;
+}
+
+function numericVersion(value: string): number[] {
+  return value.replace(/^v/, "").split(".").map((part) => Number(part) || 0);
+}
+
+function agentPath(): string {
+  const home = process.env.HOME ?? "";
+  const parts = [
+    `${home}/.pi/agent/bin`,
+    `${home}/.local/bin`,
+    `${home}/.opencode/bin`,
+  ];
+  const nvm = `${home}/.nvm/versions/node`;
+  if (existsSync(nvm)) {
+    const versions = readdirSync(nvm)
+      .filter((name) => /^v?\d/.test(name))
+      .sort((a, b) => {
+        const left = numericVersion(a);
+        const right = numericVersion(b);
+        for (let i = 0; i < Math.max(left.length, right.length); i++) {
+          const diff = (right[i] ?? 0) - (left[i] ?? 0);
+          if (diff !== 0) return diff;
+        }
+        return 0;
+      });
+    for (const version of versions) parts.push(`${nvm}/${version}/bin`);
+  }
+  parts.push(process.env.PATH ?? "");
+  return parts.filter(Boolean).join(":");
 }
 
 const DEFAULT_SETTINGS: FactorySettings = {
@@ -215,7 +245,7 @@ export default class ObsidianFactoryPlugin extends Plugin {
     const child = spawn(
       this.settings.swampBinary || "swamp",
       args,
-      { cwd: repo, env: process.env },
+      { cwd: repo, env: { ...process.env, PATH: agentPath() } },
     );
     child.stdout?.on("data", (data) => this.appendLog(data.toString()));
     child.stderr?.on("data", (data) => this.appendLog(data.toString()));

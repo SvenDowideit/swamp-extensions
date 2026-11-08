@@ -73,8 +73,9 @@ binary or agent in **Settings → Community plugins → Obsidian Factory** if
 needed. The tick runs the board-first housekeeping, refreshes the queue and
 starts one agent to work the factory columns. The agent stops at your columns
 and never publishes. The status bar shows **ticking / done / failed**; click it
-or run **Show factory tick log** to read the live output. A failure opens the
-log automatically.
+or run **Show factory tick log** to read the live output. A failure opens the log automatically. The Tick process adds the common agent
+directories and nvm Node bins to PATH, so an agent that needs `node` can run
+even when Obsidian's own PATH is minimal.
 
 ## Moving a card with buttons
 

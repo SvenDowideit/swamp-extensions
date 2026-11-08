@@ -1,0 +1,248 @@
+id: 50943deb-e7fd-4b53-a1fe-6d3a7ec97318
+name: '@svendowideit/herdr-app-install'
+description: |
+  Install, update — or remove — the Herdr desktop app and herdr-core on the
+  machine this workflow runs on, verifying every download against the release
+  manifest's SHA-256.
+
+  This is the local transport: the steps run where swamp runs. Point the same
+  workflow at a `swamp serve` server and it installs on that server instead:
+
+      swamp workflow run @svendowideit/herdr-app-install \
+        --server wss://swamp.example.com
+
+  For a swamp worker, run @svendowideit/herdr-app-worker; for hosts with no
+  swamp at all, run @svendowideit/herdr-app-ssh.
+
+  Steps (install): plan → install → status → verify-install → verify-core.
+  Steps (uninstall): uninstall → status → verify-uninstall.
+
+  plan resolves the newest app (and core) release, selects this host's archive
+  and records what an install would do, without touching the machine. install
+  re-checks what is actually on the host, downloads only when the version
+  differs, verifies the archive's SHA-256 before extracting anything, and places
+  the app the way the vendor's installer does for this platform. It then
+  installs herdr-core only when none is present (the vendor's rule — the app
+  keeps it current afterwards), or updates it with `core=always`. status reads
+  the installed binaries back, and the verify steps fail the run when what is
+  on the machine is not what was planned, rather than reporting success.
+
+  Every path the run touched is in the `install` resource; `status` is what is
+  actually installed now.
+tags:
+  domain: desktop
+inputs:
+  properties:
+    appName:
+      type: string
+      default: herdr-app
+      description: Model instance name this workflow plans, installs and reads back.
+    version:
+      type: string
+      default: ""
+      description: Herdr app version to install. Empty installs the newest release.
+    coreVersion:
+      type: string
+      default: ""
+      description: herdr-core version to install. Empty uses the newest core.
+    core:
+      type: string
+      enum: [auto, always, never]
+      default: auto
+      description: >-
+        herdr-core handling: auto installs one only when the machine has none
+        (the vendor's rule), always also updates an existing core, never leaves
+        the core alone.
+    force:
+      type: boolean
+      default: false
+      description: Reinstall even when the target version is already installed.
+    appDir:
+      type: string
+      default: ""
+      description: >-
+        Override the app location. Empty uses the platform default
+        ($XDG_DATA_HOME/herdr-app, ~/Applications/Herdr.app, or
+        %LOCALAPPDATA%\Programs\herdr-app).
+    binDir:
+      type: string
+      default: ""
+      description: >-
+        Override the directory that holds the herdr-app command and hc on
+        Linux/macOS. Empty uses ~/.local/bin. Ignored on Windows.
+    releasesUrl:
+      type: string
+      default: https://releases.herdr.dev
+      description: Release host to resolve and download from.
+    uninstall:
+      type: boolean
+      default: false
+      description: Remove the app instead of installing it.
+    removeCore:
+      type: boolean
+      default: false
+      description: On an uninstall run, also remove the shared herdr-core and hc.
+  required: []
+jobs:
+  - name: main
+    description: Plan, install (or remove), then verify what is actually on the host.
+    steps:
+      - name: plan
+        description: >-
+          Resolve the app and core release for this host and record what an
+          install would do. No files are written; only the two manifests are
+          fetched. Skipped on an uninstall run, which needs no release.
+        guard: ${{ inputs.uninstall == true }}
+        task:
+          type: model_method
+          modelType: '@svendowideit/herdr-app'
+          modelName: ${{ inputs.appName }}
+          methodName: plan
+          inputs:
+            version: ${{ inputs.version }}
+            coreVersion: ${{ inputs.coreVersion }}
+            core: ${{ inputs.core }}
+            force: ${{ inputs.force }}
+            appDir: ${{ inputs.appDir }}
+            binDir: ${{ inputs.binDir }}
+            releasesUrl: ${{ inputs.releasesUrl }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: install
+        description: >-
+          Download, verify and place the app, then herdr-core per `core`. Every
+          archive is checked against the SHA-256 recorded in the release
+          manifest before anything is extracted. Idempotent: a host already on
+          the target version downloads nothing and reports unchanged. Skipped on
+          an uninstall run.
+        guard: ${{ inputs.uninstall == true }}
+        task:
+          type: model_method
+          modelType: '@svendowideit/herdr-app'
+          modelName: ${{ inputs.appName }}
+          methodName: install
+          inputs:
+            version: ${{ inputs.version }}
+            coreVersion: ${{ inputs.coreVersion }}
+            core: ${{ inputs.core }}
+            force: ${{ inputs.force }}
+            appDir: ${{ inputs.appDir }}
+            binDir: ${{ inputs.binDir }}
+            releasesUrl: ${{ inputs.releasesUrl }}
+            release: ${{ data.latest(inputs.appName, "release").attributes }}
+        dependsOn:
+          - step: plan
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: uninstall
+        description: >-
+          Remove the app, its command link and its launcher entry or Start menu
+          shortcut. The shared herdr-core is kept unless removeCore is set.
+          Idempotent. Only runs when uninstall is true.
+        guard: ${{ inputs.uninstall == false }}
+        task:
+          type: model_method
+          modelType: '@svendowideit/herdr-app'
+          modelName: ${{ inputs.appName }}
+          methodName: uninstall
+          inputs:
+            appDir: ${{ inputs.appDir }}
+            binDir: ${{ inputs.binDir }}
+            removeCore: ${{ inputs.removeCore }}
+            force: ${{ inputs.force }}
+        dependsOn:
+          - step: plan
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+      - name: status
+        description: >-
+          Read back what is installed now by running the installed binaries, so
+          the run records the real state rather than what it intended. Runs after
+          both the install and uninstall paths.
+        task:
+          type: model_method
+          modelType: '@svendowideit/herdr-app'
+          modelName: ${{ inputs.appName }}
+          methodName: status
+          inputs:
+            appDir: ${{ inputs.appDir }}
+            binDir: ${{ inputs.binDir }}
+        dependsOn:
+          - step: install
+            condition:
+              type: always
+          - step: uninstall
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+      - name: verify-install
+        description: >-
+          Fail when the app on the machine does not report the version that was
+          planned, so a placement or signature problem is never reported as
+          success.
+        guard: ${{ inputs.uninstall == true }}
+        task:
+          type: assert
+          expr: >-
+            data.latest(inputs.appName, "status").attributes.appVersion ==
+            data.latest(inputs.appName, "release").attributes.version
+          message: >-
+            The Herdr app on this machine does not report the planned version:
+            read the install and status resources for what happened, fix the
+            cause, and re-run this workflow.
+          severity: high
+        dependsOn:
+          - step: status
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+      - name: verify-core
+        description: >-
+          Fail when herdr-core was asked for and is still absent. The app is
+          still installed, but a run that could not provide the core is not
+          reported as a success.
+        guard: ${{ inputs.uninstall == true || inputs.core == "never" }}
+        task:
+          type: assert
+          expr: >-
+            data.latest(inputs.appName, "status").attributes.corePresent == true
+          message: >-
+            herdr-core is still missing after a run that asked for it: read the
+            install resource for the core's action, re-run, or open Herdr so it
+            installs the core itself.
+          severity: high
+        dependsOn:
+          - step: status
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+      - name: verify-uninstall
+        description: >-
+          Fail when an uninstall run left the app present, so "removed" is only
+          reported after it is verified.
+        guard: ${{ inputs.uninstall == false }}
+        task:
+          type: assert
+          expr: >-
+            data.latest(inputs.appName, "status").attributes.appPresent == false
+          message: >-
+            The Herdr app is still present after an uninstall run: check the
+            appDir override, then re-run.
+          severity: high
+        dependsOn:
+          - step: status
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

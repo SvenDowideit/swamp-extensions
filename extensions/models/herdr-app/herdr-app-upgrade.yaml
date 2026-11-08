@@ -1,0 +1,85 @@
+id: 0aef16d1-3980-4fae-904a-dd817989e8a7
+name: '@svendowideit/herdr-app-upgrade'
+description: |
+  The one command that brings this machine's Herdr app and herdr-core up to
+  date — and the same command that installs them the first time.
+
+      swamp workflow run @svendowideit/herdr-app-upgrade
+
+  It resolves the newest release, installs it only when this machine is not
+  already on it, refreshes a herdr-core only when there is none, and then reads
+  the result back and fails unless the installed app reports the new version. A
+  run on an up-to-date machine downloads nothing and changes nothing.
+
+  Everything it needs is discovered from this machine: the platform, the app
+  location and the core it already has. Add inputs only to pin or redirect:
+
+      swamp workflow run @svendowideit/herdr-app-upgrade \
+        --input version=0.1.14 --input core=always
+
+  It delegates to @svendowideit/herdr-app-install, so the install path, the
+  checksum verification and the verification steps are the same ones that
+  workflow documents. Re-running is safe at any time.
+tags:
+  domain: desktop
+inputs:
+  properties:
+    appName:
+      type: string
+      default: herdr-app
+      description: Model instance name the install workflow plans and reads back.
+    version:
+      type: string
+      default: ""
+      description: Pin a version. Empty upgrades to the newest release.
+    core:
+      type: string
+      enum: [auto, always, never]
+      default: auto
+      description: >-
+        auto keeps the existing herdr-core (the app updates it), always updates
+        it to the newest release, never leaves it untouched.
+    force:
+      type: boolean
+      default: false
+      description: Reinstall even when this machine is already on the target version.
+    appDir:
+      type: string
+      default: ""
+      description: Override the app location. Empty uses the platform default.
+    binDir:
+      type: string
+      default: ""
+      description: Override the command directory on Linux/macOS. Empty uses ~/.local/bin.
+    releasesUrl:
+      type: string
+      default: https://releases.herdr.dev
+      description: Release host to resolve and download from.
+  required: []
+jobs:
+  - name: upgrade
+    description: Install or upgrade in place, then verify the installed version.
+    steps:
+      - name: upgrade
+        description: >-
+          Run the install workflow: plan, install only what differs, then read
+          the binaries back and fail unless the app reports the planned version.
+          This is the whole upgrade — there is no separate migration step,
+          because the app and core are replaced in place.
+        task:
+          type: workflow
+          workflowIdOrName: '@svendowideit/herdr-app-install'
+          inputs:
+            appName: ${{ inputs.appName }}
+            version: ${{ inputs.version }}
+            core: ${{ inputs.core }}
+            force: ${{ inputs.force }}
+            appDir: ${{ inputs.appDir }}
+            binDir: ${{ inputs.binDir }}
+            releasesUrl: ${{ inputs.releasesUrl }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

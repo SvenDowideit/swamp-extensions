@@ -1,0 +1,180 @@
+id: 97f39f3c-9c2f-4afa-b71a-1861be5ccd5a
+name: '@svendowideit/herdr-app-ssh'
+description: |
+  Install or update Herdr on Linux and macOS hosts that have no swamp, over
+  SSH, from one orchestrator.
+
+      swamp workflow run @svendowideit/herdr-app-ssh \
+        --input sshHosts=mac-mini=192.168.1.20,studio=studio.lan
+
+  The release is resolved once, here, and pinned into a POSIX install script by
+  version, URL and SHA-256 for every Linux and macOS target — so a mixed fleet
+  gets the right build per host, every host verifies the same bytes, and no host
+  is asked to parse a manifest. SSH is delegated to
+  @swamp/ssh: this workflow builds its fleet from `sshHosts` (one transport for
+  every host) and pipes the script to each host's `sh`. A host already on the
+  pinned version reports `unchanged` and downloads nothing.
+
+  The script refuses a host whose platform differs from the pins, verifies each
+  archive before extracting it, and prints the app and core versions it left
+  behind. Windows hosts are not supported over SSH — install on them locally,
+  through swamp serve, or on a swamp worker.
+
+  Steps: assert-hosts → plan → render → fleet → install (over ssh).
+tags:
+  domain: desktop
+inputs:
+  properties:
+    sshHosts:
+      type: string
+      default: ""
+      description: >-
+        Hosts to install on, comma- or newline-separated. Each entry is
+        `name=address` or a bare host name/address; the name is what appears in
+        the run output.
+    sshUser:
+      type: string
+      default: ""
+      description: SSH user for every host. Empty uses your ssh config and current user.
+    sshPort:
+      type: integer
+      default: 22
+      description: SSH port for every host.
+    sshIdentityFile:
+      type: string
+      default: ""
+      description: SSH identity file for every host. Empty uses your ssh config and agent.
+    sshHostKeyChecking:
+      type: string
+      enum: [yes, accept-new, no, off]
+      default: accept-new
+      description: OpenSSH StrictHostKeyChecking policy for these connections.
+    sshName:
+      type: string
+      default: herdr-app-ssh
+      description: Name of the @swamp/ssh fleet model that runs the script.
+    appName:
+      type: string
+      default: herdr-app
+      description: Model instance name that renders the installer and holds the fleet.
+    version:
+      type: string
+      default: ""
+      description: Herdr app version to install. Empty installs the newest release.
+    coreVersion:
+      type: string
+      default: ""
+      description: herdr-core version to install. Empty uses the newest core.
+    core:
+      type: string
+      enum: [auto, always, never]
+      default: auto
+      description: >-
+        auto installs a core only on hosts that have none, always also updates
+        an existing one, never leaves the core alone.
+    force:
+      type: boolean
+      default: false
+      description: Reinstall on every host even when it already matches.
+    releasesUrl:
+      type: string
+      default: https://releases.herdr.dev
+      description: Release host the resolved pins point at.
+    verifyCoreSignature:
+      type: boolean
+      default: true
+      description: >-
+        On macOS, verify the Herdr Core.app release signature before installing
+        it. Keep on for releases.herdr.dev; turn off only for a trusted mirror.
+  required: [sshHosts]
+jobs:
+  - name: install-over-ssh
+    description: Resolve once, pin the release, then run the installer on every host.
+    steps:
+      - name: assert-hosts
+        description: Fail clearly when no host was named, before anything is resolved.
+        task:
+          type: assert
+          expr: inputs.sshHosts != ""
+          message: >-
+            Name the hosts to install on, for example
+            --input sshHosts=mac-mini=192.168.1.20
+          severity: high
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: render
+        description: >-
+          Pin the release into the POSIX installer every host runs: one branch
+          per Linux/macOS target, each with its version, URL and SHA-256, so a
+          mixed fleet gets the right build per host from one resolution. The
+          script is inert until it is piped to a host.
+        task:
+          type: model_method
+          modelType: '@svendowideit/herdr-app'
+          modelName: ${{ inputs.appName }}
+          methodName: renderScript
+          inputs:
+            version: ${{ inputs.version }}
+            coreVersion: ${{ inputs.coreVersion }}
+            core: ${{ inputs.core }}
+            force: ${{ inputs.force }}
+            releasesUrl: ${{ inputs.releasesUrl }}
+            verifyCoreSignature: ${{ inputs.verifyCoreSignature }}
+        dependsOn:
+          - step: assert-hosts
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: fleet
+        description: >-
+          Turn sshHosts into an @swamp/ssh fleet: one host per entry, all sharing
+          this run's user, port, identity and host-key policy.
+        task:
+          type: model_method
+          modelType: '@svendowideit/herdr-app'
+          modelName: ${{ inputs.appName }}
+          methodName: sshFleet
+          inputs:
+            fleet: ${{ inputs.sshName }}
+            hosts: ${{ inputs.sshHosts }}
+            user: ${{ inputs.sshUser }}
+            port: ${{ inputs.sshPort }}
+            identityFile: ${{ inputs.sshIdentityFile }}
+            hostKeyChecking: ${{ inputs.sshHostKeyChecking }}
+        dependsOn:
+          - step: render
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: install
+        description: >-
+          Pipe the pinned installer to sh on every host. The script checksums
+          each download, refuses a host of the wrong platform, installs or
+          updates the app and core, and its output is the host's verification —
+          a host that cannot run the installed app fails the step.
+        task:
+          type: model_method
+          modelType: '@swamp/ssh'
+          modelName: ${{ inputs.sshName }}
+          methodName: script
+          globalArgs:
+            name: ${{ inputs.sshName }}
+            transport: ${{ steps.fleet.outputs.transport }}
+            hosts: ${{ steps.fleet.outputs.hosts }}
+          inputs:
+            hosts: all
+            interpreter: sh
+            script: ${{ steps.render.outputs.script }}
+            timeoutSec: 900
+        dependsOn:
+          - step: fleet
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

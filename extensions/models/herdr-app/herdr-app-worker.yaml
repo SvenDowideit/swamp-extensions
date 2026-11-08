@@ -1,0 +1,179 @@
+id: 10708c45-0a3e-4abd-8be1-9c5d263ab669
+name: '@svendowideit/herdr-app-worker'
+description: |
+  Install or update Herdr on a swamp worker — the machine a `swamp serve`
+  orchestrator dispatches work to — instead of on the orchestrator itself.
+
+      swamp workflow run @svendowideit/herdr-app-worker \
+        --server wss://swamp.example.com --input target=mac-mini
+
+  Every step declares `target`, so the whole install is placed on the named
+  worker: the platform detected, the download unpacked and the app placed are
+  all that worker's. The release and the results are written back to the
+  orchestrator, so `swamp data query` shows what the worker now runs. Pin a
+  different worker per run with `target` (a worker token name or instance
+  uuid — `swamp worker list` shows both).
+
+  Requires a running `swamp serve` with at least one enrolled worker: a
+  placement step has nowhere to land without one. On the orchestrator's own
+  machine, use @svendowideit/herdr-app-install instead.
+
+  Steps: plan → install → status, all placed on the worker, then the two verify
+  steps run on the orchestrator against the data the worker wrote.
+tags:
+  domain: desktop
+inputs:
+  properties:
+    target:
+      type: string
+      description: >-
+        Worker to install on: its enrollment token name or instance uuid.
+        `swamp worker list` shows both. Every step is placed here.
+    appName:
+      type: string
+      default: herdr-app
+      description: Model instance name the steps share on the orchestrator.
+    version:
+      type: string
+      default: ""
+      description: Herdr app version to install. Empty installs the newest release.
+    coreVersion:
+      type: string
+      default: ""
+      description: herdr-core version to install. Empty uses the newest core.
+    core:
+      type: string
+      enum: [auto, always, never]
+      default: auto
+      description: >-
+        auto installs a core only when the worker has none, always also updates
+        it, never leaves it alone.
+    force:
+      type: boolean
+      default: false
+      description: Reinstall even when the worker is already on the target version.
+    appDir:
+      type: string
+      default: ""
+      description: Override the app location on the worker. Empty uses its platform default.
+    binDir:
+      type: string
+      default: ""
+      description: Override the command directory on the worker. Empty uses ~/.local/bin.
+    releasesUrl:
+      type: string
+      default: https://releases.herdr.dev
+      description: Release host the worker resolves and downloads from.
+  required: [target]
+jobs:
+  - name: install-on-worker
+    description: Plan, install and verify on one placed worker.
+    steps:
+      - name: plan
+        description: >-
+          Resolve the release for the worker's own platform and compare it with
+          what that worker has installed. Runs on the worker, so the platform,
+          paths and installed versions are the worker's, not the orchestrator's.
+        target: ${{ inputs.target }}
+        task:
+          type: model_method
+          modelType: '@svendowideit/herdr-app'
+          modelName: ${{ inputs.appName }}
+          methodName: plan
+          inputs:
+            version: ${{ inputs.version }}
+            coreVersion: ${{ inputs.coreVersion }}
+            core: ${{ inputs.core }}
+            force: ${{ inputs.force }}
+            appDir: ${{ inputs.appDir }}
+            binDir: ${{ inputs.binDir }}
+            releasesUrl: ${{ inputs.releasesUrl }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: install
+        description: >-
+          Download, verify and place the app and (per `core`) herdr-core on the
+          worker. The archive is checksum-verified before anything is
+          extracted; a worker already on the target version downloads nothing.
+        target: ${{ inputs.target }}
+        task:
+          type: model_method
+          modelType: '@svendowideit/herdr-app'
+          modelName: ${{ inputs.appName }}
+          methodName: install
+          inputs:
+            version: ${{ inputs.version }}
+            coreVersion: ${{ inputs.coreVersion }}
+            core: ${{ inputs.core }}
+            force: ${{ inputs.force }}
+            appDir: ${{ inputs.appDir }}
+            binDir: ${{ inputs.binDir }}
+            releasesUrl: ${{ inputs.releasesUrl }}
+            release: ${{ data.latest(inputs.appName, "release").attributes }}
+        dependsOn:
+          - step: plan
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: status
+        description: >-
+          Read the worker's installed binaries back on the worker itself, so the
+          recorded state is the worker's reality and not the orchestrator's.
+        target: ${{ inputs.target }}
+        task:
+          type: model_method
+          modelType: '@svendowideit/herdr-app'
+          modelName: ${{ inputs.appName }}
+          methodName: status
+          inputs:
+            appDir: ${{ inputs.appDir }}
+            binDir: ${{ inputs.binDir }}
+        dependsOn:
+          - step: install
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+      - name: verify-install
+        description: >-
+          Fail unless the worker reports the planned version, so an install that
+          did not take is never reported as success.
+        task:
+          type: assert
+          expr: >-
+            data.latest(inputs.appName, "status").attributes.appVersion ==
+            data.latest(inputs.appName, "release").attributes.version
+          message: >-
+            The worker does not report the planned Herdr version: read the
+            install and status resources for what happened on it, then re-run.
+          severity: high
+        dependsOn:
+          - step: status
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+      - name: verify-core
+        description: >-
+          Fail when herdr-core was asked for and the worker still has none.
+        guard: ${{ inputs.core == "never" }}
+        task:
+          type: assert
+          expr: >-
+            data.latest(inputs.appName, "status").attributes.corePresent == true
+          message: >-
+            herdr-core is still missing on the worker: read the install resource
+            for the core's action, re-run, or open Herdr there so it installs
+            the core itself.
+          severity: high
+        dependsOn:
+          - step: status
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

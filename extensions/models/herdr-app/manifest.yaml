@@ -1,0 +1,158 @@
+manifestVersion: 1
+name: "@svendowideit/herdr-app"
+version: "2026.11.09.1"
+description: >
+  Install, update and remove the Herdr desktop app — and herdr-core with it —
+  on Linux, macOS and Windows, from swamp, whichever machine swamp is running on.
+
+  WHAT IT DOES
+
+    Herdr (https://herdr.dev) is a desktop app for terminals and coding agents
+    that keep running. This extension does what the vendor's one-line installer
+    does, but as methods a workflow can plan, pin, verify and report: it resolves
+    the release manifest, picks this host's archive, checks its SHA-256 before
+    anything is extracted, and places the app the way the vendor does for that
+    platform. It installs herdr-core only when the machine has none — the
+    vendor's rule, because the app keeps the core current afterwards — or updates
+    it on request. Re-running is safe: a host already on the target version
+    downloads nothing. Prefer it to `curl | sh` when you want a pinned version,
+    a verified download, a report of what changed, or the same install on a
+    server, a worker, or a fleet over SSH.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/herdr-app
+
+  DEPENDENCIES
+
+    None to install the app. It uses Deno's fetch, the bundled deno binary and
+    the host's own tools (tar, and PowerShell on Windows), and talks only to the
+    release host you configure.
+
+    @swamp/ssh is an optional dependency, declared in this manifest's
+    `optionalDependencies:`. It is not installed for you: pull it to use
+    @svendowideit/herdr-app-ssh, which pipes the pinned installer to hosts that
+    have no swamp. Without it, the local, serve and worker workflows still work.
+
+  RUN
+
+      # Install or upgrade on this machine. Idempotent, so it is also the
+      # command to run after every release.
+      swamp workflow run @svendowideit/herdr-app-upgrade
+
+      # Install a pinned version, or move the app somewhere else. Pin when a
+      # fleet must run the same build; appDir/binDir when the defaults do not
+      # fit.
+      swamp workflow run @svendowideit/herdr-app-install \
+        --input version=0.1.14 --input binDir=$HOME/bin
+
+      # Ask what an install would do first. Writes the resolved release and the
+      # plan; touches nothing else.
+      swamp model @svendowideit/herdr-app method run plan herdr-app
+
+      # Install on the machine running `swamp serve`, instead of this one.
+      swamp workflow run @svendowideit/herdr-app-install \
+        --server wss://swamp.x1yoga.fi.gy
+
+      # Install on one enrolled swamp worker. The step is placed there, so the
+      # platform detected and the app installed are that worker's.
+      swamp workflow run @svendowideit/herdr-app-worker \
+        --server wss://swamp.x1yoga.fi.gy --input target=figy-miix
+
+      # Install on Linux and macOS hosts that have no swamp at all, over SSH.
+      # Every host installs the same pinned, checksum-verified release.
+      swamp workflow run @svendowideit/herdr-app-ssh \
+        --input sshHosts=mac-mini=192.0.2.20,studio=studio.lan
+
+      # Read back what is installed now — the versions the binaries report.
+      swamp model @svendowideit/herdr-app method run status herdr-app
+
+      # Remove the app, keeping the shared herdr-core. Add removeCore=true to
+      # remove the core too.
+      swamp workflow run @svendowideit/herdr-app-install --input uninstall=true
+
+  CONFIGURE
+
+    Every setting is a method argument (the model has no global arguments), so
+    `--input` works both on a workflow and on a direct method run:
+
+      version        app version to install; empty = newest  (default "")
+      coreVersion    herdr-core version; empty = newest      (default "")
+      core           auto | always | never                   (default auto)
+      force          reinstall even when current             (default false)
+      appDir         override the app location               (platform default)
+      binDir         override the command directory           (default ~/.local/bin)
+      releasesUrl    release host                             (default https://releases.herdr.dev)
+      downloadDir    where verified archives are staged       (default cache dir)
+      removeCore     uninstall also removes the core          (default false)
+      uninstall      remove instead of install                (default false)
+
+    Platform defaults: Linux `$XDG_DATA_HOME/herdr-app` with `~/.local/bin` and a
+    launcher entry; macOS `~/Applications/Herdr.app`; Windows
+    `%LOCALAPPDATA%\Programs\herdr-app` with a Start menu shortcut and the user
+    PATH. `core=auto` installs a core only when none is present, `always` also
+    updates it, `never` leaves it alone. Setting `appDir` moves the app without
+    touching the machine's launcher entry.
+
+    @svendowideit/herdr-app-ssh takes `sshHosts` (comma-separated
+    `name=address` entries, or bare addresses), `sshUser`, `sshPort`,
+    `sshIdentityFile`, `sshHostKeyChecking` and `verifyCoreSignature`, plus the
+    install settings above. One transport applies to every host.
+
+    @svendowideit/herdr-app-worker takes `target` (a worker token name or
+    instance uuid — `swamp worker list` shows both) and the install settings.
+    The workflow requires a running swamp serve with an enrolled worker.
+
+  UPGRADE
+
+      swamp workflow run @svendowideit/herdr-app-upgrade
+
+    That is the whole upgrade: it resolves the newest release, installs it only
+    when this machine is not already on it, refreshes herdr-core when there is
+    none, reads the installed binaries back, and fails unless the app reports
+    the planned version. Nothing else needs migrating, and re-running is safe.
+
+  WHAT IT INSTALLS
+
+    On the host it runs on: the Herdr app (a data directory and launcher entry on
+    Linux, `Herdr.app` in ~/Applications on macOS, a Programs directory with a
+    Start menu shortcut and a user PATH entry on Windows), a `herdr-app` command
+    symlink on Linux/macOS, and — only when the machine has no core, or when
+    asked — `herdr-core` with its `hc` alias. On Windows the core also brings its
+    bundled ConPTY. It creates no services, daemons, cron triggers or webhooks.
+    Verified downloads are cached under the user cache directory; `uninstall`
+    removes the app, its command link and its launcher entry, and the core only
+    when `removeCore=true`.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - herdr_app.ts
+
+workflows:
+  - herdr-app-install.yaml
+  - herdr-app-upgrade.yaml
+  - herdr-app-worker.yaml
+  - herdr-app-ssh.yaml
+
+dependencies: []
+
+optionalDependencies:
+  - "@swamp/ssh"
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - herdr_app_test.ts
+  - herdr_app_shared_test.ts
+
+platforms:
+  - linux-x86_64
+  - linux-aarch64
+  - darwin-aarch64
+  - windows-x86_64

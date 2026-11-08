@@ -90,6 +90,22 @@ declare module "obsidian" {
   export class Notice {
     constructor(message: string);
   }
+  export interface RequestUrlParam {
+    url: string;
+    method?: string;
+    headers?: Record<string, string>;
+    body?: string;
+    contentType?: string;
+    throw?: boolean;
+  }
+  export interface RequestUrlResponse {
+    status: number;
+    text: string;
+    json: unknown;
+  }
+  export function requestUrl(
+    request: RequestUrlParam,
+  ): Promise<RequestUrlResponse>;
   export class TextComponent {
     setPlaceholder(value: string): TextComponent;
     setValue(value: string): TextComponent;

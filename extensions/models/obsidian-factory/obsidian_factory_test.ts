@@ -6,6 +6,11 @@ import {
   appendActivity,
   appendBullet,
   applyManagedSections,
+  ARCHIVE_OUTCOMES,
+  archiveCard,
+  archivedFrontmatter,
+  archiveFolder,
+  archivePathFor,
   buildTickPrompt,
   cardDisplay,
   cardMatches,
@@ -13,6 +18,9 @@ import {
   collapseDuplicateHeadings,
   composeNote,
   countBullets,
+  DEFAULT_STAGE_COLUMNS,
+  DEFAULT_STATUS_FOR_KIND,
+  DEFAULT_STATUSES,
   hashText,
   incomingRelations,
   insertAfterTitle,
@@ -21,6 +29,7 @@ import {
   movesForStatus,
   nextCommentId,
   nextId,
+  notesMatch,
   parseActivity,
   parseCard,
   queueActionFor,
@@ -28,6 +37,7 @@ import {
   renderDefinitionSection,
   renderPlanSection,
   renderSummarySection,
+  restoredStatus,
   sectionBullets,
   shouldReopenTerminal,
   slugify,
@@ -35,11 +45,18 @@ import {
   statusId,
   stripActivity,
   stripManaged,
+  unarchiveCard,
+  unarchivedFrontmatter,
   updatePlanCheckboxes,
   upsertManaged,
   validateRelation,
 } from "./obsidian_factory.ts";
-import type { Card } from "./obsidian_factory.ts";
+import type {
+  ArchiveOutcome,
+  Card,
+  FactoryContext,
+} from "./obsidian_factory.ts";
+import { parse as parseYaml } from "jsr:@std/yaml@1.0.0";
 
 function assert(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -377,6 +394,8 @@ Deno.test("mergePluginSettings sets an empty repoPath and keeps settings", () =>
     agent: "kilo",
     swampBinary: "swamp",
     model: "",
+    archiveWebhookUrl: "",
+    archiveWebhookToken: "",
   });
   const kept = mergePluginSettings(existing, "/repo");
   assertEquals(kept.changed, false, "keeps a set repo path");
@@ -791,4 +810,488 @@ Deno.test("buildTickPrompt explains an all-waiting board", () => {
     action: "wait" as const,
   }], { claim: 0, work: 0, reconcile: 0, done: 0, wait: 1 });
   assert(prompt.includes("every card is waiting"), "all-waiting note");
+});
+
+// ---------------------------------------------------------------------------
+// Archive: a fake vault, so the whole lifecycle is exercised, not just helpers
+// ---------------------------------------------------------------------------
+
+interface FakeDataRecord {
+  name: string;
+  version: number;
+  attributes: Record<string, unknown>;
+}
+
+/** A tiny in-memory @magistr/obsidian/vault, enough for the archive methods. */
+class FakeVault {
+  notes = new Map<string, string>();
+  trashFailures = new Set<string>();
+  corruptWrites = false;
+  readonly context: FactoryContext;
+  private records = new Map<string, FakeDataRecord[]>();
+  private counter = 0;
+
+  constructor(files: Record<string, string> = {}) {
+    for (const [path, content] of Object.entries(files)) {
+      this.notes.set(path, content);
+    }
+    const runModel = (
+      options: {
+        definition: string;
+        method: string;
+        arguments?: Record<string, unknown>;
+      },
+    ): Promise<{
+      ok: boolean;
+      resources?: Array<{ name?: string }>;
+      error?: { message?: string };
+    }> => {
+      const args = options.arguments ?? {};
+      const file = String(args.file ?? args.name ?? "");
+      const answer = (value: {
+        ok: boolean;
+        resources?: Array<{ name?: string }>;
+        error?: { message?: string };
+      }) => Promise.resolve(value);
+      switch (options.method) {
+        case "read": {
+          const content = this.notes.get(file);
+          if (content === undefined) {
+            return answer({
+              ok: false,
+              error: { message: `note not found: ${file}` },
+            });
+          }
+          return answer({
+            ok: true,
+            resources: [{ name: this.store("note", { content, file }) }],
+          });
+        }
+        case "create": {
+          const content = String(args.content ?? "");
+          const written = this.corruptWrites
+            ? content.slice(0, Math.max(0, content.length - 40))
+            : content;
+          this.notes.set(file, written);
+          return answer({
+            ok: true,
+            resources: [{
+              name: this.store("note", { content: written, file }),
+            }],
+          });
+        }
+        case "delete": {
+          if (this.trashFailures.has(file)) {
+            return answer({
+              ok: false,
+              error: { message: `cannot trash ${file}` },
+            });
+          }
+          this.notes.delete(file);
+          return answer({
+            ok: true,
+            resources: [{ name: this.store("deleted", { file }) }],
+          });
+        }
+        case "list": {
+          const folder = String(args.folder ?? "").replace(/\/+$/, "");
+          const files = [...this.notes.keys()].filter((path) =>
+            path === folder || path.startsWith(`${folder}/`)
+          );
+          return answer({
+            ok: true,
+            resources: [{ name: this.store("notes", { files }) }],
+          });
+        }
+        default:
+          return answer({
+            ok: false,
+            error: { message: `unknown method ${options.method}` },
+          });
+      }
+    };
+    const globalArgs = {
+      vaultModel: "obsidian-vault",
+      folder: "Factory",
+      prefix: "fac",
+      trackerName: "obsidian",
+      types: ["inbox", "category", "action"],
+      statuses: [...DEFAULT_STATUSES],
+      statusForKind: { ...DEFAULT_STATUS_FOR_KIND },
+      stageColumns: { ...DEFAULT_STAGE_COLUMNS },
+      factory: "obsidian-idea-factory",
+      allowDotObsidian: false,
+    } as FactoryContext["globalArgs"];
+    this.context = {
+      globalArgs,
+      logger: { info: () => {} },
+      writeResource: (
+        specName: string,
+        name: string,
+        data: Record<string, unknown>,
+      ) => {
+        this.store(specName, data);
+        return Promise.resolve({ name });
+      },
+      readModelData: (modelName: string, specName?: string) =>
+        Promise.resolve(
+          this.records.get(`${modelName}:${specName ?? ""}`) ?? [],
+        ),
+      runModel,
+    };
+  }
+
+  private store(specName: string, attributes: Record<string, unknown>): string {
+    const name = `${specName}-${++this.counter}`;
+    const key = `obsidian-vault:${specName}`;
+    const list = this.records.get(key) ?? [];
+    list.push({ name, version: 1, attributes });
+    this.records.set(key, list);
+    return name;
+  }
+}
+
+const CARD_PATH = "Factory/Cards/FAC-2 board-automation.md";
+const ARCHIVE_PATH = "Factory/Archive/FAC-2 board-automation.md";
+
+function sampleCardBody(): string {
+  return [
+    "# Board automation",
+    "",
+    "<!-- swamp:summary:begin -->",
+    "## At a glance",
+    "",
+    "**Stage:** Please Test · **Plan:** final",
+    "",
+    "**Needs your input**",
+    "",
+    "- Read the plan and move the card on.",
+    "<!-- swamp:summary:end -->",
+    "",
+    "Make the board tick itself.",
+    "",
+    "## Brief",
+    "",
+    "Tick the board when a card moves.",
+    "",
+    "## Feedback",
+    "",
+    "## Plan",
+    "",
+    "<!-- swamp:plan:begin -->",
+    "### Tasks",
+    "",
+    "- [x] Write the tick webhook",
+    "<!-- swamp:plan:end -->",
+    "",
+    "## Activity",
+    "",
+    "<!-- swamp:activity:begin -->",
+    '<!-- swamp:entry {"id":"e-1","kind":"entry","at":"2026-11-01T00:00:00.000Z"} -->',
+    "🔧 Planned the webhook.",
+    "<!-- swamp:entry:end -->",
+    "<!-- swamp:activity:end -->",
+  ].join("\n");
+}
+
+function sampleCardNote(
+  status = "Please Test",
+  body = sampleCardBody(),
+): string {
+  return composeNote({
+    id: "fac-2",
+    display: "FAC-2",
+    title: "Board automation",
+    kind: "action",
+    type: "action",
+    status,
+    created: "2026-11-01T00:00:00.000Z",
+    updated: "2026-11-01T00:00:00.000Z",
+    relations: [],
+    description: "Make the board tick itself.",
+    cssclasses: ["factory-card"],
+  }, body);
+}
+
+function headings(body: string, level: number): string[] {
+  const pattern = new RegExp(`^#{${level}}\\s+`, "gm");
+  return body.match(pattern) ?? [];
+}
+
+Deno.test("archive and unarchive round-trip preserves the card", async () => {
+  const vault = new FakeVault({ [CARD_PATH]: sampleCardNote() });
+  const archived = await archiveCard(vault.context, {
+    id: "fac-2",
+    outcome: "done",
+    reason: "The tick webhook shipped",
+    detail: "Released with the plugin",
+  });
+  assertEquals(archived.changed, true, "archived");
+  assertEquals(archived.path, ARCHIVE_PATH, "archive path");
+  assertEquals(vault.notes.has(CARD_PATH), false, "original left the board");
+  const copy = vault.notes.get(ARCHIVE_PATH) ?? "";
+  assert(copy.includes("Tick the board when a card moves."), "brief kept");
+  assert(copy.includes("Write the tick webhook"), "plan kept");
+  assert(copy.includes("Planned the webhook."), "activity kept");
+  assert(copy.includes("Archived as **done**"), "archive entry added");
+
+  const restored = await unarchiveCard(vault.context, { id: "fac-2" });
+  assertEquals(restored.changed, true, "restored");
+  assertEquals(restored.previousStatus, "Please Test", "column restored");
+  assertEquals(vault.notes.has(ARCHIVE_PATH), false, "archive copy moved back");
+  const back = vault.notes.get(CARD_PATH) ?? "";
+  const split = splitFrontmatter(back);
+  assertEquals(split.frontmatter.status, "Please Test", "status back");
+  assertEquals(split.frontmatter.archiveStatus, undefined, "outcome cleared");
+  assertEquals(split.frontmatter.archivedAt, undefined, "date cleared");
+  assert(
+    back.includes("Tick the board when a card moves."),
+    "brief still here",
+  );
+  assert(back.includes("Restored to **Please Test**"), "unarchive entry added");
+});
+
+Deno.test("an archived card keeps At a glance and one title", async () => {
+  const vault = new FakeVault({ [CARD_PATH]: sampleCardNote() });
+  await archiveCard(vault.context, {
+    id: "fac-2",
+    outcome: "done",
+    reason: "Finished",
+  });
+  const copy = vault.notes.get(ARCHIVE_PATH) ?? "";
+  assert(copy.includes("## At a glance"), "At a glance kept");
+  assert(copy.includes("Needs your input"), "Needs your input kept");
+  assertEquals(headings(copy, 1).length, 1, "one human title");
+});
+
+Deno.test("a content mismatch removes the copy and keeps the original", async () => {
+  const vault = new FakeVault({ [CARD_PATH]: sampleCardNote() });
+  vault.corruptWrites = true;
+  let message = "";
+  try {
+    await archiveCard(vault.context, {
+      id: "fac-2",
+      outcome: "done",
+      reason: "Finished",
+    });
+  } catch (error) {
+    message = error instanceof Error ? error.message : String(error);
+  }
+  assert(
+    message.includes("did not read back unchanged"),
+    `refused: ${message}`,
+  );
+  assert(vault.notes.has(CARD_PATH), "original kept");
+  assertEquals(vault.notes.has(ARCHIVE_PATH), false, "copy removed");
+});
+
+Deno.test("a trash failure leaves both copies and reports it", async () => {
+  const vault = new FakeVault({ [CARD_PATH]: sampleCardNote() });
+  vault.trashFailures.add(CARD_PATH);
+  let message = "";
+  try {
+    await archiveCard(vault.context, {
+      id: "fac-2",
+      outcome: "done",
+      reason: "Finished",
+    });
+  } catch (error) {
+    message = error instanceof Error ? error.message : String(error);
+  }
+  assert(message.includes(ARCHIVE_PATH), "archive path named");
+  assert(message.includes(CARD_PATH), "original path named");
+  assert(vault.notes.has(CARD_PATH), "original kept");
+  assert(vault.notes.has(ARCHIVE_PATH), "copy kept");
+});
+
+Deno.test("the inbox is refused", async () => {
+  const inboxPath = "Factory/Cards/INBOX Uncharacterised.md";
+  const vault = new FakeVault({
+    [inboxPath]: composeNote({
+      id: "inbox",
+      title: "Uncharacterised",
+      kind: "inbox",
+      status: "Uncharacterised",
+    }, "# Uncharacterised\n\n## Thoughts\n\n- an idea\n"),
+  });
+  let message = "";
+  try {
+    await archiveCard(vault.context, {
+      id: "inbox",
+      outcome: "deleted",
+      reason: "Not wanted",
+    });
+  } catch (error) {
+    message = error instanceof Error ? error.message : String(error);
+  }
+  assert(message.includes("inbox"), `refused: ${message}`);
+  assert(vault.notes.has(inboxPath), "inbox kept");
+  assertEquals([...vault.notes.keys()].length, 1, "nothing copied");
+});
+
+Deno.test("unarchive restores previousStatus or Proposed", async () => {
+  const statuses = [...DEFAULT_STATUSES];
+  assertEquals(
+    restoredStatus({ previousStatus: "User Acceptance" }, statuses),
+    "User Acceptance",
+    "previous column",
+  );
+  assertEquals(
+    restoredStatus({ previousStatus: "Retired" }, statuses),
+    "Proposed",
+    "unknown column",
+  );
+  assertEquals(restoredStatus({}, statuses), "Proposed", "no previous column");
+
+  const legacy = "Factory/Archive/FAC-9 voice-input.md";
+  const vault = new FakeVault({
+    [legacy]: composeNote({
+      id: "fac-9",
+      title: "Voice input",
+      kind: "category",
+      status: "Category",
+      archiveStatus: "deleted",
+      archiveReason: "Duplicate of FAC-3",
+    }, "# Voice input\n\n## Ideas\n\n- dictate cards\n"),
+  });
+  const result = await unarchiveCard(vault.context, { id: "fac-9" });
+  assertEquals(result.previousStatus, "Proposed", "fallback column");
+  const back = splitFrontmatter(
+    vault.notes.get(legacy.replace("/Archive/", "/Cards/")) ?? "",
+  );
+  assertEquals(back.frontmatter.status, "Proposed", "status written");
+  assertEquals(back.frontmatter.archiveReason, undefined, "reason cleared");
+});
+
+Deno.test("unarchive never overwrites a card already on the board", async () => {
+  const vault = new FakeVault({
+    [CARD_PATH]: sampleCardNote(),
+    [ARCHIVE_PATH]: composeNote({
+      id: "fac-2",
+      title: "Board automation",
+      kind: "action",
+      status: "Done",
+      archiveStatus: "done",
+      archiveReason: "old",
+      previousStatus: "Done",
+    }, "# Board automation\n"),
+  });
+  let message = "";
+  try {
+    await unarchiveCard(vault.context, { id: "fac-2" });
+  } catch (error) {
+    message = error instanceof Error ? error.message : String(error);
+  }
+  assert(message.includes("already exists"), `refused: ${message}`);
+  assert(vault.notes.has(ARCHIVE_PATH), "archive copy kept");
+});
+
+Deno.test("the outcome enum is done, deleted or duplicate plus optional detail", async () => {
+  assertEquals([...ARCHIVE_OUTCOMES], ["done", "deleted", "duplicate"], "enum");
+  assertEquals(archiveFolder("Factory/"), "Factory/Archive", "archive folder");
+  assertEquals(
+    archivePathFor("Factory", CARD_PATH),
+    ARCHIVE_PATH,
+    "archive path keeps the file name",
+  );
+  assert(notesMatch("a\n", "a\n"), "same note");
+  assert(notesMatch("a\n", "a"), "trailing newline ignored");
+  assert(!notesMatch("a\n", "b\n"), "different note");
+  assert(!notesMatch("a\n", null), "missing note");
+  const cleared = unarchivedFrontmatter(
+    {
+      status: "Done",
+      archiveStatus: "done",
+      archiveReason: "shipped",
+      archivedAt: "2026-11-08T00:00:00.000Z",
+      previousStatus: "User Acceptance",
+    },
+    [...DEFAULT_STATUSES],
+    "2026-11-09T00:00:00.000Z",
+  );
+  assertEquals(cleared.status, "User Acceptance", "cleared status");
+  assertEquals(cleared.archiveStatus, undefined, "cleared outcome");
+  assertEquals(cleared.archiveReason, undefined, "cleared reason");
+  assertEquals(cleared.updated, "2026-11-09T00:00:00.000Z", "updated");
+  const withDetail = archivedFrontmatter({ status: "Done" }, {
+    outcome: "done",
+    reason: "Shipped",
+    detail: "In 2026.11",
+    archivedAt: "2026-11-08T00:00:00.000Z",
+  });
+  assertEquals(withDetail.archiveDetail, "In 2026.11", "detail kept");
+  assertEquals(withDetail.previousStatus, "Done", "previous column kept");
+  const withoutDetail = archivedFrontmatter({ status: "Done" }, {
+    outcome: "duplicate",
+    reason: "Same as FAC-3",
+    archivedAt: "2026-11-08T00:00:00.000Z",
+  });
+  assert(!("archiveDetail" in withoutDetail), "detail omitted");
+
+  const vault = new FakeVault({ [CARD_PATH]: sampleCardNote() });
+  let message = "";
+  try {
+    await archiveCard(vault.context, {
+      id: "fac-2",
+      outcome: "cancelled" as unknown as ArchiveOutcome,
+      reason: "Not on the list",
+    });
+  } catch (error) {
+    message = error instanceof Error ? error.message : String(error);
+  }
+  assert(message.includes("no archive outcome"), `refused: ${message}`);
+  assert(vault.notes.has(CARD_PATH), "card kept");
+});
+
+Deno.test("Archive.base shows only archived cards grouped by outcome", async () => {
+  const asset = async (name: string) =>
+    await Deno.readTextFile(
+      new URL(`./assets/${name}`, import.meta.url),
+    );
+  const archive = parseYaml(await asset("archive.base.yaml")) as {
+    filters: { and: unknown[] };
+    properties: Record<string, unknown>;
+    views: Array<{
+      name: string;
+      groupBy?: { property: string };
+      filters?: { and: string[] };
+    }>;
+  };
+  const filters = JSON.stringify(archive.filters);
+  assert(filters.includes("/Archive"), "Archive folder only");
+  const main = archive.views[0];
+  assertEquals(
+    main.groupBy?.property,
+    "note.archiveStatus",
+    "grouped by outcome",
+  );
+  for (
+    const field of [
+      "note.title",
+      "note.archiveStatus",
+      "note.archiveReason",
+      "note.archiveDetail",
+      "note.archivedAt",
+      "note.previousStatus",
+    ]
+  ) {
+    assert(field in archive.properties, `property ${field}`);
+  }
+  const perOutcome = archive.views.slice(1).map((view) => view.name);
+  assertEquals(perOutcome, ["Done", "Deleted", "Duplicate"], "one view each");
+  for (const view of archive.views.slice(1)) {
+    const outcome = view.name.toLowerCase();
+    assertEquals(
+      view.filters?.and,
+      [`archiveStatus == "${outcome}"`],
+      view.name,
+    );
+  }
+
+  const board = parseYaml(await asset("board.base.yaml")) as {
+    filters: { and: unknown[] };
+  };
+  const boardFilters = JSON.stringify(board.filters);
+  assert(boardFilters.includes("/Cards"), "board filters Cards");
+  assert(!boardFilters.includes("Archive"), "board excludes the archive");
 });

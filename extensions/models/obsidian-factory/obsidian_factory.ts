@@ -60,6 +60,13 @@ export const DEFAULT_STAGE_COLUMNS: Record<string, string> = {
 export const CARD_KINDS = ["inbox", "category", "action"] as const;
 export type CardKind = typeof CARD_KINDS[number];
 
+/**
+ * The outcome an archived card records. Every archive has exactly one of
+ * these plus a free-text reason; an optional detail line says more.
+ */
+export const ARCHIVE_OUTCOMES = ["done", "deleted", "duplicate"] as const;
+export type ArchiveOutcome = typeof ARCHIVE_OUTCOMES[number];
+
 /** One relation, as the tracker contract defines it. */
 export interface Relation {
   type: "parent_of" | "blocked_by" | "related_to" | "duplicate_of";
@@ -331,6 +338,9 @@ const OperationSchema = z.object({
   path: z.string(),
   changed: z.boolean(),
   detail: z.string().optional(),
+  outcome: z.string().optional(),
+  reason: z.string().optional(),
+  previousStatus: z.string().optional(),
   timestamp: z.string(),
 });
 
@@ -515,6 +525,8 @@ export function mergePluginSettings(
     swampBinary: "swamp",
     agent: "pi",
     model: "",
+    archiveWebhookUrl: "",
+    archiveWebhookToken: "",
   };
   for (const [key, value] of Object.entries(defaults)) {
     if (typeof data[key] !== "string") {
@@ -1329,7 +1341,7 @@ interface DataRecord {
   attributes: Record<string, unknown>;
 }
 
-interface FactoryContext {
+export interface FactoryContext {
   globalArgs: GlobalArgs;
   logger: {
     info: (message: string, props?: Record<string, unknown>) => void;
@@ -1493,6 +1505,98 @@ function cardsFolder(context: FactoryContext): string {
   return `${context.globalArgs.folder.replace(/\/+$/, "")}/Cards`;
 }
 
+/** The folder archived cards move to. */
+export function archiveFolder(folder: string): string {
+  return `${folder.replace(/\/+$/, "")}/Archive`;
+}
+
+/**
+ * Where an archived copy of a card lives: the same file name, in the Archive
+ * folder. Keeping the name makes unarchive a copy back, not a rename guess.
+ */
+export function archivePathFor(folder: string, cardPath: string): string {
+  const name = cardPath.split("/").pop() ?? "card.md";
+  return `${archiveFolder(folder)}/${name}`;
+}
+
+/** The archive fields an archived copy records, on top of the card's own. */
+export interface ArchiveRecord {
+  outcome: ArchiveOutcome;
+  reason: string;
+  detail?: string;
+  archivedAt: string;
+}
+
+/**
+ * The frontmatter of an archived copy: the card's own frontmatter, the archive
+ * outcome, reason, optional detail and timestamp, and the column to return to.
+ * The card's prose and managed sections are untouched; unarchive clears these
+ * fields again, so a round trip is lossless.
+ */
+export function archivedFrontmatter(
+  frontmatter: Record<string, unknown>,
+  record: ArchiveRecord,
+): Record<string, unknown> {
+  const previousStatus = typeof frontmatter.status === "string"
+    ? frontmatter.status
+    : "";
+  const detail = record.detail?.trim() ?? "";
+  return {
+    ...frontmatter,
+    archiveStatus: record.outcome,
+    archiveReason: record.reason.trim(),
+    ...(detail ? { archiveDetail: detail } : {}),
+    archivedAt: record.archivedAt,
+    ...(previousStatus ? { previousStatus } : {}),
+    updated: record.archivedAt,
+  };
+}
+
+/**
+ * The column an archived card returns to: the one it left, or Proposed when
+ * that column is unknown or no longer a board column.
+ */
+export function restoredStatus(
+  frontmatter: Record<string, unknown>,
+  statuses: string[],
+): string {
+  const previous = typeof frontmatter.previousStatus === "string"
+    ? frontmatter.previousStatus
+    : "";
+  return statuses.includes(previous) ? previous : "Proposed";
+}
+
+/** The frontmatter of an unarchived card: archive fields cleared, column back. */
+export function unarchivedFrontmatter(
+  frontmatter: Record<string, unknown>,
+  statuses: string[],
+  updatedAt: string,
+): Record<string, unknown> {
+  const {
+    archiveStatus: _archiveStatus,
+    archiveReason: _archiveReason,
+    archiveDetail: _archiveDetail,
+    archivedAt: _archivedAt,
+    previousStatus: _previousStatus,
+    ...rest
+  } = frontmatter;
+  return {
+    ...rest,
+    status: restoredStatus(frontmatter, statuses),
+    updated: updatedAt,
+  };
+}
+
+/**
+ * Whether a read-back archive copy holds what was written. Compared in full;
+ * only trailing whitespace is ignored, because an Obsidian CLI read may drop
+ * the final newline that a filesystem read keeps.
+ */
+export function notesMatch(written: string, readBack: string | null): boolean {
+  if (readBack === null) return false;
+  return readBack === written || readBack.trimEnd() === written.trimEnd();
+}
+
 function notePath(context: FactoryContext, id: string, title: string): string {
   return `${cardsFolder(context)}/${id.toUpperCase()} ${slugify(title)}.md`;
 }
@@ -1627,6 +1731,255 @@ async function createCard(
   );
   await writeNote(context, card.path, composeNote(card.frontmatter, card.body));
   return card;
+}
+
+// ---------------------------------------------------------------------------
+// Archive: leave the active board, keep the history readable
+// ---------------------------------------------------------------------------
+
+/** Move a note to the vault's trash (never a permanent delete). */
+async function trashNote(
+  context: FactoryContext,
+  file: string,
+): Promise<void> {
+  const runModel = requireRunModel(context);
+  const result = await runModel({
+    definition: context.globalArgs.vaultModel,
+    method: "delete",
+    arguments: {
+      file,
+      permanent: false,
+      allowDotObsidian: context.globalArgs.allowDotObsidian,
+    },
+  });
+  if (!result.ok) {
+    throw new Error(
+      `vault trash failed for '${file}': ${result.error?.message ?? ""}`,
+    );
+  }
+}
+
+/** Read and parse every archived card in the Archive folder. */
+export async function readArchivedCards(
+  context: FactoryContext,
+): Promise<Card[]> {
+  const files = await listNotes(
+    context,
+    archiveFolder(context.globalArgs.folder),
+  );
+  const cards: Card[] = [];
+  for (const file of files) {
+    const raw = await readNote(context, file);
+    if (raw === null) continue;
+    const card = parseCard(file, raw);
+    if (card) cards.push(card);
+  }
+  return cards;
+}
+
+/** The outcome, reason and detail an archive records. */
+export interface ArchiveCardArgs {
+  id: string;
+  outcome: ArchiveOutcome;
+  reason: string;
+  detail?: string;
+  dryRun?: boolean;
+}
+
+/** What an archive or unarchive operation reports. */
+export interface ArchiveResult {
+  operation: "archiveCard" | "unarchiveCard";
+  id: string;
+  path: string;
+  changed: boolean;
+  detail: string;
+  outcome?: string;
+  reason?: string;
+  previousStatus?: string;
+}
+
+/**
+ * Archive one card: write a verified copy to the Archive folder, then trash the
+ * original. Nothing is lost: the copy is read back and compared before the
+ * original moves, and a mismatch or a failed trash keeps the original.
+ */
+export async function archiveCard(
+  context: FactoryContext,
+  args: ArchiveCardArgs,
+): Promise<ArchiveResult> {
+  const card = await findCard(context, args.id);
+  if (!card) throw new Error(`no card '${args.id}'`);
+  if (card.frontmatter.kind === "inbox") {
+    throw new Error(
+      "refusing to archive the inbox card: it is the person's inbox, not a card to finish",
+    );
+  }
+  if (!(ARCHIVE_OUTCOMES as readonly string[]).includes(args.outcome)) {
+    throw new Error(
+      `no archive outcome '${args.outcome}': ${ARCHIVE_OUTCOMES.join(", ")}`,
+    );
+  }
+  const reason = args.reason.trim();
+  if (!reason) {
+    throw new Error(
+      "archiveCard needs a reason: say why this card is finished",
+    );
+  }
+  const target = archivePathFor(context.globalArgs.folder, card.path);
+  const existing = await readNote(context, target);
+  if (existing !== null) {
+    const parsed = parseCard(target, existing);
+    if (!parsed || parsed.frontmatter.id !== card.frontmatter.id) {
+      throw new Error(
+        `an archive note already exists at '${target}'; move or unarchive it first`,
+      );
+    }
+  }
+  const archivedAt = nowIso();
+  const detail = args.detail?.trim() ?? "";
+  const frontmatter = archivedFrontmatter(card.frontmatter, {
+    outcome: args.outcome,
+    reason,
+    detail,
+    archivedAt,
+  });
+  const body = appendActivity(card.body, {
+    kind: "entry",
+    id: nextEntryId(parseActivity(card.body)),
+    at: archivedAt,
+    step: "archive",
+    targetStatus: "Archive",
+    summary: `Archived as ${args.outcome}: ${reason}`,
+    emoji: "🗄️",
+    body: `🗄️ Archived as **${args.outcome}**: ${reason}${
+      detail ? `\n\n${detail}` : ""
+    }`,
+    payload: {
+      outcome: args.outcome,
+      reason,
+      ...(detail ? { detail } : {}),
+    },
+  });
+  const previousStatus = typeof card.frontmatter.status === "string"
+    ? card.frontmatter.status
+    : "";
+  if (args.dryRun === true) {
+    return {
+      operation: "archiveCard",
+      id: card.frontmatter.id,
+      path: target,
+      changed: false,
+      detail: `dry run: would archive to '${target}'`,
+      outcome: args.outcome,
+      reason,
+      previousStatus,
+    };
+  }
+  const content = composeNote(frontmatter, body);
+  await writeNote(context, target, content);
+  const readBack = await readNote(context, target);
+  if (!notesMatch(content, readBack)) {
+    await trashNote(context, target).catch(() => {});
+    throw new Error(
+      `the archived copy at '${target}' did not read back unchanged; the original '${card.path}' is untouched`,
+    );
+  }
+  try {
+    await trashNote(context, card.path);
+  } catch (error) {
+    throw new Error(
+      `archived copy kept at '${target}'; the original '${card.path}' could not be trashed: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+  return {
+    operation: "archiveCard",
+    id: card.frontmatter.id,
+    path: target,
+    changed: true,
+    detail: `archived as ${args.outcome}`,
+    outcome: args.outcome,
+    reason,
+    previousStatus,
+  };
+}
+
+/**
+ * Unarchive one card: write it back to the Cards folder in the column it left
+ * (Proposed when that column is gone), clear the archive fields, and only then
+ * trash the archive copy. A card already at that path is never overwritten.
+ */
+export async function unarchiveCard(
+  context: FactoryContext,
+  args: { id: string; dryRun?: boolean },
+): Promise<ArchiveResult> {
+  const archived = await readArchivedCards(context);
+  const card = archived.find((item) => cardMatches(item, args.id));
+  if (!card) throw new Error(`no archived card '${args.id}'`);
+  const name = card.path.split("/").pop() ?? `${card.frontmatter.id}.md`;
+  const target = `${cardsFolder(context)}/${name}`;
+  if (await noteExists(context, target)) {
+    throw new Error(
+      `a card already exists at '${target}'; unarchive would overwrite it`,
+    );
+  }
+  const status = restoredStatus(
+    card.frontmatter,
+    context.globalArgs.statuses,
+  );
+  const restoredAt = nowIso();
+  const frontmatter = unarchivedFrontmatter(
+    card.frontmatter,
+    context.globalArgs.statuses,
+    restoredAt,
+  );
+  const body = appendActivity(card.body, {
+    kind: "entry",
+    id: nextEntryId(parseActivity(card.body)),
+    at: restoredAt,
+    step: "unarchive",
+    targetStatus: status,
+    summary: `Restored to ${status}`,
+    emoji: "♻️",
+    body: `♻️ Restored to **${status}**.`,
+  });
+  if (args.dryRun === true) {
+    return {
+      operation: "unarchiveCard",
+      id: card.frontmatter.id,
+      path: target,
+      changed: false,
+      detail: `dry run: would restore to '${target}'`,
+      previousStatus: status,
+    };
+  }
+  const content = composeNote(frontmatter, body);
+  await writeNote(context, target, content);
+  const readBack = await readNote(context, target);
+  if (!notesMatch(content, readBack)) {
+    await trashNote(context, target).catch(() => {});
+    throw new Error(
+      `the restored card at '${target}' did not read back unchanged; the archive copy '${card.path}' is untouched`,
+    );
+  }
+  try {
+    await trashNote(context, card.path);
+  } catch (error) {
+    throw new Error(
+      `restored card kept at '${target}'; the archive copy '${card.path}' could not be trashed: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
+  return {
+    operation: "unarchiveCard",
+    id: card.frontmatter.id,
+    path: target,
+    changed: true,
+    detail: `restored to ${status}`,
+    previousStatus: status,
+  };
 }
 
 function ticketOf(
@@ -2056,6 +2409,8 @@ async function executeInstallBoard(
   const assets: Array<[string, string]> = [
     [`${folder}/Board.base`, "assets/board.base.yaml"],
     [`${folder}/Board.md`, "assets/board.md"],
+    [`${folder}/Archive.base`, "assets/archive.base.yaml"],
+    [`${folder}/Archive.md`, "assets/archive.md"],
     [`${folder}/Guide.md`, "assets/guide.md"],
     [`${folder}/Templates/Card.md`, "assets/card-template.md"],
     [`${folder}/Templates/Category.md`, "assets/category-template.md"],
@@ -2384,6 +2739,43 @@ async function executeDeleteCard(
       detail: args.dryRun === true ? "dry run" : "deleted",
       timestamp: nowIso(),
     },
+  );
+  return { dataHandles: [handle] };
+}
+
+async function executeArchiveCard(
+  args: {
+    id: string;
+    outcome: ArchiveOutcome;
+    reason: string;
+    detail?: string;
+    dryRun?: boolean;
+  },
+  context: FactoryContext,
+): Promise<{ dataHandles: Array<{ name: string }> }> {
+  context.logger.info("Archiving card {id} as {outcome}", {
+    id: args.id,
+    outcome: args.outcome,
+  });
+  const result = await archiveCard(context, args);
+  const handle = await context.writeResource(
+    "operation",
+    `operation-${crypto.randomUUID()}`,
+    { ...result, timestamp: nowIso() },
+  );
+  return { dataHandles: [handle] };
+}
+
+async function executeUnarchiveCard(
+  args: { id: string; dryRun?: boolean },
+  context: FactoryContext,
+): Promise<{ dataHandles: Array<{ name: string }> }> {
+  context.logger.info("Unarchiving card {id}", { id: args.id });
+  const result = await unarchiveCard(context, args);
+  const handle = await context.writeResource(
+    "operation",
+    `operation-${crypto.randomUUID()}`,
+    { ...result, timestamp: nowIso() },
   );
   return { dataHandles: [handle] };
 }
@@ -3436,7 +3828,7 @@ async function executeQueue(
 /** The tracker: stagecraft's contract 1 over an Obsidian board. */
 export const model = {
   type: "@svendowideit/obsidian-factory",
-  version: "2026.11.08.25",
+  version: "2026.11.08.27",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -3650,6 +4042,27 @@ export const model = {
         "skill, do not read unrelated project context, act only on work/claim " +
         "rows). Add a workflow-scope tick report with board, queue and agent " +
         "output; make the card and tick-log dialogs selectable and copyable.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.26",
+      description:
+        "The plugin resolves pi's configured default provider/model when its " +
+        "model setting is empty and passes it explicitly to the tick, so pi " +
+        "cannot drift onto a weak last-used local model. The agent output " +
+        "now shows the pinned model in the tick report.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.27",
+      description:
+        "Add archiveCard and unarchiveCard: a verified copy into the Archive " +
+        "folder with outcome, reason, optional detail, archive date and the " +
+        "column the card left, then the original moves to the vault's trash. " +
+        "Add Archive.base and Archive.md to installBoard, the archive and " +
+        "unarchive workflows, the plugin's Archive and Unarchive commands and " +
+        "dialog button with optional webhook settings. No global-argument or " +
+        "resource schema changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -3920,6 +4333,33 @@ export const model = {
         dryRun: z.boolean().default(false),
       }),
       execute: executeDeleteCard,
+    },
+    archiveCard: {
+      description:
+        "Archive a finished action or category card: write a verified copy to the Archive folder with its outcome (done, deleted, duplicate), reason and optional detail, then trash the original. Refuses the inbox and keeps the original on any mismatch or trash failure. The archived copy keeps the whole card, including At a glance, the Plan and the Activity log.",
+      arguments: z.object({
+        id: z.string().min(1),
+        outcome: z.enum(ARCHIVE_OUTCOMES).describe(
+          "done, deleted or duplicate",
+        ),
+        reason: z.string().min(1).describe(
+          "Why the card is finished; recorded on the archived card",
+        ),
+        detail: z.string().optional().describe(
+          "Optional longer note, recorded as archiveDetail",
+        ),
+        dryRun: z.boolean().default(false),
+      }),
+      execute: executeArchiveCard,
+    },
+    unarchiveCard: {
+      description:
+        "Unarchive a card: restore it to the column it left (Proposed when that column is gone), clear the archive fields and trash the archive copy",
+      arguments: z.object({
+        id: z.string().min(1),
+        dryRun: z.boolean().default(false),
+      }),
+      execute: executeUnarchiveCard,
     },
     createCategory: {
       description:

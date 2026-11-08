@@ -87,3 +87,39 @@
   padding-top: 0;
   margin-bottom: 0.5rem;
 }
+
+/* Archive dialog: outcome, reason, optional detail. */
+.factory-archive-form p {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  margin: 0 0 0.75rem;
+}
+
+.factory-archive-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.factory-archive-row label {
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+
+.factory-archive-row input,
+.factory-archive-row select,
+.factory-archive-row textarea {
+  width: 100%;
+  font-size: var(--font-ui-small);
+}
+
+.factory-archive-error:empty {
+  display: none;
+}
+
+.factory-archive-error {
+  color: var(--text-error);
+  font-size: var(--font-ui-smaller);
+  margin: 0 0 0.5rem;
+}

@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/obsidian-factory"
-version: "2026.11.08.25"
+version: "2026.11.08.27"
 description: >
   An Obsidian Bases board that is a stagecraft tracker: ideas arrive on one
   uncharacterised card, become category cards and proposed actions, then move
@@ -67,6 +67,26 @@ description: >
       swamp behavior run obsidian-board migrateCards
       swamp behavior run obsidian-board installCardCss
 
+      # Take a finished card off the board, keeping its whole note and saying
+      # what happened (done, deleted or duplicate), why, and when. The copy is
+      # read back and verified before the original moves to the vault's trash;
+      # the inbox is refused and a mismatch keeps the original. Re-running
+      # installBoard adds Archive.base and Archive.md beside the board.
+      swamp behavior run obsidian-board archiveCard --input id=fac-12 \
+        --input outcome=done \
+        --input reason="The ESPHome inventory shipped in 2026.11"
+
+      # Put an archived card back on the board in the column it left (Proposed
+      # when that column is gone). It refuses rather than overwrite a card.
+      swamp behavior run obsidian-board unarchiveCard --input id=fac-12
+
+      # The same two operations as workflows, for a button or a swamp serve
+      # webhook. The model is still the only writer.
+      swamp workflow run @svendowideit/obsidian-factory-archive \
+        --input id=fac-12 --input outcome=done --input 'reason=Shipped'
+      swamp workflow run @svendowideit/obsidian-factory-unarchive \
+        --input id=fac-12
+
   CONFIGURE
 
     Global arguments: `vaultModel` (default obsidian-vault), `folder` (Factory),
@@ -76,10 +96,11 @@ description: >
     stage -> column map), `factory` (obsidian-idea-factory) and
     `allowDotObsidian`. The board methods take `force`, `text`, `source`,
     `status`, `kind`, `id`, `title`, `body`, `project`, `ideas`, `from`, `to`,
-    `newCategory`, `newCategorySummary`, `stage`, `planStatus`, `known`,
-    `unknown`, `next`, `status`, `summary`, `tasks`, `tests`, `existing`,
-    `added`, `removed`, `note`, `factoryDefinition`, `upgradeDefinitions`,
-    `dryRun` and `force`. A per-call input wins over a global. `tick` only
+    `newCategory`, `newCategorySummary`, `outcome` (done, deleted or
+    duplicate), `reason`, `detail`, `stage`, `planStatus`, `known`, `unknown`,
+    `next`, `status`, `summary`, `tasks`, `tests`, `existing`, `added`,
+    `removed`, `note`, `factoryDefinition`, `upgradeDefinitions`, `dryRun` and
+    `force`. A per-call input wins over a global. `tick` only
     repins cards in Uncharacterised, Category or Proposed that have no product
     except the route's `card-kind` and no approvals; cards with recorded work
     stay on the definition they started with and move to the current one when
@@ -91,10 +112,12 @@ description: >
 
     Nothing on the host: no service, daemon, cron trigger or package. It writes
     only into the configured vault folder — `Board.base`, `Board.md`,
-    `Guide.md`, `Templates/Card.md`, `Templates/Category.md`,
-    `Templates/Action.md` and the single `Cards/INBOX Uncharacterised.md` — and
-    creates category and action cards in `Cards/` when the factory asks. The
-    tick keeps `.obsidian/snippets/obsidian-factory.css` current (previous
+    `Archive.base`, `Archive.md`, `Guide.md`, `Templates/Card.md`,
+    `Templates/Category.md`, `Templates/Action.md` and the single
+    `Cards/INBOX Uncharacterised.md` — creates category and action cards in
+    `Cards/` when the factory asks, and moves an archived card's note to
+    `Archive/` (verified copy first; the original goes to the vault's `.trash`).
+    The tick keeps `.obsidian/snippets/obsidian-factory.css` current (previous
     content at `.obsidian/snippets/obsidian-factory.css.bak-obsidian-factory`),
     adds `obsidian-factory` to `enabledCssSnippets` in
     `.obsidian/appearance.json` (backing it up once to
@@ -120,6 +143,8 @@ dependencies:
   - "@maphew/agent-task"
 workflows:
   - workflows/obsidian-factory-tick.yaml
+  - workflows/obsidian-factory-archive.yaml
+  - workflows/obsidian-factory-unarchive.yaml
 reports:
   - obsidian_factory_tick_report.ts
 additionalFiles:
@@ -128,6 +153,8 @@ additionalFiles:
   - obsidian_factory_test.ts
   - assets/board.base.yaml
   - assets/board.md
+  - assets/archive.base.yaml
+  - assets/archive.md
   - assets/guide.md
   - assets/card-template.md
   - assets/category-template.md

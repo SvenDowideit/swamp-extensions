@@ -19,7 +19,7 @@ stored in the board file.
 | Please Test | The tests are run against the implementation. Failures go back to Please Implement. | factory |
 | User Acceptance | Try it. Send it back to any earlier column with notes, or move it to Please Release. | you |
 | Please Release | The full suite and the project's release process decide. A failure returns to User Acceptance with details. | factory |
-| Done | Finished. | factory |
+| Done | Finished. The card can be archived with its outcome and reason, which takes it off the board and into `{{folder}}/Archive`. | you or the factory |
 
 ## Adding a thought
 

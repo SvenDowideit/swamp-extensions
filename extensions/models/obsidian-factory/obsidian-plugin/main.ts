@@ -8,6 +8,7 @@ import {
   Notice,
   Plugin,
   PluginSettingTab,
+  requestUrl,
   Setting,
   TextComponent,
   TFile,
@@ -16,6 +17,11 @@ import { spawn } from "child_process";
 import { createHash } from "crypto";
 import { existsSync, readdirSync, readFileSync } from "fs";
 import {
+  ARCHIVE_OUTCOMES,
+  archiveRequestBody,
+  archiveRequestProblem,
+  isArchivablePath,
+  isArchivedPath,
   isCardPath,
   movesForStatus,
   readableCard,
@@ -24,6 +30,7 @@ import {
   STATUSES,
   statusFromFrontmatter,
 } from "./model.ts";
+import type { ArchiveOutcome } from "./model.ts";
 
 /** Open factory cards in a read-only prose dialog instead of navigating away. */
 type OpenLinkText = (
@@ -40,10 +47,34 @@ interface FactorySettings {
   swampBinary: string;
   agent: string;
   model: string;
+  archiveWebhookUrl: string;
+  archiveWebhookToken: string;
 }
 
 function numericVersion(value: string): number[] {
   return value.replace(/^v/, "").split(".").map((part) => Number(part) || 0);
+}
+
+function piDefaultModel(): string {
+  try {
+    const path = `${process.env.HOME ?? ""}/.pi/agent/settings.json`;
+    if (!existsSync(path)) return "";
+    const settings = JSON.parse(readFileSync(path, "utf8")) as Record<
+      string,
+      unknown
+    >;
+    const model = typeof settings.defaultModel === "string"
+      ? settings.defaultModel.trim()
+      : "";
+    const provider = typeof settings.defaultProvider === "string"
+      ? settings.defaultProvider.trim()
+      : "";
+    if (!model) return "";
+    if (model.includes("/")) return model;
+    return provider ? `${provider}/${model}` : model;
+  } catch {
+    return "";
+  }
 }
 
 function agentPath(): string {
@@ -77,6 +108,8 @@ const DEFAULT_SETTINGS: FactorySettings = {
   swampBinary: "swamp",
   agent: "pi",
   model: "",
+  archiveWebhookUrl: "",
+  archiveWebhookToken: "",
 };
 
 export default class ObsidianFactoryPlugin extends Plugin {
@@ -170,6 +203,26 @@ export default class ObsidianFactoryPlugin extends Plugin {
       "Tick the Obsidian factory",
       () => void this.tickFactory(),
     );
+    this.addCommand({
+      id: "archive-factory-card",
+      name: "Archive factory card",
+      checkCallback: (checking: boolean) => {
+        const file = this.app.workspace.getActiveFile();
+        if (!file || !isArchivablePath(file.path)) return false;
+        if (!checking) this.openArchiveDialog(file);
+        return true;
+      },
+    });
+    this.addCommand({
+      id: "unarchive-factory-card",
+      name: "Unarchive factory card",
+      checkCallback: (checking: boolean) => {
+        const file = this.app.workspace.getActiveFile();
+        if (!file || !isArchivedPath(file.path)) return false;
+        if (!checking) void this.unarchiveCard(file);
+        return true;
+      },
+    });
     this.addSettingTab(new FactorySettingTab(this.app, this));
 
     this.statusItem = this.addStatusBarItem();
@@ -228,8 +281,9 @@ export default class ObsidianFactoryPlugin extends Plugin {
       "--input",
       `agent=${this.settings.agent || "pi"}`,
     ];
-    if (this.settings.model.trim()) {
-      args.push("--input", `model=${this.settings.model.trim()}`);
+    const model = this.settings.model.trim() || piDefaultModel();
+    if (model) {
+      args.push("--input", `model=${model}`);
     }
     this.tickLog = "";
     this.tickLastLine = "";
@@ -252,6 +306,155 @@ export default class ObsidianFactoryPlugin extends Plugin {
     child.on("error", (error) => this.finishTick(false, error.message));
     child.on("close", (code) => {
       this.finishTick(code === 0, `exit ${code ?? "unknown"}`);
+    });
+  }
+
+  private openArchiveDialog(file: TFile): void {
+    new ArchiveCardModal(this.app, file, (outcome, reason, detail) => {
+      void this.archiveCard(file, outcome, reason, detail);
+    }).open();
+  }
+
+  /**
+   * Archive one card through the board model: over the configured webhook when
+   * there is one, otherwise through the archive workflow in the repo. The
+   * plugin never writes the note itself.
+   */
+  private async archiveCard(
+    file: TFile,
+    outcome: ArchiveOutcome,
+    reason: string,
+    detail: string,
+  ): Promise<void> {
+    await this.loadSettings();
+    const payload = archiveRequestBody(file.path, outcome, reason, detail);
+    const problem = archiveRequestProblem(payload.outcome, payload.reason);
+    if (problem) {
+      new Notice(problem);
+      return;
+    }
+    const url = this.settings.archiveWebhookUrl.trim();
+    if (url) {
+      const token = this.settings.archiveWebhookToken.trim();
+      try {
+        const response = await requestUrl({
+          url,
+          method: "POST",
+          contentType: "application/json",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: JSON.stringify(payload),
+          throw: false,
+        });
+        if (response.status >= 200 && response.status < 300) {
+          new Notice(`Archived ${file.basename} as ${payload.outcome}`);
+        } else {
+          new Notice(
+            `Archive webhook failed: HTTP ${response.status} ${
+              response.text.slice(0, 200)
+            }`,
+          );
+        }
+      } catch (error) {
+        new Notice(
+          `Archive webhook failed: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+      return;
+    }
+    const repo = this.settings.repoPath.trim();
+    if (!repo) {
+      new Notice(
+        "Archiving needs an archive webhook URL or a swamp repo path. Set one in Settings -> Community plugins -> Obsidian Factory.",
+      );
+      return;
+    }
+    const args = [
+      "workflow",
+      "run",
+      "@svendowideit/obsidian-factory-archive",
+      "--input",
+      `id=${payload.id}`,
+      "--input",
+      `outcome=${payload.outcome}`,
+      "--input",
+      `reason=${payload.reason}`,
+      "--input",
+      `detail=${payload.detail}`,
+    ];
+    const child = spawn(
+      this.settings.swampBinary || "swamp",
+      args,
+      { cwd: repo, env: { ...process.env, PATH: agentPath() } },
+    );
+    let output = "";
+    child.stdout?.on("data", (data) => {
+      output += data.toString();
+    });
+    child.stderr?.on("data", (data) => {
+      output += data.toString();
+    });
+    child.on("error", (error) => {
+      new Notice(`Archive failed: ${error.message}`);
+    });
+    child.on("close", (code) => {
+      if (code === 0) {
+        new Notice(`Archived ${file.basename} as ${payload.outcome}`);
+      } else {
+        new Notice(
+          `Archive failed (exit ${code}): ${
+            output.trim().split("\n").slice(-3).join(" ")
+          }`,
+        );
+      }
+    });
+  }
+
+  /**
+   * Restore one archived card through the board model. Like archive, this runs
+   * the workflow and never writes the note itself.
+   */
+  private async unarchiveCard(file: TFile): Promise<void> {
+    await this.loadSettings();
+    const repo = this.settings.repoPath.trim();
+    if (!repo) {
+      new Notice(
+        "Unarchiving needs a swamp repo path. Set one in Settings -> Community plugins -> Obsidian Factory.",
+      );
+      return;
+    }
+    const child = spawn(
+      this.settings.swampBinary || "swamp",
+      [
+        "workflow",
+        "run",
+        "@svendowideit/obsidian-factory-unarchive",
+        "--input",
+        `id=${file.path}`,
+      ],
+      { cwd: repo, env: { ...process.env, PATH: agentPath() } },
+    );
+    let output = "";
+    child.stdout?.on("data", (data) => {
+      output += data.toString();
+    });
+    child.stderr?.on("data", (data) => {
+      output += data.toString();
+    });
+    child.on("error", (error) => {
+      new Notice(`Unarchive failed: ${error.message}`);
+    });
+    child.on("close", (code) => {
+      if (code === 0) {
+        new Notice(`Restored ${file.basename} to the board`);
+      } else {
+        new Notice(
+          `Unarchive failed (exit ${code}): ${
+            output.trim().split("\n").slice(-3).join(" ")
+          }`,
+        );
+      }
     });
   }
 
@@ -420,7 +623,15 @@ export default class ObsidianFactoryPlugin extends Plugin {
   private async openCard(file: TFile): Promise<void> {
     try {
       const raw = await this.app.vault.read(file);
-      new CardDialog(this.app, file, readableCard(raw), raw).open();
+      new CardDialog(
+        this.app,
+        file,
+        readableCard(raw),
+        raw,
+        isArchivablePath(file.path)
+          ? () => this.openArchiveDialog(file)
+          : undefined,
+      ).open();
     } catch (error) {
       new Notice(
         `Could not open ${file.basename}: ${
@@ -450,6 +661,7 @@ class CardDialog extends Modal {
     private file: TFile,
     private card: ReturnType<typeof readableCard>,
     private raw: string,
+    private onArchive?: () => void,
   ) {
     super(app);
   }
@@ -488,6 +700,13 @@ class CardDialog extends Modal {
       void this.app.workspace.getLeaf().openFile(this.file);
       this.close();
     });
+    if (this.onArchive) {
+      const archive = topActions.createEl("button", { text: "Archive..." });
+      archive.addEventListener("click", () => {
+        this.close();
+        this.onArchive?.();
+      });
+    }
 
     const summary = this.contentEl.createDiv({
       cls: "factory-dialog-section factory-dialog-summary",
@@ -556,6 +775,72 @@ class CardDialog extends Modal {
         }
       }
     }
+  }
+}
+
+/**
+ * Ask for the archive outcome, the reason and an optional detail, then hand
+ * them to the board model. The plugin never writes the note itself.
+ */
+class ArchiveCardModal extends Modal {
+  constructor(
+    app: App,
+    private file: TFile,
+    private onSubmit: (
+      outcome: ArchiveOutcome,
+      reason: string,
+      detail: string,
+    ) => void,
+  ) {
+    super(app);
+  }
+
+  override onOpen(): void {
+    this.modalEl.addClass("factory-archive-dialog");
+    this.titleEl.setText(`Archive ${this.file.basename}`);
+    const form = this.contentEl.createDiv({ cls: "factory-archive-form" });
+    form.createEl("p", {
+      text:
+        "The card leaves the board and keeps its whole note in the Archive folder: what happened, why, and when.",
+    });
+
+    const outcomeRow = form.createDiv({
+      cls: "factory-archive-row",
+    });
+    outcomeRow.createEl("label", { text: "Outcome" });
+    const select = outcomeRow.createEl("select");
+    for (const outcome of ARCHIVE_OUTCOMES) {
+      select.createEl("option", { text: outcome, value: outcome });
+    }
+
+    const reasonRow = form.createDiv({ cls: "factory-archive-row" });
+    reasonRow.createEl("label", { text: "Reason (required)" });
+    const reason = reasonRow.createEl("input", { type: "text" });
+    reason.placeholder = "Why is this card finished?";
+
+    const detailRow = form.createDiv({ cls: "factory-archive-row" });
+    detailRow.createEl("label", { text: "Detail (optional)" });
+    const detail = detailRow.createEl("textarea");
+    detail.rows = 3;
+    detail.placeholder = "Anything the history should keep";
+
+    const error = form.createEl("p", { cls: "factory-archive-error" });
+    const actions = this.contentEl.createDiv({
+      cls: "factory-dialog-actions",
+    });
+    const submit = actions.createEl("button", { text: "Archive" });
+    submit.addEventListener("click", () => {
+      const outcome = select.value as ArchiveOutcome;
+      const problem = archiveRequestProblem(outcome, reason.value);
+      if (problem) {
+        error.setText(problem);
+        return;
+      }
+      this.onSubmit(outcome, reason.value, detail.value);
+      this.close();
+    });
+    const cancel = actions.createEl("button", { text: "Cancel" });
+    cancel.addEventListener("click", () => this.close());
   }
 }
 
@@ -667,6 +952,34 @@ class FactorySettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.agent)
           .onChange(async (value) => {
             this.plugin.settings.agent = value.trim() || "pi";
+            await this.plugin.saveSettings();
+          })
+      );
+    new Setting(containerEl)
+      .setName("Archive webhook URL")
+      .setDesc(
+        "Optional swamp serve webhook for archiving, e.g. https://swamp.example/hooks/obsidian-archive. Empty archives through the repo path instead.",
+      )
+      .addText((text: TextComponent) =>
+        text
+          .setPlaceholder("https://swamp.example/hooks/obsidian-archive")
+          .setValue(this.plugin.settings.archiveWebhookUrl)
+          .onChange(async (value) => {
+            this.plugin.settings.archiveWebhookUrl = value.trim();
+            await this.plugin.saveSettings();
+          })
+      );
+    new Setting(containerEl)
+      .setName("Archive webhook token")
+      .setDesc(
+        "Bearer token for the archive webhook; stored in data.json. Leave empty for a local, tokenless route.",
+      )
+      .addText((text: TextComponent) =>
+        text
+          .setPlaceholder("")
+          .setValue(this.plugin.settings.archiveWebhookToken)
+          .onChange(async (value) => {
+            this.plugin.settings.archiveWebhookToken = value.trim();
             await this.plugin.saveSettings();
           })
       );

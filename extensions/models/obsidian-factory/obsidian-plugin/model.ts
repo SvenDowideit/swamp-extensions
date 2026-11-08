@@ -193,3 +193,57 @@ export function readableCard(raw: string): ReadableCard {
     plan: stripManagedMarkers(planBlock),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Archive
+// ---------------------------------------------------------------------------
+
+/** The outcomes an archived factory card may record. */
+export const ARCHIVE_OUTCOMES = ["done", "deleted", "duplicate"] as const;
+export type ArchiveOutcome = typeof ARCHIVE_OUTCOMES[number];
+
+/** True when a path is a card still on the active board, so it can be archived. */
+export function isArchivablePath(path: string, folder = "Factory"): boolean {
+  const normalized = folder.replace(/^\/+|\/+$/g, "");
+  return isCardPath(path, `${normalized}/Cards`);
+}
+
+/** True when a path is an archived card, so it can be restored. */
+export function isArchivedPath(path: string, folder = "Factory"): boolean {
+  const normalized = folder.replace(/^\/+|\/+$/g, "");
+  return isCardPath(path, `${normalized}/Archive`);
+}
+
+/** What is wrong with an archive request, or "" when it is ready to send. */
+export function archiveRequestProblem(
+  outcome: string,
+  reason: string,
+): string {
+  if (!(ARCHIVE_OUTCOMES as readonly string[]).includes(outcome)) {
+    return `Pick an outcome: ${ARCHIVE_OUTCOMES.join(", ")}`;
+  }
+  if (reason.trim() === "") return "Say why this card is finished.";
+  return "";
+}
+
+/** The JSON body the archive webhook and the archive workflow both take. */
+export interface ArchiveRequestBody {
+  id: string;
+  outcome: ArchiveOutcome;
+  reason: string;
+  detail: string;
+}
+
+export function archiveRequestBody(
+  id: string,
+  outcome: ArchiveOutcome,
+  reason: string,
+  detail = "",
+): ArchiveRequestBody {
+  return {
+    id: id.trim(),
+    outcome,
+    reason: reason.trim(),
+    detail: detail.trim(),
+  };
+}

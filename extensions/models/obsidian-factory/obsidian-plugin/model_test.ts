@@ -1,4 +1,9 @@
 import {
+  ARCHIVE_OUTCOMES,
+  archiveRequestBody,
+  archiveRequestProblem,
+  isArchivablePath,
+  isArchivedPath,
   isCardPath,
   movesForStatus,
   readableCard,
@@ -144,4 +149,37 @@ Deno.test("card paths and markers", () => {
     ).includes("swamp:"),
     "markers",
   );
+});
+
+Deno.test("archive requests need a real outcome and a reason", () => {
+  assertEquals([...ARCHIVE_OUTCOMES], ["done", "deleted", "duplicate"], "enum");
+  assertEquals(archiveRequestProblem("done", "Shipped"), "", "ready");
+  assert(
+    archiveRequestProblem("cancelled", "Shipped").includes("outcome"),
+    "unknown outcome refused",
+  );
+  assert(
+    archiveRequestProblem("done", "   ").includes("why"),
+    "empty reason refused",
+  );
+  const body = archiveRequestBody(
+    " FAC-13 ",
+    "duplicate",
+    " Same as FAC-2 ",
+    " ",
+  );
+  assertEquals(body.id, "FAC-13", "id trimmed");
+  assertEquals(body.outcome, "duplicate", "outcome");
+  assertEquals(body.reason, "Same as FAC-2", "reason trimmed");
+  assertEquals(body.detail, "", "empty detail");
+});
+
+Deno.test("only cards on the active board can be archived", () => {
+  assert(isArchivablePath("Factory/Cards/FAC-13 archive.md"), "board card");
+  assert(!isArchivablePath("Factory/Archive/FAC-13 archive.md"), "archived");
+  assert(!isArchivablePath("Factory/Board.md"), "board page");
+  assert(isArchivablePath("Board/Cards/x.md", "Board"), "configured folder");
+  assert(isArchivedPath("Factory/Archive/FAC-13 archive.md"), "archived card");
+  assert(!isArchivedPath("Factory/Cards/FAC-13 archive.md"), "board card");
+  assert(!isArchivedPath("Factory/Archive.base"), "archive base");
 });

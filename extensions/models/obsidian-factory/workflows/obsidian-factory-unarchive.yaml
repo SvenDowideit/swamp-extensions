@@ -1,0 +1,44 @@
+id: 7b08553c-5039-43a9-b63d-782ee6c09d09
+name: "@svendowideit/obsidian-factory-unarchive"
+description: |
+  Put one archived factory card back on the Obsidian board: restore it to the
+  column it left (Proposed when that column is gone), clear the archive fields
+  and trash the archive copy. Refuses when a card with the same file name is
+  already on the board, so nothing is overwritten.
+
+  Local callers (the command palette) need no token. A remote caller can put
+  this workflow behind a `swamp serve` webhook route with a secret; see the
+  extension README. The model is the only writer; nothing here writes a noted
+  itself.
+tags: {}
+inputs:
+  properties:
+    id:
+      type: string
+      minLength: 1
+      description: Archived card id, display id or note path (fac-12, FAC-12).
+    dryRun:
+      type: boolean
+      default: false
+      description: Report what would happen without writing anything.
+  required: ["id"]
+jobs:
+  - name: unarchive
+    description: Restore one archived card to the board.
+    steps:
+      - name: unarchiveCard
+        description: Write the restored card, then trash the archive copy.
+        task:
+          type: model_method
+          modelType: "@svendowideit/obsidian-factory"
+          modelName: obsidian-board
+          methodName: unarchiveCard
+          inputs:
+            id: ${{ inputs.id }}
+            dryRun: ${{ inputs.dryRun }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

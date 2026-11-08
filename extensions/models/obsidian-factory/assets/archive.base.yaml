@@ -1,0 +1,75 @@
+filters:
+  and:
+    - file.inFolder("{{folder}}/Archive")
+    - or:
+        - 'archiveStatus == "done"'
+        - 'archiveStatus == "deleted"'
+        - 'archiveStatus == "duplicate"'
+properties:
+  file.name:
+    displayName: Card
+  note.title:
+    displayName: Title
+  note.archiveStatus:
+    displayName: Outcome
+  note.archiveReason:
+    displayName: Reason
+  note.archiveDetail:
+    displayName: Detail
+  note.archivedAt:
+    displayName: Archived
+  note.previousStatus:
+    displayName: Was
+views:
+  - type: table
+    name: Archive
+    groupBy:
+      property: note.archiveStatus
+      direction: ASC
+    groupOrder:
+      - done
+      - deleted
+      - duplicate
+    order:
+      - file.name
+      - note.title
+      - note.archiveStatus
+      - note.archiveReason
+      - note.archiveDetail
+      - note.archivedAt
+      - note.previousStatus
+  - type: table
+    name: Done
+    filters:
+      and:
+        - 'archiveStatus == "done"'
+    order:
+      - file.name
+      - note.title
+      - note.archiveReason
+      - note.archiveDetail
+      - note.archivedAt
+      - note.previousStatus
+  - type: table
+    name: Deleted
+    filters:
+      and:
+        - 'archiveStatus == "deleted"'
+    order:
+      - file.name
+      - note.title
+      - note.archiveReason
+      - note.archivedAt
+      - note.previousStatus
+  - type: table
+    name: Duplicate
+    filters:
+      and:
+        - 'archiveStatus == "duplicate"'
+    order:
+      - file.name
+      - note.title
+      - note.archiveReason
+      - note.archiveDetail
+      - note.archivedAt
+      - note.previousStatus

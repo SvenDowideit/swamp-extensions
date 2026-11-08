@@ -70,8 +70,10 @@ only reads the note.
 Use the ribbon icon or the command **Tick the Obsidian factory**. The tick
 sets the plugin's default repo path in `data.json` when it is missing, so the
 button works after a reload without manual setup. Override the repo path, swamp
-binary or agent in **Settings → Community plugins → Obsidian Factory** if
-needed. The tick runs the board-first housekeeping, builds a brief that names
+binary, agent or model in **Settings → Community plugins → Obsidian Factory**
+if needed. An empty model setting means the plugin resolves pi's configured
+default provider/model and pins it explicitly, so pi cannot drift onto a weak
+last-used local model. The tick runs the board-first housekeeping, builds a brief that names
 the board and queue, and starts one agent to work the factory columns. The
 brief tells the agent to read the factory skill first and not to wander into
 unrelated project files. The agent stops at your columns and never publishes.
@@ -91,6 +93,35 @@ in the same action row. The command palette (**Move factory card to <column>**)
 offers the same moves. Clicking one writes the card's status; the next tick
 follows the card. A card with no legal move shows no move buttons. The native
 drag still works.
+
+## Archiving a finished card
+
+Finished cards leave the board instead of piling up in **Done**. Open
+`{{folder}}/Archive.md` (or the `Archive.base` file) to read the history: every
+archived card keeps its whole note, plus what happened, why and when.
+
+Use the command palette (**Archive factory card**), the plugin button, or:
+
+```sh
+swamp behavior run obsidian-board archiveCard --input id=fac-12 \
+  --input outcome=done --input reason="Shipped in 2026.11"
+```
+
+The outcome is **done**, **deleted** or **duplicate**, the reason is required,
+and an optional detail line says more. The factory writes the copy first, reads
+it back to check it, and only then moves the original to the vault's trash. If
+anything does not match, the original stays on the board. The inbox card is
+never archived.
+
+To put a card back, run **Unarchive factory card** from the palette (open the
+archived card, or run it from `{{folder}}/Archive.md`), or:
+
+```sh
+swamp behavior run obsidian-board unarchiveCard --input id=fac-12
+```
+
+It returns to the column it left (or **Proposed** if that column no longer
+exists), and refuses rather than overwrite a card already on the board.
 
 ## Reading a card
 

@@ -1,0 +1,61 @@
+id: 406847a5-9560-4498-a53f-b5a2270c31f1
+name: "@svendowideit/obsidian-factory-archive"
+description: |
+  Archive one finished factory card on the Obsidian board: write a verified
+  copy into <folder>/Archive with the outcome (done, deleted, duplicate), the
+  reason and an optional detail, then move the original to the vault's trash.
+  The original is kept when the copy does not read back unchanged or the trash
+  fails, and the inbox card is refused.
+
+  Local callers (the Archive button and the command palette) need no token. A
+  remote caller can put this workflow behind a `swamp serve` webhook route with
+  a secret; see the extension README. The model is the only writer; nothing
+  here writes a note itself.
+tags: {}
+inputs:
+  properties:
+    id:
+      type: string
+      minLength: 1
+      description: Card id, display id or note path (fac-12, FAC-12).
+    outcome:
+      type: string
+      enum: ["done", "deleted", "duplicate"]
+      default: "done"
+      description: What happened to the work.
+    reason:
+      type: string
+      minLength: 1
+      description: Why the card is finished; recorded on the archived card.
+    detail:
+      type: string
+      default: ""
+      description: Optional longer note, recorded as archiveDetail.
+    dryRun:
+      type: boolean
+      default: false
+      description: Report what would happen without writing anything.
+  required: ["id", "reason"]
+jobs:
+  - name: archive
+    description: Archive one card.
+    steps:
+      - name: archiveCard
+        description: Write the verified archive copy, then trash the original.
+        task:
+          type: model_method
+          modelType: "@svendowideit/obsidian-factory"
+          modelName: obsidian-board
+          methodName: archiveCard
+          inputs:
+            id: ${{ inputs.id }}
+            outcome: ${{ inputs.outcome }}
+            reason: ${{ inputs.reason }}
+            detail: ${{ inputs.detail }}
+            dryRun: ${{ inputs.dryRun }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

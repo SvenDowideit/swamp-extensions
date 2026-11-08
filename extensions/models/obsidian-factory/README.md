@@ -76,6 +76,8 @@ Method arguments:
 | `installCardCss` | `force` |
 | `migrateCards` | none |
 | `deleteCard` | `id`, `confirm`, `permanent`, `dryRun` |
+| `archiveCard` | `id`, `outcome` (`done`/`deleted`/`duplicate`), `reason`, `detail`, `dryRun` |
+| `unarchiveCard` | `id`, `dryRun` |
 | `createCategory` | `name`, `summary`, `ideas` |
 | `createAction` | `title`, `brief`, `source`, `ideas`, `project` |
 | `moveIdea` | `from`, `idea`, `to`, `newCategory`, `newCategorySummary` |
@@ -201,6 +203,11 @@ activity block.
   ten columns in flow order, plus a table view and a "waiting for a person"
   view. Kanban requires Obsidian 1.14 or later.
 - `Factory/Board.md` — a page embedding the board and explaining the flow.
+- `Factory/Archive.base` — a table over `Factory/Archive` grouped by
+  `note.archiveStatus`, with one view per outcome, the title, the reason, the
+  optional detail, the archive date and the column the card left.
+- `Factory/Archive.md` — a page embedding the archive and explaining how to
+  archive and restore a card.
 - `Factory/Guide.md` — the person's guide.
 - `Factory/Templates/Card.md`, `Category.md`, `Action.md` — core Templates
   plugin templates.
@@ -265,6 +272,61 @@ activity block.
   its source category.
 - **`moveIdea`** — removes one idea bullet from the inbox or a category and
   appends it to an existing or new category card.
+- **`archiveCard`** — takes a finished card off the active board: it writes a
+  copy into `Factory/Archive` with `archiveStatus` (`done`, `deleted` or
+  `duplicate`), `archiveReason`, optional `archiveDetail`, `archivedAt` and
+  `previousStatus`, reads the copy back and compares it with what it wrote, and
+  only then moves the original to the vault's `.trash`. A mismatch removes the
+  copy and keeps the original; a failed trash keeps both and names both paths.
+  It refuses the inbox and never rewrites the person's prose — the archived
+  note keeps its title, At a glance, Plan and Activity log.
+- **`unarchiveCard`** — puts an archived card back: it restores the column in
+  `previousStatus` (Proposed when that column is gone), clears the archive
+  fields, verifies the restored note and only then trashes the archive copy. It
+  refuses when a card with the same file name is already on the board.
+
+### The archive
+
+Cards are archived, not deleted, so the reason survives the work. An archived
+card leaves the board because `Board.base` only ever filters `Factory/Cards`;
+it keeps everything else.
+
+```sh
+# Finish a card: done, deleted or duplicate, with the reason the person needs
+# later. The copy is verified before the original moves to the trash.
+swamp behavior run obsidian-board archiveCard --input id=fac-12 \
+  --input outcome=done \
+  --input reason="The ESPHome inventory shipped in 2026.11"
+
+# Put it back: the card returns to the column it left and the archive fields
+# are cleared.
+swamp behavior run obsidian-board unarchiveCard --input id=fac-12
+```
+
+Both are also workflows, so a button or a webhook can call the same model:
+
+```sh
+swamp workflow run @svendowideit/obsidian-factory-archive \
+  --input id=fac-12 --input outcome=done --input 'reason=Shipped in 2026.11'
+swamp workflow run @svendowideit/obsidian-factory-unarchive --input id=fac-12
+```
+
+A remote caller can put either workflow behind a `swamp serve` webhook:
+
+```yaml
+# .swamp/serve.yaml
+webhooks:
+  - route: /hooks/obsidian-archive
+    workflow: "@svendowideit/obsidian-factory-archive"
+    secret: "@env=OBSIDIAN_ARCHIVE_TOKEN"
+    scheme: generic
+```
+
+The plugin's **Archive factory card** command and the card dialog's
+**Archive...** button post to that route when **Archive webhook URL** is set in
+the plugin settings, and otherwise run the archive workflow with `spawn` from
+the configured repo path. Either way the model writes the note; the plugin
+never does.
 
 ### The factory
 
@@ -306,7 +368,11 @@ The agent stops at the person's columns and never publishes.
 Obsidian factory**. The tick writes `.obsidian/plugins/obsidian-factory/data.json`
 with the repo path as the default when it is missing, so the button works after
 a reload without manual setup. Override the repo path, swamp binary, agent or
-model in **Settings → Community plugins → Obsidian Factory** if needed. The
+model in **Settings → Community plugins → Obsidian Factory** if needed. When
+the model setting is empty the plugin resolves pi's `defaultProvider` and
+`defaultModel` from `~/.pi/agent/settings.json` and passes that explicit
+`provider/model` to the tick; an unpinned pi can select a weak last-used local
+model and hallucinate instead of doing the card work. The
 button runs the workflow with `spawn` (no shell), passes the current factory
 hash, and shows a persistent **status bar** entry: `Factory: ticking Ns`, then
 `Factory: done` or `Factory: failed`. The status bar opens the live **factory
@@ -353,6 +419,10 @@ run the **Open factory card as dialog** command) and the dialog shows:
 - `## At a glance`, including **Needs your input**
 - the brief
 - `## Plan`: tasks, tests, existing/added/removed functionality and known/unknown
+
+The dialog also offers **Archive...** for a card on the active board; it asks
+for the outcome, the reason and an optional detail, then hands them to
+`archiveCard` (webhook or workflow, never a plugin write).
 
 It deliberately omits frontmatter, the Definition section, the Activity log and
 the `swamp:` markers. **Open in editor** is the path to the rest; **Close** and

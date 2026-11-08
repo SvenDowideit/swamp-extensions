@@ -301,15 +301,12 @@ It deliberately omits frontmatter, the Definition section, the Activity log and
 the `swamp:` markers. **Open in editor** is the path to the rest; **Close** and
 Escape close the dialog.
 
-The same plugin adds the documented normal moves as buttons:
-
-- on the Bases kanban card face,
-- in the card dialog,
-- in the command palette (`Move factory card to <column>`).
-
-A move writes the card's `status`; the next tick follows the card. A card with
-no legal move shows no buttons. The buttons are the person's move, not an agent
-decision.
+The same plugin adds the documented normal moves as buttons at the top of the
+Bases kanban card face and at the top of the card dialog, with **Open in
+editor** in the same action row. The command palette
+(`Move factory card to <column>`) offers the same moves. A move writes the
+card's `status`; the next tick follows the card. A card with no legal move shows
+no move buttons. The buttons are the person's move, not an agent decision.
 
 The bundle is built from `obsidian-plugin/main.ts` by
 `obsidian-plugin/build.ts` with pinned esbuild, and `main.js.sha256.txt` is checked

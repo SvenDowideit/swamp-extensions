@@ -153,7 +153,15 @@ export default class ObsidianFactoryPlugin extends Plugin {
         });
         row.appendChild(button);
       }
-      cardEl.appendChild(row);
+      const open = document.createElement("button");
+      open.textContent = "Open in editor";
+      open.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        void this.app.workspace.getLeaf().openFile(file);
+      });
+      row.appendChild(open);
+      cardEl.prepend(row);
       cardEl.dataset.factoryMoves = "1";
     }
   }
@@ -213,6 +221,37 @@ class CardDialog extends Modal {
     this.modalEl.addClass("factory-card-dialog");
     this.titleEl.setText(this.card.title || this.file.basename);
 
+    const topActions = this.contentEl.createDiv({
+      cls: "factory-dialog-moves",
+    });
+    const frontmatter = this.app.metadataCache.getFileCache(this.file)
+      ?.frontmatter;
+    const moves = movesForStatus(statusFromFrontmatter(frontmatter));
+    if (moves.length > 0) {
+      topActions.createEl("span", { text: "Move to" });
+      for (const move of moves) {
+        const button = topActions.createEl("button", { text: move });
+        button.addEventListener("click", () => {
+          void this.app.fileManager.processFrontMatter(
+            this.file,
+            (fm) => {
+              fm.status = move;
+            },
+          ).then(() => {
+            new Notice(`Moved to ${move}`);
+            this.close();
+          });
+        });
+      }
+    }
+    const openInEditor = topActions.createEl("button", {
+      text: "Open in editor",
+    });
+    openInEditor.addEventListener("click", () => {
+      void this.app.workspace.getLeaf().openFile(this.file);
+      this.close();
+    });
+
     const summary = this.contentEl.createDiv({
       cls: "factory-dialog-section factory-dialog-summary",
     });
@@ -239,37 +278,8 @@ class CardDialog extends Modal {
       void this.render(plan, this.card.plan);
     }
 
-    const frontmatter = this.app.metadataCache.getFileCache(this.file)
-      ?.frontmatter;
-    const moves = movesForStatus(statusFromFrontmatter(frontmatter));
-    if (moves.length > 0) {
-      const moveRow = this.contentEl.createDiv({
-        cls: "factory-dialog-moves",
-      });
-      moveRow.createEl("span", { text: "Move to" });
-      for (const move of moves) {
-        const button = moveRow.createEl("button", { text: move });
-        button.addEventListener("click", () => {
-          void this.app.fileManager.processFrontMatter(
-            this.file,
-            (fm) => {
-              fm.status = move;
-            },
-          ).then(() => {
-            new Notice(`Moved to ${move}`);
-            this.close();
-          });
-        });
-      }
-    }
-
     const actions = this.contentEl.createDiv({
       cls: "factory-dialog-actions",
-    });
-    const edit = actions.createEl("button", { text: "Open in editor" });
-    edit.addEventListener("click", () => {
-      void this.app.workspace.getLeaf().openFile(this.file);
-      this.close();
     });
     const close = actions.createEl("button", { text: "Close" });
     close.addEventListener("click", () => this.close());

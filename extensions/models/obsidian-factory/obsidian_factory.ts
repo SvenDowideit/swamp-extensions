@@ -3249,7 +3249,7 @@ async function executeQueue(
 /** The tracker: stagecraft's contract 1 over an Obsidian board. */
 export const model = {
   type: "@svendowideit/obsidian-factory",
-  version: "2026.11.08.18",
+  version: "2026.11.08.19",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -3403,6 +3403,13 @@ export const model = {
         "Add documented normal-move data to scan/board/queue and move buttons " +
         "to the plugin: on the Bases kanban card face, in the card dialog, and " +
         "in the command palette. A move writes the card's status.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.19",
+      description:
+        "Put the move buttons and Open in editor at the top of the card face " +
+        "and the dialog, in one action row, as the person asked.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

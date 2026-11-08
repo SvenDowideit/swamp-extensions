@@ -66,11 +66,12 @@ the note.
 
 ## Moving a card with buttons
 
-The optional plugin shows the documented normal moves as buttons on the
-kanban card face, in the card dialog, and in the command palette
-(**Move factory card to <column>**). Clicking one writes the card's status; the
-next tick follows the card. A card with no legal move shows no buttons. The
-native drag still works.
+The optional plugin shows the documented normal moves as buttons at the top of
+the kanban card face and at the top of the card dialog, with **Open in editor**
+in the same action row. The command palette (**Move factory card to <column>**)
+offers the same moves. Clicking one writes the card's status; the next tick
+follows the card. A card with no legal move shows no move buttons. The native
+drag still works.
 
 ## Reading a card
 

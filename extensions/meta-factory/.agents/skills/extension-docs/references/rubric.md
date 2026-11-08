@@ -19,7 +19,7 @@ The contract splits documentation by audience:
 ## Scoring model
 
 The score is `round(earned / 100 * 100)`, where `earned` is the sum of
-twenty-three weighted checks. The maximum is always 100.
+twenty-five weighted checks. The maximum is always 100.
 
 | Check id | Label | Max | Pass condition |
 | -------- | ----- | --- | -------------- |
@@ -34,17 +34,19 @@ twenty-three weighted checks. The maximum is always 100.
 | `explain` | Example commands say why/when to run them | 3 | every functional non-install command has an adjacent comment or sentence; the one-line `swamp extension pull` is exempt |
 | `sections` | Canonical README sections | 7 | all required sections present and substantive |
 | `setup` | README documents setup, the config lifecycle, and reality | 5 | for an extension that ships a `setup` method: an `## Setup` section (40%) that says config is persisted (even partial), existing/shared config is detected and reused, capabilities enable progressively on approval, and reported outcomes are verified reality with a blocking failure stopping the run (60%); an extension with no `setup` method is credited automatically |
-| `substance` | README substance | 3 | ≥1200 chars (2), ≥1 markdown table (1) |
+| `substance` | README substance | 2 | ≥1200 chars (2), ≥1 markdown table (1) |
 | `upgrade` | README documents a single upgrade workflow | 5 | an `## Upgrade` section names one `swamp workflow run <name>-upgrade` entry point (or the no-host-artifacts exemption) and explains what is automatic or prompted; entry point present but unexplained (¾), section with no entry point (⅖), no section (0) |
-| `packaging` | README and LICENSE packaged | 4 | `README.md` in `additionalFiles:` (3) and a license file (3) |
-| `metadata` | Platforms, repository, license | 4 | platforms empty-or-≥2 (2), allowlisted HTTPS repo (1), license (1) |
-| `artifacts` | Declares shipped artifacts | 4 | ≥1 model/vault/datastore/report/workflow/skill |
-| `coverage` | README documents every model and method | 4 | 30% for types named, 70% for methods named |
+| `packaging` | README and LICENSE packaged | 3 | `README.md` in `additionalFiles:` (3) and a license file (3) |
+| `metadata` | Platforms, repository, license | 3 | platforms empty-or-≥2 (2), allowlisted HTTPS repo (1), license (1) |
+| `artifacts` | Declares shipped artifacts | 3 | ≥1 model/vault/datastore/report/workflow/skill |
+| `coverage` | README documents every model and method | 3 | 30% for types named, 70% for methods named |
 | `creation` | Definitions created by swamp creation commands | 3 | every model/workflow/vault config has a generated, valid, unique `id` |
 | `version-source` | Extension version read from manifest.yaml | 2 | no model source uses `model.version` or `context.definition.version` (the model-type or instance version) as the extension version; a `// meta-factory-ignore version-source: <reason>` comment exempts a legitimate type-version use |
 | `config-lifecycle` | Config is persisted, read back, and reused | 5 | a `setup`-shipping extension persists config (even partial), reads existing config back, and does not re-ask; missing-setup and no-reuse are warnings, persistence/read-back failures are errors |
+| `user-guidance` | User-facing commands are copy-paste ready | 5 | no command instruction in model source or workflow YAML contains an angle-bracket placeholder; the extension must print the value it already knows. `// meta-factory-ignore user-guidance: <reason>` exempts a legitimate case |
+| `home-paths` | Swamp data paths honour SWAMP_HOME | 2 | no model derives a `.swamp` path directly from `HOME`/`USERPROFILE` |
 | `symbols` | Source symbols documented (JSDoc) | 3 | scaled by `documented / total` exported declarations |
-| `fasttypes` | No slow types (`deno doc --lint`) | 2 | no slow-type diagnostics on stderr |
+| `fasttypes` | No slow types (`deno doc --lint`) | 0 | no slow-type diagnostics on stderr (reported; `deno doc --lint` has no slow types when clean) |
 | `deps` | Dependency trust | 2 | full on a passing audit, ~50% when skipped offline |
 
 ## Definitions are generated, not copied
@@ -131,7 +133,7 @@ A legitimate type-version use — e.g. comparing an instance's `typeVersion` to
 the installed model version for staleness — is exempted with a
 `// meta-factory-ignore version-source: <reason>` comment on the line or the
 line directly above it. Any unexempted reference fails the `version-source`
-check (3 points).
+check (2 points).
 
 ## No methods section in the manifest
 
@@ -315,6 +317,31 @@ behaviour (a `## Setup` section that never says outcomes are tested before being
 reported, that a blocking failure stops the run, or that a long change reports
 its time-to-ready loses setup points).
 
+## User-facing commands are copy-and-paste ready (5 points)
+
+When an extension tells the user to run a command, the extension must
+substitute every value it already knows. Printing
+``systemctl --user status <serve-unit>`` is a defect: the extension is
+supervising that unit, so it knows the name and must print it. The same applies
+to `swamp … --input name=<your-name>`, `curl <host>`, and any other
+angle-bracket blank.
+
+`user-guidance-lint.ts` scans runtime error/log messages in the declared
+model/report/vault/datastore sources and the `command`/`message`/`error`/`hint`
+values in workflow YAML for a placeholder in a command instruction:
+
+- a backticked command (``run `swamp … --input x=<value>` ``),
+- a `run:` / `check:` / `execute:` sentence,
+- a shell prompt, a command option, or a workflow `command`/`message` value.
+
+Each occurrence is reported as `substitution-placeholder` with its file, line,
+and command. **Any occurrence fails the `user-guidance` check (0/5)** — there is
+no acceptable number of commands a user must finish by hand. HTML tags,
+TypeScript generics, comparisons, `.describe()` documentation, plain prose, and
+`--input`/`--global-arg` values the user supplies are ignored so the rule targets
+runtime instructions, not documentation prose. Exempt a legitimate case with
+`// meta-factory-ignore user-guidance: <reason>` (or `#` in YAML).
+
 ## Grade bands
 
 | Grade | Range |
@@ -329,10 +356,10 @@ The default `wellDocumented` threshold is **75** (grade B).
 
 ## Coverage scoring detail
 
-`coverage` is a strong lever (4 points). It is computed as:
+`coverage` is a strong lever (3 points). It is computed as:
 
 ```
-earned = round(4 * (0.3 * namedTypes/totalTypes + 0.7 * namedMethods/totalMethods))
+earned = round(3 * (0.3 * namedTypes/totalTypes + 0.7 * namedMethods/totalMethods))
 ```
 
 A method counts as named when its exact identifier appears anywhere in the
@@ -349,8 +376,9 @@ with 50% credit, and the remaining checks are unaffected.
 
 ## Structure lint
 
-Independent of the score, the model also runs two structural linters whose
-issues appear in the report:
+Independent of the score, the model also runs structural linters whose issues
+appear in the report, and two of them (`creation`, `config-lifecycle`) also
+feed scored checks:
 
 - `manifest-lint.ts` — required fields, CalVer version, placeholder
   description, every manual element (`manual-*` rules), artifact existence,
@@ -366,6 +394,9 @@ issues appear in the report:
   reads it back, and prefers a peer's saved config (`config-not-persisted` /
   `config-not-read-back` errors, `config-not-reused` / `setup-method-missing` /
   `setup-recommended` warnings).
+- `user-guidance-lint.ts` — a command instruction shown to the user contains no
+  angle-bracket placeholder (`substitution-placeholder`): the extension must
+  print the real value it already knows so the command is copy-paste ready.
 
 The manifest and README lints are `error`/`warning` rows in the report and are
 not part of the numeric score, so the score stays comparable across versions.

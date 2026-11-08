@@ -143,6 +143,15 @@ export type ScoreData = {
     line?: number;
     path?: string;
   }[];
+  userGuidanceIssues?: {
+    severity: string;
+    rule: string;
+    message: string;
+    placeholder?: string;
+    command?: string;
+    line?: number;
+    path?: string;
+  }[];
   reportReality?: {
     severity: string;
     rule: string;
@@ -348,6 +357,10 @@ export function renderScore(s: ScoreData): string {
     ...(s.configLifecycleIssues ?? []).map((i) => {
       const where = i.path ? ` (${i.path}${i.line ? `:${i.line}` : ""})` : "";
       return `config-lifecycle/${i.rule}${where}: ${i.message}`;
+    }),
+    ...(s.userGuidanceIssues ?? []).map((i) => {
+      const where = i.path ? ` (${i.path}${i.line ? `:${i.line}` : ""})` : "";
+      return `user-guidance/${i.rule}${where}: ${i.message}`;
     }),
     ...(s.reportReality ?? []).map((i) => {
       const where = i.path ? ` (${i.path}${i.line ? `:${i.line}` : ""})` : "";

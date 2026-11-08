@@ -117,6 +117,26 @@ reported on the score resource as `reportReality` and never change the score —
 but a `## Setup` section that omits the verified-reality story loses setup
 points.
 
+## Never make the user substitute a value
+
+A command you show the user must be **copy-and-paste ready**. Never print
+``systemctl --user status <serve-unit>`` or
+`swamp … --input name=<your-name>`: the extension already knows the value, so it
+must print the real one. A user should never have to work out or retype an
+angle-bracket blank.
+
+`user-guidance-lint.ts` scans runtime error/log messages in declared
+model/report/vault/datastore sources and the `command`/`message`/`error`/`hint`
+values in workflow YAML for an angle-bracket placeholder in a command
+instruction — a backticked command, a `run:`/`check:`/`execute:` sentence, a
+shell prompt, or a command option. Each occurrence is reported as
+`substitution-placeholder` with its file, line, and command, and **any
+occurrence fails the `user-guidance` check (0/5)**. HTML tags, TypeScript
+generics, comparisons, `.describe()` documentation, plain prose, and
+`--input`/`--global-arg` values the user supplies are ignored. Exempt a
+legitimate case with `// meta-factory-ignore user-guidance: <reason>` (or `#`
+in YAML).
+
 ## Single-step install — 13% of the score
 
 Getting the extension must be **one command**:
@@ -296,7 +316,7 @@ swamp workflow run @mycollective/my-extension-upgrade
 
 ## What the score measures
 
-The 0-100 score is the weighted sum of twenty-three deterministic checks. Full
+The 0-100 score is the weighted sum of twenty-five deterministic checks. Full
 detail in [references/rubric.md](references/rubric.md); the weights:
 
 | Check | Points | What it verifies |
@@ -312,17 +332,19 @@ detail in [references/rubric.md](references/rubric.md); the weights:
 | **Explained examples** | **3** | every non-install command says why/when to run it |
 | Canonical README sections | 7 | the visible sections above |
 | **Setup + config lifecycle** | **5** | an `## Setup` section documenting persistence, reuse, and progressive enablement (only when a `setup` method is shipped) |
-| README substance | 3 | ≥1200 chars, ≥1 table |
+| README substance | 2 | ≥1200 chars, ≥1 table |
 | **A documented single upgrade workflow** | **5** | an `## Upgrade` section naming one `swamp workflow run <name>-upgrade` entry point, explained; a required `--input model=`/`name=` identity input caps it at ⅖ unless discovery is documented |
-| README + LICENSE packaged | 4 | both listed in `additionalFiles:` |
-| Platforms / repository / license | 4 | declared metadata |
-| Artifacts declared | 4 | at least one model/report/etc. |
-| README documents every method | 4 | coverage of model types and method names |
+| README + LICENSE packaged | 3 | both listed in `additionalFiles:` |
+| Platforms / repository / license | 3 | declared metadata |
+| Artifacts declared | 3 | at least one model/report/etc. |
+| README documents every method | 3 | coverage of model types and method names |
 | **Definitions created by swamp** | **3** | model/workflow/vault configs carry a generated, unique `id` — not hand-written or copied; `lintDefinitions` additionally flags a recent definition the `swamp audit` timeline does not confirm |
 | Extension version from manifest.yaml | 2 | `version-source`: the extension version is read from `manifest.yaml`, not `model.version`/`context.definition.version` |
 | **Config is persisted/read back/reused** | **5** | `config-lifecycle`: a `setup`-shipping extension persists config (even partial), reads it back, and reuses a peer's saved config |
+| **User-facing commands are copy-paste ready** | **5** | `user-guidance`: no command shown to the user contains an angle-bracket placeholder — the extension substitutes the value it already knows |
+| Swamp data paths honour SWAMP_HOME | 2 | no `.swamp` path derived directly from `HOME` |
 | Source symbols documented | 3 | JSDoc coverage via `deno doc --json` |
-| No slow types | 2 | no slow-type codes in `deno doc --lint` stderr |
+| No slow types | 0 | no slow-type codes in `deno doc --lint` stderr (reported only) |
 | Dependency trust | 2 | `swamp extension quality` audit (partial when offline) |
 
 Maximum 100. `≥90` A, `≥75` B, `≥60` C, `≥40` D, else F. The default
@@ -449,3 +471,9 @@ skill is re-scanned.
     hostnames, URLs, or routes that cannot work yet. Document it in `## Setup`
     and `## Upgrade`; exempt a deliberate best-effort case with
     `// meta-factory-ignore report-reality: <reason>`.
+11. **Never make the user substitute a value.** A command you show the user must
+    be copy-and-paste ready: print the real name, URL, or ID the extension
+    already knows, never an angle-bracket placeholder like `<serve-unit>`.
+    `user-guidance-lint.ts` fails the `user-guidance` check on any
+    `substitution-placeholder` in model source or workflow YAML; exempt a
+    legitimate case with `// meta-factory-ignore user-guidance: <reason>`.

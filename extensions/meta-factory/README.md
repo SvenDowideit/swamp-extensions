@@ -30,7 +30,7 @@ extension `0–100`).
 - it carries **functional examples** — at least three distinct runnable
   `swamp …` commands, with no `<name>` / `example.com` placeholders — and
   **explains each one**: every non-install command has a comment or sentence
-  saying why/when to run it (`explain` check, 7 pts);
+  saying why/when to run it (`explain` check, 3 pts);
 - the **README is the extender/maintainer doc** — it must carry visible
   `## What it does` / `## Install` / `## Configuration` / `## Examples` /
   `## Upgrade` / `## Details` sections, name every model and method, and explain
@@ -61,6 +61,14 @@ extension `0–100`).
   `reportReality` on the score resource and **never change the score** (a static
   rule cannot reliably tell a blocking failure from a deliberate best-effort
   one), so they surface as diagnostics rather than a gate;
+- **user-facing commands are copy-and-paste ready** — when an extension tells
+  the user to run something, it must substitute the values it already knows. A
+  placeholder such as ``systemctl --user status <serve-unit>`` forces the user
+  to work out the unit, so `user-guidance-lint.ts` reports it as
+  `substitution-placeholder` and the `user-guidance` check (5 points) fails.
+  The extension knows the real value; print it so the command can be pasted
+  exactly as shown. A legitimate case is exempted with
+  `// meta-factory-ignore user-guidance: <reason>`;
 - **definitions are generated, not copied** — a model, workflow, or vault
   config must be created with the matching swamp command (`swamp model create`,
   `swamp workflow create`, `swamp vault create`), so it carries a fresh,
@@ -294,19 +302,20 @@ Reports and workflows:
 - `@svendowideit/meta-factory-upgrade` workflow — refreshes the bundled skill
   and re-scores; the single upgrade entry point (see [Upgrade](#upgrade)).
 
-The score is the weighted sum of twenty-one checks (maximum 100): manifest name
+The score is the weighted sum of twenty-five checks (maximum 100): manifest name
 and description (4), short `WHAT IT DOES` pitch (5), manifest-as-user-manual
-(8), manual section order, installs last (5), **no methods section in the
-manifest (5)**, single-step install (13), manifest formatting (4), functional
-examples (4), explained examples (4), canonical README sections (6), README
-substance (3), **a documented single upgrade workflow (5)**, README + LICENSE
-packaging (4), platforms/repository/license metadata (4), declared artifacts
-(4), README coverage of every model and method (5), **definitions created by
-swamp creation commands (4)**, **the extension version read from `manifest.yaml`
-rather than the model's own or an instance's version (3)**, JSDoc symbol
-coverage (4), no slow-type diagnostics from `deno doc --lint` (3, filtered to
-the rubric's slow-type codes so JSDoc warnings are not double-counted), and
-dependency trust (3). Grades:
+(7), manual section order, installs last (4), **no methods section in the
+manifest (4)**, single-step install (13), manifest formatting (4), functional
+examples (3), explained examples (3), canonical README sections (7), README
+substance (2), **a documented single upgrade workflow (5)**, README + LICENSE
+packaging (3), platforms/repository/license metadata (3), declared artifacts
+(3), README coverage of every model and method (3), **definitions created by
+swamp creation commands (3)**, **the extension version read from `manifest.yaml`
+rather than the model's own or an instance's version (2)**, config-lifecycle
+(5), **user-facing commands are copy-paste ready (5)**, `SWAMP_HOME` home paths
+(2), JSDoc symbol coverage (3), no slow-type diagnostics from `deno doc --lint`
+(0, filtered to the rubric's slow-type codes so JSDoc warnings are not
+double-counted), and dependency trust (2). Grades:
 A ≥ 90, B ≥ 75, C ≥ 60, D ≥ 40, else F. The full breakdown is in the bundled
 skill's `references/rubric.md`.
 
@@ -329,6 +338,22 @@ are **not** required to be in lock-step. A legitimate type-version use (e.g.
 comparing an instance's `typeVersion` to the installed model version for
 staleness) is exempted with a `// meta-factory-ignore version-source: <reason>`
 comment on the line or the line directly above it.
+
+### Copy-paste-ready user guidance
+
+When an extension tells the user to run a command, the command must be ready to
+paste. Printing ``systemctl --user status <serve-unit>`` is a defect: the
+extension is supervising that unit, so it knows the name and must print it.
+`user-guidance-lint.ts` scans runtime error/log messages in the declared
+model/report/vault/datastore sources and the `command`/`message`/`error`/`hint`
+values in workflow YAML for an angle-bracket placeholder inside a command
+instruction (a backticked command, a `run:`/`check:` sentence, a shell prompt,
+or a command line with options). Each occurrence is reported as
+`substitution-placeholder` with its file, line, and command, and any occurrence
+fails the 5-point `user-guidance` check. HTML tags, TypeScript generics,
+comparisons, plain prose, `.describe()` documentation, and `--input`/`--global-arg`
+values the user supplies are ignored. A legitimate case is exempted with
+`// meta-factory-ignore user-guidance: <reason>` (or the `#` equivalent in YAML).
 
 ### Code metrics (CRAP)
 
@@ -383,6 +408,7 @@ touching orchestration:
 | `readme-lint.ts` | README structural lint (canonical sections, heading levels, config table, code blocks). |
 | `manifest-lint.ts` | Manifest structural lint (required fields, CalVer, manual coverage, artifact existence). |
 | `definitions-lint.ts` | Creation-command lint: classifies each model/workflow/vault config, checks its `id` is generated, valid, and unique, and cross-references the `swamp audit` timeline (`parseCreationCommands`) to flag a recent definition no create command confirms. Pure per-source; `lintDefinitions` only walks the filesystem. |
+| `user-guidance-lint.ts` | Copy-paste lint: flags an angle-bracket placeholder in a command instruction (`substitution-placeholder`) in model source or a declared workflow, because the extension already knows the value it is asking the user to substitute. |
 | `code-metrics.ts` | Code-quality metrics: `analyzeComplexity` (`@babel/parser`-based cyclomatic complexity + LOC per function), `parseLcov` (coverage from `deno test --coverage`), `computeCrap`, and `aggregateMetrics`. Pure; filesystem/subprocess work lives in `meta_factory.ts`. Reported only — never scored. |
 | `introspect.ts` | Filesystem discovery of manifests, model types, and method keys, plus `manifestsFromGitList` (parses `git ls-files` output into manifest entries). |
 | `meta_factory.ts` | Orchestration only: subprocesses (`swamp`, `deno`, `git`), data writes, skill install. The subprocess runner (`run`) takes a bounded timeout and is injectable via `_run` for tests. |

@@ -64,6 +64,7 @@ import {
   lintReportRealities,
   type ReportRealityFile,
 } from "./report-reality-lint.ts";
+import { lintUserGuidances } from "./user-guidance-lint.ts";
 
 export type { AuditEvidence, CreationCommand };
 
@@ -305,6 +306,16 @@ const ScoreSchema = z.object({
     severity: z.enum(["error", "warning"]),
     rule: z.string(),
     message: z.string(),
+    line: z.number().optional(),
+    path: z.string().optional(),
+  })).default([]),
+  /** User-guidance issues (copy-paste placeholders) — scored. */
+  userGuidanceIssues: z.array(z.object({
+    severity: z.enum(["error", "warning"]),
+    rule: z.string(),
+    message: z.string(),
+    placeholder: z.string().optional(),
+    command: z.string().optional(),
     line: z.number().optional(),
     path: z.string().optional(),
   })).default([]),
@@ -1337,6 +1348,7 @@ async function scoreManifest(
     ...(await workflowSourcesFor(manifest, manifestDir)),
   ];
   const reportRealityIssues = lintReportRealities(realityFiles);
+  const userGuidanceIssues = lintUserGuidances(realityFiles);
   const codeMetrics = await collectCodeMetrics(deps, manifest, manifestDir);
 
   const result = scoreExtension({
@@ -1351,6 +1363,7 @@ async function scoreManifest(
     definitionIssues,
     versionSourceIssues,
     configLifecycleIssues,
+    userGuidanceIssues,
     homePathIssues,
     depsAudited: audit.audited,
     depsPassed: audit.passed,
@@ -1416,7 +1429,7 @@ type ExecContext = {
 /** Model definition for the extension documentation meta-factory. */
 export const model = {
   type: "@svendowideit/meta-factory",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1491,6 +1504,21 @@ export const model = {
       description:
         "Honour SWAMP_HOME when resolving the bundled Deno path fallback " +
         "(previously always HOME/.swamp/deno/deno).",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
+      description:
+        "Add the scored `user-guidance` check (5 points): every user-facing " +
+        "command must be copy-and-paste ready, so model source or workflow " +
+        "YAML that tells the user to substitute an angle-bracket placeholder " +
+        "(e.g. `systemctl --user status <serve-unit>`) now fails. The new " +
+        "`user-guidance-lint.ts` reports each occurrence as " +
+        "`substitution-placeholder` on the score resource, exemptible with " +
+        "`// meta-factory-ignore user-guidance: <reason>`. Weights were " +
+        "rebalanced (substance 3→2, packaging/metadata/artifacts/coverage " +
+        "4→3) to fund it and keep the maximum at 100. Schema is additive — no " +
+        "global arguments change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/meta-factory"
-version: "2026.10.23.1"
+version: "2026.11.08.1"
 description: >
   The documentation quality gate for swamp extensions. Enforces one guiding
   principle — the published manifest plus README must be enough for a user or
@@ -39,7 +39,13 @@ description: >
     (DNS/TTL, certificates) report their time-to-ready. `report-reality-lint.ts`
     reports `failure-swallowed` / `prerequisite-allow-failure` and
     `claim-without-verification` / `eta-missing`, and the `## Setup` README
-    section must document the verified-reality behaviour. A second workflow
+    section must document the verified-reality behaviour. It also enforces that
+    user-facing commands are copy-and-paste ready: a command instruction in
+    model source or workflow YAML must never contain an angle-bracket
+    placeholder such as `systemctl --user status <serve-unit>` — the extension
+    knows the real value and must print it (`user-guidance-lint.ts`, the scored
+    `user-guidance` check; `// meta-factory-ignore user-guidance: <reason>`
+    exempts a legitimate case). A second workflow
     prints a scoreboard — a text
     table of every git-tracked extension with the reasons each is not 100/100.
     Each score can also carry test-factory coverage: how many of an extension's
@@ -172,6 +178,7 @@ additionalFiles:
   - version-source-lint.ts
   - config-lifecycle-lint.ts
   - report-reality-lint.ts
+  - user-guidance-lint.ts
   - code-metrics.ts
   - introspect.ts
   - meta_factory_test.ts
@@ -181,6 +188,7 @@ additionalFiles:
   - version-source-lint_test.ts
   - config-lifecycle-lint_test.ts
   - report-reality-lint_test.ts
+  - user-guidance-lint_test.ts
   - code-metrics_test.ts
   - meta_factory_report_test.ts
   - meta_factory_scoreboard_test.ts

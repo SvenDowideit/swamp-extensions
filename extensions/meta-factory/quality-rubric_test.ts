@@ -23,6 +23,7 @@ import {
   checkSubstance,
   checkSymbols,
   checkUpgrade,
+  checkUserGuidance,
   checkVersionSource,
   configurableSurface,
   countCodeBlocks,
@@ -773,6 +774,27 @@ Deno.test("checkConfigLifecycle fails on a structural error", () => {
 
 Deno.test("the weighted maximum stays 100", () => {
   assertEquals(MAX_SCORE, 100);
+});
+
+Deno.test("checkUserGuidance fails on any substitution placeholder", () => {
+  const clean = checkUserGuidance([]);
+  assertEquals(clean.earned, WEIGHTS.userGuidance);
+  assertEquals(clean.status, "pass");
+
+  const bad = checkUserGuidance([
+    {
+      severity: "error",
+      rule: "substitution-placeholder",
+      message: "print the real value",
+      placeholder: "<serve-unit>",
+      command: "systemctl --user status <serve-unit>",
+      line: 12,
+      path: "linkdrop.ts",
+    },
+  ]);
+  assertEquals(bad.earned, 0);
+  assertEquals(bad.status, "fail");
+  assertStringIncludes(bad.note ?? "", "<serve-unit>");
 });
 
 Deno.test("gradeFor maps score bands", () => {

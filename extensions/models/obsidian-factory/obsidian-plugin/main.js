@@ -72,6 +72,9 @@ function withoutManagedBlock(text, name) {
 function sanitizeMarkdown(markdown) {
   return markdown.replace(/<script\b[\s\S]*?<\/script>/gi, "").replace(/<iframe\b[\s\S]*?<\/iframe>/gi, "").replace(/<object\b[\s\S]*?<\/object>/gi, "").replace(/<embed\b[^>]*>/gi, "").replace(/<style\b[\s\S]*?<\/style>/gi, "").replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, "").replace(/\son[a-z]+\s*=\s*'[^']*'/gi, "").replace(/javascript\s*:/gi, "");
 }
+function shouldInterceptCardOpen(linktext, newLeaf) {
+  return !newLeaf && isCardPath(linktext);
+}
 function isCardPath(path, folder = "Factory/Cards") {
   let decoded = path;
   try {
@@ -112,10 +115,31 @@ function readableCard(raw) {
 
 // main.ts
 var ObsidianFactoryPlugin = class extends import_obsidian.Plugin {
+  originalOpenLinkText = null;
   onload() {
     this.registerDomEvent(document, "click", (event) => {
       void this.onClick(event);
     }, true);
+    const workspace = this.app.workspace;
+    this.originalOpenLinkText = workspace.openLinkText.bind(workspace);
+    workspace.openLinkText = (linktext, sourcePath, newLeaf, openViewState) => {
+      if (shouldInterceptCardOpen(linktext, newLeaf === true)) {
+        const file = this.app.metadataCache.getFirstLinkpathDest(
+          linktext,
+          sourcePath
+        );
+        if (file) {
+          void this.openCard(file);
+          return Promise.resolve();
+        }
+      }
+      return this.originalOpenLinkText(
+        linktext,
+        sourcePath,
+        newLeaf,
+        openViewState
+      );
+    };
     this.addCommand({
       id: "open-card-dialog",
       name: "Open factory card as dialog",
@@ -126,6 +150,12 @@ var ObsidianFactoryPlugin = class extends import_obsidian.Plugin {
         return true;
       }
     });
+  }
+  onunload() {
+    if (this.originalOpenLinkText) {
+      this.app.workspace.openLinkText = this.originalOpenLinkText;
+      this.originalOpenLinkText = null;
+    }
   }
   async onClick(event) {
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) {

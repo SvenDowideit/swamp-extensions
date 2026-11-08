@@ -2,14 +2,57 @@
 /// <reference lib="dom" />
 /// <reference path="./obsidian.d.ts" />
 import { App, MarkdownRenderer, Modal, Notice, Plugin, TFile } from "obsidian";
-import { isCardPath, readableCard, sanitizeMarkdown } from "./model.ts";
+import {
+  isCardPath,
+  readableCard,
+  sanitizeMarkdown,
+  shouldInterceptCardOpen,
+} from "./model.ts";
 
 /** Open factory cards in a read-only prose dialog instead of navigating away. */
+type OpenLinkText = (
+  linktext: string,
+  sourcePath: string,
+  newLeaf?: boolean,
+  openViewState?: unknown,
+) => Promise<void>;
+
+type WorkspaceWithOpenLinkText = { openLinkText: OpenLinkText };
+
 export default class ObsidianFactoryPlugin extends Plugin {
+  private originalOpenLinkText: OpenLinkText | null = null;
+
   override onload(): void {
     this.registerDomEvent(document, "click", (event) => {
       void this.onClick(event);
     }, true);
+
+    const workspace = this.app
+      .workspace as unknown as WorkspaceWithOpenLinkText;
+    this.originalOpenLinkText = workspace.openLinkText.bind(workspace);
+    workspace.openLinkText = (
+      linktext: string,
+      sourcePath: string,
+      newLeaf?: boolean,
+      openViewState?: unknown,
+    ) => {
+      if (shouldInterceptCardOpen(linktext, newLeaf === true)) {
+        const file = this.app.metadataCache.getFirstLinkpathDest(
+          linktext,
+          sourcePath,
+        );
+        if (file) {
+          void this.openCard(file);
+          return Promise.resolve();
+        }
+      }
+      return this.originalOpenLinkText!(
+        linktext,
+        sourcePath,
+        newLeaf,
+        openViewState,
+      );
+    };
 
     this.addCommand({
       id: "open-card-dialog",
@@ -21,6 +64,14 @@ export default class ObsidianFactoryPlugin extends Plugin {
         return true;
       },
     });
+  }
+
+  override onunload(): void {
+    if (this.originalOpenLinkText) {
+      (this.app.workspace as unknown as WorkspaceWithOpenLinkText)
+        .openLinkText = this.originalOpenLinkText;
+      this.originalOpenLinkText = null;
+    }
   }
 
   private async onClick(event: MouseEvent): Promise<void> {

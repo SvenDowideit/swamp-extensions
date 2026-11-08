@@ -2,6 +2,7 @@
  * Unit tests for the pure helpers in obsidian_factory.ts.
  */
 import {
+  addEnabledPlugin,
   appendActivity,
   appendBullet,
   applyManagedSections,
@@ -302,6 +303,25 @@ Deno.test("renderSummarySection puts the person's input first", () => {
     2,
     "question is not repeated in Unknown",
   );
+});
+
+Deno.test("addEnabledPlugin adds the id once and keeps valid JSON", () => {
+  const first = addEnabledPlugin('["a"]', "obsidian-factory");
+  assertEquals(first.changed, true, "first add changes");
+  const list = JSON.parse(first.json) as string[];
+  assert(
+    list.includes("a") && list.includes("obsidian-factory"),
+    "contains both",
+  );
+  const second = addEnabledPlugin(first.json, "obsidian-factory");
+  assertEquals(second.changed, false, "second add is a no-op");
+  let failed = false;
+  try {
+    addEnabledPlugin("not json", "obsidian-factory");
+  } catch {
+    failed = true;
+  }
+  assert(failed, "invalid JSON is refused");
 });
 
 Deno.test("queueActionFor follows the card column, not the work item stage", () => {

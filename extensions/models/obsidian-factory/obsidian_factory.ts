@@ -463,6 +463,27 @@ export function queueActionFor(
   return "wait";
 }
 
+/** Add a plugin id to Obsidian's enabled community-plugin list. */
+export function addEnabledPlugin(
+  raw: string,
+  id: string,
+): { json: string; changed: boolean } {
+  let list: unknown;
+  try {
+    list = JSON.parse(raw);
+  } catch {
+    throw new Error("community-plugins.json is not valid JSON");
+  }
+  if (
+    !Array.isArray(list) ||
+    !list.every((item): item is string => typeof item === "string")
+  ) {
+    throw new Error("community-plugins.json is not a string array");
+  }
+  if (list.includes(id)) return { json: raw, changed: false };
+  return { json: `${JSON.stringify([...list, id], null, 2)}\n`, changed: true };
+}
+
 /** The next id for a prefix, from the cards already on the board. */
 export function nextId(prefix: string, ids: string[]): string {
   const pattern = new RegExp(`^${prefix}-(\\d+)$`);
@@ -1933,7 +1954,7 @@ async function executeInstallBoard(
 }
 
 async function executeInstallBoardPlugin(
-  _args: Record<string, never>,
+  args: { enable?: boolean },
   context: FactoryContext,
 ): Promise<{ dataHandles: Array<{ name: string }> }> {
   context.logger.info("Installing the optional board plugin");
@@ -1970,6 +1991,35 @@ async function executeInstallBoardPlugin(
       written.push(path);
     }
   }
+
+  let enabled = false;
+  let enableChanged = false;
+  const enable = args.enable !== false;
+  if (enable) {
+    const pluginsPath = ".obsidian/community-plugins.json";
+    const existing = await readNote(context, pluginsPath, true);
+    if (existing === null) {
+      await writeNote(
+        context,
+        pluginsPath,
+        `${JSON.stringify(["obsidian-factory"], null, 2)}\n`,
+        true,
+      );
+      enabled = true;
+      enableChanged = true;
+    } else {
+      const updated = addEnabledPlugin(existing, "obsidian-factory");
+      enabled = true;
+      if (updated.changed) {
+        const backup = ".obsidian/community-plugins.json.bak-obsidian-factory";
+        await writeNote(context, backup, existing, true);
+        await writeNote(context, pluginsPath, updated.json, true);
+        enableChanged = true;
+        backedUp.push(backup);
+      }
+    }
+  }
+
   const handle = await context.writeResource(
     "operation",
     `operation-${crypto.randomUUID()}`,
@@ -1977,10 +2027,12 @@ async function executeInstallBoardPlugin(
       operation: "installBoardPlugin",
       id: base,
       path: base,
-      changed: written.length > 0,
+      changed: written.length > 0 || enableChanged,
       detail: `written: ${written.join(", ") || "none"}; backed up: ${
         backedUp.join(", ") || "none"
-      }. Enable "Obsidian Factory" in Settings -> Community plugins.`,
+      }; enabled: ${enabled ? "yes" : "no"}. ${
+        enableChanged ? "The enabled list changed. " : ""
+      }Restart Obsidian once to load the plugin bundle; enabling in Settings lists it immediately but a replaced main.js is only loaded on reload.`,
       timestamp: nowIso(),
     },
   );
@@ -3026,7 +3078,7 @@ async function executeQueue(
 /** The tracker: stagecraft's contract 1 over an Obsidian board. */
 export const model = {
   type: "@svendowideit/obsidian-factory",
-  version: "2026.11.08.13",
+  version: "2026.11.08.14",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -3140,6 +3192,15 @@ export const model = {
         "Enabling loads the plugin immediately; no second restart.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.14",
+      description:
+        "installBoardPlugin takes enable (default true): add obsidian-factory to " +
+        "community-plugins.json with a backup, and report the required restart. " +
+        "The plugin now intercepts workspace.openLinkText for card paths, so " +
+        "clicking a Bases Kanban card opens the dialog instead of navigating.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     description: {
@@ -3223,8 +3284,12 @@ export const model = {
     },
     installBoardPlugin: {
       description:
-        "Install the optional Obsidian Factory plugin into .obsidian/plugins/obsidian-factory: verify the bundle hash, back up changed files to *.bak-obsidian-factory, and leave it for the person to enable in Settings -> Community plugins. If the plugin is not listed, reload or restart Obsidian once; enabling loads it immediately.",
-      arguments: z.object({}),
+        "Install the optional Obsidian Factory plugin into .obsidian/plugins/obsidian-factory: verify the bundle hash, back up changed files to *.bak-obsidian-factory, and by default add obsidian-factory to .obsidian/community-plugins.json with a backup. Restart Obsidian once to load the bundle.",
+      arguments: z.object({
+        enable: z.boolean().default(true).describe(
+          "Add obsidian-factory to .obsidian/community-plugins.json; restart Obsidian once to load it",
+        ),
+      }),
       execute: executeInstallBoardPlugin,
     },
     capture: {

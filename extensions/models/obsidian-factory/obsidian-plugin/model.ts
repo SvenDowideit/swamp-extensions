@@ -86,6 +86,13 @@ export function sanitizeMarkdown(markdown: string): string {
 }
 
 /** True when a wikilink path points at a factory card. */
+export function shouldInterceptCardOpen(
+  linktext: string,
+  newLeaf: boolean,
+): boolean {
+  return !newLeaf && isCardPath(linktext);
+}
+
 export function isCardPath(path: string, folder = "Factory/Cards"): boolean {
   let decoded = path;
   try {

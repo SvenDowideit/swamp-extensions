@@ -24,6 +24,12 @@ declare module "obsidian" {
   export class Workspace {
     getActiveFile(): TFile | null;
     getLeaf(): WorkspaceLeaf;
+    openLinkText(
+      linktext: string,
+      sourcePath: string,
+      newLeaf?: boolean,
+      openViewState?: unknown,
+    ): Promise<void>;
   }
   export class WorkspaceLeaf {
     openFile(file: TFile): Promise<void>;

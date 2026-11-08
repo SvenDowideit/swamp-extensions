@@ -3,6 +3,7 @@ import {
   readableCard,
   sanitizeMarkdown,
   section,
+  shouldInterceptCardOpen,
   stripFrontmatter,
   stripManagedMarkers,
 } from "./model.ts";
@@ -99,6 +100,18 @@ Deno.test("sanitizeMarkdown removes active content", () => {
   assert(!clean.toLowerCase().includes("onclick"), "onclick");
   assert(!clean.toLowerCase().includes("onmouseover"), "onmouseover");
   assert(!clean.toLowerCase().includes("javascript:"), "javascript url");
+});
+
+Deno.test("shouldInterceptCardOpen only intercepts normal card opens", () => {
+  assert(
+    shouldInterceptCardOpen("Factory/Cards/FAC-1 test.md", false),
+    "normal open",
+  );
+  assert(
+    !shouldInterceptCardOpen("Factory/Cards/FAC-1 test.md", true),
+    "new leaf",
+  );
+  assert(!shouldInterceptCardOpen("Factory/Board.md", false), "not a card");
 });
 
 Deno.test("card paths and markers", () => {

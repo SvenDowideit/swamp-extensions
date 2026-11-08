@@ -62,7 +62,7 @@ Method arguments:
 | `describe` | none |
 | `operate` | `operation`, `request`, `answer`, `run` |
 | `installBoard` | `force` |
-| `installBoardPlugin` | none |
+| `installBoardPlugin` | `enable` (default `true`) |
 | `capture` | `text`, `source` |
 | `scan` | `status`, `kind`, `includeBody` |
 | `tick` | `factoryDefinition`, `upgradeDefinitions`, `dryRun` |
@@ -219,10 +219,11 @@ activity block.
 - **`installBoardPlugin`** — installs the optional read-only dialog plugin into
   `.obsidian/plugins/obsidian-factory`. It verifies `main.js` against
   `main.js.sha256.txt`, backs up a changed file to `*.bak-obsidian-factory`, and
-  never enables the plugin. Next: **Settings -> Community plugins -> enable
-  Obsidian Factory**. If it is not listed, reload or restart Obsidian once (the
-  plugin folder was added while the app was running); enabling loads it
-  immediately, with no second restart.
+  by default adds `obsidian-factory` to `.obsidian/community-plugins.json`
+  (backing that list up first). Pass `enable=false` to leave it disabled.
+  Restart Obsidian once to load the bundle; replacing `main.js` is not loaded
+  into the running app without a reload. If the plugin was never enabled, add it
+  in **Settings -> Community plugins** if you passed `enable=false`.
 - **`capture`** — appends a timestamped bullet under the inbox's `## Thoughts`.
 - **`scan`** — writes `board`, a summary of every card with `id`, `display`,
   `title`, `kind`, `status`, `path`, `updated`, `project`, `ideaCount` and

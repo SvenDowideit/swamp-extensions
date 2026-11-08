@@ -77,9 +77,9 @@ exists, and never present a draft as final.
 swamp behavior run obsidian-board installBoard
 swamp behavior run obsidian-board describe
 # Optional: the read-only card dialog. The bundle hash is verified and the
-# plugin is left disabled. After install, enable "Obsidian Factory" in
-# Settings -> Community plugins. If it is not listed, reload or restart Obsidian
-# once; enabling loads it immediately (no second restart).
+# plugin is added to community-plugins.json by default. Restart Obsidian once to
+# load the new bundle. Pass enable=false to leave it disabled and enable it in
+# Settings -> Community plugins instead.
 swamp behavior run obsidian-board installBoardPlugin
 # The tick does the CSS install/enable and card migration for you. These two
 # commands are the manual fallbacks.

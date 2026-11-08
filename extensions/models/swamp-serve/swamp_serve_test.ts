@@ -4,6 +4,7 @@ import { parse as parseYaml } from "jsr:@std/yaml@1.2.0";
 import {
   absoluteRepoDir,
   buildTelemetryEnv,
+  createSystemdService,
   deriveHostnames,
   deriveZone,
   describeCaddyChoice,
@@ -13,6 +14,7 @@ import {
   expandHome,
   extractVersion,
   hostnamesFor,
+  isUnsupportedHardeningError,
   mergeServeConfig,
   model,
   parseCaddyFacts,
@@ -367,6 +369,71 @@ Deno.test("mergeServeConfig refuses a non-mapping root", () => {
     () => mergeServeConfig("- one\n- two\n", G as never),
     Error,
     "mapping",
+  );
+});
+
+Deno.test("isUnsupportedHardeningError recognises the old dependency", () => {
+  assertEquals(
+    isUnsupportedHardeningError(
+      "createService (systemd-service) failed: Unknown argument(s): hardening. " +
+        "Valid arguments are: serviceName, command",
+    ),
+    true,
+  );
+  assertEquals(isUnsupportedHardeningError("permission denied"), false);
+});
+
+Deno.test("createSystemdService retries without hardening on an old dependency", async () => {
+  const calls: Array<Record<string, unknown>> = [];
+  const context = {
+    definition: { name: "swamp-serve" },
+    logger: { warn: () => {} },
+    runModel: (req: { arguments: Record<string, unknown> }) => {
+      calls.push(req.arguments);
+      return Promise.resolve(
+        calls.length === 1
+          ? {
+            ok: false,
+            error: {
+              message: "Unknown argument(s): hardening. Valid arguments are: " +
+                "serviceName, command",
+            },
+          }
+          : { ok: true },
+      );
+    },
+  };
+
+  await createSystemdService(context as never, "swamp-serve", {
+    serviceName: "swamp-serve",
+    command: "swamp serve",
+    hardening: false,
+  });
+
+  assertEquals(calls.length, 2);
+  assertEquals(calls[0].hardening, false);
+  assertEquals("hardening" in calls[1], false);
+  assertEquals(calls[1].serviceName, "swamp-serve");
+});
+
+Deno.test("createSystemdService rethrows unrelated createService errors", async () => {
+  const context = {
+    definition: { name: "swamp-serve" },
+    logger: { warn: () => {} },
+    runModel: () =>
+      Promise.resolve({
+        ok: false,
+        error: { message: "permission denied" },
+      }),
+  };
+  await assertRejects(
+    () =>
+      createSystemdService(context as never, "swamp-serve", {
+        serviceName: "swamp-serve",
+        hardening: true,
+      }),
+    Error,
+    "permission denied",
   );
 });
 

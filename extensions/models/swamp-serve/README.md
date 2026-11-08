@@ -140,6 +140,15 @@ emptied `trusted-hosts`) is removed. If the file is not valid YAML, or its root
 is not a mapping, the run fails and leaves the file untouched rather than
 silently replacing a config it cannot understand.
 
+`ensureService` and `ensureTelemetry` also tolerate an older
+`@svendowideit/systemd-service`. That type gained the `hardening` argument in
+2026.10.26.1; because the manifest dependency is unversioned, an existing host
+can still have an earlier release. If `createService` rejects `hardening` as an
+unknown argument, swamp-serve retries without it and logs a warning with the
+update command. The unit is then created with whatever hardening the installed
+systemd-service applies; updating systemd-service restores
+`serviceHardening=false` control.
+
 Method arguments: `installBinary` takes `version`/`force`; `ensureService` takes
 `restart`; `ensureTelemetry` takes `endpoint`; `remove` takes `removeRoutes`.
 
@@ -232,8 +241,8 @@ and one workflow. Methods:
 | `installBinary` | `version`, `force` | Install swamp when absent (pinned `installVersion`), else report; never overwrites an existing binary unless `force`. |
 | `updateBinary` | none | Run `swamp update`, then restart the service so it execs the new build. |
 | `configure` | none | Merge the model's options into `.swamp/serve.yaml` (preserving keys it does not own, notably `webhooks` and `triggers`) and validate it with `swamp serve check-config`. |
-| `ensureService` | `restart` | Render the unit (command + OTLP environment) and create/restart it via `@svendowideit/systemd-service`. |
-| `ensureTelemetry` | `endpoint` | Read the settings contract, apply the OTLP environment, restart. |
+| `ensureService` | `restart` | Render the unit (command + OTLP environment) and create/restart it via `@svendowideit/systemd-service`. Degrades to a `hardening`-less `createService` on a systemd-service older than 2026.10.26.1. |
+| `ensureTelemetry` | `endpoint` | Read the settings contract, apply the OTLP environment, restart. Same older-dependency fallback as `ensureService`. |
 | `ensureDns` | none | Verify the Caddy model owns the two A records (it reconciles only its own `dnsRecords`); reports any missing. |
 | `ensureProxy` | none | Reverse-proxy both hostnames to the server via `ensureDnsProxy`. |
 | `status` | none | systemd state, HTTP status of both hostnames, version, telemetry summary. |

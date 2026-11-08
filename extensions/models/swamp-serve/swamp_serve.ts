@@ -1606,7 +1606,7 @@ export function configPathFor(g: ServeGlobals): string {
 /** The swamp model definition for `@svendowideit/swamp-serve`. */
 export const model = {
   type: "@svendowideit/swamp-serve",
-  version: "2026.11.08.1",
+  version: "2026.11.08.2",
   globalArguments: GlobalArgsSchema,
   checks: {
     "valid-config": {
@@ -1726,6 +1726,17 @@ export const model = {
         "example @svendowideit/linkdrop) and triggers survive a setup re-run; " +
         "comments and key order are preserved. Invalid YAML or a non-mapping " +
         "root is rejected without overwriting the file.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
+      description: "ensureService/ensureTelemetry now tolerate an installed " +
+        "@svendowideit/systemd-service that predates the `hardening` argument " +
+        "(anything before 2026.10.26.1): the createService call is retried " +
+        "without it and a warning explains how to update. This keeps setup " +
+        "runnable on a host whose unversioned dependency resolved to the " +
+        "older published release; updating systemd-service restores " +
+        "serviceHardening control.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -2035,7 +2046,7 @@ export const model = {
         const unit = renderUnit(g, telemetry, trustedHosts);
         const name = unitNameFor(g);
 
-        await callSystemd(context, "createService", name, {
+        await createSystemdService(context, name, {
           serviceName: name,
           command: unit.execStart,
           description: `swamp serve (${g.repoDir})`,
@@ -2115,7 +2126,7 @@ export const model = {
         const name = unitNameFor(g);
         const trustedHosts = await resolveTrustedHosts(context, g);
         const unit = renderUnit(g, telemetry, trustedHosts);
-        await callSystemd(context, "createService", name, {
+        await createSystemdService(context, name, {
           serviceName: name,
           command: unit.execStart,
           description: `swamp serve (${g.repoDir})`,
@@ -2522,6 +2533,49 @@ async function callSystemd(
     throw new Error(
       `${method} (systemd-service) failed: ${result.error.message}`,
     );
+  }
+}
+
+/**
+ * True when a `@svendowideit/systemd-service` call failed because the installed
+ * version predates the `hardening` argument (added in 2026.10.26.1).
+ */
+export function isUnsupportedHardeningError(message: string): boolean {
+  return /Unknown argument\(s\):.*\bhardening\b/i.test(message);
+}
+
+/**
+ * Create the unit through `@svendowideit/systemd-service`, tolerating a
+ * dependency installed before the `hardening` argument existed.
+ *
+ * Dependencies are unversioned in the manifest, so an existing host can have a
+ * systemd-service older than the one that accepts `hardening`. Retrying without
+ * it keeps setup runnable instead of hard-failing on an argument the installed
+ * type does not know. The old extension applies no hardening at all, so the
+ * only lost capability is `serviceHardening=false`; a warning says how to
+ * update. The first call fails argument validation, so nothing is written
+ * before the retry.
+ */
+export async function createSystemdService(
+  context: ResourceContext,
+  serviceName: string,
+  inputs: Record<string, unknown>,
+): Promise<void> {
+  try {
+    await callSystemd(context, "createService", serviceName, inputs);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!("hardening" in inputs) || !isUnsupportedHardeningError(message)) {
+      throw error;
+    }
+    const { hardening: _hardening, ...legacy } = inputs;
+    context.logger?.warn?.(
+      "installed @svendowideit/systemd-service does not accept `hardening`; " +
+        "creating the unit without it. Pull a newer systemd-service to honour " +
+        "serviceHardening. ({error})",
+      { error: message },
+    );
+    await callSystemd(context, "createService", serviceName, legacy);
   }
 }
 

@@ -44,6 +44,22 @@ matching transition. You do not have to put feedback under `## Feedback`.
 are worked by the factory. **Uncharacterised** and **Category** are worked by
 the idea stages. **Done** is terminal.
 
+## Opening a card as a dialog
+
+The optional **Obsidian Factory** plugin opens a card in a read-only dialog
+without leaving the board.
+
+```sh
+swamp behavior run obsidian-board installBoardPlugin
+```
+
+Then enable **Obsidian Factory** in **Settings → Community plugins**. Click a
+card link in the native Kanban view (or run **Open factory card as dialog**).
+The dialog shows the title, **At a glance** (including **Needs your input**), the
+brief and the Plan. It omits frontmatter, the Definition section and the
+Activity log; **Open in editor** is the path to the rest. The plugin only reads
+the note.
+
 ## Reading a card
 
 Each card has three kinds of writing:

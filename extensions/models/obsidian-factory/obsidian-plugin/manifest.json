@@ -1,0 +1,9 @@
+{
+  "id": "obsidian-factory",
+  "name": "Obsidian Factory",
+  "version": "1.0.0",
+  "minAppVersion": "1.14.0",
+  "description": "Open factory cards as a read-only prose dialog from the board.",
+  "author": "svendowideit",
+  "isDesktopOnly": false
+}

@@ -62,6 +62,7 @@ Method arguments:
 | `describe` | none |
 | `operate` | `operation`, `request`, `answer`, `run` |
 | `installBoard` | `force` |
+| `installBoardPlugin` | none |
 | `capture` | `text`, `source` |
 | `scan` | `status`, `kind`, `includeBody` |
 | `tick` | `factoryDefinition`, `upgradeDefinitions`, `dryRun` |
@@ -92,6 +93,11 @@ swamp model create @magistr/obsidian/vault obsidian-vault \
 # and the one uncharacterised inbox card. Re-running is a no-op unless you pass
 # --input force=true (which rewrites the board assets, never the inbox card).
 swamp behavior run obsidian-board installBoard
+
+# Optional: install the read-only card dialog plugin. The bundle hash is
+# verified, changed files are backed up, and the plugin is left disabled for
+# you to enable in Settings -> Community plugins.
+swamp behavior run obsidian-board installBoardPlugin
 
 # Capture a raw thought on the uncharacterised card. Use this from a phone,
 # a script, or an agent; editing the card's ## Thoughts section does the same.
@@ -210,6 +216,11 @@ activity block.
   idempotent answer under the requested `answer` name; a failure is an answer
   with `ok:false`, never a thrown error.
 - **`installBoard`** — writes the board assets and the inbox card.
+- **`installBoardPlugin`** — installs the optional read-only dialog plugin into
+  `.obsidian/plugins/obsidian-factory`. It verifies `main.js` against
+  `main.js.sha256.txt`, backs up a changed file to `*.bak-obsidian-factory`, and
+  never enables the plugin. Enable **Obsidian Factory** in Settings -> Community
+  plugins, then click a card link in the native Kanban.
 - **`capture`** — appends a timestamped bullet under the inbox's `## Thoughts`.
 - **`scan`** — writes `board`, a summary of every card with `id`, `display`,
   `title`, `kind`, `status`, `path`, `updated`, `project`, `ideaCount` and
@@ -266,6 +277,25 @@ and treats new or changed words as feedback. The card is top-heavy on purpose:
 `## At a glance` sits directly under the title and carries **Needs your input**,
 while `## Questions` and `## Feedback` sit above the `## Plan` detail, so the
 person sees the decisions without scrolling.
+
+### The card dialog plugin
+
+The optional plugin opens a factory card as a read-only prose dialog instead of
+navigating away from the board. Click a card link in the native Bases Kanban (or
+run the **Open factory card as dialog** command) and the dialog shows:
+
+- the title
+- `## At a glance`, including **Needs your input**
+- the brief
+- `## Plan`: tasks, tests, existing/added/removed functionality and known/unknown
+
+It deliberately omits frontmatter, the Definition section, the Activity log and
+the `swamp:` markers. **Open in editor** is the path to the rest; **Close** and
+Escape close the dialog. The plugin only reads the note; it never writes.
+
+The bundle is built from `obsidian-plugin/main.ts` by
+`obsidian-plugin/build.ts` with pinned esbuild, and `main.js.sha256.txt` is checked
+before install. The native Kanban works without the plugin.
 
 ### Safety
 

@@ -1932,6 +1932,61 @@ async function executeInstallBoard(
   return { dataHandles: [handle] };
 }
 
+async function executeInstallBoardPlugin(
+  _args: Record<string, never>,
+  context: FactoryContext,
+): Promise<{ dataHandles: Array<{ name: string }> }> {
+  context.logger.info("Installing the optional board plugin");
+  const base = ".obsidian/plugins/obsidian-factory";
+  const bundle = await readAsset(context, "obsidian-plugin/main.js");
+  const expected = (await readAsset(
+    context,
+    "obsidian-plugin/main.js.sha256.txt",
+  )).trim();
+  const actual = await hashText(bundle);
+  if (actual !== expected) {
+    throw new Error(
+      `plugin hash mismatch: expected ${expected}, got ${actual}; rebuild obsidian-plugin/main.js`,
+    );
+  }
+  const files: Array<{ name: string; asset: string }> = [
+    { name: "main.js", asset: "obsidian-plugin/main.js" },
+    { name: "manifest.json", asset: "obsidian-plugin/manifest.json" },
+    { name: "styles.css", asset: "obsidian-plugin/styles.css.txt" },
+  ];
+  const written: string[] = [];
+  const backedUp: string[] = [];
+  for (const file of files) {
+    const content = await readAsset(context, file.asset);
+    const path = `${base}/${file.name}`;
+    const existing = await readNote(context, path, true);
+    if (existing !== null && existing !== content) {
+      const backup = `${path}.bak-obsidian-factory`;
+      await writeNote(context, backup, existing, true);
+      backedUp.push(backup);
+    }
+    if (existing !== content) {
+      await writeNote(context, path, content, true);
+      written.push(path);
+    }
+  }
+  const handle = await context.writeResource(
+    "operation",
+    `operation-${crypto.randomUUID()}`,
+    {
+      operation: "installBoardPlugin",
+      id: base,
+      path: base,
+      changed: written.length > 0,
+      detail: `written: ${written.join(", ") || "none"}; backed up: ${
+        backedUp.join(", ") || "none"
+      }. Enable "Obsidian Factory" in Settings -> Community plugins.`,
+      timestamp: nowIso(),
+    },
+  );
+  return { dataHandles: [handle] };
+}
+
 async function executeCapture(
   args: { text: string; source?: string },
   context: FactoryContext,
@@ -2971,7 +3026,7 @@ async function executeQueue(
 /** The tracker: stagecraft's contract 1 over an Obsidian board. */
 export const model = {
   type: "@svendowideit/obsidian-factory",
-  version: "2026.11.08.11",
+  version: "2026.11.08.12",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -3069,6 +3124,14 @@ export const model = {
         "Release works. No reset or pause for a card move.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.12",
+      description:
+        "Add the optional Obsidian Factory board plugin and installBoardPlugin: " +
+        "a read-only card dialog opened from the native Kanban, with a verified " +
+        "bundle hash and per-file backups. The plugin is never auto-enabled.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     description: {
@@ -3149,6 +3212,12 @@ export const model = {
         ),
       }),
       execute: executeInstallBoard,
+    },
+    installBoardPlugin: {
+      description:
+        "Install the optional Obsidian Factory plugin into .obsidian/plugins/obsidian-factory: verify the bundle hash, back up changed files to *.bak-obsidian-factory, and leave it for the person to enable in Settings",
+      arguments: z.object({}),
+      execute: executeInstallBoardPlugin,
     },
     capture: {
       description:

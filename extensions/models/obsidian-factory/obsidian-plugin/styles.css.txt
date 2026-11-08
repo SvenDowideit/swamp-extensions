@@ -1,0 +1,29 @@
+.factory-card-dialog {
+  width: min(760px, 92vw);
+}
+
+.factory-card-dialog .factory-dialog-section {
+  margin-bottom: 1.25rem;
+}
+
+.factory-card-dialog .factory-dialog-summary {
+  border-left: 3px solid var(--interactive-accent);
+  padding-left: 0.85rem;
+}
+
+.factory-card-dialog .factory-dialog-plan {
+  border-top: 1px solid var(--background-modifier-border);
+  padding-top: 0.85rem;
+}
+
+.factory-card-dialog .factory-dialog-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  border-top: 1px solid var(--background-modifier-border);
+  padding-top: 0.85rem;
+}
+
+.factory-card-dialog .factory-dialog-actions button {
+  cursor: pointer;
+}

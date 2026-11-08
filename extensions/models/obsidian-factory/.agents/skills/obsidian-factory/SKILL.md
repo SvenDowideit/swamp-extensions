@@ -76,6 +76,9 @@ exists, and never present a draft as final.
 # One per vault/repo.
 swamp behavior run obsidian-board installBoard
 swamp behavior run obsidian-board describe
+# Optional: the read-only card dialog. The bundle hash is verified and the
+# plugin is left disabled for the person to enable in Settings.
+swamp behavior run obsidian-board installBoardPlugin
 # The tick does the CSS install/enable and card migration for you. These two
 # commands are the manual fallbacks.
 swamp behavior run obsidian-board migrateCards

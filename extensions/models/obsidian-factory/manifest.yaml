@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/obsidian-factory"
-version: "2026.11.08.11"
+version: "2026.11.08.12"
 description: >
   An Obsidian Bases board that is a stagecraft tracker: ideas arrive on one
   uncharacterised card, become category cards and proposed actions, then move
@@ -37,6 +37,10 @@ description: >
       # Create the board, the page, the templates and the one inbox card.
       # Re-running changes nothing unless you pass --input force=true.
       swamp behavior run obsidian-board installBoard
+
+      # Optional: install the read-only card dialog plugin, then enable
+      # "Obsidian Factory" in Settings -> Community plugins.
+      swamp behavior run obsidian-board installBoardPlugin
 
       # Capture a raw thought on the uncharacterised card.
       swamp behavior run obsidian-board capture \
@@ -118,4 +122,14 @@ additionalFiles:
   - assets/card-template.md
   - assets/category-template.md
   - assets/action-template.md
+  - obsidian-plugin/main.js.sha256.txt
+  - obsidian-plugin/manifest.json
+  - obsidian-plugin/styles.css.txt
+  - obsidian-plugin/main.ts
+  - obsidian-plugin/model.ts
+  - obsidian-plugin/build.ts
+  - obsidian-plugin/model_test.ts
+  - obsidian-plugin/obsidian.d.ts
+binaries:
+  - obsidian-plugin/main.js
 platforms: []

@@ -53,8 +53,15 @@ without leaving the board.
 swamp behavior run obsidian-board installBoardPlugin
 ```
 
-Then enable **Obsidian Factory** in **Settings → Community plugins**. Click a
-card link in the native Kanban view (or run **Open factory card as dialog**).
+Then:
+
+1. Open **Settings → Community plugins** and turn off Restricted mode if it is on.
+2. Enable **Obsidian Factory**.
+3. If it is not listed, reload or restart Obsidian once and open Settings →
+   Community plugins again. The plugin folder was added while the app was
+   running. Enabling it loads it immediately; no second restart.
+4. Click a card link in the native Kanban view (or run **Open factory card as
+   dialog**).
 The dialog shows the title, **At a glance** (including **Needs your input**), the
 brief and the Plan. It omits frontmatter, the Definition section and the
 Activity log; **Open in editor** is the path to the rest. The plugin only reads

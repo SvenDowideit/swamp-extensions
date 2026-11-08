@@ -3026,7 +3026,7 @@ async function executeQueue(
 /** The tracker: stagecraft's contract 1 over an Obsidian board. */
 export const model = {
   type: "@svendowideit/obsidian-factory",
-  version: "2026.11.08.12",
+  version: "2026.11.08.13",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -3132,6 +3132,14 @@ export const model = {
         "bundle hash and per-file backups. The plugin is never auto-enabled.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.13",
+      description:
+        "Spell out the after-install step: enable Obsidian Factory in Settings -> " +
+        "Community plugins; if it is not listed, reload or restart Obsidian once. " +
+        "Enabling loads the plugin immediately; no second restart.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     description: {
@@ -3215,7 +3223,7 @@ export const model = {
     },
     installBoardPlugin: {
       description:
-        "Install the optional Obsidian Factory plugin into .obsidian/plugins/obsidian-factory: verify the bundle hash, back up changed files to *.bak-obsidian-factory, and leave it for the person to enable in Settings",
+        "Install the optional Obsidian Factory plugin into .obsidian/plugins/obsidian-factory: verify the bundle hash, back up changed files to *.bak-obsidian-factory, and leave it for the person to enable in Settings -> Community plugins. If the plugin is not listed, reload or restart Obsidian once; enabling loads it immediately.",
       arguments: z.object({}),
       execute: executeInstallBoardPlugin,
     },

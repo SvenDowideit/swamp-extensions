@@ -219,8 +219,10 @@ activity block.
 - **`installBoardPlugin`** — installs the optional read-only dialog plugin into
   `.obsidian/plugins/obsidian-factory`. It verifies `main.js` against
   `main.js.sha256.txt`, backs up a changed file to `*.bak-obsidian-factory`, and
-  never enables the plugin. Enable **Obsidian Factory** in Settings -> Community
-  plugins, then click a card link in the native Kanban.
+  never enables the plugin. Next: **Settings -> Community plugins -> enable
+  Obsidian Factory**. If it is not listed, reload or restart Obsidian once (the
+  plugin folder was added while the app was running); enabling loads it
+  immediately, with no second restart.
 - **`capture`** — appends a timestamped bullet under the inbox's `## Thoughts`.
 - **`scan`** — writes `board`, a summary of every card with `id`, `display`,
   `title`, `kind`, `status`, `path`, `updated`, `project`, `ideaCount` and

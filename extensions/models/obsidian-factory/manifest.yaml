@@ -1,0 +1,121 @@
+manifestVersion: 1
+name: "@svendowideit/obsidian-factory"
+version: "2026.11.08.9"
+description: >
+  An Obsidian Bases board that is a stagecraft tracker: ideas arrive on one
+  uncharacterised card, become category cards and proposed actions, then move
+  through plan, implement, test, acceptance and release columns.
+
+  WHAT IT DOES
+
+    Ideas arrive in an Obsidian vault and leave as planned, implemented,
+    tested and released work without leaving the board. This extension makes
+    the vault the factory's tracker: one note per ticket, a Bases Kanban whose
+    columns are statuses, and a readable At a glance / Plan section above the
+    detailed activity log. Stagecraft enforces the stages, gates and human
+    stops; the extension keeps the board, the cards and the plan current. It is
+    better than a separate tracker because the person drags a card, adds a
+    thought or ticks a task in the same place the agent reads its work.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/obsidian-factory
+
+  DEPENDENCIES
+
+    `@magistr/obsidian-vault` and `@swamp/stagecraft`, pulled automatically by
+    the single install above. The vault model is the only writer of note files;
+    stagecraft defines the factory and work items.
+
+  RUN
+
+      # One-time: point the vault model at the vault that holds the board.
+      # The headless filesystem backend needs no Obsidian app running.
+      swamp model create @magistr/obsidian/vault obsidian-vault \
+        --global-arg vaultRoot=$HOME/Obsidian/Factory
+
+      # Create the board, the page, the templates and the one inbox card.
+      # Re-running changes nothing unless you pass --input force=true.
+      swamp behavior run obsidian-board installBoard
+
+      # Capture a raw thought on the uncharacterised card.
+      swamp behavior run obsidian-board capture \
+        --input 'text=the cache should be write-through'
+
+      # Read every card and its column, as JSON the agent can act on.
+      swamp behavior run obsidian-board scan
+
+      # The idempotent factory tick: installs and enables the card CSS snippet,
+      # migrates readable sections, repins cards with no recorded work to the
+      # current factory definition, and refreshes the queue. Pass the current
+      # factory definition hash so the repin is idempotent.
+      HASH=$(sha256sum models/@swamp/stagecraft/factory/obsidian-idea-factory.yaml | cut -d' ' -f1)
+      swamp behavior run obsidian-board tick --input factoryDefinition=$HASH
+
+      # Manual fallbacks: write the readable sections and CSS class onto cards
+      # created before this version, and write the CSS snippet. The snippet is
+      # only scoped to .factory-card, so it cannot hide metadata elsewhere.
+      swamp behavior run obsidian-board migrateCards
+      swamp behavior run obsidian-board installCardCss
+
+  CONFIGURE
+
+    Global arguments: `vaultModel` (default obsidian-vault), `folder` (Factory),
+    `prefix` (fac), `trackerName` (obsidian), `types` (inbox, category, action),
+    `statuses` (the ten columns), `statusForKind` (inbox -> Uncharacterised,
+    category -> Category, action -> Proposed), `stageColumns` (the factory's
+    stage -> column map), `factory` (obsidian-idea-factory) and
+    `allowDotObsidian`. The board methods take `force`, `text`, `source`,
+    `status`, `kind`, `id`, `title`, `body`, `project`, `ideas`, `from`, `to`,
+    `newCategory`, `newCategorySummary`, `stage`, `planStatus`, `known`,
+    `unknown`, `next`, `status`, `summary`, `tasks`, `tests`, `existing`,
+    `added`, `removed`, `note`, `factoryDefinition`, `upgradeDefinitions`,
+    `dryRun` and `force`. A per-call input wins over a global. `tick` only
+    repins cards in Uncharacterised, Category or Proposed that have no product
+    except the route's `card-kind` and no approvals; cards with recorded work
+    stay on the definition they started with and move to the current one when
+    they finish or are reopened.
+    The stagecraft factory binds to a publisher whose tracker is this model and
+    whose `statuses` map the factory's status keys to the column names.
+
+  WHAT IT INSTALLS
+
+    Nothing on the host: no service, daemon, cron trigger or package. It writes
+    only into the configured vault folder — `Board.base`, `Board.md`,
+    `Guide.md`, `Templates/Card.md`, `Templates/Category.md`,
+    `Templates/Action.md` and the single `Cards/INBOX Uncharacterised.md` — and
+    creates category and action cards in `Cards/` when the factory asks. The
+    tick keeps `.obsidian/snippets/obsidian-factory.css` current (previous
+    content at `.obsidian/snippets/obsidian-factory.css.bak-obsidian-factory`),
+    adds `obsidian-factory` to `enabledCssSnippets` in
+    `.obsidian/appearance.json` (backing it up once to
+    `.obsidian/appearance.json.bak-obsidian-factory`), adds
+    `cssclasses: [factory-card]` to cards, and sets `cli: true` in Obsidian's
+    global `obsidian.json` (backing it up once to
+    `obsidian.json.bak-obsidian-factory`). The CLI is available after the next
+    Obsidian restart; it has no snippet-toggle or app-reload command. The snippet uses Obsidian's
+    `--metadata-display-reading` / `--metadata-display-editing` variables and
+    scoped fallbacks; only `.factory-card` notes are affected. Source mode still
+    shows the YAML. Nothing else is written.
+repository: https://github.com/svendowideit/swamp-extensions
+license: MIT
+paths:
+  base: manifest
+models:
+  - obsidian_factory.ts
+skills:
+  - obsidian-factory
+dependencies:
+  - "@magistr/obsidian-vault"
+  - "@swamp/stagecraft"
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - obsidian_factory_test.ts
+  - assets/board.base.yaml
+  - assets/board.md
+  - assets/guide.md
+  - assets/card-template.md
+  - assets/category-template.md
+  - assets/action-template.md
+platforms: []

@@ -1,0 +1,77 @@
+filters:
+  and:
+    - file.inFolder("{{folder}}/Cards")
+    - or:
+        - 'kind == "inbox"'
+        - 'kind == "category"'
+        - 'kind == "action"'
+properties:
+  file.name:
+    displayName: Card
+  note.status:
+    displayName: Column
+  note.kind:
+    displayName: Kind
+  note.project:
+    displayName: Project
+  note.source:
+    displayName: Source
+  note.updated:
+    displayName: Updated
+views:
+  - type: kanban
+    name: Board
+    groupBy:
+      property: note.status
+      direction: ASC
+    groupOrder:
+      - Uncharacterised
+      - Category
+      - Proposed
+      - Please Plan
+      - Work Planned
+      - Please Implement
+      - Please Test
+      - User Acceptance
+      - Please Release
+      - Done
+    order:
+      - file.name
+      - note.kind
+      - note.project
+      - note.source
+      - note.updated
+  - type: table
+    name: All cards
+    order:
+      - file.name
+      - note.status
+      - note.kind
+      - note.project
+      - note.source
+      - note.updated
+  - type: cards
+    name: Inbox and categories
+    filters:
+      and:
+        - or:
+            - 'kind == "inbox"'
+            - 'kind == "category"'
+    order:
+      - file.name
+      - note.status
+      - note.kind
+      - note.updated
+  - type: table
+    name: Waiting for a person
+    filters:
+      and:
+        - or:
+            - 'status == "Work Planned"'
+            - 'status == "User Acceptance"'
+            - 'status == "Proposed"'
+    order:
+      - file.name
+      - note.status
+      - note.kind
+      - note.updated

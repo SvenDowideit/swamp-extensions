@@ -253,6 +253,11 @@ const TickSchema = z.object({
     done: z.number(),
     wait: z.number(),
   }),
+  plugin: z.object({
+    path: z.string(),
+    repoPath: z.string(),
+    changed: z.boolean(),
+  }),
   cli: z.object({
     status: z.enum([
       "already",
@@ -466,6 +471,46 @@ export function queueActionFor(
     return hasRun && !terminal ? "work" : "claim";
   }
   return "wait";
+}
+
+/** Merge the repo default into the plugin's data.json without clobbering settings. */
+export function mergePluginSettings(
+  raw: string | null,
+  repoPath: string,
+): { json: string; changed: boolean } {
+  let data: Record<string, unknown> = {};
+  if (raw !== null) {
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      throw new Error("plugin data.json is not valid JSON");
+    }
+    if (!isRecord(parsed)) throw new Error("plugin data.json is not an object");
+    data = parsed;
+  }
+  let changed = false;
+  if (
+    typeof data.repoPath !== "string" || data.repoPath.trim() === ""
+  ) {
+    data.repoPath = repoPath;
+    changed = true;
+  }
+  const defaults: Record<string, string> = {
+    swampBinary: "swamp",
+    agent: "pi",
+    model: "",
+  };
+  for (const [key, value] of Object.entries(defaults)) {
+    if (typeof data[key] !== "string") {
+      data[key] = value;
+      changed = true;
+    }
+  }
+  return {
+    json: changed ? `${JSON.stringify(data, null, 2)}\n` : raw ?? "",
+    changed,
+  };
 }
 
 /** Add a plugin id to Obsidian's enabled community-plugin list. */
@@ -2043,6 +2088,28 @@ async function executeInstallBoard(
   return { dataHandles: [handle] };
 }
 
+async function ensurePluginData(
+  context: FactoryContext,
+  dryRun = false,
+): Promise<{ path: string; repoPath: string; changed: boolean }> {
+  const path = ".obsidian/plugins/obsidian-factory/data.json";
+  const repoPath = (Deno.env.get("SWAMP_REPO_DIR") ?? Deno.cwd()).trim();
+  const existing = await readNote(context, path, true);
+  const merged = mergePluginSettings(existing, repoPath);
+  if (merged.changed && !dryRun) {
+    if (existing !== null) {
+      await writeNote(
+        context,
+        `${path}.bak-obsidian-factory`,
+        existing,
+        true,
+      );
+    }
+    await writeNote(context, path, merged.json, true);
+  }
+  return { path, repoPath, changed: merged.changed };
+}
+
 async function executeInstallBoardPlugin(
   args: { enable?: boolean },
   context: FactoryContext,
@@ -2110,6 +2177,8 @@ async function executeInstallBoardPlugin(
     }
   }
 
+  const settings = await ensurePluginData(context);
+
   const handle = await context.writeResource(
     "operation",
     `operation-${crypto.randomUUID()}`,
@@ -2117,10 +2186,12 @@ async function executeInstallBoardPlugin(
       operation: "installBoardPlugin",
       id: base,
       path: base,
-      changed: written.length > 0 || enableChanged,
+      changed: written.length > 0 || enableChanged || settings.changed,
       detail: `written: ${written.join(", ") || "none"}; backed up: ${
         backedUp.join(", ") || "none"
-      }; enabled: ${enabled ? "yes" : "no"}. ${
+      }; enabled: ${
+        enabled ? "yes" : "no"
+      }; repoPath default: ${settings.repoPath}. ${
         enableChanged ? "The enabled list changed. " : ""
       }Restart Obsidian once to load the plugin bundle; enabling in Settings lists it immediately but a replaced main.js is only loaded on reload.`,
       timestamp: nowIso(),
@@ -3112,6 +3183,7 @@ async function executeTick(
     ).join(" | "),
   });
   const dryRun = args.dryRun === true;
+  const plugin = await ensurePluginData(context, dryRun);
   const cli = await enableObsidianCli(dryRun);
   const css = await ensureCardCss(context, dryRun);
   const migrated = await migrateCardsInternal(context, dryRun);
@@ -3125,6 +3197,7 @@ async function executeTick(
   const handle = await context.writeResource("tick", "tick", {
     board: queue.cards,
     counts: queue.counts,
+    plugin,
     cli,
     css,
     migrated,
@@ -3251,7 +3324,7 @@ async function executeQueue(
 /** The tracker: stagecraft's contract 1 over an Obsidian board. */
 export const model = {
   type: "@svendowideit/obsidian-factory",
-  version: "2026.11.08.21",
+  version: "2026.11.08.22",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -3429,6 +3502,15 @@ export const model = {
         "Add the tick workflow and the plugin Tick action: housekeeping, " +
         "queue, then one @maphew/agent-task run. The plugin gets settings for " +
         "repo path, swamp binary, agent and model, plus a ribbon/command.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.22",
+      description:
+        "The tick and installBoardPlugin idempotently write the plugin's " +
+        "data.json repoPath default (and missing swampBinary/agent/model " +
+        "defaults), preserving any existing settings. The plugin reloads " +
+        "settings on each Tick click.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

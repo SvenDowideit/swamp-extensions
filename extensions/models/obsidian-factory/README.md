@@ -298,10 +298,12 @@ The extension ships `@svendowideit/obsidian-factory-tick`, a workflow that:
 The agent stops at the person's columns and never publishes.
 
 **From the plugin.** The plugin adds a ribbon icon and the command **Tick the
-Obsidian factory**. Set the swamp repo path, swamp binary, agent and optional
-model in **Settings → Community plugins → Obsidian Factory**. The button runs
-the workflow with `execFile` (no shell), passes the current factory hash, and
-shows a notice when the tick starts and finishes.
+Obsidian factory**. The tick writes `.obsidian/plugins/obsidian-factory/data.json`
+with the repo path as the default when it is missing, so the button works after
+a reload without manual setup. Override the repo path, swamp binary, agent or
+model in **Settings → Community plugins → Obsidian Factory** if needed. The
+button runs the workflow with `execFile` (no shell), passes the current factory
+hash, and shows a notice when the tick starts and finishes.
 
 **From the CLI.**
 

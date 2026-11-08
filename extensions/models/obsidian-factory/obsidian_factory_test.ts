@@ -16,6 +16,7 @@ import {
   incomingRelations,
   insertAfterTitle,
   managedEditProblem,
+  mergePluginSettings,
   movesForStatus,
   nextCommentId,
   nextId,
@@ -361,6 +362,38 @@ Deno.test("updatePlanCheckboxes ticks matching tasks and tests only", () => {
     tasks: [{ match: "missing", done: true }],
   });
   assertEquals(missed.unmatched, ["missing"], "unmatched reported");
+});
+
+Deno.test("mergePluginSettings sets an empty repoPath and keeps settings", () => {
+  const fresh = mergePluginSettings(null, "/repo");
+  assertEquals(fresh.changed, true, "fresh changes");
+  const freshData = JSON.parse(fresh.json) as Record<string, unknown>;
+  assertEquals(freshData.repoPath, "/repo", "repo path");
+  assertEquals(freshData.agent, "pi", "agent default");
+
+  const existing = JSON.stringify({
+    repoPath: "/keep",
+    agent: "kilo",
+    swampBinary: "swamp",
+    model: "",
+  });
+  const kept = mergePluginSettings(existing, "/repo");
+  assertEquals(kept.changed, false, "keeps a set repo path");
+  assertEquals(JSON.parse(kept.json).agent, "kilo", "keeps existing agent");
+
+  const empty = JSON.stringify({ repoPath: "", agent: "kilo" });
+  const filled = mergePluginSettings(empty, "/repo");
+  assertEquals(filled.changed, true, "fills empty repo path");
+  assertEquals(JSON.parse(filled.json).repoPath, "/repo", "filled repo path");
+  assertEquals(JSON.parse(filled.json).agent, "kilo", "keeps agent");
+
+  let failed = false;
+  try {
+    mergePluginSettings("not json", "/repo");
+  } catch {
+    failed = true;
+  }
+  assert(failed, "invalid JSON is refused");
 });
 
 Deno.test("addEnabledPlugin adds the id once and keeps valid JSON", () => {

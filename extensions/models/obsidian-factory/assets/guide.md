@@ -66,9 +66,11 @@ the note.
 
 ## Ticking the factory
 
-Use the ribbon icon or the command **Tick the Obsidian factory**. Set the swamp
-repo path, swamp binary and agent in **Settings → Community plugins → Obsidian
-Factory**. The tick runs the board-first housekeeping, refreshes the queue and
+Use the ribbon icon or the command **Tick the Obsidian factory**. The tick
+sets the plugin's default repo path in `data.json` when it is missing, so the
+button works after a reload without manual setup. Override the repo path, swamp
+binary or agent in **Settings → Community plugins → Obsidian Factory** if
+needed. The tick runs the board-first housekeeping, refreshes the queue and
 starts one agent to work the factory columns. The agent stops at your columns
 and never publishes.
 

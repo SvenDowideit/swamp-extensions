@@ -145,7 +145,8 @@ export default class ObsidianFactoryPlugin extends Plugin {
     await this.saveData(this.settings);
   }
 
-  private tickFactory(): void {
+  private async tickFactory(): Promise<void> {
+    await this.loadSettings();
     const repo = this.settings.repoPath.trim();
     if (!repo) {
       new Notice(

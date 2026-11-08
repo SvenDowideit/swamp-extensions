@@ -244,7 +244,8 @@ var ObsidianFactoryPlugin = class extends import_obsidian.Plugin {
   async saveSettings() {
     await this.saveData(this.settings);
   }
-  tickFactory() {
+  async tickFactory() {
+    await this.loadSettings();
     const repo = this.settings.repoPath.trim();
     if (!repo) {
       new import_obsidian.Notice(

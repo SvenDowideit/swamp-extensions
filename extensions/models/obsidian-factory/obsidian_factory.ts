@@ -859,9 +859,13 @@ export function extractManaged(
 
 /** Remove one managed block. */
 export function stripManaged(body: string, begin: string, end: string): string {
-  const block = extractManaged(body, begin, end);
-  if (!block) return body;
-  return body.replace(block, "").replace(/\n{3,}/g, "\n\n").trim();
+  let next = body;
+  while (true) {
+    const block = extractManaged(next, begin, end);
+    if (!block) break;
+    next = next.replace(block, "");
+  }
+  return next.replace(/\n{3,}/g, "\n\n").trim();
 }
 
 /** Insert a block before the first heading with one of these names. */
@@ -3186,7 +3190,7 @@ async function executeQueue(
 /** The tracker: stagecraft's contract 1 over an Obsidian board. */
 export const model = {
   type: "@svendowideit/obsidian-factory",
-  version: "2026.11.08.15",
+  version: "2026.11.08.16",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -3315,6 +3319,14 @@ export const model = {
         "Add markPlanProgress: tick or untick Plan task/test checkboxes by a " +
         "unique text match, update the plan hash, and refuse a person-edited " +
         "plan unless acceptEdits=true. The implement/test/release prompts use it.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.16",
+      description:
+        "Fix stripManaged to remove every copy of a managed block, not only " +
+        "the first. Repeated setPlan calls had left duplicate Plan blocks and " +
+        "duplicated task/test lines.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

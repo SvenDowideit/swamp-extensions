@@ -31,6 +31,7 @@ import {
   splitFrontmatter,
   statusId,
   stripActivity,
+  stripManaged,
   updatePlanCheckboxes,
   upsertManaged,
   validateRelation,
@@ -304,6 +305,18 @@ Deno.test("renderSummarySection puts the person's input first", () => {
     2,
     "question is not repeated in Unknown",
   );
+});
+
+Deno.test("stripManaged removes every copy of a managed block", () => {
+  const block = "<!-- swamp:plan:begin -->\nold\n<!-- swamp:plan:end -->";
+  const body = `# Card\n\n${block}\n\nIntro\n\n${block}\n`;
+  const stripped = stripManaged(
+    body,
+    "<!-- swamp:plan:begin -->",
+    "<!-- swamp:plan:end -->",
+  );
+  assertEquals(stripped.includes("swamp:plan:begin"), false, "no blocks left");
+  assertEquals(stripped.includes("Intro"), true, "keeps prose");
 });
 
 Deno.test("updatePlanCheckboxes ticks matching tasks and tests only", () => {

@@ -110,6 +110,7 @@ export interface CardSummary {
   project: string;
   ideaCount: number;
   openQuestions: number;
+  moves: string[];
   body?: string;
 }
 
@@ -201,6 +202,7 @@ const CardSummarySchema = z.object({
   project: z.string(),
   ideaCount: z.number(),
   openQuestions: z.number(),
+  moves: z.array(z.string()),
   body: z.string().optional(),
 });
 
@@ -224,6 +226,7 @@ const QueueCardSchema = z.object({
   cycle: z.number(),
   era: z.string(),
   terminal: z.boolean(),
+  moves: z.array(z.string()),
   action: z.enum(["claim", "work", "reconcile", "done", "wait"]),
 });
 
@@ -484,6 +487,33 @@ export function addEnabledPlugin(
   }
   if (list.includes(id)) return { json: raw, changed: false };
   return { json: `${JSON.stringify([...list, id], null, 2)}\n`, changed: true };
+}
+
+/** The documented normal moves from one column to another. */
+export function movesForStatus(status: string): string[] {
+  switch (status) {
+    case "Proposed":
+      return ["Please Plan"];
+    case "Please Plan":
+      return ["Work Planned"];
+    case "Work Planned":
+      return ["Please Plan", "Please Implement"];
+    case "Please Implement":
+      return ["Please Test"];
+    case "Please Test":
+      return ["Please Implement", "User Acceptance"];
+    case "User Acceptance":
+      return [
+        "Please Plan",
+        "Please Implement",
+        "Please Test",
+        "Please Release",
+      ];
+    case "Please Release":
+      return ["User Acceptance", "Done"];
+    default:
+      return [];
+  }
 }
 
 /** The next id for a prefix, from the cards already on the board. */
@@ -1107,6 +1137,11 @@ export function cardSummary(card: Card, includeBody = false): CardSummary {
       : "",
     ideaCount: countBullets(card.body, headings),
     openQuestions: countBullets(card.body, ["Questions"]),
+    moves: movesForStatus(
+      typeof card.frontmatter.status === "string"
+        ? card.frontmatter.status
+        : "",
+    ),
     ...(includeBody ? { body: stripActivity(card.body) } : {}),
   };
 }
@@ -3197,6 +3232,7 @@ async function executeQueue(
       cycle,
       era,
       terminal,
+      moves: movesForStatus(column),
       action,
     });
   }
@@ -3213,7 +3249,7 @@ async function executeQueue(
 /** The tracker: stagecraft's contract 1 over an Obsidian board. */
 export const model = {
   type: "@svendowideit/obsidian-factory",
-  version: "2026.11.08.17",
+  version: "2026.11.08.18",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -3359,6 +3395,14 @@ export const model = {
         "release-checks passed and a release-report exists, the queue action " +
         "is wait instead of rerunning the release checks. The factory never " +
         "runs git push or swamp extension push.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.18",
+      description:
+        "Add documented normal-move data to scan/board/queue and move buttons " +
+        "to the plugin: on the Bases kanban card face, in the card dialog, and " +
+        "in the command palette. A move writes the card's status.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -4,6 +4,7 @@ declare module "obsidian" {
     app: App;
     onload(): void;
     onunload(): void;
+    registerEvent(eventRef: unknown): void;
     registerDomEvent(
       el: Document,
       type: string,
@@ -20,10 +21,13 @@ declare module "obsidian" {
     workspace: Workspace;
     vault: Vault;
     metadataCache: MetadataCache;
+    fileManager: FileManager;
   }
   export class Workspace {
     getActiveFile(): TFile | null;
     getLeaf(): WorkspaceLeaf;
+    on(name: string, callback: () => void): unknown;
+    onLayoutReady(callback: () => void): void;
     openLinkText(
       linktext: string,
       sourcePath: string,
@@ -36,9 +40,11 @@ declare module "obsidian" {
   }
   export class Vault {
     read(file: TFile): Promise<string>;
+    getMarkdownFiles(): TFile[];
   }
   export class MetadataCache {
     getFirstLinkpathDest(link: string, source: string): TFile | null;
+    getFileCache(file: TFile): { frontmatter?: unknown } | null;
   }
   export class TFile {
     path: string;
@@ -63,6 +69,12 @@ declare module "obsidian" {
       el: HTMLElement,
       sourcePath: string,
       component: unknown,
+    ): Promise<void>;
+  }
+  export class FileManager {
+    processFrontMatter(
+      file: TFile,
+      callback: (frontmatter: Record<string, unknown>) => void,
     ): Promise<void>;
   }
   export class Notice {

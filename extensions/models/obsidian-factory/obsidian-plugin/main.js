@@ -72,6 +72,49 @@ function withoutManagedBlock(text, name) {
 function sanitizeMarkdown(markdown) {
   return markdown.replace(/<script\b[\s\S]*?<\/script>/gi, "").replace(/<iframe\b[\s\S]*?<\/iframe>/gi, "").replace(/<object\b[\s\S]*?<\/object>/gi, "").replace(/<embed\b[^>]*>/gi, "").replace(/<style\b[\s\S]*?<\/style>/gi, "").replace(/\son[a-z]+\s*=\s*"[^"]*"/gi, "").replace(/\son[a-z]+\s*=\s*'[^']*'/gi, "").replace(/javascript\s*:/gi, "");
 }
+var STATUSES = [
+  "Uncharacterised",
+  "Category",
+  "Proposed",
+  "Please Plan",
+  "Work Planned",
+  "Please Implement",
+  "Please Test",
+  "User Acceptance",
+  "Please Release",
+  "Done"
+];
+function movesForStatus(status) {
+  switch (status) {
+    case "Proposed":
+      return ["Please Plan"];
+    case "Please Plan":
+      return ["Work Planned"];
+    case "Work Planned":
+      return ["Please Plan", "Please Implement"];
+    case "Please Implement":
+      return ["Please Test"];
+    case "Please Test":
+      return ["Please Implement", "User Acceptance"];
+    case "User Acceptance":
+      return [
+        "Please Plan",
+        "Please Implement",
+        "Please Test",
+        "Please Release"
+      ];
+    case "Please Release":
+      return ["User Acceptance", "Done"];
+    default:
+      return [];
+  }
+}
+function statusFromFrontmatter(frontmatter) {
+  if (frontmatter && typeof frontmatter === "object" && "status" in frontmatter && typeof frontmatter.status === "string") {
+    return frontmatter.status;
+  }
+  return "";
+}
 function shouldInterceptCardOpen(linktext, newLeaf) {
   return !newLeaf && isCardPath(linktext);
 }
@@ -150,11 +193,81 @@ var ObsidianFactoryPlugin = class extends import_obsidian.Plugin {
         return true;
       }
     });
+    for (const status of STATUSES) {
+      this.addCommand({
+        id: `move-to-${status.toLowerCase().replace(/\s+/g, "-")}`,
+        name: `Move factory card to ${status}`,
+        checkCallback: (checking) => {
+          const file = this.app.workspace.getActiveFile();
+          if (!file || !isCardPath(file.path)) return false;
+          if (!movesForStatus(this.cardStatus(file)).includes(status)) {
+            return false;
+          }
+          if (!checking) void this.moveCard(file, status);
+          return true;
+        }
+      });
+    }
+    const workspaceEvents = this.app.workspace;
+    this.registerEvent(workspaceEvents.on("layout-change", () => {
+      this.decorateCards();
+    }));
+    workspaceEvents.onLayoutReady(() => this.decorateCards());
   }
   onunload() {
     if (this.originalOpenLinkText) {
       this.app.workspace.openLinkText = this.originalOpenLinkText;
       this.originalOpenLinkText = null;
+    }
+  }
+  cardStatus(file) {
+    const cache = this.app.metadataCache.getFileCache(file);
+    return statusFromFrontmatter(cache?.frontmatter);
+  }
+  async moveCard(file, status) {
+    await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+      frontmatter.status = status;
+    });
+    new import_obsidian.Notice(`Moved ${file.basename} to ${status}`);
+    this.decorateCards();
+  }
+  decorateCards() {
+    const cards = Array.from(
+      document.querySelectorAll(".bases-kanban-card")
+    );
+    if (cards.length === 0) return;
+    const byTitle = /* @__PURE__ */ new Map();
+    for (const file of this.app.vault.getMarkdownFiles()) {
+      if (!isCardPath(file.path)) continue;
+      const cache = this.app.metadataCache.getFileCache(file);
+      const frontmatter = cache?.frontmatter;
+      const title = frontmatter && typeof frontmatter === "object" && typeof frontmatter.title === "string" ? frontmatter.title : file.basename.replace(/^FAC-\d+\s+/, "");
+      byTitle.set(title.trim().toLowerCase(), file);
+    }
+    for (const cardEl of cards) {
+      if (cardEl.dataset.factoryMoves === "1") continue;
+      const titleEl = cardEl.querySelector(
+        ".bases-kanban-card-property.mod-title .bases-kanban-card-line"
+      ) ?? cardEl.querySelector(".bases-kanban-card-line");
+      const title = titleEl?.textContent?.trim() ?? "";
+      const file = byTitle.get(title.toLowerCase());
+      if (!file) continue;
+      const moves = movesForStatus(this.cardStatus(file));
+      if (moves.length === 0) continue;
+      const row = document.createElement("div");
+      row.className = "factory-card-moves";
+      for (const move of moves) {
+        const button = document.createElement("button");
+        button.textContent = move;
+        button.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          void this.moveCard(file, move);
+        });
+        row.appendChild(button);
+      }
+      cardEl.appendChild(row);
+      cardEl.dataset.factoryMoves = "1";
     }
   }
   async onClick(event) {
@@ -222,6 +335,28 @@ var CardDialog = class extends import_obsidian.Modal {
         cls: "factory-dialog-section factory-dialog-plan"
       });
       void this.render(plan, this.card.plan);
+    }
+    const frontmatter = this.app.metadataCache.getFileCache(this.file)?.frontmatter;
+    const moves = movesForStatus(statusFromFrontmatter(frontmatter));
+    if (moves.length > 0) {
+      const moveRow = this.contentEl.createDiv({
+        cls: "factory-dialog-moves"
+      });
+      moveRow.createEl("span", { text: "Move to" });
+      for (const move of moves) {
+        const button = moveRow.createEl("button", { text: move });
+        button.addEventListener("click", () => {
+          void this.app.fileManager.processFrontMatter(
+            this.file,
+            (fm) => {
+              fm.status = move;
+            }
+          ).then(() => {
+            new import_obsidian.Notice(`Moved to ${move}`);
+            this.close();
+          });
+        });
+      }
     }
     const actions = this.contentEl.createDiv({
       cls: "factory-dialog-actions"

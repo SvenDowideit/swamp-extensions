@@ -1,9 +1,11 @@
 import {
   isCardPath,
+  movesForStatus,
   readableCard,
   sanitizeMarkdown,
   section,
   shouldInterceptCardOpen,
+  statusFromFrontmatter,
   stripFrontmatter,
   stripManagedMarkers,
 } from "./model.ts";
@@ -100,6 +102,22 @@ Deno.test("sanitizeMarkdown removes active content", () => {
   assert(!clean.toLowerCase().includes("onclick"), "onclick");
   assert(!clean.toLowerCase().includes("onmouseover"), "onmouseover");
   assert(!clean.toLowerCase().includes("javascript:"), "javascript url");
+});
+
+Deno.test("movesForStatus lists the documented normal moves", () => {
+  assertEquals(movesForStatus("Work Planned"), [
+    "Please Plan",
+    "Please Implement",
+  ]);
+  assertEquals(movesForStatus("Please Implement"), ["Please Test"]);
+  assertEquals(movesForStatus("Please Release"), ["User Acceptance", "Done"]);
+  assertEquals(movesForStatus("Done"), []);
+  assertEquals(
+    statusFromFrontmatter({ status: "Please Implement" }),
+    "Please Implement",
+  );
+  assertEquals(statusFromFrontmatter({}), "");
+  assertEquals(statusFromFrontmatter(null), "");
 });
 
 Deno.test("shouldInterceptCardOpen only intercepts normal card opens", () => {

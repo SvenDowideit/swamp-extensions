@@ -4,9 +4,12 @@
 import { App, MarkdownRenderer, Modal, Notice, Plugin, TFile } from "obsidian";
 import {
   isCardPath,
+  movesForStatus,
   readableCard,
   sanitizeMarkdown,
   shouldInterceptCardOpen,
+  STATUSES,
+  statusFromFrontmatter,
 } from "./model.ts";
 
 /** Open factory cards in a read-only prose dialog instead of navigating away. */
@@ -64,6 +67,31 @@ export default class ObsidianFactoryPlugin extends Plugin {
         return true;
       },
     });
+
+    for (const status of STATUSES) {
+      this.addCommand({
+        id: `move-to-${status.toLowerCase().replace(/\s+/g, "-")}`,
+        name: `Move factory card to ${status}`,
+        checkCallback: (checking: boolean) => {
+          const file = this.app.workspace.getActiveFile();
+          if (!file || !isCardPath(file.path)) return false;
+          if (!movesForStatus(this.cardStatus(file)).includes(status)) {
+            return false;
+          }
+          if (!checking) void this.moveCard(file, status);
+          return true;
+        },
+      });
+    }
+
+    const workspaceEvents = this.app.workspace as unknown as {
+      on: (name: string, callback: () => void) => unknown;
+      onLayoutReady: (callback: () => void) => void;
+    };
+    this.registerEvent(workspaceEvents.on("layout-change", () => {
+      this.decorateCards();
+    }));
+    workspaceEvents.onLayoutReady(() => this.decorateCards());
   }
 
   override onunload(): void {
@@ -71,6 +99,62 @@ export default class ObsidianFactoryPlugin extends Plugin {
       (this.app.workspace as unknown as WorkspaceWithOpenLinkText)
         .openLinkText = this.originalOpenLinkText;
       this.originalOpenLinkText = null;
+    }
+  }
+
+  private cardStatus(file: TFile): string {
+    const cache = this.app.metadataCache.getFileCache(file);
+    return statusFromFrontmatter(cache?.frontmatter);
+  }
+
+  private async moveCard(file: TFile, status: string): Promise<void> {
+    await this.app.fileManager.processFrontMatter(file, (frontmatter) => {
+      frontmatter.status = status;
+    });
+    new Notice(`Moved ${file.basename} to ${status}`);
+    this.decorateCards();
+  }
+
+  private decorateCards(): void {
+    const cards = Array.from(
+      document.querySelectorAll<HTMLElement>(".bases-kanban-card"),
+    );
+    if (cards.length === 0) return;
+    const byTitle = new Map<string, TFile>();
+    for (const file of this.app.vault.getMarkdownFiles()) {
+      if (!isCardPath(file.path)) continue;
+      const cache = this.app.metadataCache.getFileCache(file);
+      const frontmatter = cache?.frontmatter;
+      const title = frontmatter && typeof frontmatter === "object" &&
+          typeof (frontmatter as { title?: unknown }).title === "string"
+        ? (frontmatter as { title: string }).title
+        : file.basename.replace(/^FAC-\d+\s+/, "");
+      byTitle.set(title.trim().toLowerCase(), file);
+    }
+    for (const cardEl of cards) {
+      if (cardEl.dataset.factoryMoves === "1") continue;
+      const titleEl = cardEl.querySelector(
+        ".bases-kanban-card-property.mod-title .bases-kanban-card-line",
+      ) ?? cardEl.querySelector(".bases-kanban-card-line");
+      const title = titleEl?.textContent?.trim() ?? "";
+      const file = byTitle.get(title.toLowerCase());
+      if (!file) continue;
+      const moves = movesForStatus(this.cardStatus(file));
+      if (moves.length === 0) continue;
+      const row = document.createElement("div");
+      row.className = "factory-card-moves";
+      for (const move of moves) {
+        const button = document.createElement("button");
+        button.textContent = move;
+        button.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          void this.moveCard(file, move);
+        });
+        row.appendChild(button);
+      }
+      cardEl.appendChild(row);
+      cardEl.dataset.factoryMoves = "1";
     }
   }
 
@@ -153,6 +237,30 @@ class CardDialog extends Modal {
         cls: "factory-dialog-section factory-dialog-plan",
       });
       void this.render(plan, this.card.plan);
+    }
+
+    const frontmatter = this.app.metadataCache.getFileCache(this.file)
+      ?.frontmatter;
+    const moves = movesForStatus(statusFromFrontmatter(frontmatter));
+    if (moves.length > 0) {
+      const moveRow = this.contentEl.createDiv({
+        cls: "factory-dialog-moves",
+      });
+      moveRow.createEl("span", { text: "Move to" });
+      for (const move of moves) {
+        const button = moveRow.createEl("button", { text: move });
+        button.addEventListener("click", () => {
+          void this.app.fileManager.processFrontMatter(
+            this.file,
+            (fm) => {
+              fm.status = move;
+            },
+          ).then(() => {
+            new Notice(`Moved to ${move}`);
+            this.close();
+          });
+        });
+      }
     }
 
     const actions = this.contentEl.createDiv({

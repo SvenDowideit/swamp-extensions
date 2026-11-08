@@ -234,6 +234,10 @@ transition, or call it a mismatch. If the ledger cannot represent the column,
 start a new work item on the current definition and keep the old one as
 history; the card is unchanged. The card's activity log records the move.
 
+The optional plugin's move buttons write the card status directly; the next
+tick reads that column. They are the person's move, not the agent's. A card with
+no legal move shows no buttons.
+
 A prepared Please Release card is a human gate. Once `release-checks` passed and
 a `release-report` exists, the queue action is `wait`; do not rerun the checks.
 The person publishes with `git push` and `swamp extension push`, then records the

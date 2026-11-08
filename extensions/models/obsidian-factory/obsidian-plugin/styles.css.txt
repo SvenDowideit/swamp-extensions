@@ -27,3 +27,27 @@
 .factory-card-dialog .factory-dialog-actions button {
   cursor: pointer;
 }
+
+.factory-card-moves {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 8px 8px;
+}
+
+.factory-card-moves button,
+.factory-dialog-moves button {
+  font-size: var(--font-ui-smaller);
+  padding: 2px 6px;
+  cursor: pointer;
+}
+
+.factory-dialog-moves {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  border-top: 1px solid var(--background-modifier-border);
+  padding-top: 0.75rem;
+  margin-bottom: 0.75rem;
+}

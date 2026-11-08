@@ -16,6 +16,7 @@ import {
   incomingRelations,
   insertAfterTitle,
   managedEditProblem,
+  movesForStatus,
   nextCommentId,
   nextId,
   parseActivity,
@@ -379,6 +380,31 @@ Deno.test("addEnabledPlugin adds the id once and keeps valid JSON", () => {
     failed = true;
   }
   assert(failed, "invalid JSON is refused");
+});
+
+Deno.test("movesForStatus lists the documented normal moves", () => {
+  assertEquals(movesForStatus("Proposed"), ["Please Plan"], "proposed");
+  assertEquals(movesForStatus("Work Planned"), [
+    "Please Plan",
+    "Please Implement",
+  ], "work planned");
+  assertEquals(
+    movesForStatus("Please Implement"),
+    ["Please Test"],
+    "implement",
+  );
+  assertEquals(
+    movesForStatus("User Acceptance"),
+    ["Please Plan", "Please Implement", "Please Test", "Please Release"],
+    "acceptance",
+  );
+  assertEquals(
+    movesForStatus("Please Release"),
+    ["User Acceptance", "Done"],
+    "release",
+  );
+  assertEquals(movesForStatus("Done"), [], "done");
+  assertEquals(movesForStatus("Uncharacterised"), [], "inbox");
 });
 
 Deno.test("queueActionFor follows the card column, not the work item stage", () => {

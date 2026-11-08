@@ -85,6 +85,59 @@ export function sanitizeMarkdown(markdown: string): string {
     .replace(/javascript\s*:/gi, "");
 }
 
+/** The board's columns in flow order. */
+export const STATUSES = [
+  "Uncharacterised",
+  "Category",
+  "Proposed",
+  "Please Plan",
+  "Work Planned",
+  "Please Implement",
+  "Please Test",
+  "User Acceptance",
+  "Please Release",
+  "Done",
+] as const;
+
+/** The documented normal moves from one column to another. */
+export function movesForStatus(status: string): string[] {
+  switch (status) {
+    case "Proposed":
+      return ["Please Plan"];
+    case "Please Plan":
+      return ["Work Planned"];
+    case "Work Planned":
+      return ["Please Plan", "Please Implement"];
+    case "Please Implement":
+      return ["Please Test"];
+    case "Please Test":
+      return ["Please Implement", "User Acceptance"];
+    case "User Acceptance":
+      return [
+        "Please Plan",
+        "Please Implement",
+        "Please Test",
+        "Please Release",
+      ];
+    case "Please Release":
+      return ["User Acceptance", "Done"];
+    default:
+      return [];
+  }
+}
+
+/** Read the status from a frontmatter object without assuming its shape. */
+export function statusFromFrontmatter(frontmatter: unknown): string {
+  if (
+    frontmatter && typeof frontmatter === "object" &&
+    "status" in frontmatter &&
+    typeof (frontmatter as { status?: unknown }).status === "string"
+  ) {
+    return (frontmatter as { status: string }).status;
+  }
+  return "";
+}
+
 /** True when a wikilink path points at a factory card. */
 export function shouldInterceptCardOpen(
   linktext: string,

@@ -231,8 +231,8 @@ activity block.
   checklist in step with the work.
 - **`capture`** — appends a timestamped bullet under the inbox's `## Thoughts`.
 - **`scan`** — writes `board`, a summary of every card with `id`, `display`,
-  `title`, `kind`, `status`, `path`, `updated`, `project`, `ideaCount` and
-  `openQuestions`.
+  `title`, `kind`, `status`, `path`, `updated`, `project`, `ideaCount`,
+  `openQuestions` and the legal `moves`.
 - **`tick`** — the idempotent factory housekeeping: installs the card CSS
   snippet and enables it in Obsidian's appearance settings, migrates cards to
   the readable sections, progressively repins safe cards to the current factory
@@ -299,7 +299,17 @@ run the **Open factory card as dialog** command) and the dialog shows:
 
 It deliberately omits frontmatter, the Definition section, the Activity log and
 the `swamp:` markers. **Open in editor** is the path to the rest; **Close** and
-Escape close the dialog. The plugin only reads the note; it never writes.
+Escape close the dialog.
+
+The same plugin adds the documented normal moves as buttons:
+
+- on the Bases kanban card face,
+- in the card dialog,
+- in the command palette (`Move factory card to <column>`).
+
+A move writes the card's `status`; the next tick follows the card. A card with
+no legal move shows no buttons. The buttons are the person's move, not an agent
+decision.
 
 The bundle is built from `obsidian-plugin/main.ts` by
 `obsidian-plugin/build.ts` with pinned esbuild, and `main.js.sha256.txt` is checked

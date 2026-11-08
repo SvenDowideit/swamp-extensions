@@ -64,6 +64,14 @@ brief and the Plan. It omits frontmatter, the Definition section and the
 Activity log; **Open in editor** is the path to the rest. The plugin only reads
 the note.
 
+## Moving a card with buttons
+
+The optional plugin shows the documented normal moves as buttons on the
+kanban card face, in the card dialog, and in the command palette
+(**Move factory card to <column>**). Clicking one writes the card's status; the
+next tick follows the card. A card with no legal move shows no buttons. The
+native drag still works.
+
 ## Reading a card
 
 Each card has three kinds of writing:

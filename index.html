@@ -70,12 +70,80 @@ footer .ver{color:var(--acc)}
 <main>
 <h2 class="page-title">Documentation changes — This month</h2>
 <div class="cards">
-<div class="card"><div class="n">73</div><div class="l">FILES CHANGED</div></div>
-<div class="card"><div class="n">87</div><div class="l">CHANGES</div></div>
-<div class="card"><div class="n">13</div><div class="l">WITH MANUAL PAGE</div></div>
+<div class="card"><div class="n">76</div><div class="l">FILES CHANGED</div></div>
+<div class="card"><div class="n">92</div><div class="l">CHANGES</div></div>
+<div class="card"><div class="n">15</div><div class="l">WITH MANUAL PAGE</div></div>
 </div>
 <p class="lede">Documentation changed in the This month window, newest first. The activity leaderboard is on the
 <a href="leaderboard.html">Leaderboard</a> page.</p>
+<article class="item doc-item">
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastore-litestream.md" rel="noopener">design/enablers/datastore-litestream.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>2 changes</span><span>updated <time datetime="2026-11-09T12:11:58Z">2026-11-09T12:11:58Z</time></span><span><span class="dim">no published page</span></span></div>
+<ul class="doc-changes"><li class="doc-change">
+<span class="tier B">B</span>
+<span class="doc-date"><time datetime="2026-11-09T12:11:58Z">2026-11-09T12:11:58Z</time></span>
+<span class="doc-title">a team-mode workflow step makes 2 commits and no catch-up of its own, a one-step write takes 2 requests to serve, and a far member&#39;s teardown no longer waits on the feed watch (swamp-club#4525) (#3684)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/395da2342a74e4ed1d1510b6346c281be13e3ac3" rel="noopener">395da234</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3684" rel="noopener">#3684</a>𝗔 <a href="https://swamp-club.com/lab/4525" rel="noopener">lab#4525</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-08T21:14:37Z">2026-11-08T21:14:37Z</time></span>
+<span class="doc-title">team-mode member writes no longer fail with GCS 429 when a team commits faster than once a second (swamp-club#4522) (#3673)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1668cac646c6713096b80943abc926408909ab3e" rel="noopener">1668cac6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3673" rel="noopener">#3673</a>𝗔 <a href="https://swamp-club.com/lab/4522" rel="noopener">lab#4522</a></span>
+</li></ul>
+</article>
+<article class="item doc-item">
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>3 changes</span><span>updated <time datetime="2026-11-09T12:11:58Z">2026-11-09T12:11:58Z</time></span><span><a href="https://swamp-club.com/manual/reference/datastore-configuration" rel="noopener">published manual</a></span></div>
+<ul class="doc-changes"><li class="doc-change">
+<span class="tier B">B</span>
+<span class="doc-date"><time datetime="2026-11-09T12:11:58Z">2026-11-09T12:11:58Z</time></span>
+<span class="doc-title">a team-mode workflow step makes 2 commits and no catch-up of its own, a one-step write takes 2 requests to serve, and a far member&#39;s teardown no longer waits on the feed watch (swamp-club#4525) (#3684)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/395da2342a74e4ed1d1510b6346c281be13e3ac3" rel="noopener">395da234</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3684" rel="noopener">#3684</a>𝗔 <a href="https://swamp-club.com/lab/4525" rel="noopener">lab#4525</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-03T16:07:16Z">2026-11-03T16:07:16Z</time></span>
+<span class="doc-title">a lock waiter no longer freezes swamp on Windows by spawning tasklist on every retry (swamp-club#4337) (#3586)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d30302b89d65393f2d4a71024d958f41487a00ce" rel="noopener">d30302b8</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3586" rel="noopener">#3586</a>𝗔 <a href="https://swamp-club.com/lab/4337" rel="noopener">lab#4337</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-02T07:28:15Z">2026-11-02T07:28:15Z</time></span>
+<span class="doc-title">a team member&#39;s datastore lock, datastore status, extension and run gc commands go through serve, never storage, and --json errors carry inFlight (swamp-club#4281) (#3545)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/37107c15647cbedabf901f49a9747fa3ed051483" rel="noopener">37107c15</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3545" rel="noopener">#3545</a>𝗔 <a href="https://swamp-club.com/lab/4281" rel="noopener">lab#4281</a></span>
+</li></ul>
+</article>
+<article class="item doc-item">
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-11-09T10:38:27Z">2026-11-09T10:38:27Z</time></span><span><a href="https://swamp-club.com/manual/explanation/the-workflow-execution-model" rel="noopener">published manual</a></span></div>
+<ul class="doc-changes"><li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-09T10:38:27Z">2026-11-09T10:38:27Z</time></span>
+<span class="doc-title">fan-out rollout: lanes start in canary batches under an error budget, hold the rest on a halt, and resume continues the rollout (swamp-club#4531) (#3683)</span>
+<span class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261109.103356.0-sha.a5522374" rel="noopener">release v20261109.103356.0-sha.a5522374</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a55223741f91ca21246b7209b75a67b83d3668f1" rel="noopener">a5522374</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3683" rel="noopener">#3683</a>𝗔 <a href="https://swamp-club.com/lab/4531" rel="noopener">lab#4531</a></span>
+</li></ul>
+</article>
+<article class="item doc-item">
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/webhook/api.md" rel="noopener">.claude/skills/swamp/references/extension/references/webhook/api.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-11-09T08:29:29Z">2026-11-09T08:29:29Z</time></span><span><span class="dim">no published page</span></span></div>
+<ul class="doc-changes"><li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-09T08:29:29Z">2026-11-09T08:29:29Z</time></span>
+<span class="doc-title">swamp serve reload can add the first webhook route, queued deliveries name their run, and health shows where each route comes from (swamp-club#3434) (#3682)</span>
+<span class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261109.082430.0-sha.07a55dd5" rel="noopener">release v20261109.082430.0-sha.07a55dd5</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/07a55dd5a56cf82c2446b3d511fcc9bca0ddfa9b" rel="noopener">07a55dd5</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3682" rel="noopener">#3682</a>𝗔 <a href="https://swamp-club.com/lab/4439" rel="noopener">lab#4439</a></span>
+</li></ul>
+</article>
+<article class="item doc-item">
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-11-09T08:29:29Z">2026-11-09T08:29:29Z</time></span><span><a href="https://swamp-club.com/manual/explanation/swamp-serve" rel="noopener">published manual</a></span></div>
+<ul class="doc-changes"><li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-09T08:29:29Z">2026-11-09T08:29:29Z</time></span>
+<span class="doc-title">swamp serve reload can add the first webhook route, queued deliveries name their run, and health shows where each route comes from (swamp-club#3434) (#3682)</span>
+<span class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261109.082430.0-sha.07a55dd5" rel="noopener">release v20261109.082430.0-sha.07a55dd5</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/07a55dd5a56cf82c2446b3d511fcc9bca0ddfa9b" rel="noopener">07a55dd5</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3682" rel="noopener">#3682</a>𝗔 <a href="https://swamp-club.com/lab/4439" rel="noopener">lab#4439</a></span>
+</li></ul>
+</article>
 <article class="item doc-item">
 <h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/serve/guide.md" rel="noopener">.claude/skills/swamp/references/serve/guide.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>3 changes</span><span>updated <time datetime="2026-11-09T03:30:16Z">2026-11-09T03:30:16Z</time></span><span><span class="dim">no published page</span></span></div>
@@ -172,16 +240,6 @@ footer .ver{color:var(--acc)}
 <span class="doc-date"><time datetime="2026-11-08T21:58:46Z">2026-11-08T21:58:46Z</time></span>
 <span class="doc-title">keep the required-incomplete marker through nested disjunctions (swamp-club#4517) (#672)</span>
 <span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp-extensions/commit/4cfc071d7151cc1e407556c19a2e0a44b68f1e37" rel="noopener">4cfc071d</a>𝗣 <a href="https://github.com/swamp-club/swamp-extensions/pull/672" rel="noopener">#672</a>𝗔 <a href="https://swamp-club.com/lab/4517" rel="noopener">lab#4517</a></span>
-</li></ul>
-</article>
-<article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastore-litestream.md" rel="noopener">design/enablers/datastore-litestream.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-11-08T21:14:37Z">2026-11-08T21:14:37Z</time></span><span><span class="dim">no published page</span></span></div>
-<ul class="doc-changes"><li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-11-08T21:14:37Z">2026-11-08T21:14:37Z</time></span>
-<span class="doc-title">team-mode member writes no longer fail with GCS 429 when a team commits faster than once a second (swamp-club#4522) (#3673)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1668cac646c6713096b80943abc926408909ab3e" rel="noopener">1668cac6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3673" rel="noopener">#3673</a>𝗔 <a href="https://swamp-club.com/lab/4522" rel="noopener">lab#4522</a></span>
 </li></ul>
 </article>
 <article class="item doc-item">
@@ -721,22 +779,6 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>2 changes</span><span>updated <time datetime="2026-11-03T16:07:16Z">2026-11-03T16:07:16Z</time></span><span><a href="https://swamp-club.com/manual/reference/datastore-configuration" rel="noopener">published manual</a></span></div>
-<ul class="doc-changes"><li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-11-03T16:07:16Z">2026-11-03T16:07:16Z</time></span>
-<span class="doc-title">a lock waiter no longer freezes swamp on Windows by spawning tasklist on every retry (swamp-club#4337) (#3586)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d30302b89d65393f2d4a71024d958f41487a00ce" rel="noopener">d30302b8</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3586" rel="noopener">#3586</a>𝗔 <a href="https://swamp-club.com/lab/4337" rel="noopener">lab#4337</a></span>
-</li>
-<li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-11-02T07:28:15Z">2026-11-02T07:28:15Z</time></span>
-<span class="doc-title">a team member&#39;s datastore lock, datastore status, extension and run gc commands go through serve, never storage, and --json errors carry inFlight (swamp-club#4281) (#3545)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/37107c15647cbedabf901f49a9747fa3ed051483" rel="noopener">37107c15</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3545" rel="noopener">#3545</a>𝗔 <a href="https://swamp-club.com/lab/4281" rel="noopener">lab#4281</a></span>
-</li></ul>
-</article>
-<article class="item doc-item">
 <h2><a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/agent-sessions.md" rel="noopener">design/surfaces/agent-sessions.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-11-03T00:12:14Z">2026-11-03T00:12:14Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
@@ -892,7 +934,7 @@ footer .ver{color:var(--acc)}
 </article>
 </main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-09T13:04:09.217Z">2026-11-09T13:04:09.217Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-09T14:06:05.729Z">2026-11-09T14:06:05.729Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

@@ -3828,7 +3828,7 @@ async function executeQueue(
 /** The tracker: stagecraft's contract 1 over an Obsidian board. */
 export const model = {
   type: "@svendowideit/obsidian-factory",
-  version: "2026.11.08.29",
+  version: "2026.11.08.30",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -4084,6 +4084,14 @@ export const model = {
         "stdout/stderr/exit in an agent-run resource. Running it outside " +
         "obsidian-board leaves the board lock free for the agent's nested " +
         "commands; @maphew/agent-task dropped env when trace headers were set.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.30",
+      description:
+        "Make a failed agent fail the workflow instead of being reported as " +
+        "a successful tick. The agent step's allowFailure is now false, so " +
+        "the plugin status bar shows failed and opens the log with the error.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

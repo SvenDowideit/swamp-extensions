@@ -177,7 +177,7 @@ async function executeRun(
 
 export const model = {
   type: "@svendowideit/obsidian-agent",
-  version: "2026.11.08.29",
+  version: "2026.11.08.30",
   globalArguments: z.object({}),
   resources: {
     "agent-run": {

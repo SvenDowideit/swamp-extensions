@@ -81,7 +81,7 @@ jobs:
             condition:
               type: succeeded
         weight: 0
-        allowFailure: true
+        allowFailure: false
     dependsOn: []
     weight: 0
 reports:

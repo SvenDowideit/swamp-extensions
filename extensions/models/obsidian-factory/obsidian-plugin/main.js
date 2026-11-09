@@ -909,6 +909,11 @@ ${ok ? "\u2713" : "\u2717"} ${detail}
       const frontmatter = cache?.frontmatter;
       const title = frontmatter && typeof frontmatter === "object" && typeof frontmatter.title === "string" ? frontmatter.title : file.basename.replace(/^FAC-\d+\s+/, "");
       byTitle.set(title.trim().toLowerCase(), file);
+      byTitle.set(file.basename.trim().toLowerCase(), file);
+      byTitle.set(
+        file.basename.replace(/^FAC-\d+\s+/, "").trim().toLowerCase(),
+        file
+      );
     }
     return byTitle;
   }
@@ -999,10 +1004,18 @@ ${ok ? "\u2713" : "\u2717"} ${detail}
       cardEl.querySelectorAll(".bases-kanban-card-property")
     );
     for (const row of rows) {
-      const label = row.querySelector(
-        ".bases-kanban-card-property-label, .bases-kanban-card-property-name"
-      )?.textContent ?? row.getAttribute("aria-label") ?? "";
-      if (!isSupersededPropertyRow(Array.from(row.classList), label)) continue;
+      const classes = Array.from(row.classList);
+      const labels = [
+        row.getAttribute("aria-label") ?? "",
+        row.textContent?.trim() ?? "",
+        ...Array.from(row.querySelectorAll("*")).map(
+          (el) => el.textContent?.trim() ?? ""
+        )
+      ];
+      const matched = labels.some(
+        (label) => isSupersededPropertyRow(classes, label)
+      );
+      if (!matched) continue;
       row.classList.add("factory-card-field-hidden");
     }
   }

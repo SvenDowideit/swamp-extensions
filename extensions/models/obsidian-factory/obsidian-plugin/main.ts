@@ -719,6 +719,14 @@ export default class ObsidianFactoryPlugin extends Plugin {
         ? (frontmatter as { title: string }).title
         : file.basename.replace(/^FAC-\d+\s+/, "");
       byTitle.set(title.trim().toLowerCase(), file);
+      // The Bases kanban often shows file.name rather than the note title.
+      // Map the stem as well so a card whose visible title is its filename
+      // still resolves to the note (and the fields pass can read its plan).
+      byTitle.set(file.basename.trim().toLowerCase(), file);
+      byTitle.set(
+        file.basename.replace(/^FAC-\d+\s+/, "").trim().toLowerCase(),
+        file,
+      );
     }
     return byTitle;
   }
@@ -835,10 +843,21 @@ export default class ObsidianFactoryPlugin extends Plugin {
       cardEl.querySelectorAll<HTMLElement>(".bases-kanban-card-property"),
     );
     for (const row of rows) {
-      const label = row.querySelector(
-        ".bases-kanban-card-property-label, .bases-kanban-card-property-name",
-      )?.textContent ?? row.getAttribute("aria-label") ?? "";
-      if (!isSupersededPropertyRow(Array.from(row.classList), label)) continue;
+      const classes = Array.from(row.classList);
+      // The row's label may be a child element without a stable class, so
+      // check the row text and every child's exact text as well as the
+      // documented key class/label selector.
+      const labels = [
+        row.getAttribute("aria-label") ?? "",
+        row.textContent?.trim() ?? "",
+        ...Array.from(row.querySelectorAll("*")).map((el) =>
+          el.textContent?.trim() ?? ""
+        ),
+      ];
+      const matched = labels.some((label) =>
+        isSupersededPropertyRow(classes, label)
+      );
+      if (!matched) continue;
       row.classList.add("factory-card-field-hidden");
     }
   }

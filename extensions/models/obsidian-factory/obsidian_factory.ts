@@ -4116,7 +4116,7 @@ async function executeQueue(
 /** The tracker: stagecraft's contract 1 over an Obsidian board. */
 export const model = {
   type: "@svendowideit/obsidian-factory",
-  version: "2026.11.09.6",
+  version: "2026.11.09.7",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -4456,6 +4456,15 @@ export const model = {
         "contained-title match; add a Factory: diagnose card fields command " +
         "that reports the card DOM, file match, status and field count to " +
         "the tick log.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.09.7",
+      description:
+        "Map Bases cards by file.name as well as note title, so the fields " +
+        "pass runs on cards whose visible name is the filename, and hide the " +
+        "Kind/Project/Source/Updated rows by checking the row and every " +
+        "child's exact label (the Bases row label has no stable class).",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

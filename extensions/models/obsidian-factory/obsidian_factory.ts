@@ -298,6 +298,8 @@ const TickSchema = z.object({
     enabled: z.boolean(),
   }),
   migrated: z.number(),
+  renamed: z.array(z.string()),
+  migrationFailures: z.array(z.string()),
   repinned: z.array(z.string()),
   pinned: z.array(z.string()),
   errors: z.array(z.string()),
@@ -599,12 +601,15 @@ export function nextId(prefix: string, ids: string[]): string {
   return `${prefix}-${highest + 1}`;
 }
 
-/** A card's display id: the id uppercased, or its frontmatter display. */
+/**
+ * A card's visible name: the human title, or its id when it has no title.
+ * The id stays in the frontmatter and in links; it is not shown on the card.
+ */
 export function cardDisplay(card: Card): string {
-  const display = card.frontmatter.display;
-  return typeof display === "string" && display.length > 0
-    ? display
-    : card.frontmatter.id.toUpperCase();
+  const title = card.frontmatter.title;
+  return typeof title === "string" && title.trim().length > 0
+    ? title.trim()
+    : card.frontmatter.id;
 }
 
 /** Whether a user-supplied id names this card (case-insensitive). */
@@ -624,6 +629,33 @@ export function stripActivity(body: string): string {
   const after = end < 0 ? "" : body.slice(end + ACTIVITY_END.length);
   const content = after.trim() === "" ? before : `${before}\n\n${after}`;
   return content.replace(/\n*##\s+Activity\s*$/i, "").trim();
+}
+
+/** Escape a string so it can be used in a regular expression. */
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Replace a card's old codename with its human title inside the activity log,
+ * so an existing card reads like a new one. Only the activity block changes;
+ * the person's prose and the managed At a glance/Plan sections are untouched.
+ */
+export function rewriteActivityDisplay(
+  body: string,
+  display: string,
+  title: string,
+): string {
+  const wanted = display.trim();
+  const replacement = title.trim();
+  if (!wanted || !replacement || wanted === replacement) return body;
+  const begin = body.indexOf(ACTIVITY_BEGIN);
+  const end = body.indexOf(ACTIVITY_END);
+  if (begin < 0 || end < begin) return body;
+  const block = body.slice(begin, end + ACTIVITY_END.length);
+  const pattern = new RegExp(`\\b${escapeRegExp(wanted)}\\b`, "gi");
+  return body.slice(0, begin) + block.replace(pattern, replacement) +
+    body.slice(end + ACTIVITY_END.length);
 }
 
 /** Parse every managed activity entry from a card body. */
@@ -1597,8 +1629,33 @@ export function notesMatch(written: string, readBack: string | null): boolean {
   return readBack === written || readBack.trimEnd() === written.trimEnd();
 }
 
-function notePath(context: FactoryContext, id: string, title: string): string {
-  return `${cardsFolder(context)}/${id.toUpperCase()} ${slugify(title)}.md`;
+/**
+ * A card's path from its title alone: a slug of the title, with a numeric
+ * suffix (`-2`, `-3`, ...) when a card already owns that name. The codename
+ * never appears in the filename, so the board shows one human-readable title.
+ */
+export function titleOnlyPath(
+  folder: string,
+  title: string,
+  taken: string[],
+): string {
+  const base = slugify(title);
+  const used = new Set(taken.map((path) => path.toLowerCase()));
+  let name = `${base}.md`;
+  let suffix = 1;
+  while (used.has(`${folder}/${name}`.toLowerCase())) {
+    suffix++;
+    name = `${base}-${suffix}.md`;
+  }
+  return `${folder}/${name}`;
+}
+
+function notePath(
+  context: FactoryContext,
+  title: string,
+  taken: string[] = [],
+): string {
+  return titleOnlyPath(cardsFolder(context), title, taken);
 }
 
 /** Read and parse every card in the Cards folder. */
@@ -1649,7 +1706,6 @@ function frontmatterFor(
     context.globalArgs.statuses[0] ?? "Uncharacterised";
   const frontmatter: Card["frontmatter"] = {
     id,
-    display: id.toUpperCase(),
     title,
     kind,
     type: kind,
@@ -1662,7 +1718,7 @@ function frontmatterFor(
     ...extra,
   };
   return {
-    path: notePath(context, id, title),
+    path: notePath(context, title),
     frontmatter,
     body,
     raw: "",
@@ -1712,15 +1768,18 @@ function writeCardNote(context: FactoryContext, card: Card): Promise<void> {
   return writeNote(context, card.path, composeNote(frontmatter, card.body));
 }
 
-async function createCard(
+export async function createCard(
   context: FactoryContext,
   kind: CardKind,
   title: string,
   body: string,
   extra: Record<string, unknown> = {},
 ): Promise<Card> {
-  const ids = (await readAllCards(context)).map((card) => card.frontmatter.id);
-  const id = nextId(context.globalArgs.prefix, ids);
+  const cards = await readAllCards(context);
+  const id = nextId(
+    context.globalArgs.prefix,
+    cards.map((card) => card.frontmatter.id),
+  );
   const card = frontmatterFor(
     context,
     id,
@@ -1728,6 +1787,11 @@ async function createCard(
     kind,
     cardBody(kind, title, body),
     { description: body, ...extra },
+  );
+  card.path = notePath(
+    context,
+    title,
+    cards.map((item) => item.path),
   );
   await writeNote(context, card.path, composeNote(card.frontmatter, card.body));
   return card;
@@ -1757,6 +1821,131 @@ async function trashNote(
       `vault trash failed for '${file}': ${result.error?.message ?? ""}`,
     );
   }
+}
+
+/**
+ * Rename a note through the vault model, which rewrites the wikilinks that
+ * point at it. Returns the failure instead of throwing: a rename that cannot
+ * run must never take the rest of the migration with it.
+ */
+async function renameNote(
+  context: FactoryContext,
+  from: string,
+  to: string,
+): Promise<string | null> {
+  const runModel = requireRunModel(context);
+  let result: RunModelResult;
+  try {
+    result = await runModel({
+      definition: context.globalArgs.vaultModel,
+      method: "move",
+      arguments: { file: from, to },
+    });
+  } catch (error) {
+    return error instanceof Error ? error.message : String(error);
+  }
+  if (!result.ok) {
+    return result.error?.message ?? `could not rename '${from}'`;
+  }
+  // The CLI exits 0 for a file it did not find, so verify the move happened.
+  if (!(await noteExists(context, to))) {
+    return `the vault did not create '${to}'`;
+  }
+  if (await noteExists(context, from)) {
+    return `the vault did not remove '${from}'`;
+  }
+  return null;
+}
+
+/** What a title-only path migration did, or would do on a dry run. */
+export interface CardPathMigration {
+  renamed: Array<{ id: string; from: string; to: string }>;
+  displayCleared: string[];
+  failures: Array<{ path: string; reason: string }>;
+}
+
+/**
+ * Give every card a title-only filename and drop the codename property. A card
+ * that is already title-only is a no-op. When the vault cannot rename (the
+ * Obsidian CLI or its vault argument is unavailable) the old filename stays,
+ * the failure is reported, and no duplicate note is created.
+ */
+export async function migrateCardPaths(
+  context: FactoryContext,
+  dryRun = false,
+): Promise<CardPathMigration> {
+  const migration: CardPathMigration = {
+    renamed: [],
+    displayCleared: [],
+    failures: [],
+  };
+  const folder = cardsFolder(context);
+  const cards = await readAllCards(context);
+  const taken = new Set(cards.map((card) => card.path.toLowerCase()));
+  // Rename first, and only re-read afterwards: the vault rewrites the wikilinks
+  // of every note that points at a card, so writing a card body read before the
+  // rename would put the old links back.
+  for (const card of cards) {
+    const id = card.frontmatter.id;
+    const title = typeof card.frontmatter.title === "string" &&
+        card.frontmatter.title.trim().length > 0
+      ? card.frontmatter.title.trim()
+      : id;
+    const others = [...taken].filter((path) =>
+      path !== card.path.toLowerCase()
+    );
+    const desired = titleOnlyPath(folder, title, others);
+    if (desired.toLowerCase() === card.path.toLowerCase()) continue;
+    const from = card.path;
+    const failure = dryRun ? null : await renameNote(context, from, desired);
+    if (failure !== null) {
+      migration.failures.push({ path: from, reason: failure });
+      continue;
+    }
+    taken.delete(from.toLowerCase());
+    taken.add(desired.toLowerCase());
+    migration.renamed.push({ id, from, to: desired });
+  }
+  if (dryRun) {
+    // Report the property clear from the same snapshot; nothing is written.
+    for (const card of cards) {
+      if ("display" in card.frontmatter) {
+        migration.displayCleared.push(card.frontmatter.id);
+      }
+    }
+    return migration;
+  }
+  // Then drop the codename property and rewrite old activity text.
+  for (const card of await readAllCards(context)) {
+    const id = card.frontmatter.id;
+    const title = typeof card.frontmatter.title === "string" &&
+        card.frontmatter.title.trim().length > 0
+      ? card.frontmatter.title.trim()
+      : id;
+    const oldDisplay = typeof card.frontmatter.display === "string" &&
+        card.frontmatter.display.trim().length > 0
+      ? card.frontmatter.display.trim()
+      : id.toUpperCase();
+    let touched = false;
+    if ("display" in card.frontmatter) {
+      delete card.frontmatter.display;
+      migration.displayCleared.push(id);
+      touched = true;
+    }
+    const rewritten = rewriteActivityDisplay(card.body, oldDisplay, title);
+    if (rewritten !== card.body) {
+      card.body = rewritten;
+      touched = true;
+    }
+    if (!touched) continue;
+    // A migration is not an edit: keep `updated` as the person last saw it.
+    await writeNote(
+      context,
+      card.path,
+      composeNote(card.frontmatter, card.body),
+    );
+  }
+  return migration;
 }
 
 /** Read and parse every archived card in the Archive folder. */
@@ -2427,8 +2616,10 @@ async function executeInstallBoard(
     });
   }
   // The one uncharacterised card. Never overwritten: it is the person's inbox.
-  const inboxPath = `${cardsFolder(context)}/INBOX Uncharacterised.md`;
-  if (!(await noteExists(context, inboxPath))) {
+  // Found by kind, so an old codename-first filename is not duplicated.
+  const boardCards = await readAllCards(context);
+  const inbox = boardCards.find((card) => card.frontmatter.kind === "inbox");
+  if (!inbox) {
     const card = frontmatterFor(
       context,
       "inbox",
@@ -2440,7 +2631,11 @@ async function executeInstallBoard(
         "Drop raw thoughts here. Each bullet is one thought.",
       ),
     );
-    card.path = inboxPath;
+    card.path = notePath(
+      context,
+      "Uncharacterised",
+      boardCards.map((item) => item.path),
+    );
     await writeNote(
       context,
       card.path,
@@ -2448,7 +2643,7 @@ async function executeInstallBoard(
     );
     files.push({ path: card.path, action: "created" });
   } else {
-    files.push({ path: inboxPath, action: "unchanged" });
+    files.push({ path: inbox.path, action: "unchanged" });
   }
   const handle = await context.writeResource("install", "install", {
     files,
@@ -3154,7 +3349,8 @@ async function executeInstallCardCss(
 async function migrateCardsInternal(
   context: FactoryContext,
   dryRun = false,
-): Promise<number> {
+): Promise<CardMigration> {
+  const paths = await migrateCardPaths(context, dryRun);
   const cards = await readAllCards(context);
   let changed = 0;
   for (const card of cards) {
@@ -3214,15 +3410,22 @@ async function migrateCardsInternal(
       changed++;
     }
   }
-  return changed;
+  return { changed, ...paths };
+}
+
+/** What one card migration pass did. */
+export interface CardMigration extends CardPathMigration {
+  changed: number;
 }
 
 async function executeMigrateCards(
-  _args: Record<string, never>,
+  args: { dryRun?: boolean },
   context: FactoryContext,
 ): Promise<{ dataHandles: Array<{ name: string }> }> {
   context.logger.info("Migrating cards to the readable card layout");
-  const changed = await migrateCardsInternal(context);
+  const dryRun = args.dryRun === true;
+  const migration = await migrateCardsInternal(context, dryRun);
+  const changed = migration.changed + migration.renamed.length;
   const handle = await context.writeResource(
     "operation",
     `operation-${crypto.randomUUID()}`,
@@ -3231,8 +3434,18 @@ async function executeMigrateCards(
       id: "all",
       path: cardsFolder(context),
       changed: changed > 0,
-      detail: `${changed} card(s) updated`,
+      detail: `${dryRun ? "dry run: " : ""}${changed} card(s) updated; ` +
+        `${migration.renamed.length} renamed to a title-only filename; ` +
+        `${migration.displayCleared.length} codename property removed` +
+        (migration.failures.length > 0
+          ? `; ${migration.failures.length} rename(s) could not run`
+          : ""),
       timestamp: nowIso(),
+      renamed: migration.renamed.map((item) => `${item.id}: ${item.to}`),
+      failures: migration.failures.map((item) =>
+        `${item.path}: ${item.reason}`
+      ),
+      dryRun,
     },
   );
   return { dataHandles: [handle] };
@@ -3593,7 +3806,8 @@ async function executeTick(
   const plugin = await ensurePluginData(context, dryRun);
   const cli = await enableObsidianCli(dryRun);
   const css = await ensureCardCss(context, dryRun);
-  const migrated = await migrateCardsInternal(context, dryRun);
+  const migration = await migrateCardsInternal(context, dryRun);
+  const migrated = migration.changed + migration.renamed.length;
   const upgrade = args.upgradeDefinitions === false
     ? { repinned: [], pinned: [], errors: ["definition upgrade disabled"] }
     : await upgradeDefinitions(
@@ -3608,6 +3822,10 @@ async function executeTick(
     cli,
     css,
     migrated,
+    renamed: migration.renamed.map((item) => `${item.id}: ${item.to}`),
+    migrationFailures: migration.failures.map((item) =>
+      `${item.path}: ${item.reason}`
+    ),
     repinned: upgrade.repinned,
     pinned: upgrade.pinned,
     errors: upgrade.errors,
@@ -3828,7 +4046,7 @@ async function executeQueue(
 /** The tracker: stagecraft's contract 1 over an Obsidian board. */
 export const model = {
   type: "@svendowideit/obsidian-factory",
-  version: "2026.11.08.31",
+  version: "2026.11.09.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -4105,6 +4323,19 @@ export const model = {
         "never interpolated.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.09.1",
+      description:
+        "Show one human-readable title per card: a new card's filename is a " +
+        "slug of its title (with a -2 collision suffix) instead of the " +
+        "codename, the display property is gone, and the card's visible name " +
+        "and board display are its title. The tick's migration renames every " +
+        "existing card through the vault model's move (rewriting wikilinks), " +
+        "rewrites old activity entries to the title, and reports any rename " +
+        "it could not run instead of creating a duplicate. The inbox card is " +
+        "found by kind. `migrateCards` takes dryRun.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     description: {
@@ -4347,8 +4578,12 @@ export const model = {
     },
     migrateCards: {
       description:
-        "Add the factory-card CSS class and the readable At a glance / Plan sections to every existing card, without overwriting an existing summary or plan",
-      arguments: z.object({}),
+        "Give every card a title-only filename (with a collision suffix) and drop the codename property, then add the factory-card CSS class and the readable At a glance / Plan sections, without overwriting an existing summary or plan",
+      arguments: z.object({
+        dryRun: z.boolean().default(false).describe(
+          "Report what would change without moving or writing any card",
+        ),
+      }),
       execute: executeMigrateCards,
     },
     updateCard: {

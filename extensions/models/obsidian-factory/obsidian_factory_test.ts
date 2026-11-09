@@ -20,6 +20,7 @@ import {
   collapseDuplicateHeadings,
   composeNote,
   countBullets,
+  createCard,
   DEFAULT_STAGE_COLUMNS,
   DEFAULT_STATUS_FOR_KIND,
   DEFAULT_STATUSES,
@@ -28,6 +29,7 @@ import {
   insertAfterTitle,
   managedEditProblem,
   mergePluginSettings,
+  migrateCardPaths,
   movesForStatus,
   nextCommentId,
   nextId,
@@ -40,6 +42,7 @@ import {
   renderPlanSection,
   renderSummarySection,
   restoredStatus,
+  rewriteActivityDisplay,
   sectionBullets,
   shouldReopenTerminal,
   slugify,
@@ -47,6 +50,7 @@ import {
   statusId,
   stripActivity,
   stripManaged,
+  titleOnlyPath,
   unarchiveCard,
   unarchivedFrontmatter,
   updatePlanCheckboxes,
@@ -75,15 +79,15 @@ function card(
   kind: "inbox" | "category" | "action",
   body = "",
   relations: Card["frontmatter"]["relations"] = [],
+  title = `Card ${id}`,
 ): Card {
   return {
-    path: `Factory/Cards/${id}.md`,
+    path: `Factory/Cards/${slugify(title)}.md`,
     raw: "",
     body,
     frontmatter: {
       id,
-      display: id.toUpperCase(),
-      title: id,
+      title,
       kind,
       status: "Proposed",
       relations,
@@ -137,11 +141,13 @@ Deno.test("nextId counts only this prefix", () => {
   assertEquals(nextId("fac", ["fac-1", "fac-9", "cat-3"]), "fac-10", "next");
 });
 
-Deno.test("cardDisplay and cardMatches are case-insensitive", () => {
-  const one = card("fac-1", "action");
-  assertEquals(cardDisplay(one), "FAC-1", "display");
+Deno.test("cardDisplay shows the human title and cardMatches stays stable", () => {
+  const one = card("fac-1", "action", "", [], "One card");
+  assertEquals(cardDisplay(one), "One card", "display is the title");
+  const untitled = card("fac-2", "action", "", [], "  ");
+  assertEquals(cardDisplay(untitled), "fac-2", "a titleless card falls back");
   assert(cardMatches(one, "fac-1"), "id");
-  assert(cardMatches(one, "FAC-1"), "display");
+  assert(cardMatches(one, "one card"), "display");
   assert(!cardMatches(one, "fac-2"), "other");
 });
 
@@ -689,7 +695,7 @@ Deno.test("cardSummary counts ideas by kind", () => {
   );
   assertEquals(summary.ideaCount, 2, "ideas");
   assertEquals(summary.openQuestions, 1, "questions");
-  assertEquals(summary.display, "FAC-1", "display");
+  assertEquals(summary.display, "Card fac-1", "display is the human title");
 });
 
 Deno.test("incomingRelations finds relations from other cards", () => {
@@ -829,6 +835,10 @@ class FakeVault {
   notes = new Map<string, string>();
   trashFailures = new Set<string>();
   corruptWrites = false;
+  /** When set, `move` fails the way a missing Obsidian CLI does. */
+  moveFailure: string | null = null;
+  /** When true, `move` reports success but leaves the note where it was. */
+  moveSilentlyDoesNothing = false;
   readonly context: FactoryContext;
   private records = new Map<string, FakeDataRecord[]>();
   private counter = 0;
@@ -893,6 +903,53 @@ class FakeVault {
           return answer({
             ok: true,
             resources: [{ name: this.store("deleted", { file }) }],
+          });
+        }
+        case "move": {
+          const to = String(args.to ?? "");
+          if (this.moveFailure !== null) {
+            return answer({ ok: false, error: { message: this.moveFailure } });
+          }
+          const content = this.notes.get(file);
+          if (content === undefined) {
+            return answer({
+              ok: false,
+              error: { message: `note not found: ${file}` },
+            });
+          }
+          if (this.moveSilentlyDoesNothing) {
+            return answer({
+              ok: true,
+              resources: [{
+                name: this.store("operationResult", { file, to }),
+              }],
+            });
+          }
+          const oldName = file.slice(file.lastIndexOf("/") + 1).replace(
+            /\.md$/,
+            "",
+          );
+          const newName = to.slice(to.lastIndexOf("/") + 1).replace(
+            /\.md$/,
+            "",
+          );
+          this.notes.delete(file);
+          this.notes.set(to, content);
+          if (oldName !== newName) {
+            for (const [path, note] of this.notes) {
+              this.notes.set(
+                path,
+                note
+                  .replaceAll(`[[${oldName}]]`, `[[${newName}]]`)
+                  .replaceAll(`[[${oldName}|`, `[[${newName}|`),
+              );
+            }
+          }
+          return answer({
+            ok: true,
+            resources: [{
+              name: this.store("operationResult", { file, to }),
+            }],
           });
         }
         case "list": {
@@ -1002,7 +1059,6 @@ function sampleCardNote(
 ): string {
   return composeNote({
     id: "fac-2",
-    display: "FAC-2",
     title: "Board automation",
     kind: "action",
     type: "action",
@@ -1292,4 +1348,264 @@ Deno.test("Archive.base shows only archived cards grouped by outcome", () => {
   const boardFilters = JSON.stringify(board.filters);
   assert(boardFilters.includes("/Cards"), "board filters Cards");
   assert(!boardFilters.includes("Archive"), "board excludes the archive");
+});
+
+// ---------------------------------------------------------------------------
+// One human-readable title: title-only filenames, no codename property
+// ---------------------------------------------------------------------------
+
+Deno.test("titleOnlyPath slugs the title and suffixes a collision", () => {
+  assertEquals(
+    titleOnlyPath("Factory/Cards", "Board automation", []),
+    "Factory/Cards/board-automation.md",
+    "title only",
+  );
+  assertEquals(
+    titleOnlyPath("Factory/Cards", "Board automation", [
+      "Factory/Cards/board-automation.md",
+    ]),
+    "Factory/Cards/board-automation-2.md",
+    "collision",
+  );
+  assertEquals(
+    titleOnlyPath("Factory/Cards", "Board automation", [
+      "Factory/Cards/board-automation.md",
+      "Factory/Cards/board-automation-2.md",
+    ]),
+    "Factory/Cards/board-automation-3.md",
+    "next collision",
+  );
+  assert(
+    !titleOnlyPath("Factory/Cards", "Board automation", []).includes("fac"),
+    "no codename in the filename",
+  );
+});
+
+Deno.test("a new card gets a title-only filename and no display property", async () => {
+  const vault = new FakeVault();
+  const created = await createCard(
+    vault.context,
+    "action",
+    "Board automation",
+    "Tick the board.",
+  );
+  assertEquals(created.path, "Factory/Cards/board-automation.md", "path");
+  assertEquals(created.frontmatter.id, "fac-1", "the id is still assigned");
+  assert(!("display" in created.frontmatter), "no display property");
+  const note = vault.notes.get("Factory/Cards/board-automation.md") ?? "";
+  assert(note.includes("id: fac-1"), "the id stays in the frontmatter");
+  assert(!/^display:/m.test(note), "the note carries no display property");
+});
+
+Deno.test("two cards with the same title get distinct filenames", async () => {
+  const vault = new FakeVault();
+  const one = await createCard(
+    vault.context,
+    "action",
+    "Board automation",
+    "First.",
+  );
+  const two = await createCard(
+    vault.context,
+    "action",
+    "Board automation",
+    "Second.",
+  );
+  assertEquals(one.path, "Factory/Cards/board-automation.md", "first");
+  assertEquals(two.path, "Factory/Cards/board-automation-2.md", "second");
+  assertEquals(one.frontmatter.id, "fac-1", "first id");
+  assertEquals(two.frontmatter.id, "fac-2", "second id");
+});
+
+Deno.test("the board summary shows the human title, not the codename", () => {
+  const summary = cardSummary(
+    card("fac-7", "action", "", [], "Open cards as a dialog"),
+  );
+  assertEquals(summary.display, "Open cards as a dialog", "title");
+  assert(!summary.display.startsWith("FAC-"), "no codename on the board");
+  const base = parseYaml(boardBase) as {
+    properties: Record<string, unknown>;
+    views: Array<{ order?: string[] }>;
+  };
+  assert("file.name" in base.properties, "the card column is the filename");
+  for (const view of base.views) {
+    assert(
+      !(view.order ?? []).some((field) => field === "note.display"),
+      `${view} does not order by a codename property`,
+    );
+  }
+});
+
+Deno.test("renaming a card preserves its id and rewrites links to it", async () => {
+  const vault = new FakeVault({
+    "Factory/Cards/FAC-2 board-automation.md": sampleCardNote(),
+    "Factory/Cards/FAC-9 voice-input.md": [
+      "---",
+      "id: fac-9",
+      "display: FAC-9",
+      "title: Voice input",
+      "kind: category",
+      "status: Category",
+      "relations: []",
+      "---",
+      "",
+      "# Voice input",
+      "",
+      "See [[FAC-2 board-automation]] for the board.",
+    ].join("\n"),
+  });
+  const migration = await migrateCardPaths(vault.context);
+  assertEquals(
+    migration.renamed.map((item) => item.to).sort(),
+    [
+      "Factory/Cards/board-automation.md",
+      "Factory/Cards/voice-input.md",
+    ],
+    "both cards renamed",
+  );
+  assertEquals(migration.failures, [], "no failures");
+  const moved = vault.notes.get("Factory/Cards/board-automation.md") ?? "";
+  assert(moved.includes("id: fac-2"), "the id is preserved");
+  assert(!/^display:/m.test(moved), "the display property is gone");
+  const linker = vault.notes.get("Factory/Cards/voice-input.md") ?? "";
+  assert(
+    linker.includes("[[board-automation]]"),
+    "the wikilink follows the rename",
+  );
+  assert(!linker.includes("[[FAC-2 board-automation]]"), "old link gone");
+});
+
+Deno.test("an already title-only card is a no-op", async () => {
+  const vault = new FakeVault({
+    "Factory/Cards/board-automation.md": sampleCardNote(),
+  });
+  const before = vault.notes.get("Factory/Cards/board-automation.md");
+  const migration = await migrateCardPaths(vault.context);
+  assertEquals(migration.renamed, [], "nothing renamed");
+  assertEquals(migration.displayCleared, [], "nothing cleared");
+  assertEquals(migration.failures, [], "no failures");
+  assertEquals(
+    vault.notes.get("Factory/Cards/board-automation.md"),
+    before,
+    "the note is untouched",
+  );
+});
+
+Deno.test("a missing CLI leaves the old filename and reports it", async () => {
+  const vault = new FakeVault({
+    "Factory/Cards/FAC-2 board-automation.md": sampleCardNote(),
+  });
+  vault.moveFailure =
+    'The CLI backend needs the vault global argument to run "move".';
+  const migration = await migrateCardPaths(vault.context);
+  assertEquals(migration.renamed, [], "no rename is claimed");
+  assertEquals(migration.failures.length, 1, "the failure is reported");
+  assert(
+    migration.failures[0].reason.includes("vault global argument"),
+    "the reason is carried",
+  );
+  assert(
+    vault.notes.has("Factory/Cards/FAC-2 board-automation.md"),
+    "the old filename stays",
+  );
+  assertEquals(vault.notes.size, 1, "no duplicate note is created");
+  const note = vault.notes.get("Factory/Cards/FAC-2 board-automation.md") ?? "";
+  assert(!/^display:/m.test(note), "the codename property is still removed");
+});
+
+Deno.test("every existing card is renamed to a title-only filename", async () => {
+  const vault = new FakeVault({
+    "Factory/Cards/FAC-2 board-automation.md": sampleCardNote(),
+    "Factory/Cards/INBOX Uncharacterised.md": [
+      "---",
+      "id: inbox",
+      "display: INBOX",
+      "title: Uncharacterised",
+      "kind: inbox",
+      "status: Uncharacterised",
+      "relations: []",
+      "---",
+      "",
+      "# Uncharacterised",
+      "",
+      "## Thoughts",
+      "",
+      "- a thought",
+    ].join("\n"),
+  });
+  const migration = await migrateCardPaths(vault.context);
+  assertEquals(
+    migration.renamed.map((item) => item.to).sort(),
+    [
+      "Factory/Cards/board-automation.md",
+      "Factory/Cards/uncharacterised.md",
+    ],
+    "every card, including the inbox",
+  );
+  const paths = [...vault.notes.keys()].sort();
+  assertEquals(
+    paths,
+    [
+      "Factory/Cards/board-automation.md",
+      "Factory/Cards/uncharacterised.md",
+    ],
+    "nothing is left on a codename filename",
+  );
+});
+
+Deno.test("old activity entries show the human title, not the codename", () => {
+  const body = [
+    "# Board automation",
+    "",
+    "<!-- swamp:activity:begin -->",
+    '<!-- swamp:entry {"id":"e-1","kind":"entry","at":"2026-11-01T00:00:00.000Z"} -->',
+    "💡 Proposed FAC-2: make the board tick.",
+    "<!-- swamp:entry:end -->",
+    "<!-- swamp:activity:end -->",
+  ].join("\n");
+  const rewritten = rewriteActivityDisplay(
+    body,
+    "FAC-2",
+    "Board automation",
+  );
+  assert(
+    rewritten.includes("Proposed Board automation: make the board tick."),
+    "the entry reads with the title",
+  );
+  assert(!rewritten.includes("FAC-2"), "no codename in the activity log");
+});
+
+Deno.test("the codename property is removed from an existing card", async () => {
+  const vault = new FakeVault({
+    "Factory/Cards/board-automation.md": sampleCardNote(),
+  });
+  const before = vault.notes.get("Factory/Cards/board-automation.md") ?? "";
+  // Put a legacy display back, as an old card has it.
+  vault.notes.set(
+    "Factory/Cards/board-automation.md",
+    before.replace("id: fac-2\n", "id: fac-2\ndisplay: FAC-2\n"),
+  );
+  const migration = await migrateCardPaths(vault.context);
+  assertEquals(migration.displayCleared, ["fac-2"], "cleared");
+  const note = vault.notes.get("Factory/Cards/board-automation.md") ?? "";
+  assert(!/^display:/m.test(note), "the property is gone");
+  assert(note.includes("id: fac-2"), "the id stays");
+});
+
+Deno.test("a rename the vault did not actually do is reported, not claimed", async () => {
+  const vault = new FakeVault({
+    "Factory/Cards/FAC-2 board-automation.md": sampleCardNote(),
+  });
+  vault.moveSilentlyDoesNothing = true;
+  const migration = await migrateCardPaths(vault.context);
+  assertEquals(migration.renamed, [], "no rename is claimed");
+  assertEquals(migration.failures.length, 1, "the failure is reported");
+  assert(
+    migration.failures[0].reason.includes("did not create"),
+    "the reason says the destination is missing",
+  );
+  assert(
+    vault.notes.has("Factory/Cards/FAC-2 board-automation.md"),
+    "the card keeps its old filename",
+  );
 });

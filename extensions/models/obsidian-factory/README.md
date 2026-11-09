@@ -74,7 +74,7 @@ Method arguments:
 | `markPlanProgress` | `id`, `tasks` (`match`, `done`), `tests` (`match`, `done`), `acceptEdits` |
 | `setDefinition` | `id`, `status`, `note` |
 | `installCardCss` | `force` |
-| `migrateCards` | none |
+| `migrateCards` | `dryRun` |
 | `deleteCard` | `id`, `confirm`, `permanent`, `dryRun` |
 | `archiveCard` | `id`, `outcome` (`done`/`deleted`/`duplicate`), `reason`, `detail`, `dryRun` |
 | `unarchiveCard` | `id`, `dryRun` |
@@ -176,7 +176,6 @@ A card is one Markdown note in `<folder>/Cards/`. Its frontmatter is the ticket:
 
 ```yaml
 id: fac-3
-display: FAC-3
 title: Write-through cache
 kind: action
 type: action
@@ -189,11 +188,21 @@ description: Make the cache write-through before the next release
 relations: []
 ```
 
-`id` is stable; `display` is what a person reads; `kind` is `inbox`, `category`
-or `action`; `type` is the stagecraft ticket type; `status` is the column;
-`description` is the body stagecraft's tracker contract returns. The note body
-is the human page: title, brief, ideas, questions, feedback and the managed
-activity block.
+`id` is stable and stays in the frontmatter and in links; it is never shown on
+the card. The filename is a slug of the title — `write-through-cache.md`, or
+`write-through-cache-2.md` when another card already owns that name — so the
+board's card column is the one human-readable title. `kind` is `inbox`,
+`category` or `action`; `type` is the stagecraft ticket type; `status` is the
+column; `description` is the body stagecraft's tracker contract returns. The
+note body is the human page: title, brief, ideas, questions, feedback and the
+managed activity block.
+
+There is no `display` property. An older card that has one is migrated: the
+property is removed, its old activity entries are rewritten to the card's
+title, and the note is renamed to its title-only filename through the vault
+model's `move` (which rewrites wikilinks). The rename needs the Obsidian CLI
+and its vault argument; when it is unavailable the old filename stays, the
+failure is reported, and no duplicate note is created.
 
 ### The board
 
@@ -211,8 +220,8 @@ activity block.
 - `Factory/Guide.md` — the person's guide.
 - `Factory/Templates/Card.md`, `Category.md`, `Action.md` — core Templates
   plugin templates.
-- `Factory/Cards/INBOX Uncharacterised.md` — the one inbox card. It is never
-  overwritten.
+- `Factory/Cards/uncharacterised.md` — the one inbox card. It is found by
+  `kind: inbox`, so it is never duplicated and never overwritten.
 
 ### Methods
 
@@ -237,13 +246,14 @@ activity block.
   plan unless `acceptEdits=true`. This is how the factory keeps the visible
   checklist in step with the work.
 - **`capture`** — appends a timestamped bullet under the inbox's `## Thoughts`.
-- **`scan`** — writes `board`, a summary of every card with `id`, `display`,
-  `title`, `kind`, `status`, `path`, `updated`, `project`, `ideaCount`,
-  `openQuestions` and the legal `moves`.
+- **`scan`** — writes `board`, a summary of every card with `id`, `display`
+  (the human title), `title`, `kind`, `status`, `path`, `updated`, `project`,
+  `ideaCount`, `openQuestions` and the legal `moves`.
 - **`tick`** — the idempotent factory housekeeping: installs the card CSS
-  snippet and enables it in Obsidian's appearance settings, migrates cards to
-  the readable sections, progressively repins safe cards to the current factory
-  definition, and refreshes the queue. Pass `factoryDefinition` (a hash of the
+  snippet and enables it in Obsidian's appearance settings, migrates cards
+  (title-only filenames, no codename property, readable sections),
+  progressively repins safe cards to the current factory definition, and
+  refreshes the queue. Pass `factoryDefinition` (a hash of the
   factory model file) so a second tick is a no-op. Cards with recorded work are
   marked `pinned`, not reset.
 - **`queue`** — writes `queue`, every card joined to its stagecraft run with
@@ -261,9 +271,13 @@ activity block.
 - **`installCardCss`** — writes `.obsidian/snippets/obsidian-factory.css`, the
   CSS snippet that hides the raw frontmatter block on cards in reading view and
   live preview. The person enables it in Settings → Appearance → CSS snippets.
-- **`migrateCards`** — adds the `factory-card` CSS class and the readable
-  sections to cards created before this version; existing summaries and plans
-  are not overwritten.
+- **`migrateCards`** — gives every card a title-only filename (a slug of the
+  title, with a `-2` suffix on a collision), removes the old `display`
+  property, rewrites old activity entries to the card's title, and adds the
+  `factory-card` CSS class and readable sections; existing summaries and plans
+  are not overwritten. It reports each rename and each rename it could not run
+  (no Obsidian CLI, or no vault argument on the vault model). `dryRun` reports
+  without moving or writing anything.
 - **`deleteCard`** — deletes a card through the vault model (trash by default,
   permanent on request); requires `confirm=delete`.
 - **`createCategory`** — creates a Category card, optionally with its first

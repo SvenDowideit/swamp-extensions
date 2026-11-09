@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/obsidian-factory"
-version: "2026.11.08.31"
+version: "2026.11.09.1"
 description: >
   An Obsidian Bases board that is a stagecraft tracker: ideas arrive on one
   uncharacterised card, become category cards and proposed actions, then move
@@ -121,7 +121,7 @@ description: >
     only into the configured vault folder — `Board.base`, `Board.md`,
     `Archive.base`, `Archive.md`, `Guide.md`, `Templates/Card.md`,
     `Templates/Category.md`, `Templates/Action.md` and the single
-    `Cards/INBOX Uncharacterised.md` — creates category and action cards in
+    `Cards/uncharacterised.md` — creates category and action cards in
     `Cards/` when the factory asks, and moves an archived card's note to
     `Archive/` (verified copy first; the original goes to the vault's `.trash`).
     The tick keeps `.obsidian/snippets/obsidian-factory.css` current (previous

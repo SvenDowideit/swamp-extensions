@@ -7,7 +7,8 @@ file.
 
 ## Capture
 
-Add a bullet under `## Thoughts` on `{{folder}}/Cards/INBOX Uncharacterised.md`, or:
+Add a bullet under `## Thoughts` on the one card in the **Uncharacterised**
+column (its note is `{{folder}}/Cards/uncharacterised.md`), or:
 
 ```sh
 swamp behavior run obsidian-board capture --input 'text=...'

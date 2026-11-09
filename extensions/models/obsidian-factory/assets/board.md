@@ -23,8 +23,9 @@ stored in the board file.
 
 ## Adding a thought
 
-Open `{{folder}}/Cards/INBOX Uncharacterised.md` and add a bullet under
-`## Thoughts`, or run:
+Open the one card in the **Uncharacterised** column (its note is
+`{{folder}}/Cards/uncharacterised.md`) and add a bullet under `## Thoughts`,
+or run:
 
 ```sh
 swamp behavior run obsidian-board capture \

@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4518"><span class="tier A">A</span>Serve restart after kill -9 leaves the killed run reading ru</a><a href="#issue-4519"><span class="tier A">A</span>control_plane_schedule_state_repository_test: &#39;list skips a </a><a href="#issue-4526"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-4517"><span class="tier A">A</span>Cloudflare codegen: a nested properties-beside-oneOf require</a><a href="#issue-4522"><span class="tier A">A</span>Team mode: member writes fail with GCS 429 once a team commi</a><a href="#issue-4512"><span class="tier A">A</span>A member&#39;s behavior run rewrote its read model for 19 minute</a><a href="#issue-4516"><span class="tier A">A</span>feat(workflows): fan-out runs resume, retry and recover on t</a><a href="#issue-4511"><span class="tier A">A</span>Observability never slows or breaks a command: the span expo</a><a href="#issue-4428"><span class="tier A">A</span>Cloudflare codegen: a self-referencing request body overflow</a><a href="#issue-4436"><span class="tier A">A</span>Cloudflare codegen: a oneOf/anyOf inside a multi-member allO</a><a href="#issue-4509"><span class="tier A">A</span>swamp dashboard: trusted-host / bind option so it can be rea</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4527"><span class="tier A">A</span>fix(datastore): the run-record judge freezes a fan-out job&#39;s</a><a href="#issue-4518"><span class="tier A">A</span>Serve restart after kill -9 leaves the killed run reading ru</a><a href="#issue-4519"><span class="tier A">A</span>control_plane_schedule_state_repository_test: &#39;list skips a </a><a href="#issue-4526"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-4517"><span class="tier A">A</span>Cloudflare codegen: a nested properties-beside-oneOf require</a><a href="#issue-4522"><span class="tier A">A</span>Team mode: member writes fail with GCS 429 once a team commi</a><a href="#issue-4512"><span class="tier A">A</span>A member&#39;s behavior run rewrote its read model for 19 minute</a><a href="#issue-4516"><span class="tier A">A</span>feat(workflows): fan-out runs resume, retry and recover on t</a><a href="#issue-4511"><span class="tier A">A</span>Observability never slows or breaks a command: the span expo</a><a href="#issue-4428"><span class="tier A">A</span>Cloudflare codegen: a self-referencing request body overflow</a><a href="#issue-4436"><span class="tier A">A</span>Cloudflare codegen: a oneOf/anyOf inside a multi-member allO</a></aside><div>
 
 <article class="item" id="issue-4239">
 <h2><span class="tier S">S</span>swamp issue: file bugs, features and security reports against the platform source</h2>
@@ -76,6 +76,14 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-4527">
+<h2><span class="tier A">A</span>fix(datastore): the run-record judge freezes a fan-out job&#39;s snapshot with its plan, so a forwarded record cannot rewrite the selector or worker scopes a resume trusts</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-08T23:01:39.907Z">2026-11-08T23:01:39.907Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4527" rel="noopener">lab#4527</a></div>
 </article>
 <article class="item" id="issue-4518">
 <h2><span class="tier A">A</span>Serve restart after kill -9 leaves the killed run reading running; only CLI recover&#39;s dead-owner check settles it</h2>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4436" rel="noopener">lab#4436</a></div>
 </article>
-<article class="item" id="issue-4509">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4509">
 <h2><span class="tier A">A</span>swamp dashboard: trusted-host / bind option so it can be reached through a reverse proxy</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-11-08T02:11:51.139Z">2026-11-08T02:11:51.139Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4509" rel="noopener">lab#4509</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4514">
+<article class="item" id="issue-4514">
 <h2><span class="tier A">A</span>issue-lifecycle: code conformance review is the final gate before the PR, after verification</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-11-08T01:08:05.882Z">2026-11-08T01:08:05.882Z</time></span></div>
@@ -1765,37 +1773,45 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
-<article class="item" id="issue-4525">
-<h2><span class="tier B">B</span>Team mode: a member write takes 2 requests to serve instead of 8, workflows batch per step, and write cost stays flat over a day of history (performance from #4374)</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-11-08T23:01:29.006Z">2026-11-08T23:01:29.006Z</time></span></div>
+<article class="item" id="issue-4531">
+<h2><span class="tier B">B</span>feat(workflows): fan-out rollout: lanes start in canary batches under an error budget (maxFailures as a count or a percentage), hold the rest on a halt, and resume continues the rollout</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-08T23:50:03.525Z">2026-11-08T23:50:03.525Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4525" rel="noopener">lab#4525</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4531" rel="noopener">lab#4531</a></div>
 </article>
 <article class="item" id="issue-4445">
 <h2><span class="tier B">B</span>swamp-lib: workflowRunStream drops a refusal and ends as if nothing went wrong</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-11-08T22:59:45.222Z">2026-11-08T22:59:45.222Z</time></span></div>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-08T23:46:54.277Z">2026-11-08T23:46:54.277Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4445" rel="noopener">lab#4445</a></div>
 </article>
-<article class="item" id="issue-4527">
-<h2><span class="tier B">B</span>fix(datastore): the run-record judge freezes a fan-out job&#39;s snapshot with its plan, so a forwarded record cannot rewrite the selector or worker scopes a resume trusts</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-08T22:58:37.484Z">2026-11-08T22:58:37.484Z</time></span></div>
+<article class="item" id="issue-4438">
+<h2><span class="tier B">B</span>swamp-lib: workflowRun never settles when a run suspends at an approval gate</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-08T23:38:09.321Z">2026-11-08T23:38:09.321Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4527" rel="noopener">lab#4527</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4438" rel="noopener">lab#4438</a></div>
 </article>
 <article class="item" id="issue-4505">
 <h2><span class="tier B">B</span>Run the test suite in several smaller processes, so verification is faster with no test weakened</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-08T22:41:52.605Z">2026-11-08T22:41:52.605Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-08T23:20:55.658Z">2026-11-08T23:20:55.658Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4505" rel="noopener">lab#4505</a></div>
+</article>
+<article class="item" id="issue-4525">
+<h2><span class="tier B">B</span>Team mode: a member write takes 2 requests to serve instead of 8, workflows batch per step, and write cost stays flat over a day of history (performance from #4374)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-08T23:04:37.370Z">2026-11-08T23:04:37.370Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4525" rel="noopener">lab#4525</a></div>
 </article>
 <article class="item" id="issue-4465">
 <h2><span class="tier B">B</span>Dashboard data item page cannot show an item once its behavior definition is deleted, though the data remains</h2>
@@ -1829,21 +1845,29 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4374" rel="noopener">lab#4374</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4529">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4533">
+<h2><span class="tier C">C</span>Docs: webhook payload is only in scope in trigger.inputs; document run id header and route reload</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-08T23:54:59.043Z">2026-11-08T23:54:59.043Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4533" rel="noopener">lab#4533</a></div>
+</article>
+<article class="item" id="issue-4532">
+<h2><span class="tier C">C</span>GCP codegen: StateData inferred from StateSchema may hit TS2589 now that nested state objects are .partial()</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-08T23:15:29.587Z">2026-11-08T23:15:29.587Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4532" rel="noopener">lab#4532</a></div>
+</article>
+<article class="item" id="issue-4529">
 <h2><span class="tier C">C</span>Delegation: link a person to an integration and issue their tokens</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-11-08T22:59:35.580Z">2026-11-08T22:59:35.580Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4529" rel="noopener">lab#4529</a></div>
-</article>
-<article class="item" id="issue-4438">
-<h2><span class="tier C">C</span>swamp-lib: workflowRun never settles when a run suspends at an approval gate</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-08T22:59:02.201Z">2026-11-08T22:59:02.201Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4438" rel="noopener">lab#4438</a></div>
 </article>
 <article class="item" id="issue-4524">
 <h2><span class="tier C">C</span>No way to add or switch to password login on an account created with SSO</h2>
@@ -2678,13 +2702,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>326 items across 1 source(s) in this window:
-1 critical, 211 notable, 8 routine,
-106 minor.</p>
-<ul><li><strong>issues</strong> — 326</li></ul></section>
+<p>329 items across 1 source(s) in this window:
+1 critical, 212 notable, 9 routine,
+107 minor.</p>
+<ul><li><strong>issues</strong> — 329</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-08T23:04:20.803Z">2026-11-08T23:04:20.803Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-09T00:01:51.526Z">2026-11-09T00:01:51.526Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

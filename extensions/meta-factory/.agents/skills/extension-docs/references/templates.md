@@ -51,8 +51,10 @@ description: >
 
   UPGRADE
 
-    Upgrade an existing install with the bundled upgrade workflow; it rebuilds
-    and reconciles anything on the host automatically and is idempotent:
+    One workflow installs and upgrades: run it on a machine with nothing
+    installed and it installs, run it again later and it upgrades what is
+    there, and it verifies either way. It resolves its own targets and is
+    idempotent, so it is both the first command and the upgrade command:
 
         swamp workflow run @mycollective/my-extension-upgrade
 
@@ -266,7 +268,9 @@ swamp extension quality extensions/models/my-extension/manifest.yaml --json
 | Setup reports intended state, not verified reality | setup points + a `report-reality` diagnostic | Test the real outcome before reporting it; stop on a blocking failure; report a long change's time-to-ready; or add `// meta-factory-ignore report-reality: <reason>` |
 | Setup/upgrade continues past a failed prerequisite | `prerequisite-allow-failure` diagnostic | Make the blocking step `allowFailure: false` and gate dependents on `condition: succeeded` |
 | Reports "serving on https://…" while a port/capability is missing | `claim-without-verification` diagnostic | Probe the actual port/endpoint before printing the URL; never instruct impossible URLs |
-| No `## Upgrade` section, or no upgrade workflow | up to 5 upgrade points + 1 section point | Ship an idempotent `<name>-upgrade` workflow and document it in `## Upgrade` |
+| No `## Upgrade` section, or no upgrade workflow | up to 3 upgrade points + 1 section point | Ship an idempotent `<name>-upgrade` workflow and document it in `## Upgrade` |
+| Separate `<name>-install` and `<name>-upgrade` workflows | 5 single-entrypoint points | Fold the install into the upgrade workflow (install when the target is absent, upgrade when present), delete the other, and document the one command as both entry points |
+| The one lifecycle workflow is never described as covering a fresh install | 2.5 single-entrypoint points | Say in `## Upgrade` and `RUN` that the same command installs when the target is missing |
 | One method not named in the README | coverage points | Add it to the `## Details` table |
 | README shorter than 1200 chars | 2 substance points | Expand the sections with real content |
 | No table in the README | 2 substance points | Use a table for configuration/methods |

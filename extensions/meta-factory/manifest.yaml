@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/meta-factory"
-version: "2026.11.08.1"
+version: "2026.11.09.1"
 description: >
   The documentation quality gate for swamp extensions. Enforces one guiding
   principle — the published manifest plus README must be enough for a user or
@@ -19,6 +19,12 @@ description: >
     hand-writing or copying definition configs, and every extension ships one
     documented `swamp workflow run <name>-upgrade` command that discovers its
     own targets (never requiring the user to remember an internal name). The
+    Every extension must also ship **one lifecycle workflow, not two**: an
+    `<name>-install` beside an `<name>-upgrade` fails the `single-entrypoint`
+    check, because a fresh host and an existing one would run different commands
+    and the two paths drift; the single idempotent workflow must install when the
+    target is absent and upgrade when it is present, and say so in `## Upgrade`
+    and `RUN`. The
     `lintDefinitions` method also cross-references the `swamp audit` timeline,
     so a recent definition with no matching create command is flagged even when
     it carries a plausible id. It also checks that an extension needing its own
@@ -97,9 +103,9 @@ description: >
       swamp report get @svendowideit/meta-factory-report \
         --model meta-factory --markdown
 
-      # Upgrade an existing install in place after updating the extension: it
-      # refreshes the bundled extension-docs skill and re-scores your extensions
-      # under the current rules. Idempotent.
+      # The one lifecycle workflow: on a machine that has just pulled the
+      # extension it installs (refreshing the bundled extension-docs skill), and
+      # later runs upgrade and re-score under the current rules. Idempotent.
       swamp workflow run @svendowideit/meta-factory-upgrade
 
     The workflow's final assert step fails the run when any extension scores
@@ -129,10 +135,12 @@ description: >
 
   UPGRADE
 
-    Update the extension, then run the one upgrade workflow; it refreshes the
-    bundled `extension-docs` skill into your project and global skill
-    directories and re-scores your extensions under the current rules, and is
-    idempotent:
+    One workflow installs and upgrades — there is no separate install command,
+    so there is only ever one thing to remember. Run it on a fresh machine (it
+    installs, refreshing the bundled `extension-docs` skill into your project and
+    global skill directories) and run it again after `swamp extension update` (it
+    upgrades and re-scores your extensions under the current rules). It is
+    idempotent either way:
 
         swamp workflow run @svendowideit/meta-factory-upgrade
 

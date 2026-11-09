@@ -1429,7 +1429,7 @@ type ExecContext = {
 /** Model definition for the extension documentation meta-factory. */
 export const model = {
   type: "@svendowideit/meta-factory",
-  version: "2026.11.08.1",
+  version: "2026.11.09.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1451,7 +1451,16 @@ export const model = {
     {
       toVersion: "2026.10.02.1",
       description:
-        'Attach test-factory acceptance-test coverage to every score and the rollup: how many of a manifest\'s documented `swamp …` commands, and how many of the shipped methods and workflows, the candidate\'s `test-factory.yaml` exercises. Coverage is read from an existing @svendowideit/test-factory `coverage` resource, or computed by calling its `checkCoverage` method when none exists; it is reported in the score card, the checkAll rollup, and the scoreboard, and never affects the documentation score. Three new global arguments are added with defaults: `testCoverage` (true), `testFactoryModel` ("test-factory"), and `testFactoryType` ("@svendowideit/test-factory").',
+        "Attach test-factory acceptance-test coverage to every score and the " +
+        "rollup: how many of a manifest's documented `swamp …` commands, and " +
+        "how many of the shipped methods and workflows, the candidate's " +
+        "`test-factory.yaml` exercises. Coverage is read from an existing " +
+        "@svendowideit/test-factory `coverage` resource, or computed by calling " +
+        "its `checkCoverage` method when none exists; it is reported in the " +
+        "score card, the checkAll rollup, and the scoreboard, and never affects " +
+        "the documentation score. Three new global arguments are added with " +
+        'defaults: `testCoverage` (true), `testFactoryModel` ("test-factory"), ' +
+        'and `testFactoryType` ("@svendowideit/test-factory").',
       upgradeAttributes: (old: Record<string, unknown>) => ({
         ...old,
         testCoverage: old.testCoverage ?? true,
@@ -1462,7 +1471,17 @@ export const model = {
     {
       toVersion: "2026.10.10.1",
       description:
-        "Adds the upgrade-workflow requirement: every extension must document a single upgrade workflow in a new `## Upgrade` README section (a `swamp workflow run <name>-upgrade` command, or a statement that it installs nothing on the host so `swamp extension update` is the whole upgrade) and an `UPGRADE` section in the manifest manual. The rubric gains an `upgrade` check (5 points); README now requires the `## Upgrade` section, the manifest manual now requires `UPGRADE`, and the weights of format/examples/explain/packaging/symbols/creation were trimmed to keep the maximum at 100. Schema is additive — no global arguments change, existing models upgrade with no action beyond re-running a score.",
+        "Adds the upgrade-workflow requirement: every extension must document a " +
+        "single upgrade workflow in a new `## Upgrade` README section (a `swamp " +
+        "workflow run <name>-upgrade` command, or a statement that it installs " +
+        "nothing on the host so `swamp extension update` is the whole upgrade) " +
+        "and an `UPGRADE` section in the manifest manual. The rubric gains an " +
+        "`upgrade` check (5 points); README now requires the `## Upgrade` " +
+        "section, the manifest manual now requires `UPGRADE`, and the weights " +
+        "of format/examples/explain/packaging/symbols/creation were trimmed to " +
+        "keep the maximum at 100. Schema is additive — no global arguments " +
+        "change, existing models upgrade with no action beyond re-running a " +
+        "score.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
@@ -1519,6 +1538,20 @@ export const model = {
         "rebalanced (substance 3→2, packaging/metadata/artifacts/coverage " +
         "4→3) to fund it and keep the maximum at 100. Schema is additive — no " +
         "global arguments change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.09.1",
+      description:
+        "Requires one lifecycle workflow instead of a separate install and " +
+        "upgrade: a new `single-entrypoint` check (5 points) fails an " +
+        "extension that declares both `<name>-install` and `<name>-upgrade`, " +
+        "and requires the single surviving workflow to be documented as " +
+        "installing when the target is absent and upgrading when it is " +
+        "present (`describesInstallOrUpgrade`, or the no-host-artifacts " +
+        "exemption). `install` goes 13 → 10 and `upgrade` 5 → 3 so the " +
+        "maximum stays 100. Additive: no global arguments or resource shapes " +
+        "change, existing models upgrade with no action beyond re-scoring.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

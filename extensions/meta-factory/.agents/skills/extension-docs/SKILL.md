@@ -137,7 +137,7 @@ generics, comparisons, `.describe()` documentation, plain prose, and
 legitimate case with `// meta-factory-ignore user-guidance: <reason>` (or `#`
 in YAML).
 
-## Single-step install — 13% of the score
+## Single-step install — 10% of the score
 
 Getting the extension must be **one command**:
 
@@ -147,7 +147,7 @@ swamp extension pull @mycollective/my-extension
 
 If the `INSTALL` section needs more than that — a second pull, a
 `swamp extension source add`, a model-create prerequisite, anything else the
-user must run first — the `install` check scores **0/13**. Make it one step.
+user must run first — the `install` check scores **0/10**. Make it one step.
 
 ## Manifest format — space it for reading
 
@@ -326,14 +326,15 @@ detail in [references/rubric.md](references/rubric.md); the weights:
 | Manifest-as-user-manual | 7 | every required manual element, 300+ chars |
 | **Manual order (installs last)** | **4** | sections in canonical priority order |
 | **No methods section in the manifest** | **4** | swamp-club generates the method reference at publish |
-| **Single-step install** | **13** | one `swamp extension pull`, no extra setup |
+| **Single-step install** | **10** | one `swamp extension pull`, no extra setup |
 | Manifest formatting | 4 | literal block, blank-line sections, indented commands |
 | Functional examples | 3 | ≥3 distinct runnable `swamp …` commands, no placeholders |
 | **Explained examples** | **3** | every non-install command says why/when to run it |
 | Canonical README sections | 7 | the visible sections above |
 | **Setup + config lifecycle** | **5** | an `## Setup` section documenting persistence, reuse, and progressive enablement (only when a `setup` method is shipped) |
 | README substance | 2 | ≥1200 chars, ≥1 table |
-| **A documented single upgrade workflow** | **5** | an `## Upgrade` section naming one `swamp workflow run <name>-upgrade` entry point, explained; a required `--input model=`/`name=` identity input caps it at ⅖ unless discovery is documented |
+| **One install-or-upgrade workflow** | **5** | one lifecycle workflow, never an `<name>-install` next to an `<name>-upgrade`; its docs say it installs when the target is absent and upgrades when present |
+| **A documented single upgrade workflow** | **3** | an `## Upgrade` section naming one `swamp workflow run <name>-upgrade` entry point, explained; a required `--input model=`/`name=` identity input caps it at ⅖ unless discovery is documented |
 | README + LICENSE packaged | 3 | both listed in `additionalFiles:` |
 | Platforms / repository / license | 3 | declared metadata |
 | Artifacts declared | 3 | at least one model/report/etc. |

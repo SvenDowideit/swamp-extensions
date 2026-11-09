@@ -266,8 +266,8 @@ export const WEIGHTS = {
   order: 4,
   /** The manifest omits a hand-written methods section. */
   noMethods: 4,
-  /** Getting the extension is a single step (a multi-step install loses 13%). */
-  install: 13,
+  /** Getting the extension is a single step (a multi-step install loses 10%). */
+  install: 10,
   /** Manifest description is well-spaced and readable. */
   format: 4,
   /** Manifest/README carry functional, runnable examples. */
@@ -287,7 +287,9 @@ export const WEIGHTS = {
   /** Manifest declares at least one shipped artifact. */
   artifacts: 3,
   /** The README documents a single upgrade workflow. */
-  upgrade: 5,
+  upgrade: 3,
+  /** One workflow installs and upgrades — never a separate install/upgrade pair. */
+  singleEntrypoint: 5,
   /** The README actually explains every declared model and method. */
   coverage: 3,
   /** User-facing commands are copy-paste ready, with no placeholders. */
@@ -908,7 +910,7 @@ export function checkNoMethodsSection(rawManifest: string): CheckResult {
  * A single `swamp extension pull` is one step and earns full marks. If the
  * manual describes a multi-step install (additional `swamp …` commands the user
  * must run to get it working, e.g. a separate source-add or model-create
- * prerequisite), the check scores zero — a 13% penalty.
+ * prerequisite), the check scores zero — a 10% penalty.
  */
 export function checkInstallStep(rawManifest: string): CheckResult {
   const max = WEIGHTS.install;
@@ -1491,6 +1493,150 @@ export function checkUpgrade(md: string): CheckResult {
     note: hasWorkflow
       ? `single upgrade workflow documented: ${wf![1]}`
       : "no host artifacts — `swamp extension update` is the whole upgrade",
+  };
+}
+
+// ---------------------------------------------------------------------------
+// One install-or-upgrade workflow
+// ---------------------------------------------------------------------------
+
+/** A workflow file whose stem marks it as the install/upgrade lifecycle. */
+const LIFECYCLE_WORKFLOW = /(?:^|[-_/])(install|upgrade)\.ya?ml$/i;
+
+/**
+ * Text that says the one workflow covers a machine that has nothing yet *and* a
+ * machine that already has an older version. That is the whole point of a
+ * single entry point: the user runs the same command either way.
+ */
+const INSTALL_OR_UPGRADE = [
+  // "installs or upgrades", "upgrades and installs"
+  /\binstall\w*\b[^.\n]{0,100}\b(or|and|\/)\b[^.\n]{0,60}\bupgrad\w*/i,
+  /\bupgrad\w*\b[^.\n]{0,100}\b(or|and|\/)\b[^.\n]{0,60}\binstall\w*/i,
+  // "installs when it is missing", "upgrades when present"
+  /\binstall\w*\b[^.\n]{0,80}\b(when|if)\b[^.\n]{0,40}\b(missing|absent|not (yet )?(present|installed|there)|no (existing |prior )?(install|version))/i,
+  /\b(when|if)\b[^.\n]{0,40}\b(missing|absent|not (yet )?(present|installed|there)|no (existing |prior )?(install|version))\b[^.\n]{0,80}\binstall\w*/i,
+  // "a fresh install", "a first run on a new host", "freshly installed"
+  /\b(fresh|first|new)\s+(install|machine|host|box|run)\b/i,
+];
+
+/** Whether `text` says the single workflow also handles a fresh install. */
+export function describesInstallOrUpgrade(text: string): boolean {
+  return INSTALL_OR_UPGRADE.some((re) => re.test(text));
+}
+
+/**
+ * Score whether the extension ships **one** workflow that both installs and
+ * upgrades, instead of an `<name>-install` next to an `<name>-upgrade`.
+ *
+ * Two entry points for one job is a documentation trap as much as a code one:
+ * the reader has to know which command suits their machine, a fresh host runs a
+ * different command from an existing one, and the two drift (the install path
+ * gets the new step, the upgrade path does not). One idempotent workflow that
+ * detects whether the target is there — install when it is not, upgrade when it
+ * is, verify either way — is the contract.
+ *
+ * - exactly one install/upgrade workflow whose docs say it does both → full;
+ * - exactly one, but nothing says it handles a fresh install → half;
+ * - both an `-install` and an `-upgrade` workflow declared → 0;
+ * - neither (no lifecycle workflow: it installs nothing on the host, or the
+ *   lifecycle is per-model methods) → credited.
+ */
+export function checkSingleEntrypoint(
+  manifest: Manifest,
+  rawManifest: string,
+  readme: string,
+): CheckResult {
+  const max = WEIGHTS.singleEntrypoint;
+  const id = "single-entrypoint";
+  const label = "One workflow installs and upgrades";
+  const declared = (manifest.workflows ?? []).map((w) => String(w));
+  const lifecycle = declared.filter((w) => LIFECYCLE_WORKFLOW.test(w));
+  const installs = lifecycle.filter((w) => /install\.ya?ml$/i.test(w));
+  const upgrades = lifecycle.filter((w) => /upgrade\.ya?ml$/i.test(w));
+
+  if (installs.length > 0 && upgrades.length > 0) {
+    const keep = upgrades.map((w) => w.replace(/\.ya?ml$/i, "")).join(", ");
+    const drop = installs.join(", ");
+    return {
+      id,
+      label,
+      earned: 0,
+      max,
+      status: "fail",
+      note:
+        `\`${drop}\` and \`${keep}\` split one job in two, so a fresh machine ` +
+        `and an existing one run different commands and drift apart. Fold the ` +
+        `install into \`${keep}\`: resolve the target first, install when it ` +
+        `is absent, upgrade when it is present, verify either way — then ` +
+        `delete \`${drop}\` and document the one command as both the install ` +
+        `and the upgrade entry point`,
+    };
+  }
+
+  if (lifecycle.length === 0) {
+    return {
+      id,
+      label,
+      earned: max,
+      max,
+      status: "pass",
+      note:
+        "no install/upgrade workflow declared — nothing to split (per-model " +
+        "methods, or the extension installs nothing on the host)",
+    };
+  }
+
+  const entry = lifecycle[0];
+  const { lines } = manifestDescription(rawManifest);
+  const upgradeDoc = SECTIONS.find((s) => s.id === "upgrade")!;
+  const readmeUpgrade = sectionBody(readme, upgradeDoc) ?? "";
+  const manualBody = (elId: string): string => {
+    const el = MANUAL_ELEMENTS.find((e) => e.id === elId);
+    const body = el ? manualSection(lines, el) : null;
+    return body ? body.join("\n") : "";
+  };
+  const documented = `${manualBody("run")}\n${manualBody("upgrade")}\n` +
+    readmeUpgrade;
+
+  // The same exemption the upgrade check honours: an extension that installs
+  // nothing on the host has no fresh-install half to describe.
+  if (NO_HOST_ARTIFACTS.test(`${readmeUpgrade}\n${manualBody("installs")}`)) {
+    return {
+      id,
+      label,
+      earned: max,
+      max,
+      status: "pass",
+      note:
+        `one lifecycle workflow (\`${entry}\`), and the extension installs ` +
+        `nothing on the host, so there is no fresh install to reconcile`,
+    };
+  }
+
+  if (!describesInstallOrUpgrade(documented)) {
+    return {
+      id,
+      label,
+      earned: Math.round(max * 0.5),
+      max,
+      status: "partial",
+      note:
+        `\`${entry}\` is the only lifecycle workflow, but nothing says it also ` +
+        `handles a machine with nothing installed. State it in \`## Upgrade\` ` +
+        `and the manual's \`RUN\`: the same command installs when the target ` +
+        `is absent and upgrades when it is present, so the reader never has ` +
+        `to work out which command suits their host`,
+    };
+  }
+
+  return {
+    id,
+    label,
+    earned: max,
+    max,
+    status: "pass",
+    note:
+      `one lifecycle workflow (\`${entry}\`) documented as install-or-upgrade`,
   };
 }
 
@@ -2383,6 +2529,7 @@ export function scoreExtension(input: ScoreInput): ScoreResult {
     checkSetup(readme, hasSetupMethod),
     checkSubstance(readme),
     checkUpgrade(readme),
+    checkSingleEntrypoint(manifest, manifestSource, readme),
     checkPackaging(manifest),
     checkMetadata(manifest),
     checkArtifacts(manifest),

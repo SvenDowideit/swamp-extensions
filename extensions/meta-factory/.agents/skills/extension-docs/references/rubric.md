@@ -28,14 +28,15 @@ twenty-five weighted checks. The maximum is always 100.
 | `manual` | Manifest description is a complete user manual | 7 | all required `MANUAL_ELEMENTS` present and description ≥300 chars |
 | `order` | Manual sections are in priority order (installs last) | 4 | headings appear in `MANUAL_ORDER` |
 | `no-methods` | Manifest omits a hand-written methods section | 4 | no `METHODS`/`API`/`WHAT IT SHIPS` heading in the description |
-| `install` | Getting it is a single step | 13 | exactly one `swamp extension pull`, no extra setup commands |
+| `install` | Getting it is a single step | 10 | exactly one `swamp extension pull`, no extra setup commands |
 | `format` | Manifest description is well-spaced and readable | 4 | literal block, blank-line sections, indented commands, blank-line keys |
 | `examples` | Manifest/README carry functional examples | 3 | ≥3 distinct runnable `swamp …` commands with no placeholders |
 | `explain` | Example commands say why/when to run them | 3 | every functional non-install command has an adjacent comment or sentence; the one-line `swamp extension pull` is exempt |
 | `sections` | Canonical README sections | 7 | all required sections present and substantive |
 | `setup` | README documents setup, the config lifecycle, and reality | 5 | for an extension that ships a `setup` method: an `## Setup` section (40%) that says config is persisted (even partial), existing/shared config is detected and reused, capabilities enable progressively on approval, and reported outcomes are verified reality with a blocking failure stopping the run (60%); an extension with no `setup` method is credited automatically |
 | `substance` | README substance | 2 | ≥1200 chars (2), ≥1 markdown table (1) |
-| `upgrade` | README documents a single upgrade workflow | 5 | an `## Upgrade` section names one `swamp workflow run <name>-upgrade` entry point (or the no-host-artifacts exemption) and explains what is automatic or prompted; entry point present but unexplained (¾), section with no entry point (⅖), no section (0) |
+| `upgrade` | README documents a single upgrade workflow | 3 | an `## Upgrade` section names one `swamp workflow run <name>-upgrade` entry point (or the no-host-artifacts exemption) and explains what is automatic or prompted; entry point present but unexplained (¾), section with no entry point (⅖), no section (0) |
+| `single-entrypoint` | One workflow installs and upgrades | 5 | exactly one `<name>-install`/`<name>-upgrade` lifecycle workflow declared in `workflows:` — a pair scores 0; the single one must be documented as handling a machine with nothing installed as well as an upgrade (half if not); credited when no lifecycle workflow is declared or the extension installs nothing on the host |
 | `packaging` | README and LICENSE packaged | 3 | `README.md` in `additionalFiles:` (3) and a license file (3) |
 | `metadata` | Platforms, repository, license | 3 | platforms empty-or-≥2 (2), allowlisted HTTPS repo (1), license (1) |
 | `artifacts` | Declares shipped artifacts | 3 | ≥1 model/vault/datastore/report/workflow/skill |
@@ -172,7 +173,7 @@ and costs `4 / 8` points each. A heading is a full-line canonical label (≤45
 chars), so a method row like `run   Read the path.` is not mistaken for the
 `RUN` heading.
 
-## Single-step install (13 points)
+## Single-step install (10 points)
 
 Getting the extension must be **one command**:
 
@@ -182,10 +183,10 @@ swamp extension pull @mycollective/my-extension
 
 The `install` check reads the manifest's `INSTALL` section. If it contains more
 than one `swamp extension pull`, or any extra setup command (a `source add`,
-a model-create prerequisite, etc.), the check scores **0/13** — a multi-step
-install loses the full 13%.
+a model-create prerequisite, etc.), the check scores **0/10** — a multi-step
+install loses the full 10%.
 
-## The upgrade workflow (5 points)
+## The upgrade workflow (3 points)
 
 Every extension ships **one** documented upgrade entry point so an existing
 install can be brought up to date without the user working out which methods to
@@ -211,6 +212,38 @@ model name to remember"). Prompt for anything it cannot infer: use
 `manual_approval` for a destructive confirmation or anything secret (store it in
 a vault or an environment file — never a `wait_for_signal` payload, which is
 plaintext), and `wait_for_signal` only for non-secret values.
+
+## One install-or-upgrade workflow (5 points)
+
+One job, one workflow. An `<name>-install` next to an `<name>-upgrade` is a
+**fail**: the reader has to work out which command suits their machine, a fresh
+host runs a different command from an existing one, and the two drift — the new
+step lands in the install path and the upgrade path silently keeps the old one.
+Ship a single idempotent lifecycle workflow (`<name>-upgrade` by convention,
+because that is the command an owner reaches for) that:
+
+1. resolves its own target (never an `--input model=…` memory game),
+2. **installs when the target is absent** and upgrades when it is present,
+3. verifies either way, and says which of the two it did.
+
+The `single-entrypoint` check reads the manifest's `workflows:` list and the
+lifecycle prose (README `## Upgrade`, manual `RUN`/`UPGRADE`):
+
+- **full** — exactly one lifecycle workflow, and the docs say it covers a machine
+  with nothing installed as well as an upgrade ("installs or upgrades", "installs
+  when the tool is missing", "a fresh install"), **or** exactly one lifecycle
+  workflow and the extension installs nothing on the host;
+- **half** — one lifecycle workflow, but nothing says it handles a fresh
+  install — state it in `## Upgrade` and `RUN`;
+- **0** — both an `-install` and an `-upgrade` workflow are declared. Fold the
+  install into the upgrade workflow, delete the install workflow, and document
+  the one command as both entry points;
+- **credited** — no install/upgrade workflow is declared at all (per-model
+  methods, or nothing installed on the host).
+
+A workflow does not have to be the only way to install: an extension whose
+lifecycle is per-model methods (`caddy installCaddy`) still ships at most one
+*workflow*, and this check never asks for a second one.
 
 ## Well-spaced manifest format
 
@@ -259,7 +292,7 @@ config-lifecycle contract); every other element is always required.
 | `run` | how to run it (a `swamp workflow run` / `swamp model …` command) |
 | `configure` | how to configure its optional parts (global args, `--input`) |
 | `setup` | how the `setup` method detects/reuses config, persists partial values, and enables capabilities progressively |
-| `upgrade` | how to upgrade an existing install — one workflow that automates it |
+| `upgrade` | how to upgrade an existing install — one workflow that automates it (the same one that installs it) |
 | `installs` | what it installs — services, triggers, schedules, webhooks — or none |
 
 Each present element earns an equal share of the 7 points; when no `setup`

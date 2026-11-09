@@ -20,6 +20,7 @@ import {
   checkPitch,
   checkSections,
   checkSetup,
+  checkSingleEntrypoint,
   checkSubstance,
   checkSymbols,
   checkUpgrade,
@@ -28,6 +29,7 @@ import {
   configurableSurface,
   countCodeBlocks,
   declaredArtifactFiles,
+  describesInstallOrUpgrade,
   extractExamples,
   extractExplainedExamples,
   gradeFor,
@@ -330,7 +332,7 @@ Deno.test("checkInstallStep passes a single pull", () => {
   assertEquals(check.status, "pass");
 });
 
-Deno.test("checkInstallStep fails a multi-step install (13% penalty)", () => {
+Deno.test("checkInstallStep fails a multi-step install (10% penalty)", () => {
   const multi = GOOD_MANIFEST.replace(
     "  INSTALL\n\n      swamp extension pull @me/tool",
     "  INSTALL\n\n      swamp extension source add ./extensions/tool\n\n      swamp extension pull @me/tool",
@@ -338,7 +340,7 @@ Deno.test("checkInstallStep fails a multi-step install (13% penalty)", () => {
   const check = checkInstallStep(multi);
   assertEquals(check.earned, 0);
   assertEquals(check.status, "fail");
-  assertEquals(WEIGHTS.install, 13);
+  assertEquals(WEIGHTS.install, 10);
 });
 
 Deno.test("checkSections passes a full contract README", () => {
@@ -939,4 +941,99 @@ description: >
 `),
   );
   assertEquals(check.status, "pass");
+});
+
+// ---------------------------------------------------------------------------
+// One install-or-upgrade workflow
+// ---------------------------------------------------------------------------
+
+/** A manifest that declares the given lifecycle workflow files. */
+function manifestWithWorkflows(
+  files: string[],
+  { installsHost = true }: { installsHost?: boolean } = {},
+): string {
+  const withWorkflows = GOOD_MANIFEST.replace(
+    "models:\n  - tool.ts",
+    `models:\n  - tool.ts\n\nworkflows:\n${
+      files.map((f) => `  - ${f}`).join("\n")
+    }`,
+  );
+  if (!installsHost) return withWorkflows;
+  return withWorkflows.replace(
+    "    Nothing — no services, triggers, schedules, or webhooks.",
+    "    A systemd user service and the CLI it registers on PATH.",
+  );
+}
+
+Deno.test("checkSingleEntrypoint fails an install + upgrade pair", () => {
+  const raw = manifestWithWorkflows(["tool-install.yaml", "tool-upgrade.yaml"]);
+  const check = checkSingleEntrypoint(parseManifest(raw), raw, GOOD_README);
+  assertEquals(check.status, "fail");
+  assertEquals(check.earned, 0);
+  assertStringIncludes(check.note ?? "", "tool-install.yaml");
+  assertStringIncludes(check.note ?? "", "install when it");
+  assertStringIncludes(check.note ?? "", "delete");
+});
+
+Deno.test("checkSingleEntrypoint credits a single documented workflow", () => {
+  const raw = manifestWithWorkflows(["tool-upgrade.yaml"]);
+  const readme = GOOD_README.replace(
+    "## Upgrade",
+    "## Upgrade\n\nA fresh machine and an existing one run the same command: it installs when the tool is absent and upgrades when it is present.",
+  );
+  const check = checkSingleEntrypoint(parseManifest(raw), raw, readme);
+  assertEquals(check.status, "pass");
+  assertEquals(check.earned, WEIGHTS.singleEntrypoint);
+  assertStringIncludes(check.note ?? "", "tool-upgrade.yaml");
+});
+
+Deno.test("checkSingleEntrypoint asks for the fresh-install half", () => {
+  const raw = manifestWithWorkflows(["tool-upgrade.yaml"]);
+  const bare = GOOD_MANIFEST.replace(
+    /UPGRADE\n[\s\S]*?WHAT IT INSTALLS/,
+    "UPGRADE\n\n    Run the upgrade workflow.\n\n  WHAT IT INSTALLS",
+  );
+  const check = checkSingleEntrypoint(parseManifest(raw), raw, bare);
+  assertEquals(check.status, "partial");
+  assertEquals(check.earned, Math.round(WEIGHTS.singleEntrypoint * 0.5));
+  assertStringIncludes(check.note ?? "", "absent");
+});
+
+Deno.test("checkSingleEntrypoint credits an extension with no lifecycle workflow", () => {
+  const raw = GOOD_MANIFEST; // no `workflows:` at all
+  const check = checkSingleEntrypoint(parseManifest(raw), raw, GOOD_README);
+  assertEquals(check.status, "pass");
+  assertEquals(check.earned, WEIGHTS.singleEntrypoint);
+  assertStringIncludes(check.note ?? "", "no install/upgrade workflow");
+});
+
+Deno.test("checkSingleEntrypoint ignores workflows that are not the lifecycle", () => {
+  const raw = manifestWithWorkflows(["tool-setup.yaml", "tool-report.yaml"]);
+  const check = checkSingleEntrypoint(parseManifest(raw), raw, GOOD_README);
+  assertEquals(check.status, "pass");
+  assertEquals(check.earned, WEIGHTS.singleEntrypoint);
+});
+
+Deno.test("describesInstallOrUpgrade recognizes the honest phrasings", () => {
+  assert(describesInstallOrUpgrade("it installs or upgrades the tool"));
+  assert(
+    describesInstallOrUpgrade("upgrades an install, and installs it first"),
+  );
+  assert(describesInstallOrUpgrade("installs when the tool is missing"));
+  assert(
+    describesInstallOrUpgrade("if there is no install yet it installs it"),
+  );
+  assert(describesInstallOrUpgrade("use it for a fresh install too"));
+  assert(!describesInstallOrUpgrade("Run the upgrade workflow."));
+  assert(!describesInstallOrUpgrade("It upgrades an existing tool."));
+});
+
+Deno.test("checkSingleEntrypoint honours the no-host-artifacts exemption", () => {
+  const raw = manifestWithWorkflows(["tool-upgrade.yaml"], {
+    installsHost: false,
+  });
+  const check = checkSingleEntrypoint(parseManifest(raw), raw, GOOD_README);
+  assertEquals(check.status, "pass");
+  assertEquals(check.earned, WEIGHTS.singleEntrypoint);
+  assertStringIncludes(check.note ?? "", "installs nothing on the host");
 });

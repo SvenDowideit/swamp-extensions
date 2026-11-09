@@ -17,8 +17,8 @@ extension `0–100`).
 
 - the **manifest description is the user manual** — in canonical order, with a
   short `WHAT IT DOES` pitch first (why to be interested — not a method list),
-  `INSTALL` next (a **single step**: a multi-step install loses 13% of the
-  score, `install` check 0/13), then `DEPENDENCIES`, `RUN`, `CONFIGURE`, and
+  `INSTALL` next (a **single step**: a multi-step install loses 10% of the
+  score, `install` check 0/10), then `DEPENDENCIES`, `RUN`, `CONFIGURE`, and
   `WHAT IT INSTALLS` last. The manifest must **not** contain a `METHODS`
   section: swamp-club generates a formatted method reference at publish, so a
   hand-written list costs the `no-methods` points — the method list lives in the
@@ -225,7 +225,11 @@ swap report get @svendowideit/meta-factory-report \
 
 ## Upgrade
 
-Upgrade an existing install in one command after updating the extension:
+One workflow installs and upgrades: run it on a machine where the extension has
+just been pulled (fresh install) and run it again later to upgrade, and it does
+the right thing either way. It refreshes the bundled `extension-docs` skill into
+both skill directories and re-scores, and it installs nothing else on the host,
+so there is no install path that can drift from the upgrade path.
 
 ```sh
 # Update the extension, then refresh the bundled skill and re-score.
@@ -300,14 +304,17 @@ Reports and workflows:
   extensions (`checkAll gitOnly=true`) and prints the scoreboard, without
   gating.
 - `@svendowideit/meta-factory-upgrade` workflow — refreshes the bundled skill
-  and re-scores; the single upgrade entry point (see [Upgrade](#upgrade)).
+  and re-scores; the single lifecycle workflow, so it is also the install command
+  (see [Upgrade](#upgrade)).
 
-The score is the weighted sum of twenty-five checks (maximum 100): manifest name
+The score is the weighted sum of twenty-six checks (maximum 100): manifest name
 and description (4), short `WHAT IT DOES` pitch (5), manifest-as-user-manual
 (7), manual section order, installs last (4), **no methods section in the
-manifest (4)**, single-step install (13), manifest formatting (4), functional
+manifest (4)**, single-step install (10), manifest formatting (4), functional
 examples (3), explained examples (3), canonical README sections (7), README
-substance (2), **a documented single upgrade workflow (5)**, README + LICENSE
+substance (2), **a documented single upgrade workflow (3)**, **one workflow that
+installs *or* upgrades — never an `<name>-install` beside an
+`<name>-upgrade` (5)**, README + LICENSE
 packaging (3), platforms/repository/license metadata (3), declared artifacts
 (3), README coverage of every model and method (3), **definitions created by
 swamp creation commands (3)**, **the extension version read from `manifest.yaml`
@@ -440,6 +447,14 @@ the README section contract: edit `SECTIONS` (both the scorer and
 three: it adds an `UPGRADE` manual element, an `## Upgrade` README section, and a
 `checkUpgrade` function (in `checks`) that scores the documented single upgrade
 workflow; adding the section to `SECTIONS` also made `readme-lint.ts` require it.
+`checkSingleEntrypoint` is the second worked example, and the one to copy when
+adding a *definition* rule: it reads `manifest.workflows`, rejects an
+`-install`/`-upgrade` pair, and requires the single surviving workflow to be
+documented as installing when the target is absent and upgrading when it is
+present (`describesInstallOrUpgrade`) — or the no-host-artifacts exemption.
+Weights stay at 100: `install` went 13 → 10 and `upgrade` 5 → 3 to fund the new
+5-point check.
+
 `checkUpgrade` rewards a `swamp workflow run <name>-upgrade` command with an
 explanation of what is automatic and how the user is prompted, and accepts a
 "installs nothing on the host, so `swamp extension update` is the whole upgrade"

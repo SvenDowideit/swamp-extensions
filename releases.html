@@ -136,7 +136,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Linking.</strong> The app calls <code>POST /api/v1/delegations/links</code> with its integration credential and the person&#39;s external identity (platform, team, user). Serve starts the link on swamp-club and returns a consent URL and a redeem secret. The leader polls swamp-club at its interval. On approval it checks the consent digest and runs the same admission check as a sign-in, then reports the link. The app redeems once for a 1-hour access token (<code>swda1.</code>) and a rotating refresh token (<code>swdr1.</code>). A delegation lasts 30 days from consent and is never extended.</li>
 <li><strong>Rights.</strong> A delegated token acts as the person with client <code>integration:&lt;id&gt;</code>. Rights are the person&#39;s grants, within the integration&#39;s live ceiling, within the ceiling the person consented</li>
 </ul></div>
-
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/serve/guide.md" rel="noopener">.claude/skills/swamp/references/serve/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/serve/team-mode.md" rel="noopener">.claude/skills/swamp/references/serve/team-mode.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/access-control.md" rel="noopener">design/enablers/access-control.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/serve-audit.md" rel="noopener">design/enablers/serve-audit.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261109.032610.0-sha.36b062e6" rel="noopener">release v20261109.032610.0-sha.36b062e6</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/36b062e61fc918704be8fcbdfcd09ca5580e0fad" rel="noopener">36b062e6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3681" rel="noopener">#3681</a>𝗔 <a href="https://swamp-club.com/lab/4529" rel="noopener">lab#4529</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261109-003948-0-sha-b1781b00">
@@ -571,7 +571,7 @@ footer .ver{color:var(--acc)}
 <ul>
 <li>A ceiling covers only workflow selectors and allows only <code>run</code>, <code>read</code>, <code>approve</code> and <code>signal</code>, matched literally. Refusals are explicit denies, so an admin&#39;s fallback can&#39;t</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/serve/guide.md" rel="noopener">.claude/skills/swamp/references/serve/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/access-control.md" rel="noopener">design/enablers/access-control.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261107.202051.0-sha.8046d1d2" rel="noopener">release v20261107.202051.0-sha.8046d1d2</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8046d1d2605351eb8fa8bd423d0de9b1640de8c5" rel="noopener">8046d1d2</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3662" rel="noopener">#3662</a>𝗔 <a href="https://swamp-club.com/lab/4486" rel="noopener">lab#4486</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261107-171312-0-sha-31662113">
@@ -1032,7 +1032,7 @@ footer .ver{color:var(--acc)}
 <li><code>verify-build</code>, <code>verify-reviews</code> and <code>verify-skills</code> pass on this commit, and the attestation is posted.</li>
 <li>New unit, property and integration tests cover the client value, the record rules and forwarding. The rule tests were red-che</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/serve-audit.md" rel="noopener">design/enablers/serve-audit.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261106.132226.0-sha.5c623297" rel="noopener">release v20261106.132226.0-sha.5c623297</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/5c6232974e146e1e2f7b39cccd15f365d6012c32" rel="noopener">5c623297</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3643" rel="noopener">#3643</a>𝗔 <a href="https://swamp-club.com/lab/4460" rel="noopener">lab#4460</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261106-094050-0-sha-fcdd7e60">
@@ -1070,7 +1070,7 @@ footer .ver{color:var(--acc)}
 <li><strong>F10.</strong> <code>datastore lock release --behavior</code> accepts a bare name as well as type/name and type/id. Through serve, the name is resolved with <code>model.get</code>.</li>
 <li>**F8 — the grant</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/behavior/references/concurrency.md" rel="noopener">.claude/skills/swamp/references/behavior/references/concurrency.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/serve/team-mode.md" rel="noopener">.claude/skills/swamp/references/serve/team-mode.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/behavior/references/concurrency.md" rel="noopener">.claude/skills/swamp/references/behavior/references/concurrency.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261106.092615.0-sha.81aef049" rel="noopener">release v20261106.092615.0-sha.81aef049</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/81aef049771508702b4b439d93b1e53dccc775be" rel="noopener">81aef049</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3641" rel="noopener">#3641</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4374" rel="noopener">#4374</a>𝗔 <a href="https://swamp-club.com/lab/4454" rel="noopener">lab#4454</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261106-012700-0-sha-ebf04ac6">
@@ -3683,7 +3683,7 @@ footer .ver{color:var(--acc)}
 <ul><li><strong>fix</strong> — 107</li><li><strong>feat</strong> — 32</li><li><strong>perf</strong> — 4</li><li><strong>test</strong> — 4</li><li><strong>docs</strong> — 3</li><li><strong>chore</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-09T05:03:22.247Z">2026-11-09T05:03:22.247Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-09T06:18:47.958Z">2026-11-09T06:18:47.958Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

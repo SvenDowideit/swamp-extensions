@@ -1601,11 +1601,42 @@ Deno.test("a rename the vault did not actually do is reported, not claimed", asy
   assertEquals(migration.renamed, [], "no rename is claimed");
   assertEquals(migration.failures.length, 1, "the failure is reported");
   assert(
-    migration.failures[0].reason.includes("did not create"),
-    "the reason says the destination is missing",
+    migration.failures[0].reason.includes("did not rename"),
+    "the reason says the rename did not happen",
   );
   assert(
     vault.notes.has("Factory/Cards/FAC-2 board-automation.md"),
     "the card keeps its old filename",
+  );
+});
+
+Deno.test("a large vault renames in bounded batches and finishes later", async () => {
+  const files: Record<string, string> = {};
+  for (let n = 1; n <= 5; n++) {
+    files[`Factory/Cards/FAC-${n} title-${n}.md`] = composeNote({
+      id: `fac-${n}`,
+      title: `Title ${n}`,
+      kind: "action",
+      status: "Proposed",
+      relations: [],
+    }, `# Title ${n}\n\nBody ${n}`);
+  }
+  const vault = new FakeVault(files);
+  const first = await migrateCardPaths(vault.context, false, 2);
+  assertEquals(first.renamed.length, 2, "two renamed in the first run");
+  assertEquals(first.pending.length, 3, "the rest wait for the next run");
+  const second = await migrateCardPaths(vault.context, false, 40);
+  assertEquals(second.renamed.length, 3, "the rest are renamed");
+  assertEquals(second.pending, [], "nothing left pending");
+  assertEquals(
+    [...vault.notes.keys()].sort(),
+    [
+      "Factory/Cards/title-1.md",
+      "Factory/Cards/title-2.md",
+      "Factory/Cards/title-3.md",
+      "Factory/Cards/title-4.md",
+      "Factory/Cards/title-5.md",
+    ],
+    "every card is title-only",
   );
 });

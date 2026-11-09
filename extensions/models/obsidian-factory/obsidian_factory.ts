@@ -300,6 +300,7 @@ const TickSchema = z.object({
   migrated: z.number(),
   renamed: z.array(z.string()),
   migrationFailures: z.array(z.string()),
+  migrationPending: z.array(z.string()),
   repinned: z.array(z.string()),
   pinned: z.array(z.string()),
   errors: z.array(z.string()),
@@ -1847,13 +1848,6 @@ async function renameNote(
   if (!result.ok) {
     return result.error?.message ?? `could not rename '${from}'`;
   }
-  // The CLI exits 0 for a file it did not find, so verify the move happened.
-  if (!(await noteExists(context, to))) {
-    return `the vault did not create '${to}'`;
-  }
-  if (await noteExists(context, from)) {
-    return `the vault did not remove '${from}'`;
-  }
   return null;
 }
 
@@ -1862,6 +1856,9 @@ export interface CardPathMigration {
   renamed: Array<{ id: string; from: string; to: string }>;
   displayCleared: string[];
   failures: Array<{ path: string; reason: string }>;
+  /** Legacy filenames left for the next run, so one run stays inside the
+   * model's cross-behavior call budget on a large vault. */
+  pending: string[];
 }
 
 /**
@@ -1869,15 +1866,22 @@ export interface CardPathMigration {
  * that is already title-only is a no-op. When the vault cannot rename (the
  * Obsidian CLI or its vault argument is unavailable) the old filename stays,
  * the failure is reported, and no duplicate note is created.
+ *
+ * `maxRenames` bounds how many notes one run renames: a vault of many cards
+ * would otherwise exceed the model's cross-behavior call budget. The rest are
+ * reported as `pending` and the next run continues; the migration is
+ * idempotent.
  */
 export async function migrateCardPaths(
   context: FactoryContext,
   dryRun = false,
+  maxRenames = 8,
 ): Promise<CardPathMigration> {
   const migration: CardPathMigration = {
     renamed: [],
     displayCleared: [],
     failures: [],
+    pending: [],
   };
   const folder = cardsFolder(context);
   const cards = await readAllCards(context);
@@ -1896,6 +1900,10 @@ export async function migrateCardPaths(
     );
     const desired = titleOnlyPath(folder, title, others);
     if (desired.toLowerCase() === card.path.toLowerCase()) continue;
+    if (migration.renamed.length >= maxRenames) {
+      migration.pending.push(id);
+      continue;
+    }
     const from = card.path;
     const failure = dryRun ? null : await renameNote(context, from, desired);
     if (failure !== null) {
@@ -1915,13 +1923,36 @@ export async function migrateCardPaths(
     }
     return migration;
   }
-  // Then drop the codename property and rewrite old activity text.
-  for (const card of await readAllCards(context)) {
+  // Then drop the codename property and rewrite old activity text. The re-read
+  // is also the check that each rename happened: the CLI reports success for a
+  // file it did not find.
+  const pending = new Set(migration.pending);
+  const fresh = await readAllCards(context);
+  const freshTaken = new Set(fresh.map((card) => card.path.toLowerCase()));
+  for (const card of fresh) {
     const id = card.frontmatter.id;
     const title = typeof card.frontmatter.title === "string" &&
         card.frontmatter.title.trim().length > 0
       ? card.frontmatter.title.trim()
       : id;
+    if (!pending.has(id)) {
+      const others = [...freshTaken].filter((path) =>
+        path !== card.path.toLowerCase()
+      );
+      const desired = titleOnlyPath(folder, title, others);
+      if (desired.toLowerCase() !== card.path.toLowerCase()) {
+        const attempted = migration.renamed.find((item) => item.id === id);
+        if (attempted) {
+          migration.failures.push({
+            path: attempted.from,
+            reason: `the vault did not rename it to '${attempted.to}'`,
+          });
+          migration.renamed = migration.renamed.filter((item) =>
+            item !== attempted
+          );
+        }
+      }
+    }
     const oldDisplay = typeof card.frontmatter.display === "string" &&
         card.frontmatter.display.trim().length > 0
       ? card.frontmatter.display.trim()
@@ -3349,8 +3380,9 @@ async function executeInstallCardCss(
 async function migrateCardsInternal(
   context: FactoryContext,
   dryRun = false,
+  maxRenames = 8,
 ): Promise<CardMigration> {
-  const paths = await migrateCardPaths(context, dryRun);
+  const paths = await migrateCardPaths(context, dryRun, maxRenames);
   const cards = await readAllCards(context);
   let changed = 0;
   for (const card of cards) {
@@ -3424,7 +3456,9 @@ async function executeMigrateCards(
 ): Promise<{ dataHandles: Array<{ name: string }> }> {
   context.logger.info("Migrating cards to the readable card layout");
   const dryRun = args.dryRun === true;
-  const migration = await migrateCardsInternal(context, dryRun);
+  // A whole vault fits here: no queue or definition work competes for the
+  // model's cross-behavior call budget.
+  const migration = await migrateCardsInternal(context, dryRun, 40);
   const changed = migration.changed + migration.renamed.length;
   const handle = await context.writeResource(
     "operation",
@@ -3439,6 +3473,9 @@ async function executeMigrateCards(
         `${migration.displayCleared.length} codename property removed` +
         (migration.failures.length > 0
           ? `; ${migration.failures.length} rename(s) could not run`
+          : "") +
+        (migration.pending.length > 0
+          ? `; ${migration.pending.length} rename(s) left for the next run`
           : ""),
       timestamp: nowIso(),
       renamed: migration.renamed.map((item) => `${item.id}: ${item.to}`),
@@ -3806,7 +3843,7 @@ async function executeTick(
   const plugin = await ensurePluginData(context, dryRun);
   const cli = await enableObsidianCli(dryRun);
   const css = await ensureCardCss(context, dryRun);
-  const migration = await migrateCardsInternal(context, dryRun);
+  const migration = await migrateCardsInternal(context, dryRun, 6);
   const migrated = migration.changed + migration.renamed.length;
   const upgrade = args.upgradeDefinitions === false
     ? { repinned: [], pinned: [], errors: ["definition upgrade disabled"] }
@@ -3826,6 +3863,7 @@ async function executeTick(
     migrationFailures: migration.failures.map((item) =>
       `${item.path}: ${item.reason}`
     ),
+    migrationPending: migration.pending,
     repinned: upgrade.repinned,
     pinned: upgrade.pinned,
     errors: upgrade.errors,

@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/obsidian-factory"
-version: "2026.11.09.4"
+version: "2026.11.09.5"
 description: >
   An Obsidian Bases board that is a stagecraft tracker: ideas arrive on one
   uncharacterised card, become category cards and proposed actions, then move
@@ -12,7 +12,11 @@ description: >
     tested and released work without leaving the board. This extension makes
     the vault the factory's tracker: one note per ticket, a Bases Kanban whose
     columns are statuses, and a readable At a glance / Plan section above the
-    detailed activity log. Stagecraft enforces the stages, gates and human
+    detailed activity log. The optional plugin puts the fields that matter for
+    a card's column on its card face — the open questions in Proposed, the plan
+    and what it still covers in Work Planned and Please Implement, the checks in
+    Please Test and Please Release — instead of the same Kind/Project/Source
+    rows in every column. Stagecraft enforces the stages, gates and human
     stops; the extension keeps the board, the cards and the plan current. It is
     better than a separate tracker because the person drags a card, adds a
     thought or ticks a task in the same place the agent reads its work.
@@ -39,10 +43,10 @@ description: >
       swamp behavior run obsidian-board installBoard
 
       # Optional: install the card dialog plugin. It adds the capture box on
-      # the Board page, the read-only card dialog and the move buttons, and is
-      # added to community-plugins.json by default; restart Obsidian once to
-      # load it. Pass enable=false to leave it disabled for Settings ->
-      # Community plugins.
+      # the Board page, the read-only card dialog, the move buttons and the
+      # per-column card face, and is added to community-plugins.json by
+      # default; restart Obsidian once to load it. Pass enable=false to leave it
+      # disabled for Settings -> Community plugins.
       swamp behavior run obsidian-board installBoardPlugin
 
       # One-time: create the agent runner. It is deliberately a separate

@@ -162,6 +162,138 @@ function readableCard(raw) {
     plan: stripManagedMarkers(planBlock)
   };
 }
+var SUPERSEDED_PROPERTIES = [
+  { key: "kind", label: "Kind" },
+  { key: "project", label: "Project" },
+  { key: "source", label: "Source" },
+  { key: "updated", label: "Updated" }
+];
+function propertyKeyClass(key) {
+  return `mod-${key.trim().toLowerCase()}`;
+}
+function isSupersededPropertyRow(classes, label = "") {
+  const wanted = label.trim().toLowerCase();
+  return SUPERSEDED_PROPERTIES.some(
+    (property) => classes.includes(propertyKeyClass(property.key)) || wanted !== "" && wanted === property.label.toLowerCase()
+  );
+}
+function isPlaceholderText(text) {
+  const trimmed = text.trim();
+  return trimmed === "" || /^_.*_$/.test(trimmed);
+}
+function labelledBullets(markdown, label) {
+  const wanted = label.trim().toLowerCase();
+  const bullets = [];
+  let inside = false;
+  for (const line of markdown.split(/\r?\n/)) {
+    const bold = /^\*\*(.+?):?\*\*\s*$/.exec(line.trim());
+    if (bold) {
+      inside = bold[1].trim().toLowerCase() === wanted;
+      continue;
+    }
+    if (!inside) continue;
+    const bullet = /^\s*[-*]\s+(.*)$/.exec(line);
+    if (bullet) {
+      bullets.push(bullet[1].trim());
+      continue;
+    }
+    if (line.trim() !== "") inside = false;
+  }
+  return bullets;
+}
+function labelledValue(markdown, label) {
+  const pattern = new RegExp(
+    `\\*\\*${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*:?\\*\\*\\s*(.*)$`,
+    "im"
+  );
+  const match = pattern.exec(markdown);
+  return match ? match[1].trim() : "";
+}
+function summaryPlanStatus(markdown) {
+  const match = /\*\*Plan:\*\*\s*([A-Za-z]+)/i.exec(markdown);
+  return match ? match[1].toLowerCase() : "";
+}
+function planChecklist(plan, heading) {
+  const wanted = heading.trim().toLowerCase();
+  const counts = { done: 0, total: 0 };
+  let inside = false;
+  for (const line of plan.split(/\r?\n/)) {
+    const headingMatch = /^#{1,6}\s+(.*)$/.exec(line);
+    if (headingMatch) {
+      inside = headingMatch[1].trim().toLowerCase() === wanted;
+      continue;
+    }
+    if (!inside) continue;
+    const box = /^\s*- \[( |x|X)\]\s+(.*)$/.exec(line);
+    if (!box) continue;
+    if (isPlaceholderText(box[2])) continue;
+    counts.total++;
+    if (box[1].toLowerCase() === "x") counts.done++;
+  }
+  return counts;
+}
+function reportsChecks(text) {
+  return /^(the\s+)?(release\s+)?(checks?|tests?)\b/i.test(text.trim());
+}
+var PLAN_COLUMNS = [
+  "Please Plan",
+  "Work Planned",
+  "Please Implement",
+  "Please Test",
+  "User Acceptance",
+  "Please Release"
+];
+var PROJECT_COLUMNS = ["Proposed", ...PLAN_COLUMNS];
+var CHECK_COLUMNS = ["Please Test", "Please Release"];
+function remaining(counts) {
+  const left = counts.total - counts.done;
+  if (left === 0) return `all ${counts.total} done`;
+  return `${left} of ${counts.total} left`;
+}
+function columnFields(status, raw, project = "") {
+  const column = status.trim();
+  if (!STATUSES.includes(column)) return [];
+  const body = stripFrontmatter(raw);
+  const summary = managedBlock(body, "summary");
+  const plan = managedBlock(body, "plan");
+  if (summary === "" && plan === "") return [];
+  const fields = [];
+  const needs = labelledBullets(summary, "Needs your input").filter((item) => !isPlaceholderText(item));
+  if (needs.length > 0) {
+    fields.push({
+      label: "Needs your input",
+      value: needs.length === 1 ? needs[0] : `${needs[0]} (+${needs.length - 1} more)`
+    });
+  }
+  const next = labelledValue(summary, "Next");
+  if (next !== "" && !isPlaceholderText(next)) {
+    fields.push({ label: "Next", value: next });
+  }
+  if (PLAN_COLUMNS.includes(column)) {
+    const planStatus = summaryPlanStatus(summary);
+    if (planStatus !== "") {
+      fields.push({ label: "Plan", value: planStatus });
+    }
+    const tasks = planChecklist(plan, "Tasks");
+    if (tasks.total > 0) {
+      fields.push({ label: "Tasks", value: remaining(tasks) });
+    }
+    const tests = planChecklist(plan, "Tests");
+    if (tests.total > 0) {
+      fields.push({ label: "Tests", value: remaining(tests) });
+    }
+  }
+  if (CHECK_COLUMNS.includes(column)) {
+    const checks = labelledBullets(summary, "Known").filter((item) => !isPlaceholderText(item) && reportsChecks(item));
+    if (checks.length > 0) {
+      fields.push({ label: "Checks", value: checks.join(" \xB7 ") });
+    }
+  }
+  if (PROJECT_COLUMNS.includes(column) && project.trim() !== "") {
+    fields.push({ label: "Project", value: project.trim() });
+  }
+  return fields;
+}
 var CAPTURE_PLACEHOLDER = "Add an idea to the inbox...";
 function captureTextProblem(text) {
   if (text.trim() === "") {
@@ -256,6 +388,7 @@ var ObsidianFactoryPlugin = class extends import_obsidian.Plugin {
   tickLastLine = "";
   tickStartedAt = 0;
   tickTimer = null;
+  fieldPassInFlight = /* @__PURE__ */ new Set();
   async onload() {
     await this.loadSettings();
     this.registerDomEvent(document, "click", (event) => {
@@ -724,14 +857,7 @@ ${ok ? "\u2713" : "\u2717"} ${detail}
       document.querySelectorAll(".bases-kanban-card")
     );
     if (cards.length === 0) return;
-    const byTitle = /* @__PURE__ */ new Map();
-    for (const file of this.app.vault.getMarkdownFiles()) {
-      if (!isCardPath(file.path)) continue;
-      const cache = this.app.metadataCache.getFileCache(file);
-      const frontmatter = cache?.frontmatter;
-      const title = frontmatter && typeof frontmatter === "object" && typeof frontmatter.title === "string" ? frontmatter.title : file.basename.replace(/^FAC-\d+\s+/, "");
-      byTitle.set(title.trim().toLowerCase(), file);
-    }
+    const byTitle = this.cardFilesByTitle();
     for (const cardEl of cards) {
       if (cardEl.dataset.factoryMoves === "1") continue;
       const titleEl = cardEl.querySelector(
@@ -764,6 +890,99 @@ ${ok ? "\u2713" : "\u2717"} ${detail}
       row.appendChild(open);
       cardEl.prepend(row);
       cardEl.dataset.factoryMoves = "1";
+    }
+    this.decorateCardFields(byTitle);
+  }
+  /** Map each card's human title to its vault file, for the kanban cards. */
+  cardFilesByTitle() {
+    const byTitle = /* @__PURE__ */ new Map();
+    for (const file of this.app.vault.getMarkdownFiles()) {
+      if (!isCardPath(file.path)) continue;
+      const cache = this.app.metadataCache.getFileCache(file);
+      const frontmatter = cache?.frontmatter;
+      const title = frontmatter && typeof frontmatter === "object" && typeof frontmatter.title === "string" ? frontmatter.title : file.basename.replace(/^FAC-\d+\s+/, "");
+      byTitle.set(title.trim().toLowerCase(), file);
+    }
+    return byTitle;
+  }
+  /**
+   * Put the fields that matter for each card's column on the kanban card face
+   * and hide the four rows they replace.
+   *
+   * This pass is separate from the moves pass on purpose: a card in Done,
+   * Category or Uncharacterised has no legal move, so a fields block rendered
+   * inside that loop would never appear on it. It reads the card and writes
+   * nothing: obsidian-board stays the only writer of the managed sections.
+   */
+  decorateCardFields(byTitle) {
+    const cards = Array.from(
+      document.querySelectorAll(".bases-kanban-card")
+    );
+    for (const cardEl of cards) {
+      void this.decorateCardFieldsOne(cardEl, byTitle);
+    }
+  }
+  async decorateCardFieldsOne(cardEl, byTitle) {
+    const titleEl = cardEl.querySelector(
+      ".bases-kanban-card-property.mod-title .bases-kanban-card-line"
+    ) ?? cardEl.querySelector(".bases-kanban-card-line");
+    const title = titleEl?.textContent?.trim() ?? "";
+    const file = byTitle.get(title.toLowerCase());
+    if (!file) return;
+    if (this.fieldPassInFlight.has(file.path)) return;
+    this.fieldPassInFlight.add(file.path);
+    try {
+      const raw = await this.app.vault.cachedRead(file);
+      if (!cardEl.isConnected) return;
+      const frontmatter = this.app.metadataCache.getFileCache(file)?.frontmatter;
+      const status = statusFromFrontmatter(frontmatter);
+      const project = frontmatter && typeof frontmatter === "object" && typeof frontmatter.project === "string" ? frontmatter.project : "";
+      const updated = frontmatter && typeof frontmatter === "object" && typeof frontmatter.updated === "string" ? frontmatter.updated : "";
+      this.hideSupersededRows(cardEl);
+      const fields = columnFields(status, raw, project);
+      const signature = `${updated}|${fields.length}`;
+      const existing = cardEl.querySelector(
+        ".factory-card-fields"
+      );
+      if (existing?.dataset.factoryFieldsKey === signature) return;
+      existing?.remove();
+      if (fields.length === 0) return;
+      const block = document.createElement("div");
+      block.className = "factory-card-fields";
+      block.dataset.factoryFieldsKey = signature;
+      for (const field of fields) {
+        const row = document.createElement("div");
+        row.className = "factory-card-field";
+        const label = document.createElement("span");
+        label.className = "factory-card-field-label";
+        label.textContent = field.label;
+        const value = document.createElement("span");
+        value.className = "factory-card-field-value";
+        value.textContent = field.value;
+        row.appendChild(label);
+        row.appendChild(value);
+        block.appendChild(row);
+      }
+      const moves = cardEl.querySelector(".factory-card-moves");
+      if (moves) cardEl.insertBefore(block, moves.nextSibling);
+      else cardEl.prepend(block);
+      cardEl.dataset.factoryFields = "1";
+    } catch {
+    } finally {
+      this.fieldPassInFlight.delete(file.path);
+    }
+  }
+  /** Hide the four property rows the fields block replaces. */
+  hideSupersededRows(cardEl) {
+    const rows = Array.from(
+      cardEl.querySelectorAll(".bases-kanban-card-property")
+    );
+    for (const row of rows) {
+      const label = row.querySelector(
+        ".bases-kanban-card-property-label, .bases-kanban-card-property-name"
+      )?.textContent ?? row.getAttribute("aria-label") ?? "";
+      if (!isSupersededPropertyRow(Array.from(row.classList), label)) continue;
+      row.classList.add("factory-card-field-hidden");
     }
   }
   /**

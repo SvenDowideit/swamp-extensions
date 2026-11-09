@@ -201,6 +201,228 @@ export function readableCard(raw: string): ReadableCard {
 }
 
 // ---------------------------------------------------------------------------
+// The card face: the fields that matter for the current column
+// ---------------------------------------------------------------------------
+
+/** One labelled row on the kanban card face. */
+export interface CardField {
+  label: string;
+  value: string;
+}
+
+/** One Bases property the column block replaces, by key and shipped label. */
+export interface SupersededProperty {
+  key: string;
+  label: string;
+}
+
+/**
+ * The four Bases property rows the column block replaces. They are read from
+ * the card's frontmatter, which the table views, the dialog and Open in editor
+ * still show; only the kanban card face drops them.
+ */
+const SUPERSEDED_PROPERTIES: readonly SupersededProperty[] = [
+  { key: "kind", label: "Kind" },
+  { key: "project", label: "Project" },
+  { key: "source", label: "Source" },
+  { key: "updated", label: "Updated" },
+];
+
+/** The four rows the card face replaces, as a fresh copy. */
+export function supersededCardProperties(): SupersededProperty[] {
+  return SUPERSEDED_PROPERTIES.map((property) => ({ ...property }));
+}
+
+/** The Bases modifier class a property row carries, e.g. `mod-kind`. */
+export function propertyKeyClass(key: string): string {
+  return `mod-${key.trim().toLowerCase()}`;
+}
+
+/**
+ * True when a property row is one of the four superseded rows.
+ *
+ * The key class is the stable match; the shipped label is the fallback for a
+ * Bases build that does not put the key on the row.
+ */
+export function isSupersededPropertyRow(
+  classes: readonly string[],
+  label = "",
+): boolean {
+  const wanted = label.trim().toLowerCase();
+  return SUPERSEDED_PROPERTIES.some((property) =>
+    classes.includes(propertyKeyClass(property.key)) ||
+    (wanted !== "" && wanted === property.label.toLowerCase())
+  );
+}
+
+/** True when a line is a managed placeholder such as `_Nothing recorded yet._`. */
+export function isPlaceholderText(text: string): boolean {
+  const trimmed = text.trim();
+  return trimmed === "" || /^_.*_$/.test(trimmed);
+}
+
+/** The bullet items under a bold label line such as `**Needs your input**`. */
+export function labelledBullets(markdown: string, label: string): string[] {
+  const wanted = label.trim().toLowerCase();
+  const bullets: string[] = [];
+  let inside = false;
+  for (const line of markdown.split(/\r?\n/)) {
+    const bold = /^\*\*(.+?):?\*\*\s*$/.exec(line.trim());
+    if (bold) {
+      inside = bold[1].trim().toLowerCase() === wanted;
+      continue;
+    }
+    if (!inside) continue;
+    const bullet = /^\s*[-*]\s+(.*)$/.exec(line);
+    if (bullet) {
+      bullets.push(bullet[1].trim());
+      continue;
+    }
+    if (line.trim() !== "") inside = false;
+  }
+  return bullets;
+}
+
+/** The value of an inline label such as `**Next:** Do the thing`. */
+export function labelledValue(markdown: string, label: string): string {
+  const pattern = new RegExp(
+    `\\*\\*${
+      label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    }\\s*:?\\*\\*\\s*(.*)$`,
+    "im",
+  );
+  const match = pattern.exec(markdown);
+  return match ? match[1].trim() : "";
+}
+
+/** The plan status word from the managed summary's `**Plan:** ...` line. */
+export function summaryPlanStatus(markdown: string): string {
+  const match = /\*\*Plan:\*\*\s*([A-Za-z]+)/i.exec(markdown);
+  return match ? match[1].toLowerCase() : "";
+}
+
+/** How many checklist items one plan heading holds. */
+export interface PlanChecklist {
+  done: number;
+  total: number;
+}
+
+/** Count the checklist under one plan heading, ignoring placeholders. */
+export function planChecklist(
+  plan: string,
+  heading: string,
+): PlanChecklist {
+  const wanted = heading.trim().toLowerCase();
+  const counts = { done: 0, total: 0 };
+  let inside = false;
+  for (const line of plan.split(/\r?\n/)) {
+    const headingMatch = /^#{1,6}\s+(.*)$/.exec(line);
+    if (headingMatch) {
+      inside = headingMatch[1].trim().toLowerCase() === wanted;
+      continue;
+    }
+    if (!inside) continue;
+    const box = /^\s*- \[( |x|X)\]\s+(.*)$/.exec(line);
+    if (!box) continue;
+    if (isPlaceholderText(box[2])) continue;
+    counts.total++;
+    if (box[1].toLowerCase() === "x") counts.done++;
+  }
+  return counts;
+}
+
+/** True when a known line reports a check, such as `Checks: ... passed`. */
+function reportsChecks(text: string): boolean {
+  return /^(the\s+)?(release\s+)?(checks?|tests?)\b/i.test(text.trim());
+}
+
+/** The columns whose decision is a plan: the plan status and its progress. */
+const PLAN_COLUMNS: readonly string[] = [
+  "Please Plan",
+  "Work Planned",
+  "Please Implement",
+  "Please Test",
+  "User Acceptance",
+  "Please Release",
+];
+
+/** The columns where the project path decides where the work lands. */
+const PROJECT_COLUMNS: readonly string[] = ["Proposed", ...PLAN_COLUMNS];
+
+/** The columns whose decision is a check run. */
+const CHECK_COLUMNS: readonly string[] = ["Please Test", "Please Release"];
+
+/** `3 of 6 left`, or `all 6 done` when nothing is left. */
+function remaining(counts: PlanChecklist): string {
+  const left = counts.total - counts.done;
+  if (left === 0) return `all ${counts.total} done`;
+  return `${left} of ${counts.total} left`;
+}
+
+/**
+ * The fields that matter for one card in one column.
+ *
+ * It reads only the card's managed At a glance and Plan (the person's prose is
+ * theirs) plus the project path, which is frontmatter. It invents nothing: a
+ * missing value renders no row, a managed placeholder is not a value, and a
+ * status outside the board renders no fields at all.
+ */
+export function columnFields(
+  status: string,
+  raw: string,
+  project = "",
+): CardField[] {
+  const column = status.trim();
+  if (!(STATUSES as readonly string[]).includes(column)) return [];
+  const body = stripFrontmatter(raw);
+  const summary = managedBlock(body, "summary");
+  const plan = managedBlock(body, "plan");
+  // A card with no managed At a glance and no managed Plan has nothing for
+  // this block to read, so it renders nothing rather than a bare path.
+  if (summary === "" && plan === "") return [];
+  const fields: CardField[] = [];
+  const needs = labelledBullets(summary, "Needs your input")
+    .filter((item) => !isPlaceholderText(item));
+  if (needs.length > 0) {
+    fields.push({
+      label: "Needs your input",
+      value: needs.length === 1
+        ? needs[0]
+        : `${needs[0]} (+${needs.length - 1} more)`,
+    });
+  }
+  const next = labelledValue(summary, "Next");
+  if (next !== "" && !isPlaceholderText(next)) {
+    fields.push({ label: "Next", value: next });
+  }
+  if (PLAN_COLUMNS.includes(column)) {
+    const planStatus = summaryPlanStatus(summary);
+    if (planStatus !== "") {
+      fields.push({ label: "Plan", value: planStatus });
+    }
+    const tasks = planChecklist(plan, "Tasks");
+    if (tasks.total > 0) {
+      fields.push({ label: "Tasks", value: remaining(tasks) });
+    }
+    const tests = planChecklist(plan, "Tests");
+    if (tests.total > 0) {
+      fields.push({ label: "Tests", value: remaining(tests) });
+    }
+  }
+  if (CHECK_COLUMNS.includes(column)) {
+    const checks = labelledBullets(summary, "Known")
+      .filter((item) => !isPlaceholderText(item) && reportsChecks(item));
+    if (checks.length > 0) {
+      fields.push({ label: "Checks", value: checks.join(" · ") });
+    }
+  }
+  if (PROJECT_COLUMNS.includes(column) && project.trim() !== "") {
+    fields.push({ label: "Project", value: project.trim() });
+  }
+  return fields;
+}
+
+// ---------------------------------------------------------------------------
 // Capture
 // ---------------------------------------------------------------------------
 

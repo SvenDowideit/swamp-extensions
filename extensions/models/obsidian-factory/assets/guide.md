@@ -108,6 +108,37 @@ offers the same moves. Clicking one writes the card's status; the next tick
 follows the card. A card with no legal move shows no move buttons. The native
 drag still works.
 
+## What a card shows in its column
+
+Below the moves row the same plugin shows the fields that matter for the column
+the card is in, read from the card's managed `## At a glance` and `## Plan`:
+
+- **Uncharacterised**, **Category** and **Done** show **Needs your input** and
+  **Next**.
+- **Proposed** adds **Project**: where the work would land decides the move to
+  Please Plan.
+- **Please Plan**, **Work Planned**, **Please Implement**, **User Acceptance**
+  and **Please Release** add **Plan** (draft or final), **Tasks** and **Tests**
+  left, so you can see what the plan still covers.
+- **Please Test** and **Please Release** also show **Checks**, from the known
+  lines that report a check run.
+
+A value that is missing is not shown, and a managed placeholder is not a value.
+Every card gets the block, including Done, Category and Uncharacterised cards
+that have no move buttons. The plugin only reads: the managed sections stay the
+board's to write.
+
+**Kind**, **Project**, **Source** and **Updated** are hidden on that face
+because they are the same in every column. They stay in the note's frontmatter
+(**Open in editor**), the **All cards** and **Waiting for a person** tables, the
+**Inbox and categories** cards view and the card dialog. The plugin matches
+rows by their Bases property key class (`mod-kind` and so on) with the display
+name as a fallback, so a renamed property still hides. Without the plugin the
+card face keeps the four rows as they are. A `Board.base` you already have is
+left alone unless you run `installBoard --input force=true`; a freshly
+installed one orders the **Board** view by the card title only and keeps every
+property in its tables.
+
 ## Archiving a finished card
 
 Finished cards leave the board instead of piling up in **Done**. Open

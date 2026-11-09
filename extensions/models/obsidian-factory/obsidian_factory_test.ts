@@ -1454,6 +1454,61 @@ Deno.test("the board summary shows the human title, not the codename", () => {
   }
 });
 
+Deno.test(
+  "the kanban orders by the title only and the tables keep the properties",
+  () => {
+    const base = parseYaml(boardBase) as {
+      properties: Record<string, unknown>;
+      views: Array<{ name: string; type: string; order?: string[] }>;
+    };
+    const kanban = base.views.find((view) => view.type === "kanban");
+    assertEquals(
+      kanban?.order,
+      ["file.name"],
+      "the kanban card face leads with the human title only",
+    );
+    const all = base.views.find((view) => view.name === "All cards");
+    assertEquals(
+      all?.order,
+      [
+        "file.name",
+        "note.status",
+        "note.kind",
+        "note.project",
+        "note.source",
+        "note.updated",
+      ],
+      "the All cards table keeps every property",
+    );
+    const cards = base.views.find((view) =>
+      view.name === "Inbox and categories"
+    );
+    for (const field of ["note.status", "note.kind", "note.updated"]) {
+      assert(
+        (cards?.order ?? []).includes(field),
+        `the cards views keep ${field}`,
+      );
+    }
+    const waiting = base.views.find((view) =>
+      view.name === "Waiting for a person"
+    );
+    for (const field of ["note.status", "note.kind", "note.updated"]) {
+      assert(
+        (waiting?.order ?? []).includes(field),
+        `the waiting table keeps ${field}`,
+      );
+    }
+    for (
+      const key of ["note.kind", "note.project", "note.source", "note.updated"]
+    ) {
+      assert(
+        key in base.properties,
+        `${key} keeps its display name so the plugin can still read it`,
+      );
+    }
+  },
+);
+
 Deno.test("renaming a card preserves its id and rewrites links to it", async () => {
   const vault = new FakeVault({
     "Factory/Cards/FAC-2 board-automation.md": sampleCardNote(),

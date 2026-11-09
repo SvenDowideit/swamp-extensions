@@ -226,7 +226,11 @@ failure is reported, and no duplicate note is created.
 
 - `Factory/Board.base` — a Bases Kanban view grouped by `note.status`, with the
   ten columns in flow order, plus a table view and a "waiting for a person"
-  view. Kanban requires Obsidian 1.14 or later.
+  view. The **Board** view orders by the card title only: the fields a column
+  needs come from the plugin's card face (see below), while **All cards**,
+  **Waiting for a person** and **Inbox and categories** keep `note.status`,
+  `note.kind`, `note.project`, `note.source` and `note.updated`. Kanban requires
+  Obsidian 1.14 or later.
 - `Factory/Board.md` — a page embedding the board and explaining the flow.
 - `Factory/Archive.base` — a table over `Factory/Archive` grouped by
   `note.archiveStatus`, with one view per outcome, the title, the reason, the
@@ -238,6 +242,38 @@ failure is reported, and no duplicate note is created.
   plugin templates.
 - `Factory/Cards/uncharacterised.md` — the one inbox card. It is found by
   `kind: inbox`, so it is never duplicated and never overwritten.
+
+### The card face
+
+The optional plugin's card face follows the card's column. The plugin reads
+only the card's managed `## At a glance` and `## Plan` plus the `project`
+property, and writes nothing; every card gets the block, whether or not it has
+move buttons.
+
+| Column | Fields on the face |
+| --- | --- |
+| Uncharacterised, Category, Done | **Needs your input**, **Next** |
+| Proposed | plus **Project** |
+| Please Plan, Work Planned, Please Implement, User Acceptance | plus **Plan** (draft or final), **Tasks** and **Tests** left |
+| Please Test, Please Release | plus **Checks**, from the known lines that report a check run |
+
+A missing value renders no row, and a managed placeholder (`_Nothing recorded
+yet._`) is not a value, so the face never invents a field. **Needs your input**
+shows the first open question and how many more there are.
+
+The plugin hides the four **Kind**, **Project**, **Source** and **Updated** rows
+on that face only. They stay in the note's frontmatter (**Open in editor**), the
+**All cards** and **Waiting for a person** tables, the **Inbox and categories**
+cards view and the card dialog. Rows are matched by their Bases property key
+class (`mod-kind`, `mod-project`, `mod-source`, `mod-updated`) with the
+property's display name as a fallback, so renaming a display name does not
+bring a row back. The decoration is kanban-only: the cards views keep their
+properties.
+
+Without the plugin the card face keeps the four rows. `installBoard` writes
+`Factory/Board.base` only when it is missing or with `--input force=true`, so an
+older `Board.base` — including one you edited — is left exactly as it is and the
+plugin's row hiding is what changes its card face.
 
 ### Methods
 

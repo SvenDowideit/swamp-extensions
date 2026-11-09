@@ -53,6 +53,57 @@ The machine-written sections use markers (`swamp:summary`, `swamp:plan`,
 reading view and live preview, run `swamp behavior run obsidian-board
 installCardCss` and enable the snippet in Settings → Appearance → CSS snippets.
 
+## What a card shows in its column
+
+A card's column decides what is worth reading on it, so with the optional
+**Obsidian Factory** plugin the kanban card face shows the fields that matter
+for the column the card sits in. The plugin reads each card's managed
+`## At a glance` and `## Plan` (and the `project` property) and writes nothing.
+
+| Column | What the card face shows |
+| --- | --- |
+| Uncharacterised | **Needs your input**, **Next** |
+| Category | **Needs your input**, **Next** |
+| Proposed | plus **Project**, so you can see where the work would land |
+| Please Plan | plus **Plan** (draft or final), **Tasks** and **Tests** left |
+| Work Planned | the same, so you can see what the plan still covers |
+| Please Implement | the same, so you can see what is left to do |
+| Please Test | plus **Checks**, the known lines that report a check run |
+| User Acceptance | the plan fields, so you can see what you are trying |
+| Please Release | plus **Checks** |
+| Done | **Needs your input**, **Next** |
+
+A field with no value is not shown, and a managed placeholder such as
+_"Nothing recorded yet."_ is not a value. **Needs your input** shows the first
+open question and how many more there are; open the card for all of them.
+
+## Where kind, project, source and updated went
+
+The kanban card face no longer shows **Kind**, **Project**, **Source** and
+**Updated**: they are the same in every column, so they decided nothing there.
+They are not gone:
+
+- the note's frontmatter still holds them, and **Open in editor** shows them;
+- the **All cards** and **Waiting for a person** tables, and the **Inbox and
+  categories** cards view, still order by and show them;
+- the card dialog shows **At a glance**, the brief and the Plan.
+
+The plugin hides those four rows on the kanban card face only, and it matches
+rows by their Bases property key class (`mod-kind`, `mod-project`,
+`mod-source`, `mod-updated`) with the property's display name as a fallback, so
+renaming a display name does not bring the row back.
+
+Two things to know:
+
+- The plugin is optional. Without it the card face keeps showing **Kind**,
+  **Project**, **Source** and **Updated**, and nothing is hidden.
+- `installBoard` writes `{{folder}}/Board.base` only when it is missing, or when
+you pass `--input force=true`. An older `Board.base` is therefore left exactly
+as you edited it, including its kanban order; the plugin's row hiding is what
+changes the card face on that vault today. A freshly installed `Board.base`
+orders the **Board** view by the card title only, while its tables keep every
+property.
+
 ## Templates
 
 `{{folder}}/Templates/` holds card, category and action templates for the core

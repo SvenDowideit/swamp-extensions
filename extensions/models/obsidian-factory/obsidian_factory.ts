@@ -4116,7 +4116,7 @@ async function executeQueue(
 /** The tracker: stagecraft's contract 1 over an Obsidian board. */
 export const model = {
   type: "@svendowideit/obsidian-factory",
-  version: "2026.11.09.4",
+  version: "2026.11.09.5",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -4433,6 +4433,19 @@ export const model = {
         "so the capture box appears after the note/Bases view renders (the " +
         "event-only version could run before the view existed). Decoration " +
         "still checks for an existing box, so it cannot duplicate.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.09.5",
+      description:
+        "Give the kanban card face the fields that matter for its column: a " +
+        "decorateCardFields pass reads each card's managed At a glance and " +
+        "Plan and shows Needs your input and Next in every column, Plan/Tasks/" +
+        "Tests where a plan exists, Checks in Please Test and Please Release, " +
+        "and Project from Proposed to Please Release, hiding the four " +
+        "Kind/Project/Source/Updated rows by Bases key class. The shipped " +
+        "Board.base orders the kanban by title only; the tables keep every " +
+        "property.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

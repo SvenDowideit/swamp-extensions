@@ -23,10 +23,12 @@ import {
   CAPTURE_PLACEHOLDER,
   captureRequestBody,
   captureTextProblem,
+  columnFields,
   isArchivablePath,
   isArchivedPath,
   isBoardPath,
   isCardPath,
+  isSupersededPropertyRow,
   movesForStatus,
   readableCard,
   sanitizeMarkdown,
@@ -126,6 +128,7 @@ export default class ObsidianFactoryPlugin extends Plugin {
   private tickLastLine = "";
   private tickStartedAt = 0;
   private tickTimer: number | null = null;
+  private fieldPassInFlight = new Set<string>();
 
   override async onload(): Promise<void> {
     await this.loadSettings();
@@ -656,17 +659,7 @@ export default class ObsidianFactoryPlugin extends Plugin {
       document.querySelectorAll<HTMLElement>(".bases-kanban-card"),
     );
     if (cards.length === 0) return;
-    const byTitle = new Map<string, TFile>();
-    for (const file of this.app.vault.getMarkdownFiles()) {
-      if (!isCardPath(file.path)) continue;
-      const cache = this.app.metadataCache.getFileCache(file);
-      const frontmatter = cache?.frontmatter;
-      const title = frontmatter && typeof frontmatter === "object" &&
-          typeof (frontmatter as { title?: unknown }).title === "string"
-        ? (frontmatter as { title: string }).title
-        : file.basename.replace(/^FAC-\d+\s+/, "");
-      byTitle.set(title.trim().toLowerCase(), file);
-    }
+    const byTitle = this.cardFilesByTitle();
     for (const cardEl of cards) {
       if (cardEl.dataset.factoryMoves === "1") continue;
       const titleEl = cardEl.querySelector(
@@ -699,6 +692,123 @@ export default class ObsidianFactoryPlugin extends Plugin {
       row.appendChild(open);
       cardEl.prepend(row);
       cardEl.dataset.factoryMoves = "1";
+    }
+    // The fields pass runs after the moves pass, so the moves row keeps the
+    // top of the card and the fields block is stable whatever order the
+    // workspace hooks fire in.
+    this.decorateCardFields(byTitle);
+  }
+
+  /** Map each card's human title to its vault file, for the kanban cards. */
+  private cardFilesByTitle(): Map<string, TFile> {
+    const byTitle = new Map<string, TFile>();
+    for (const file of this.app.vault.getMarkdownFiles()) {
+      if (!isCardPath(file.path)) continue;
+      const cache = this.app.metadataCache.getFileCache(file);
+      const frontmatter = cache?.frontmatter;
+      const title = frontmatter && typeof frontmatter === "object" &&
+          typeof (frontmatter as { title?: unknown }).title === "string"
+        ? (frontmatter as { title: string }).title
+        : file.basename.replace(/^FAC-\d+\s+/, "");
+      byTitle.set(title.trim().toLowerCase(), file);
+    }
+    return byTitle;
+  }
+
+  /**
+   * Put the fields that matter for each card's column on the kanban card face
+   * and hide the four rows they replace.
+   *
+   * This pass is separate from the moves pass on purpose: a card in Done,
+   * Category or Uncharacterised has no legal move, so a fields block rendered
+   * inside that loop would never appear on it. It reads the card and writes
+   * nothing: obsidian-board stays the only writer of the managed sections.
+   */
+  private decorateCardFields(byTitle: Map<string, TFile>): void {
+    const cards = Array.from(
+      document.querySelectorAll<HTMLElement>(".bases-kanban-card"),
+    );
+    for (const cardEl of cards) {
+      void this.decorateCardFieldsOne(cardEl, byTitle);
+    }
+  }
+
+  private async decorateCardFieldsOne(
+    cardEl: HTMLElement,
+    byTitle: Map<string, TFile>,
+  ): Promise<void> {
+    const titleEl = cardEl.querySelector(
+      ".bases-kanban-card-property.mod-title .bases-kanban-card-line",
+    ) ?? cardEl.querySelector(".bases-kanban-card-line");
+    const title = titleEl?.textContent?.trim() ?? "";
+    const file = byTitle.get(title.toLowerCase());
+    if (!file) return;
+    // Mark the file before the first await: the observer fires often enough
+    // for two passes to overlap the read, and a second block would stack.
+    if (this.fieldPassInFlight.has(file.path)) return;
+    this.fieldPassInFlight.add(file.path);
+    try {
+      const raw = await this.app.vault.cachedRead(file);
+      if (!cardEl.isConnected) return;
+      const frontmatter = this.app.metadataCache.getFileCache(file)
+        ?.frontmatter;
+      const status = statusFromFrontmatter(frontmatter);
+      const project = frontmatter && typeof frontmatter === "object" &&
+          typeof (frontmatter as { project?: unknown }).project === "string"
+        ? (frontmatter as { project: string }).project
+        : "";
+      const updated = frontmatter && typeof frontmatter === "object" &&
+          typeof (frontmatter as { updated?: unknown }).updated === "string"
+        ? (frontmatter as { updated: string }).updated
+        : "";
+      this.hideSupersededRows(cardEl);
+      const fields = columnFields(status, raw, project);
+      const signature = `${updated}|${fields.length}`;
+      const existing = cardEl.querySelector<HTMLElement>(
+        ".factory-card-fields",
+      );
+      if (existing?.dataset.factoryFieldsKey === signature) return;
+      existing?.remove();
+      if (fields.length === 0) return;
+      const block = document.createElement("div");
+      block.className = "factory-card-fields";
+      block.dataset.factoryFieldsKey = signature;
+      for (const field of fields) {
+        const row = document.createElement("div");
+        row.className = "factory-card-field";
+        const label = document.createElement("span");
+        label.className = "factory-card-field-label";
+        label.textContent = field.label;
+        const value = document.createElement("span");
+        value.className = "factory-card-field-value";
+        value.textContent = field.value;
+        row.appendChild(label);
+        row.appendChild(value);
+        block.appendChild(row);
+      }
+      const moves = cardEl.querySelector(".factory-card-moves");
+      if (moves) cardEl.insertBefore(block, moves.nextSibling);
+      else cardEl.prepend(block);
+      cardEl.dataset.factoryFields = "1";
+    } catch {
+      // A card that vanished or failed to read gets no block this pass and is
+      // retried on the next one: the finally below clears the in-flight mark.
+    } finally {
+      this.fieldPassInFlight.delete(file.path);
+    }
+  }
+
+  /** Hide the four property rows the fields block replaces. */
+  private hideSupersededRows(cardEl: HTMLElement): void {
+    const rows = Array.from(
+      cardEl.querySelectorAll<HTMLElement>(".bases-kanban-card-property"),
+    );
+    for (const row of rows) {
+      const label = row.querySelector(
+        ".bases-kanban-card-property-label, .bases-kanban-card-property-name",
+      )?.textContent ?? row.getAttribute("aria-label") ?? "";
+      if (!isSupersededPropertyRow(Array.from(row.classList), label)) continue;
+      row.classList.add("factory-card-field-hidden");
     }
   }
 

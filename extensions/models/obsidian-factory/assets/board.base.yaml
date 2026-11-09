@@ -37,10 +37,6 @@ views:
       - Done
     order:
       - file.name
-      - note.kind
-      - note.project
-      - note.source
-      - note.updated
   - type: table
     name: All cards
     order:

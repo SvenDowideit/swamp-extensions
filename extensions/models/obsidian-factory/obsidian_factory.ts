@@ -4116,7 +4116,7 @@ async function executeQueue(
 /** The tracker: stagecraft's contract 1 over an Obsidian board. */
 export const model = {
   type: "@svendowideit/obsidian-factory",
-  version: "2026.11.09.5",
+  version: "2026.11.09.6",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -4446,6 +4446,16 @@ export const model = {
         "Kind/Project/Source/Updated rows by Bases key class. The shipped " +
         "Board.base orders the kanban by title only; the tables keep every " +
         "property.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.09.6",
+      description:
+        "Make the card-face field pass resilient: if the Bases title line " +
+        "does not map to a file, try the card's note link and then a " +
+        "contained-title match; add a Factory: diagnose card fields command " +
+        "that reports the card DOM, file match, status and field count to " +
+        "the tick log.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

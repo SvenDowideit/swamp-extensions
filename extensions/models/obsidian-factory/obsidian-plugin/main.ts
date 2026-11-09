@@ -164,6 +164,14 @@ export default class ObsidianFactoryPlugin extends Plugin {
     };
 
     this.addCommand({
+      id: "diagnose-card-fields",
+      name: "Factory: diagnose card fields",
+      callback: () => {
+        void this.diagnoseCardFields();
+      },
+    });
+
+    this.addCommand({
       id: "open-card-dialog",
       name: "Open factory card as dialog",
       checkCallback: (checking: boolean) => {
@@ -741,7 +749,30 @@ export default class ObsidianFactoryPlugin extends Plugin {
       ".bases-kanban-card-property.mod-title .bases-kanban-card-line",
     ) ?? cardEl.querySelector(".bases-kanban-card-line");
     const title = titleEl?.textContent?.trim() ?? "";
-    const file = byTitle.get(title.toLowerCase());
+    let file = byTitle.get(title.toLowerCase());
+    if (!file) {
+      // The Bases card may expose the note link rather than the title line,
+      // or the visible title may carry extra text. Try the link first, then a
+      // contained-title match, before giving up.
+      const href = cardEl.getAttribute("data-href") ??
+        cardEl.querySelector<HTMLAnchorElement>("a.internal-link")
+          ?.getAttribute("data-href") ??
+        cardEl.querySelector<HTMLAnchorElement>("a.internal-link")
+          ?.getAttribute("href") ??
+        "";
+      if (href) {
+        file = this.app.metadataCache.getFirstLinkpathDest(href, "") ??
+          undefined;
+      }
+      if (!file && title) {
+        for (const [key, candidate] of byTitle) {
+          if (title.toLowerCase().includes(key)) {
+            file = candidate;
+            break;
+          }
+        }
+      }
+    }
     if (!file) return;
     // Mark the file before the first await: the observer fires often enough
     // for two passes to overlap the read, and a second block would stack.
@@ -810,6 +841,81 @@ export default class ObsidianFactoryPlugin extends Plugin {
       if (!isSupersededPropertyRow(Array.from(row.classList), label)) continue;
       row.classList.add("factory-card-field-hidden");
     }
+  }
+
+  /** Write a compact DOM/match/fields report to the tick log for diagnosis. */
+  private async diagnoseCardFields(): Promise<void> {
+    const cards = Array.from(
+      document.querySelectorAll<HTMLElement>(".bases-kanban-card"),
+    );
+    const byTitle = this.cardFilesByTitle();
+    const lines = [
+      `factory card fields diagnosis`,
+      `cards=${cards.length} mappedTitles=${byTitle.size}`,
+    ];
+    for (const cardEl of cards.slice(0, 10)) {
+      const titleEl = cardEl.querySelector(
+        ".bases-kanban-card-property.mod-title .bases-kanban-card-line",
+      ) ?? cardEl.querySelector(".bases-kanban-card-line");
+      const title = titleEl?.textContent?.trim() ?? "";
+      const href = cardEl.getAttribute("data-href") ??
+        cardEl.querySelector("a.internal-link")?.getAttribute("data-href") ??
+        "";
+      let file = byTitle.get(title.toLowerCase());
+      if (!file && href) {
+        file = this.app.metadataCache.getFirstLinkpathDest(href, "") ??
+          undefined;
+      }
+      if (!file && title) {
+        for (const [key, candidate] of byTitle) {
+          if (title.toLowerCase().includes(key)) {
+            file = candidate;
+            break;
+          }
+        }
+      }
+      let status = "";
+      let fields = -1;
+      let error = "";
+      if (file) {
+        const frontmatter = this.app.metadataCache.getFileCache(file)
+          ?.frontmatter;
+        status = statusFromFrontmatter(frontmatter);
+        try {
+          const raw = await this.app.vault.cachedRead(file);
+          const project = frontmatter && typeof frontmatter === "object" &&
+              typeof (frontmatter as { project?: unknown }).project === "string"
+            ? (frontmatter as { project: string }).project
+            : "";
+          fields = columnFields(status, raw, project).length;
+        } catch (err) {
+          error = err instanceof Error ? err.message : String(err);
+        }
+      }
+      lines.push(
+        `--- title=${JSON.stringify(title)} href=${JSON.stringify(href)} ` +
+          `file=${file?.path ?? "none"} status=${JSON.stringify(status)} ` +
+          `fields=${fields} block=${
+            Boolean(cardEl.querySelector(".factory-card-fields"))
+          } ` +
+          `moves=${Boolean(cardEl.querySelector(".factory-card-moves"))} ` +
+          `error=${JSON.stringify(error)}`,
+      );
+      for (
+        const row of Array.from(
+          cardEl.querySelectorAll<HTMLElement>(".bases-kanban-card-property"),
+        )
+      ) {
+        lines.push(
+          `    row class=${JSON.stringify(row.className)} ` +
+            `text=${
+              JSON.stringify(row.textContent?.trim().slice(0, 100) ?? "")
+            }`,
+        );
+      }
+    }
+    this.tickLog = lines.join("\n") + "\n";
+    this.showLog();
   }
 
   /**

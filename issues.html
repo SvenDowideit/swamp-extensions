@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4531"><span class="tier A">A</span>feat(workflows): fan-out rollout: lanes start in canary batc</a><a href="#issue-4529"><span class="tier A">A</span>Delegation: link a person to an integration and issue their </a><a href="#issue-4528"><span class="tier A">A</span>Split the Litestream restore test file so it no longer sets </a><a href="#issue-4438"><span class="tier A">A</span>swamp-lib: workflowRun never settles when a run suspends at </a><a href="#issue-4505"><span class="tier A">A</span>Run the test suite in several smaller processes, so verifica</a><a href="#issue-4445"><span class="tier A">A</span>swamp-lib: workflowRunStream drops a refusal and ends as if </a><a href="#issue-4527"><span class="tier A">A</span>fix(datastore): the run-record judge freezes a fan-out job&#39;s</a><a href="#issue-4518"><span class="tier A">A</span>Serve restart after kill -9 leaves the killed run reading ru</a><a href="#issue-4519"><span class="tier A">A</span>control_plane_schedule_state_repository_test: &#39;list skips a </a><a href="#issue-4526"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-4517"><span class="tier A">A</span>Cloudflare codegen: a nested properties-beside-oneOf require</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4525"><span class="tier A">A</span>Team mode: a member write takes 2 requests to serve instead </a><a href="#issue-4531"><span class="tier A">A</span>feat(workflows): fan-out rollout: lanes start in canary batc</a><a href="#issue-4529"><span class="tier A">A</span>Delegation: link a person to an integration and issue their </a><a href="#issue-4528"><span class="tier A">A</span>Split the Litestream restore test file so it no longer sets </a><a href="#issue-4438"><span class="tier A">A</span>swamp-lib: workflowRun never settles when a run suspends at </a><a href="#issue-4505"><span class="tier A">A</span>Run the test suite in several smaller processes, so verifica</a><a href="#issue-4445"><span class="tier A">A</span>swamp-lib: workflowRunStream drops a refusal and ends as if </a><a href="#issue-4527"><span class="tier A">A</span>fix(datastore): the run-record judge freezes a fan-out job&#39;s</a><a href="#issue-4518"><span class="tier A">A</span>Serve restart after kill -9 leaves the killed run reading ru</a><a href="#issue-4519"><span class="tier A">A</span>control_plane_schedule_state_repository_test: &#39;list skips a </a><a href="#issue-4526"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a></aside><div>
 
 <article class="item" id="issue-4239">
 <h2><span class="tier S">S</span>swamp issue: file bugs, features and security reports against the platform source</h2>
@@ -76,6 +76,14 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-4525">
+<h2><span class="tier A">A</span>Team mode: a member write takes 2 requests to serve instead of 8, workflows batch per step, and write cost stays flat over a day of history (performance from #4374)</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-09T12:12:19.656Z">2026-11-09T12:12:19.656Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4525" rel="noopener">lab#4525</a></div>
 </article>
 <article class="item" id="issue-4531">
 <h2><span class="tier A">A</span>feat(workflows): fan-out rollout: lanes start in canary batches under an error budget (maxFailures as a count or a percentage), hold the rest on a halt, and resume continues the rollout</h2>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4526" rel="noopener">lab#4526</a></div>
 </article>
-<article class="item" id="issue-4517">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4517">
 <h2><span class="tier A">A</span>Cloudflare codegen: a nested properties-beside-oneOf required list can be read as the PUT body&#39;s complete required list</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-08T22:00:24.855Z">2026-11-08T22:00:24.855Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4517" rel="noopener">lab#4517</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4522">
+<article class="item" id="issue-4522">
 <h2><span class="tier A">A</span>Team mode: member writes fail with GCS 429 once a team commits faster than once a second, because serve rewrites the lineage head object on every commit (F38 from #4374)</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-08T21:14:57.558Z">2026-11-08T21:14:57.558Z</time></span></div>
@@ -1821,21 +1829,21 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
+<article class="item" id="issue-4539">
+<h2><span class="tier B">B</span>Team mode: a commit&#39;s cost on serve grows with history</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-09T13:01:02.949Z">2026-11-09T13:01:02.949Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4539" rel="noopener">lab#4539</a></div>
+</article>
 <article class="item" id="issue-4536">
 <h2><span class="tier B">B</span>API runs out of Mongo connections under bursts: extension push timeouts, membership failures and UAT 500s</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-09T11:58:48.844Z">2026-11-09T11:58:48.844Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-09T13:00:27.236Z">2026-11-09T13:00:27.236Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4536" rel="noopener">lab#4536</a></div>
-</article>
-<article class="item" id="issue-4525">
-<h2><span class="tier B">B</span>Team mode: a member write takes 2 requests to serve instead of 8, workflows batch per step, and write cost stays flat over a day of history (performance from #4374)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-09T10:57:37.053Z">2026-11-09T10:57:37.053Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4525" rel="noopener">lab#4525</a></div>
 </article>
 <article class="item" id="issue-4465">
 <h2><span class="tier B">B</span>Dashboard data item page cannot show an item once its behavior definition is deleted, though the data remains</h2>
@@ -1869,7 +1877,23 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4374" rel="noopener">lab#4374</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4523">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4540">
+<h2><span class="tier C">C</span>Ambient tags: set tags once per repo/worktree (env or .swamp), add them to every run and everything downstream, filter run history by tag</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-09T12:45:57.034Z">2026-11-09T12:45:57.034Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4540" rel="noopener">lab#4540</a></div>
+</article>
+<article class="item" id="issue-4538">
+<h2><span class="tier C">C</span>Allow editing recent feed submissions</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-09T12:16:35.881Z">2026-11-09T12:16:35.881Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4538" rel="noopener">lab#4538</a></div>
+</article>
+<article class="item" id="issue-4523">
 <h2><span class="tier C">C</span>Native interactive report views in the dashboard, with scoped workflow refresh</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-11-09T11:26:49.278Z">2026-11-09T11:26:49.278Z</time></span></div>
@@ -2726,13 +2750,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>332 items across 1 source(s) in this window:
-1 critical, 218 notable, 6 routine,
-107 minor.</p>
-<ul><li><strong>issues</strong> — 332</li></ul></section>
+<p>335 items across 1 source(s) in this window:
+1 critical, 219 notable, 6 routine,
+109 minor.</p>
+<ul><li><strong>issues</strong> — 335</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-09T12:05:40.632Z">2026-11-09T12:05:40.632Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-09T13:04:09.217Z">2026-11-09T13:04:09.217Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

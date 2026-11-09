@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/obsidian-factory"
-version: "2026.11.09.12"
+version: "2026.11.09.13"
 description: >
   An Obsidian Bases board that is a stagecraft tracker: ideas arrive on one
   uncharacterised card, become category cards and proposed actions, then move
@@ -13,10 +13,10 @@ description: >
     the vault the factory's tracker: one note per ticket, a Bases Kanban whose
     columns are statuses, and a readable At a glance / Plan section above the
     detailed activity log. The card face is a native Bases property: the
-    factory writes a one-line `cardSummary` chosen by the column — needs and
-    project in Proposed, plan/task/test progress in the plan columns, checks in
-    Test and Release, ideas/questions in Category, thoughts in the inbox — so
-    every card reads as a plain Bases card with the facts for that column.
+    card face is three native Bases rows — What (card intro or Plan summary),
+    Now (task/test progress, checks, open need or current questions) and Next
+    (the actual next move) — instead of overlaid fields or repeated
+    Kind/Project/Source rows.
     Stagecraft enforces the stages, gates and human
     stops; the extension keeps the board, the cards and the plan current. It is
     better than a separate tracker because the person drags a card, adds a

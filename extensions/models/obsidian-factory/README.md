@@ -245,29 +245,22 @@ failure is reported, and no duplicate note is created.
 
 ### The card face
 
-The kanban card face is native Bases: the card title plus one `cardSummary`
-property, written by `obsidian-board` from the card's managed `## At a glance`.
-The line carries the stage, plan status, first open question and next move:
+The kanban card face is native Bases, with three short content rows written by
+`obsidian-board` from the card:
 
-```text
-Add the ESPHome ingest method… · Tasks 3/6 · Tests 2/5
-```
+- **What** — the card intro or Plan summary, whichever is the current content
+- **Now** — the live state for that column: task/test progress, checks, the
+  open need or the current questions
+- **Next** — the actual next move, when there is one
 
-Other columns use their own facts: the card intro plus `Project: /repo` in
-Proposed, `11 passed` in Please Test/Please Release, `4 ideas · 1 question` in
-Category, and `3 thoughts` in the inbox. The property label is hidden on the
-card face by the plugin styles, so the summary gets the full width.
+The full At a glance and Plan stay in the card dialog and the note. The plugin
+does not inject fields or buttons into the card; clicking a card opens the
+dialog with the move buttons. Kind, Project, Source and Updated remain in the
+frontmatter and the table views, not on the kanban face.
 
-The plugin does **not** inject fields or move buttons into a card. Clicking a
-card opens the card dialog, whose top action row has the documented moves and
-**Open in editor**; the command palette offers the same moves. This keeps every
-card a native Bases card — no overlay, no row hiding, no flicker.
-
-**Kind**, **Project**, **Source** and **Updated** stay in the frontmatter, the
-**All cards** / **Waiting for a person** tables and the **Inbox and categories**
-cards view. `installBoard` writes `Factory/Board.base` only when it is missing
-or with `--input force=true`; a new `Board.base` orders the kanban by title and
-`cardSummary`, and its tables keep every property.
+`installBoard` writes `Factory/Board.base` only when it is missing or with
+`--input force=true`; a new `Board.base` orders the kanban by the title and
+those three rows, and its tables keep every property.
 
 ### Methods
 

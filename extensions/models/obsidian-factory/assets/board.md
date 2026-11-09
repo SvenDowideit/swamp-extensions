@@ -55,29 +55,21 @@ installCardCss` and enable the snippet in Settings → Appearance → CSS snippe
 
 ## What a card shows in its column
 
-The card face is native Bases: the card title and one `cardSummary` property.
-The factory writes `cardSummary` from the card's managed `## At a glance`, so
-the face is a plain Bases property — the plugin does not inject or overlay
-anything on a card. The line is the stage, plan status, first open question and
-next move:
+The card face is native Bases, with three short content rows:
 
-```text
-Add the ESPHome ingest method… · Tasks 3/6 · Tests 2/5
-```
+- **What** — the card intro or Plan summary, whichever is the current content;
+- **Now** — the live state for that column: task/test progress, checks, the open
+  need or the current questions;
+- **Next** — the actual next move, when there is one.
 
-Other columns use their own facts: the card intro plus `Project: /repo` in
-Proposed, `11 passed` in Please Test/Please Release, `4 ideas · 1 question` in
-Category, and `3 thoughts` in the inbox. The property label is hidden on the
-card face by the plugin styles, so the summary gets the full width.
-
-Every column uses the same native line. The full At a glance and Plan are in
-the card dialog and the note. **Kind**, **Project**, **Source** and **Updated**
-stay in the frontmatter, the **All cards** / **Waiting for a person** tables and
-the **Inbox and categories** cards view; they are not on the kanban face.
+The full At a glance and Plan are in the card dialog and the note. The plugin
+does not inject fields or buttons into the card; clicking a card opens the
+dialog with the move buttons. Kind, Project, Source and Updated stay in the
+frontmatter and the table/cards views, not on the kanban face.
 
 `installBoard` writes `{{folder}}/Board.base` only when it is missing, or with
 `--input force=true`. A new `Board.base` orders the **Board** view by the title
-and `cardSummary`; its tables keep every property.
+and those three rows; its tables keep every property.
 
 ## Templates
 

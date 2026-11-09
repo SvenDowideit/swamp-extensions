@@ -1480,7 +1480,7 @@ Deno.test("columnCardSummary is column-specific, not stage boilerplate", () => {
   ].join("\n"));
   assertEquals(
     columnCardSummary("Proposed", proposed, "/repo"),
-    "Confirm the project path · Project: /repo",
+    "Confirm the project path · Project: /repo · Move to Please Plan",
     "Proposed shows the card need and project, not the stage",
   );
 
@@ -1503,7 +1503,7 @@ Deno.test("columnCardSummary is column-specific, not stage boilerplate", () => {
   );
   assertEquals(
     columnCardSummary("Work Planned", plan),
-    "Tasks 1/2 · Tests 0/1",
+    "Tasks 1/2 · Tests 0/1 · Move to Please Implement",
     "Work Planned shows task and test progress",
   );
 
@@ -1520,7 +1520,7 @@ Deno.test("columnCardSummary is column-specific, not stage boilerplate", () => {
   ].join("\n"));
   assertEquals(
     columnCardSummary("Please Release", release),
-    "11 passed",
+    "11 passed · Publish 2026.11.09.9",
     "Please Release shows the check result",
   );
 
@@ -1546,7 +1546,7 @@ Deno.test("columnCardSummary is column-specific, not stage boilerplate", () => {
   );
   assertEquals(
     acceptanceLine,
-    "Restart Obsidian",
+    "Restart Obsidian · Accept",
     "acceptance",
   );
 });
@@ -1564,7 +1564,7 @@ Deno.test("columnCardSummary uses ideas/questions and thoughts per column", () =
   ].join("\n");
   assertEquals(
     columnCardSummary("Category", category),
-    "2 ideas · 1 question",
+    "a · q · Propose a subset",
     "category",
   );
   const inbox = [
@@ -1577,13 +1577,13 @@ Deno.test("columnCardSummary uses ideas/questions and thoughts per column", () =
   ].join("\n");
   assertEquals(
     columnCardSummary("Uncharacterised", inbox),
-    "2 thoughts",
+    "one · two · Triage",
     "inbox",
   );
 });
 
 Deno.test(
-  "the kanban orders by title plus cardSummary and the tables keep the properties",
+  "the kanban orders by title plus three content rows and the tables keep the properties",
   () => {
     const base = parseYaml(boardBase) as {
       properties: Record<string, unknown>;
@@ -1592,13 +1592,12 @@ Deno.test(
     const kanban = base.views.find((view) => view.type === "kanban");
     assertEquals(
       kanban?.order,
-      ["file.name", "note.cardSummary"],
-      "the kanban card face is the native title plus the one-line summary",
+      ["file.name", "note.cardWhat", "note.cardNow", "note.cardNext"],
+      "the kanban card face is title plus three content rows",
     );
-    assert(
-      "note.cardSummary" in base.properties,
-      "the card face has a display name for its native summary row",
-    );
+    for (const key of ["note.cardWhat", "note.cardNow", "note.cardNext"]) {
+      assert(key in base.properties, `the card face has ${key}`);
+    }
     const all = base.views.find((view) => view.name === "All cards");
     assertEquals(
       all?.order,

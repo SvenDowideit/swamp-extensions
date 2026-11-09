@@ -110,23 +110,17 @@ native and the plugin no longer injects an action row into them.
 
 ## What a card shows in its column
 
-The card face is native Bases: the title plus the `cardSummary` property. The
-factory writes it from the card's managed At a glance, so the face is one
-readable line such as:
+The card face is native Bases, with three short content rows:
 
-```text
-Add the ESPHome ingest method… · Tasks 3/6 · Tests 2/5
-```
-
-Other columns use their own facts: the card intro plus `Project: /repo` in
-Proposed, `11 passed` in Please Test/Please Release, `4 ideas · 1 question` in
-Category, and `3 thoughts` in the inbox. The property label is hidden on the
-card face by the plugin styles, so the summary gets the full width.
+- **What** — the card intro or Plan summary, whichever is the current content;
+- **Now** — the live state for that column: task/test progress, checks, the open
+  need or the current questions;
+- **Next** — the actual next move, when there is one.
 
 The card dialog has the full At a glance, the brief and the Plan. Kind, project,
 source and updated stay in the frontmatter and the table/cards views, not on the
 kanban face. `installBoard --input force=true` updates an older `Board.base` to
-this native card face.
+this card face.
 
 ## Archiving a finished card
 

@@ -101,6 +101,9 @@ export interface Card {
     created?: string;
     updated?: string;
     cardSummary?: string;
+    cardWhat?: string;
+    cardNow?: string;
+    cardNext?: string;
   };
   body: string;
   raw: string;
@@ -944,72 +947,98 @@ function planSummary(plan: string): string {
   return match ? firstSentence(match[1], 120) : "";
 }
 
+/** The three native card-face lines: what it is, its current state and next. */
+export interface CardFaceFields {
+  what: string;
+  now: string;
+  next: string;
+}
+
+/** Trim one card-face line. */
+function faceText(value: string, limit = 140): string {
+  const text = value.replace(/\s+/g, " ").trim();
+  return text.length > limit ? `${text.slice(0, limit - 1)}…` : text;
+}
+
 /**
- * The one-line card face summary, chosen by the card's column.
+ * Choose the three useful lines for the native Bases card face.
  *
- * The column already says the stage, so this shows the card's actual content
- * and the one fact that column needs: the card intro in Proposed, the plan
- * summary and task/test progress in the plan columns, the check result in Test
- * and Release, ideas/questions in Category, and thoughts in the inbox. It does
- * not add "At a glance", "Needs:" or "Next:" boilerplate.
+ * This is column-specific and content-first: the card's own intro or plan
+ * summary, the real progress/check/question for that column, and the real next
+ * move. It never adds a stage heading, "At a glance", "Needs:" or a bare count
+ * where a real sentence exists.
  */
+export function cardFaceFields(
+  status: string,
+  body: string,
+  project = "",
+): CardFaceFields {
+  const summary = extractManaged(body, SUMMARY_BEGIN, SUMMARY_END) ?? "";
+  const plan = extractManaged(body, PLAN_BEGIN, PLAN_END) ?? "";
+  const need = firstNeed(summary);
+  const nextMatch = /\*\*Next:\*\*\s*(.+)/.exec(summary);
+  const next = nextMatch ? faceText(nextMatch[1], 100) : "";
+  const tasks = planProgress(plan, "Tasks");
+  const tests = planProgress(plan, "Tests");
+  const checks = summaryChecks(summary);
+  const intro = cardIntro(body);
+  const planLine = planSummary(plan);
+  const ideas = sectionBullets(body, "Ideas");
+  const questions = sectionBullets(body, "Questions");
+  const thoughts = sectionBullets(body, "Thoughts");
+  const progress = [
+    tasks.total > 0 ? `Tasks ${tasks.done}/${tasks.total}` : "",
+    tests.total > 0 ? `Tests ${tests.done}/${tests.total}` : "",
+  ].filter(Boolean).join(" · ");
+  const projectLine = project.trim() ? `Project: ${project.trim()}` : "";
+  let what = "";
+  let now = "";
+  switch (status) {
+    case "Uncharacterised":
+      what = faceText(thoughts[0] ?? "");
+      now = faceText(thoughts[1] ?? "");
+      break;
+    case "Category":
+      what = faceText(ideas[0] ?? "");
+      now = faceText(questions[0] ?? "");
+      break;
+    case "Proposed":
+      what = faceText(intro || need);
+      now = faceText(need && need !== what ? need : projectLine);
+      break;
+    case "Please Plan":
+    case "Work Planned":
+    case "Please Implement":
+      what = faceText(planLine || intro);
+      now = faceText(progress);
+      break;
+    case "Please Test":
+      what = faceText(planLine || intro);
+      now = faceText(checks);
+      break;
+    case "Please Release":
+      what = faceText(planLine || intro);
+      now = faceText(checks);
+      break;
+    case "User Acceptance":
+      what = faceText(need || planLine || intro);
+      now = faceText(projectLine);
+      break;
+    default:
+      what = faceText(intro || planLine);
+      break;
+  }
+  return { what, now, next };
+}
+
+/** Backwards-compatible one-line form: the card's content line. */
 export function columnCardSummary(
   status: string,
   body: string,
   project = "",
 ): string {
-  const summary = extractManaged(body, SUMMARY_BEGIN, SUMMARY_END) ?? "";
-  const plan = extractManaged(body, PLAN_BEGIN, PLAN_END) ?? "";
-  const need = firstNeed(summary);
-  const tasks = planProgress(plan, "Tasks");
-  const tests = planProgress(plan, "Tests");
-  const checks = summaryChecks(summary);
-  const ideas = sectionBullets(body, "Ideas").length;
-  const questions = sectionBullets(body, "Questions").length;
-  const thoughts = sectionBullets(body, "Thoughts").length;
-  const intro = cardIntro(body);
-  const planLine = planSummary(plan);
-  const parts: string[] = [];
-  const add = (value: string) => {
-    if (value !== "") parts.push(value);
-  };
-  switch (status) {
-    case "Uncharacterised":
-      if (thoughts > 0) add(`${thoughts} thought${thoughts === 1 ? "" : "s"}`);
-      break;
-    case "Category":
-      if (ideas > 0) add(`${ideas} idea${ideas === 1 ? "" : "s"}`);
-      if (questions > 0) {
-        add(`${questions} question${questions === 1 ? "" : "s"}`);
-      }
-      break;
-    case "Proposed":
-      add(intro || need);
-      if (project.trim() !== "") add(`Project: ${project.trim()}`);
-      break;
-    case "Please Plan":
-    case "Work Planned":
-    case "Please Implement":
-      add(planLine || intro);
-      if (tasks.total > 0) add(`Tasks ${tasks.done}/${tasks.total}`);
-      if (tests.total > 0) add(`Tests ${tests.done}/${tests.total}`);
-      break;
-    case "Please Test":
-      if (checks !== "") add(checks);
-      if (tests.total > 0) add(`Tests ${tests.done}/${tests.total}`);
-      break;
-    case "Please Release":
-      if (checks !== "") add(checks);
-      break;
-    case "User Acceptance":
-      add(need || planLine || intro);
-      break;
-    default:
-      break;
-  }
-  if (parts.length === 0) return "";
-  const line = parts.join(" · ").replace(/\s+/g, " ").trim();
-  return line.length > 240 ? `${line.slice(0, 237)}…` : line;
+  const fields = cardFaceFields(status, body, project);
+  return [fields.what, fields.now, fields.next].filter(Boolean).join(" · ");
 }
 
 /** What the card's Definition section says about its pinned factory definition. */
@@ -3390,6 +3419,14 @@ async function executeSetSummary(
   });
   card.frontmatter.swampSummaryHash = await hashText(block);
   card.body = upsertAfterTitle(card.body, SUMMARY_BEGIN, SUMMARY_END, block);
+  const face = cardFaceFields(
+    String(card.frontmatter.status ?? ""),
+    card.body,
+    String(card.frontmatter.project ?? ""),
+  );
+  card.frontmatter.cardWhat = face.what;
+  card.frontmatter.cardNow = face.now;
+  card.frontmatter.cardNext = face.next;
   card.frontmatter.cardSummary = columnCardSummary(
     String(card.frontmatter.status ?? ""),
     card.body,
@@ -4021,13 +4058,20 @@ async function refreshCardSummariesInternal(
 ): Promise<{ changed: number }> {
   let changed = 0;
   for (const card of await readAllCards(context)) {
-    const line = columnCardSummary(
-      String(card.frontmatter.status ?? ""),
-      card.body,
-      String(card.frontmatter.project ?? ""),
-    );
-    if (line === "" || card.frontmatter.cardSummary === line) continue;
+    const status = String(card.frontmatter.status ?? "");
+    const project = String(card.frontmatter.project ?? "");
+    const face = cardFaceFields(status, card.body, project);
+    const line = columnCardSummary(status, card.body, project);
+    if (
+      line === "" ||
+      (card.frontmatter.cardWhat === face.what &&
+        card.frontmatter.cardNow === face.now &&
+        card.frontmatter.cardNext === face.next)
+    ) continue;
     if (!dryRun) {
+      card.frontmatter.cardWhat = face.what;
+      card.frontmatter.cardNow = face.now;
+      card.frontmatter.cardNext = face.next;
       card.frontmatter.cardSummary = line;
       await writeCardNote(context, card);
     }
@@ -4327,7 +4371,7 @@ async function executeQueue(
 /** The tracker: stagecraft's contract 1 over an Obsidian board. */
 export const model = {
   type: "@svendowideit/obsidian-factory",
-  version: "2026.11.09.12",
+  version: "2026.11.09.13",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -4721,6 +4765,15 @@ export const model = {
         "Remove the visible At a glance label from the native card face by " +
         "giving note.cardSummary an invisible display name; the card shows " +
         "the title and the summary text only.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.09.13",
+      description:
+        "Replace the single cardSummary row with three native content rows: " +
+        "What (card intro or Plan summary), Now (task/test progress, checks, " +
+        "open need or current questions) and Next (actual next move). The " +
+        "labels are short and useful; no zero-width display name.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

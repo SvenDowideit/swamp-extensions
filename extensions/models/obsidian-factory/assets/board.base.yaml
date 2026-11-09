@@ -8,8 +8,12 @@ filters:
 properties:
   file.name:
     displayName: Card
-  note.cardSummary:
-    displayName: "​"
+  note.cardWhat:
+    displayName: What
+  note.cardNow:
+    displayName: Now
+  note.cardNext:
+    displayName: Next
   note.status:
     displayName: Column
   note.kind:
@@ -39,7 +43,9 @@ views:
       - Done
     order:
       - file.name
-      - note.cardSummary
+      - note.cardWhat
+      - note.cardNow
+      - note.cardNext
   - type: table
     name: All cards
     order:

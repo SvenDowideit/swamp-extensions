@@ -211,15 +211,3 @@
   font-size: var(--font-ui-smaller);
   margin: 0.5rem 0 0;
 }
-
-/* The kanban card face is title + one cardSummary value. The property label
-   ("At a glance") is redundant in the constrained card, so hide it; the value
-   gets the full width. */
-.bases-kanban-card .bases-kanban-card-property:not(.mod-title) .bases-kanban-card-property-label,
-.bases-kanban-card .bases-kanban-card-property:not(.mod-title) .bases-kanban-card-property-name {
-  display: none;
-}
-
-.bases-kanban-card .bases-kanban-card-property:not(.mod-title) {
-  padding-left: 8px;
-}

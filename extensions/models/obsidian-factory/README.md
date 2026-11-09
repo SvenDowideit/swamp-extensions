@@ -245,35 +245,24 @@ failure is reported, and no duplicate note is created.
 
 ### The card face
 
-The optional plugin's card face follows the card's column. The plugin reads
-only the card's managed `## At a glance` and `## Plan` plus the `project`
-property, and writes nothing; every card gets the block, whether or not it has
-move buttons.
+The kanban card face is native Bases: the card title plus one `cardSummary`
+property, written by `obsidian-board` from the card's managed `## At a glance`.
+The line carries the stage, plan status, first open question and next move:
 
-| Column | Fields on the face |
-| --- | --- |
-| Uncharacterised, Category, Done | **Needs your input**, **Next** |
-| Proposed | plus **Project** |
-| Please Plan, Work Planned, Please Implement, User Acceptance | plus **Plan** (draft or final), **Tasks** and **Tests** left |
-| Please Test, Please Release | plus **Checks**, from the known lines that report a check run |
+```text
+Please Implement · Plan final · Needs: Confirm the project path · Next: Implement the plan
+```
 
-A missing value renders no row, and a managed placeholder (`_Nothing recorded
-yet._`) is not a value, so the face never invents a field. **Needs your input**
-shows the first open question and how many more there are.
+The plugin does **not** inject fields or move buttons into a card. Clicking a
+card opens the card dialog, whose top action row has the documented moves and
+**Open in editor**; the command palette offers the same moves. This keeps every
+card a native Bases card — no overlay, no row hiding, no flicker.
 
-The plugin hides the four **Kind**, **Project**, **Source** and **Updated** rows
-on that face only. They stay in the note's frontmatter (**Open in editor**), the
-**All cards** and **Waiting for a person** tables, the **Inbox and categories**
-cards view and the card dialog. Rows are matched by their Bases property key
-class (`mod-kind`, `mod-project`, `mod-source`, `mod-updated`) with the
-property's display name as a fallback, so renaming a display name does not
-bring a row back. The decoration is kanban-only: the cards views keep their
-properties.
-
-Without the plugin the card face keeps the four rows. `installBoard` writes
-`Factory/Board.base` only when it is missing or with `--input force=true`, so an
-older `Board.base` — including one you edited — is left exactly as it is and the
-plugin's row hiding is what changes its card face.
+**Kind**, **Project**, **Source** and **Updated** stay in the frontmatter, the
+**All cards** / **Waiting for a person** tables and the **Inbox and categories**
+cards view. `installBoard` writes `Factory/Board.base` only when it is missing
+or with `--input force=true`; a new `Board.base` orders the kanban by title and
+`cardSummary`, and its tables keep every property.
 
 ### Methods
 

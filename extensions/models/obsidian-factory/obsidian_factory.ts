@@ -4218,7 +4218,7 @@ async function executeQueue(
 /** The tracker: stagecraft's contract 1 over an Obsidian board. */
 export const model = {
   type: "@svendowideit/obsidian-factory",
-  version: "2026.11.09.8",
+  version: "2026.11.09.9",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -4577,6 +4577,14 @@ export const model = {
         "backfills every card, Board.base shows file.name + note.cardSummary, " +
         "and the plugin no longer injects fields or move buttons into the " +
         "card face. Actions stay in the card dialog and command palette.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.09.9",
+      description:
+        "Document the native card face: title plus cardSummary, actions in " +
+        "the card dialog and command palette, and no plugin field or move " +
+        "button injection. No data or method change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

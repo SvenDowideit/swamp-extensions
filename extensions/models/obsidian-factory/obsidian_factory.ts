@@ -100,6 +100,7 @@ export interface Card {
     description?: string;
     created?: string;
     updated?: string;
+    cardSummary?: string;
   };
   body: string;
   raw: string;
@@ -304,6 +305,7 @@ const TickSchema = z.object({
   repinned: z.array(z.string()),
   pinned: z.array(z.string()),
   errors: z.array(z.string()),
+  refreshed: z.number().default(0),
   factoryDefinition: z.string(),
   dryRun: z.boolean(),
   timestamp: z.string(),
@@ -854,6 +856,53 @@ ${renderBullets(input.known, "Nothing recorded yet.")}
 
 ${renderBullets(unknown, "Nothing outstanding.")}
 ${SUMMARY_END}`;
+}
+
+/** The one-line At a glance shown natively on the Bases card face. */
+export function cardSummaryLine(input: {
+  stage: string;
+  planStatus: string;
+  needsInput?: string[];
+  next: string;
+}): string {
+  const need = (input.needsInput ?? []).find((item) =>
+    item.trim() !== "" && !/^_.*_$/.test(item.trim())
+  );
+  const parts = [
+    input.stage,
+    `Plan ${input.planStatus}`,
+    need ? `Needs: ${need}` : "",
+    `Next: ${input.next}`,
+  ].filter(Boolean);
+  const line = parts.join(" · ").replace(/\s+/g, " ").trim();
+  return line.length > 240 ? `${line.slice(0, 237)}…` : line;
+}
+
+/** Rebuild the card-face line from an existing managed At a glance section. */
+export function cardSummaryFromSection(summary: string): string {
+  const value = (pattern: RegExp): string => {
+    const match = pattern.exec(summary);
+    return match ? match[1].trim() : "";
+  };
+  const stage = value(/\*\*Stage:\*\*\s*([^·\n]+)/);
+  const plan = value(/\*\*Plan:\*\*\s*([a-zA-Z]+)/);
+  const next = value(/\*\*Next:\*\*\s*(.+)/);
+  const needsBlock = /\*\*Needs your input\*\*\s*\n+([\s\S]*?)(?=\n\*\*|$)/
+    .exec(
+      summary,
+    );
+  const needs = needsBlock
+    ? needsBlock[1].split(/\r?\n/).map((line) =>
+      /^\s*[-*]\s+(.*)$/.exec(line)?.[1]?.trim() ?? ""
+    ).filter((item) => item !== "" && !/^_.*_$/.test(item))
+    : [];
+  if (!stage && !next && needs.length === 0) return "";
+  return cardSummaryLine({
+    stage: stage || "Card",
+    planStatus: plan || "—",
+    needsInput: needs,
+    next: next || "—",
+  });
 }
 
 /** What the card's Definition section says about its pinned factory definition. */
@@ -3233,6 +3282,12 @@ async function executeSetSummary(
     next: args.next,
   });
   card.frontmatter.swampSummaryHash = await hashText(block);
+  card.frontmatter.cardSummary = cardSummaryLine({
+    stage: args.stage,
+    planStatus: args.planStatus,
+    needsInput: args.needsInput ?? [],
+    next: args.next,
+  });
   card.body = upsertAfterTitle(card.body, SUMMARY_BEGIN, SUMMARY_END, block);
   await writeCardNote(context, card);
   const handle = await context.writeResource(
@@ -3853,6 +3908,51 @@ async function upgradeDefinitions(
   return { repinned, pinned, errors };
 }
 
+/** Rebuild cardSummary on every card from its managed At a glance. */
+async function refreshCardSummariesInternal(
+  context: FactoryContext,
+  dryRun: boolean,
+): Promise<{ changed: number }> {
+  let changed = 0;
+  for (const card of await readAllCards(context)) {
+    const summary = extractManaged(card.body, SUMMARY_BEGIN, SUMMARY_END) ?? "";
+    const line = cardSummaryFromSection(summary);
+    if (line === "" || card.frontmatter.cardSummary === line) continue;
+    if (!dryRun) {
+      card.frontmatter.cardSummary = line;
+      await writeCardNote(context, card);
+    }
+    changed++;
+  }
+  return { changed };
+}
+
+async function executeRefreshCardSummaries(
+  args: { dryRun?: boolean },
+  context: FactoryContext,
+): Promise<{ dataHandles: Array<{ name: string }> }> {
+  const result = await refreshCardSummariesInternal(
+    context,
+    args.dryRun === true,
+  );
+  context.logger.info("Refreshed cardSummary on {count} card(s)", {
+    count: result.changed,
+  });
+  const handle = await context.writeResource(
+    "operation",
+    `operation-${crypto.randomUUID()}`,
+    {
+      operation: "refreshCardSummaries",
+      id: "all",
+      path: context.globalArgs.folder,
+      changed: result.changed > 0,
+      detail: `${result.changed} card(s) updated`,
+      timestamp: nowIso(),
+    },
+  );
+  return { dataHandles: [handle] };
+}
+
 async function executeTick(
   args: {
     factoryDefinition?: string;
@@ -3876,6 +3976,7 @@ async function executeTick(
   const css = await ensureCardCss(context, dryRun);
   const migration = await migrateCardsInternal(context, dryRun, 6);
   const migrated = migration.changed + migration.renamed.length;
+  const cardSummaries = await refreshCardSummariesInternal(context, dryRun);
   const upgrade = args.upgradeDefinitions === false
     ? { repinned: [], pinned: [], errors: ["definition upgrade disabled"] }
     : await upgradeDefinitions(
@@ -3891,6 +3992,7 @@ async function executeTick(
     cli,
     css,
     migrated,
+    refreshed: cardSummaries.changed,
     renamed: migration.renamed.map((item) => `${item.id}: ${item.to}`),
     migrationFailures: migration.failures.map((item) =>
       `${item.path}: ${item.reason}`
@@ -4116,7 +4218,7 @@ async function executeQueue(
 /** The tracker: stagecraft's contract 1 over an Obsidian board. */
 export const model = {
   type: "@svendowideit/obsidian-factory",
-  version: "2026.11.09.7",
+  version: "2026.11.09.8",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -4467,6 +4569,16 @@ export const model = {
         "child's exact label (the Bases row label has no stable class).",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.09.8",
+      description:
+        "Replace the plugin's dynamic card-face fields with a native " +
+        "cardSummary frontmatter property: setSummary writes it, the tick " +
+        "backfills every card, Board.base shows file.name + note.cardSummary, " +
+        "and the plugin no longer injects fields or move buttons into the " +
+        "card face. Actions stay in the card dialog and command palette.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     description: {
@@ -4602,6 +4714,14 @@ export const model = {
         ),
       }),
       execute: executeBrief,
+    },
+    refreshCardSummaries: {
+      description:
+        "Rebuild the native card-face cardSummary property on every card from its managed At a glance",
+      arguments: z.object({
+        dryRun: z.boolean().default(false),
+      }),
+      execute: executeRefreshCardSummaries,
     },
     tick: {
       description:

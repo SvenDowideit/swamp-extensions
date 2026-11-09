@@ -23,12 +23,10 @@ import {
   CAPTURE_PLACEHOLDER,
   captureRequestBody,
   captureTextProblem,
-  columnFields,
   isArchivablePath,
   isArchivedPath,
   isBoardPath,
   isCardPath,
-  isSupersededPropertyRow,
   movesForStatus,
   readableCard,
   sanitizeMarkdown,
@@ -128,7 +126,6 @@ export default class ObsidianFactoryPlugin extends Plugin {
   private tickLastLine = "";
   private tickStartedAt = 0;
   private tickTimer: number | null = null;
-  private fieldPassInFlight = new Set<string>();
 
   override async onload(): Promise<void> {
     await this.loadSettings();
@@ -162,14 +159,6 @@ export default class ObsidianFactoryPlugin extends Plugin {
         openViewState,
       );
     };
-
-    this.addCommand({
-      id: "diagnose-card-fields",
-      name: "Factory: diagnose card fields",
-      callback: () => {
-        void this.diagnoseCardFields();
-      },
-    });
 
     this.addCommand({
       id: "open-card-dialog",
@@ -661,280 +650,10 @@ export default class ObsidianFactoryPlugin extends Plugin {
   }
 
   private decorateCards(): void {
+    // The card face is native Bases. Only the capture box is decorated; the
+    // plugin no longer injects fields or move buttons into a card.
     this.decorateBoardNote();
     this.decorateCaptureBoxes();
-    const cards = Array.from(
-      document.querySelectorAll<HTMLElement>(".bases-kanban-card"),
-    );
-    if (cards.length === 0) return;
-    const byTitle = this.cardFilesByTitle();
-    for (const cardEl of cards) {
-      if (cardEl.dataset.factoryMoves === "1") continue;
-      const titleEl = cardEl.querySelector(
-        ".bases-kanban-card-property.mod-title .bases-kanban-card-line",
-      ) ?? cardEl.querySelector(".bases-kanban-card-line");
-      const title = titleEl?.textContent?.trim() ?? "";
-      const file = byTitle.get(title.toLowerCase());
-      if (!file) continue;
-      const moves = movesForStatus(this.cardStatus(file));
-      if (moves.length === 0) continue;
-      const row = document.createElement("div");
-      row.className = "factory-card-moves";
-      for (const move of moves) {
-        const button = document.createElement("button");
-        button.textContent = move;
-        button.addEventListener("click", (event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          void this.moveCard(file, move);
-        });
-        row.appendChild(button);
-      }
-      const open = document.createElement("button");
-      open.textContent = "Open in editor";
-      open.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        void this.app.workspace.getLeaf().openFile(file);
-      });
-      row.appendChild(open);
-      cardEl.prepend(row);
-      cardEl.dataset.factoryMoves = "1";
-    }
-    // The fields pass runs after the moves pass, so the moves row keeps the
-    // top of the card and the fields block is stable whatever order the
-    // workspace hooks fire in.
-    this.decorateCardFields(byTitle);
-  }
-
-  /** Map each card's human title to its vault file, for the kanban cards. */
-  private cardFilesByTitle(): Map<string, TFile> {
-    const byTitle = new Map<string, TFile>();
-    for (const file of this.app.vault.getMarkdownFiles()) {
-      if (!isCardPath(file.path)) continue;
-      const cache = this.app.metadataCache.getFileCache(file);
-      const frontmatter = cache?.frontmatter;
-      const title = frontmatter && typeof frontmatter === "object" &&
-          typeof (frontmatter as { title?: unknown }).title === "string"
-        ? (frontmatter as { title: string }).title
-        : file.basename.replace(/^FAC-\d+\s+/, "");
-      byTitle.set(title.trim().toLowerCase(), file);
-      // The Bases kanban often shows file.name rather than the note title.
-      // Map the stem as well so a card whose visible title is its filename
-      // still resolves to the note (and the fields pass can read its plan).
-      byTitle.set(file.basename.trim().toLowerCase(), file);
-      byTitle.set(
-        file.basename.replace(/^FAC-\d+\s+/, "").trim().toLowerCase(),
-        file,
-      );
-    }
-    return byTitle;
-  }
-
-  /**
-   * Put the fields that matter for each card's column on the kanban card face
-   * and hide the four rows they replace.
-   *
-   * This pass is separate from the moves pass on purpose: a card in Done,
-   * Category or Uncharacterised has no legal move, so a fields block rendered
-   * inside that loop would never appear on it. It reads the card and writes
-   * nothing: obsidian-board stays the only writer of the managed sections.
-   */
-  private decorateCardFields(byTitle: Map<string, TFile>): void {
-    const cards = Array.from(
-      document.querySelectorAll<HTMLElement>(".bases-kanban-card"),
-    );
-    for (const cardEl of cards) {
-      void this.decorateCardFieldsOne(cardEl, byTitle);
-    }
-  }
-
-  private async decorateCardFieldsOne(
-    cardEl: HTMLElement,
-    byTitle: Map<string, TFile>,
-  ): Promise<void> {
-    const titleEl = cardEl.querySelector(
-      ".bases-kanban-card-property.mod-title .bases-kanban-card-line",
-    ) ?? cardEl.querySelector(".bases-kanban-card-line");
-    const title = titleEl?.textContent?.trim() ?? "";
-    let file = byTitle.get(title.toLowerCase());
-    if (!file) {
-      // The Bases card may expose the note link rather than the title line,
-      // or the visible title may carry extra text. Try the link first, then a
-      // contained-title match, before giving up.
-      const href = cardEl.getAttribute("data-href") ??
-        cardEl.querySelector<HTMLAnchorElement>("a.internal-link")
-          ?.getAttribute("data-href") ??
-        cardEl.querySelector<HTMLAnchorElement>("a.internal-link")
-          ?.getAttribute("href") ??
-        "";
-      if (href) {
-        file = this.app.metadataCache.getFirstLinkpathDest(href, "") ??
-          undefined;
-      }
-      if (!file && title) {
-        for (const [key, candidate] of byTitle) {
-          if (title.toLowerCase().includes(key)) {
-            file = candidate;
-            break;
-          }
-        }
-      }
-    }
-    if (!file) return;
-    // Mark the file before the first await: the observer fires often enough
-    // for two passes to overlap the read, and a second block would stack.
-    if (this.fieldPassInFlight.has(file.path)) return;
-    this.fieldPassInFlight.add(file.path);
-    try {
-      const raw = await this.app.vault.cachedRead(file);
-      if (!cardEl.isConnected) return;
-      const frontmatter = this.app.metadataCache.getFileCache(file)
-        ?.frontmatter;
-      const status = statusFromFrontmatter(frontmatter);
-      const project = frontmatter && typeof frontmatter === "object" &&
-          typeof (frontmatter as { project?: unknown }).project === "string"
-        ? (frontmatter as { project: string }).project
-        : "";
-      const updated = frontmatter && typeof frontmatter === "object" &&
-          typeof (frontmatter as { updated?: unknown }).updated === "string"
-        ? (frontmatter as { updated: string }).updated
-        : "";
-      this.hideSupersededRows(cardEl);
-      const fields = columnFields(status, raw, project);
-      const signature = `${updated}|${fields.length}`;
-      const existing = cardEl.querySelector<HTMLElement>(
-        ".factory-card-fields",
-      );
-      if (existing?.dataset.factoryFieldsKey === signature) return;
-      existing?.remove();
-      if (fields.length === 0) return;
-      const block = document.createElement("div");
-      block.className = "factory-card-fields";
-      block.dataset.factoryFieldsKey = signature;
-      for (const field of fields) {
-        const row = document.createElement("div");
-        row.className = "factory-card-field";
-        const label = document.createElement("span");
-        label.className = "factory-card-field-label";
-        label.textContent = field.label;
-        const value = document.createElement("span");
-        value.className = "factory-card-field-value";
-        value.textContent = field.value;
-        row.appendChild(label);
-        row.appendChild(value);
-        block.appendChild(row);
-      }
-      const moves = cardEl.querySelector(".factory-card-moves");
-      if (moves) cardEl.insertBefore(block, moves.nextSibling);
-      else cardEl.prepend(block);
-      cardEl.dataset.factoryFields = "1";
-    } catch {
-      // A card that vanished or failed to read gets no block this pass and is
-      // retried on the next one: the finally below clears the in-flight mark.
-    } finally {
-      this.fieldPassInFlight.delete(file.path);
-    }
-  }
-
-  /** Hide the four property rows the fields block replaces. */
-  private hideSupersededRows(cardEl: HTMLElement): void {
-    const rows = Array.from(
-      cardEl.querySelectorAll<HTMLElement>(".bases-kanban-card-property"),
-    );
-    for (const row of rows) {
-      const classes = Array.from(row.classList);
-      // The row's label may be a child element without a stable class, so
-      // check the row text and every child's exact text as well as the
-      // documented key class/label selector.
-      const labels = [
-        row.getAttribute("aria-label") ?? "",
-        row.textContent?.trim() ?? "",
-        ...Array.from(row.querySelectorAll("*")).map((el) =>
-          el.textContent?.trim() ?? ""
-        ),
-      ];
-      const matched = labels.some((label) =>
-        isSupersededPropertyRow(classes, label)
-      );
-      if (!matched) continue;
-      row.classList.add("factory-card-field-hidden");
-    }
-  }
-
-  /** Write a compact DOM/match/fields report to the tick log for diagnosis. */
-  private async diagnoseCardFields(): Promise<void> {
-    const cards = Array.from(
-      document.querySelectorAll<HTMLElement>(".bases-kanban-card"),
-    );
-    const byTitle = this.cardFilesByTitle();
-    const lines = [
-      `factory card fields diagnosis`,
-      `cards=${cards.length} mappedTitles=${byTitle.size}`,
-    ];
-    for (const cardEl of cards.slice(0, 10)) {
-      const titleEl = cardEl.querySelector(
-        ".bases-kanban-card-property.mod-title .bases-kanban-card-line",
-      ) ?? cardEl.querySelector(".bases-kanban-card-line");
-      const title = titleEl?.textContent?.trim() ?? "";
-      const href = cardEl.getAttribute("data-href") ??
-        cardEl.querySelector("a.internal-link")?.getAttribute("data-href") ??
-        "";
-      let file = byTitle.get(title.toLowerCase());
-      if (!file && href) {
-        file = this.app.metadataCache.getFirstLinkpathDest(href, "") ??
-          undefined;
-      }
-      if (!file && title) {
-        for (const [key, candidate] of byTitle) {
-          if (title.toLowerCase().includes(key)) {
-            file = candidate;
-            break;
-          }
-        }
-      }
-      let status = "";
-      let fields = -1;
-      let error = "";
-      if (file) {
-        const frontmatter = this.app.metadataCache.getFileCache(file)
-          ?.frontmatter;
-        status = statusFromFrontmatter(frontmatter);
-        try {
-          const raw = await this.app.vault.cachedRead(file);
-          const project = frontmatter && typeof frontmatter === "object" &&
-              typeof (frontmatter as { project?: unknown }).project === "string"
-            ? (frontmatter as { project: string }).project
-            : "";
-          fields = columnFields(status, raw, project).length;
-        } catch (err) {
-          error = err instanceof Error ? err.message : String(err);
-        }
-      }
-      lines.push(
-        `--- title=${JSON.stringify(title)} href=${JSON.stringify(href)} ` +
-          `file=${file?.path ?? "none"} status=${JSON.stringify(status)} ` +
-          `fields=${fields} block=${
-            Boolean(cardEl.querySelector(".factory-card-fields"))
-          } ` +
-          `moves=${Boolean(cardEl.querySelector(".factory-card-moves"))} ` +
-          `error=${JSON.stringify(error)}`,
-      );
-      for (
-        const row of Array.from(
-          cardEl.querySelectorAll<HTMLElement>(".bases-kanban-card-property"),
-        )
-      ) {
-        lines.push(
-          `    row class=${JSON.stringify(row.className)} ` +
-            `text=${
-              JSON.stringify(row.textContent?.trim().slice(0, 100) ?? "")
-            }`,
-        );
-      }
-    }
-    this.tickLog = lines.join("\n") + "\n";
-    this.showLog();
   }
 
   /**

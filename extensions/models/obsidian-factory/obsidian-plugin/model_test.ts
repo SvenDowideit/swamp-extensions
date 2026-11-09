@@ -571,87 +571,6 @@ Deno.test("the managed prose helpers read only what the board writes", () => {
   );
 });
 
-Deno.test("every card gets fields whether or not it has move buttons", () => {
-  const source = mainSource;
-  const fieldsPass = methodBody(source, "private decorateCardFields(");
-  const movesPass = methodBody(source, "private decorateCards(");
-  assert(
-    fieldsPass.includes("decorateCardFieldsOne"),
-    "the fields pass decorates every kanban card",
-  );
-  assert(
-    !fieldsPass.includes("movesForStatus"),
-    "the fields pass does not depend on a legal move",
-  );
-  assert(
-    !fieldsPass.includes("factoryMoves"),
-    "the fields pass is not behind the moves guard",
-  );
-  assert(
-    movesPass.includes("this.decorateCardFields(byTitle)"),
-    "the moves pass runs first and then the fields pass",
-  );
-  assert(
-    movesPass.indexOf("this.decorateCardFields(byTitle)") >
-      movesPass.indexOf("factoryMoves"),
-    "the fields block is rendered after the moves row",
-  );
-  const one = methodBody(source, "private async decorateCardFieldsOne(");
-  assert(
-    one.includes("document.querySelectorAll") === false,
-    "one card at a time",
-  );
-  assert(
-    one.includes("hideSupersededRows"),
-    "the superseded rows are hidden on every card",
-  );
-});
-
-Deno.test("a second decoration pass does not stack a second block", () => {
-  const one = methodBody(mainSource, "private async decorateCardFieldsOne(");
-  assert(
-    one.indexOf("fieldPassInFlight.add(file.path)") <
-      one.indexOf("await this.app.vault.cachedRead(file)"),
-    "the in-flight mark is set before the first await",
-  );
-  assert(
-    one.includes("finally") &&
-      one.includes("fieldPassInFlight.delete(file.path)"),
-    "the mark is cleared in a finally so a failed read is retried",
-  );
-  assert(
-    one.includes("factoryFieldsKey"),
-    "an existing block is re-rendered only when its signature changed",
-  );
-  assert(
-    one.includes("existing?.remove()"),
-    "the old block is removed before a new one is added",
-  );
-});
-
-Deno.test("the field decoration writes nothing to a card", () => {
-  const source = mainSource;
-  for (
-    const signature of [
-      "private decorateCardFields(",
-      "private async decorateCardFieldsOne(",
-      "private hideSupersededRows(",
-    ]
-  ) {
-    const body = methodBody(source, signature);
-    for (
-      const write of [
-        "processFrontMatter",
-        "vault.modify",
-        "vault.create",
-        "vault.process",
-      ]
-    ) {
-      assert(!body.includes(write), `${signature} never calls ${write}`);
-    }
-  }
-});
-
 Deno.test("an unknown column renders no fields", () => {
   const raw = managedCard({ known: ["Checks: passed"] });
   for (const status of ["", "  ", "Shipped", "please implement", "Archive"]) {
@@ -664,10 +583,3 @@ Deno.test("an unknown column renders no fields", () => {
 });
 
 /** The body of one private method, up to the next method. */
-function methodBody(source: string, signature: string): string {
-  const start = source.indexOf(signature);
-  assert(start >= 0, `${signature} exists`);
-  const rest = source.slice(start + 1);
-  const end = rest.indexOf("\n  private ");
-  return end >= 0 ? rest.slice(0, end) : rest;
-}

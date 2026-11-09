@@ -20,6 +20,8 @@ import {
   cardDisplay,
   cardMatches,
   cardSummary,
+  cardSummaryFromSection,
+  cardSummaryLine,
   collapseDuplicateHeadings,
   composeNote,
   countBullets,
@@ -1454,8 +1456,54 @@ Deno.test("the board summary shows the human title, not the codename", () => {
   }
 });
 
+Deno.test("cardSummaryLine is one readable native card line", () => {
+  const line = cardSummaryLine({
+    stage: "Please Implement",
+    planStatus: "final",
+    needsInput: ["Confirm the project path", "Second question"],
+    next: "Implement the plan",
+  });
+  assertEquals(
+    line,
+    "Please Implement · Plan final · Needs: Confirm the project path · " +
+      "Next: Implement the plan",
+    "one-line summary",
+  );
+  assert(
+    cardSummaryLine({
+      stage: "Proposed",
+      planStatus: "draft",
+      needsInput: ["_Nothing right now._"],
+      next: "Wait for the person",
+    }).includes("Needs:") === false,
+    "a placeholder is not a need",
+  );
+});
+
+Deno.test("cardSummaryFromSection rebuilds the line from At a glance", () => {
+  const summary = [
+    "## At a glance",
+    "",
+    "**Stage:** Work Planned · **Plan:** final · **Updated:** now",
+    "",
+    "**Needs your input**",
+    "",
+    "- Read the plan",
+    "",
+    "**Next:** Move to Please Implement",
+  ].join("\n");
+  assertEquals(
+    cardSummaryFromSection(summary),
+    "Work Planned · Plan final · Needs: Read the plan · " +
+      "Next: Move to Please Implement",
+    "rebuilt from At a glance",
+  );
+  assertEquals(cardSummaryFromSection(""), "", "empty summary");
+  assertEquals(cardSummaryFromSection("nothing here"), "", "no summary");
+});
+
 Deno.test(
-  "the kanban orders by the title only and the tables keep the properties",
+  "the kanban orders by title plus cardSummary and the tables keep the properties",
   () => {
     const base = parseYaml(boardBase) as {
       properties: Record<string, unknown>;
@@ -1464,8 +1512,12 @@ Deno.test(
     const kanban = base.views.find((view) => view.type === "kanban");
     assertEquals(
       kanban?.order,
-      ["file.name"],
-      "the kanban card face leads with the human title only",
+      ["file.name", "note.cardSummary"],
+      "the kanban card face is the native title plus the one-line summary",
+    );
+    assert(
+      "note.cardSummary" in base.properties,
+      "the card face has a display name for its native summary row",
     );
     const all = base.views.find((view) => view.name === "All cards");
     assertEquals(

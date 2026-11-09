@@ -8,6 +8,8 @@ filters:
 properties:
   file.name:
     displayName: Card
+  note.cardSummary:
+    displayName: At a glance
   note.status:
     displayName: Column
   note.kind:
@@ -37,6 +39,7 @@ views:
       - Done
     order:
       - file.name
+      - note.cardSummary
   - type: table
     name: All cards
     order:

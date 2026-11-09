@@ -121,6 +121,7 @@ export default class ObsidianFactoryPlugin extends Plugin {
   private originalOpenLinkText: OpenLinkText | null = null;
   private statusItem: HTMLElement | null = null;
   private tickRunning = false;
+  private decorateScheduled = false;
   private tickLog = "";
   private tickLastLine = "";
   private tickStartedAt = 0;
@@ -200,6 +201,23 @@ export default class ObsidianFactoryPlugin extends Plugin {
     this.registerEvent(workspaceEvents.on("active-leaf-change", () => {
       this.decorateCards();
     }));
+    // The note/Bases view often renders after file-open/layout-change. Watch
+    // the DOM and re-run decoration once per settled mutation batch. The
+    // decoration itself checks for an existing capture box, so adding one
+    // cannot cause a loop or a second box.
+    const observer = new MutationObserver(() => {
+      if (this.decorateScheduled) return;
+      this.decorateScheduled = true;
+      globalThis.setTimeout(() => {
+        this.decorateScheduled = false;
+        this.decorateCards();
+      }, 120);
+    });
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+    this.register(() => observer.disconnect());
 
     this.addCommand({
       id: "capture-idea",

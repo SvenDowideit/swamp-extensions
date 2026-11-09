@@ -6,6 +6,7 @@ declare module "obsidian" {
     onunload(): void;
     registerEvent(eventRef: unknown): void;
     registerInterval(id: number): number;
+    register(callback: () => void): void;
     registerDomEvent(
       el: Document,
       type: string,

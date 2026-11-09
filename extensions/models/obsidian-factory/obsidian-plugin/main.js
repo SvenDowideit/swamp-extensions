@@ -251,6 +251,7 @@ var ObsidianFactoryPlugin = class extends import_obsidian.Plugin {
   originalOpenLinkText = null;
   statusItem = null;
   tickRunning = false;
+  decorateScheduled = false;
   tickLog = "";
   tickLastLine = "";
   tickStartedAt = 0;
@@ -316,6 +317,19 @@ var ObsidianFactoryPlugin = class extends import_obsidian.Plugin {
     this.registerEvent(workspaceEvents.on("active-leaf-change", () => {
       this.decorateCards();
     }));
+    const observer = new MutationObserver(() => {
+      if (this.decorateScheduled) return;
+      this.decorateScheduled = true;
+      globalThis.setTimeout(() => {
+        this.decorateScheduled = false;
+        this.decorateCards();
+      }, 120);
+    });
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true
+    });
+    this.register(() => observer.disconnect());
     this.addCommand({
       id: "capture-idea",
       name: "Capture an idea",

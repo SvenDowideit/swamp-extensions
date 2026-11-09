@@ -4116,7 +4116,7 @@ async function executeQueue(
 /** The tracker: stagecraft's contract 1 over an Obsidian board. */
 export const model = {
   type: "@svendowideit/obsidian-factory",
-  version: "2026.11.09.3",
+  version: "2026.11.09.4",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -4424,6 +4424,15 @@ export const model = {
         "attribute (Obsidian replaces the preview/scroller element), and " +
         "drop the 2-second decoration timer that duplicated the box. " +
         "Decoration now runs on layout, file-open and active-leaf-change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.09.4",
+      description:
+        "Watch the DOM and re-run decoration once per settled mutation batch, " +
+        "so the capture box appears after the note/Bases view renders (the " +
+        "event-only version could run before the view existed). Decoration " +
+        "still checks for an existing box, so it cannot duplicate.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

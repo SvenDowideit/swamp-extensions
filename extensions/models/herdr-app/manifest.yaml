@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/herdr-app"
-version: "2026.11.09.2"
+version: "2026.11.09.3"
 description: >
   Install, update and remove the Herdr desktop app — and herdr-core with it —
   on Linux, macOS and Windows, from swamp, whichever machine swamp is running on.
@@ -28,6 +28,19 @@ description: >
     None to install the app. It uses Deno's fetch, the bundled deno binary and
     the host's own tools (tar, and PowerShell on Windows), and talks only to the
     release host you configure.
+
+    `@jpisgeek/herdr-swamp-layout` is declared in this manifest's
+    `dependencies:`, so the single pull above installs it too. It is what puts
+    the swamp layout — approvals, runs and quick-run panels for this CLI —
+    inside Herdr, and the install workflow calls its `install` method after the
+    app is in place (skipped when the layout is already there, and by default
+    only: `--input swampLayout=false` leaves layouts alone). Without it the app
+    still installs and upgrades; only that step is unavailable.
+
+    It is not installed by @svendowideit/herdr-app-worker: that extension
+    publishes its mods, fonts and layout preview as `binaries:`, which swamp keeps
+    in a pulled extension but not in the bundle a worker runs, so its installer
+    cannot read them there and would leave a half-written layout.
 
     @swamp/ssh is an optional dependency, declared in this manifest's
     `optionalDependencies:`. It is not installed for you: pull it to use
@@ -72,8 +85,11 @@ description: >
       swamp workflow run @svendowideit/herdr-app-install \
         --input appDir=/opt/herdr --input theme=""
 
-      # Read back what is installed now — the versions the binaries report, and
-      # whether the theme is on show.
+      # Upgrade without touching layouts — the app, core and theme only.
+      swamp workflow run @svendowideit/herdr-app-upgrade --input swampLayout=false
+
+      # Read back what is installed now — the versions the binaries report,
+      # whether the theme is on show, and which layouts Herdr offers.
       swamp model @svendowideit/herdr-app method run status herdr-app
 
       # Remove the app, keeping the shared herdr-core. Add removeCore=true to
@@ -96,6 +112,8 @@ description: >
       theme          theme to install from the bundle         (default borland-modern-blue)
       selectTheme    select it when none is chosen yet        (default true)
       herdrHome      override Herdr's own home                ($HERDR_APP_HOME, XDG, ~/.config/herdr-app)
+      swampLayout    also install the Herdr swamp layout      (default true)
+      layoutName     model instance for the layout installer  (default herdr-swamp-layout)
       removeCore     uninstall also removes the core          (default false)
       removeTheme    uninstall also removes the theme file    (default false)
       uninstall      remove instead of install                (default false)
@@ -122,8 +140,9 @@ description: >
 
     That is the whole upgrade: it resolves the newest release, installs it only
     when this machine is not already on it, refreshes herdr-core when there is
-    none, reads the installed binaries back, and fails unless the app reports
-    the planned version. Nothing else needs migrating, and re-running is safe.
+    none, installs the bundled Borland theme and the Herdr swamp layout when
+    they are missing, reads the installed binaries back, and fails unless the
+    app reports the planned version. Nothing else needs migrating, and re-running is safe.
 
   WHAT IT INSTALLS
 
@@ -139,7 +158,10 @@ description: >
     daemons, cron triggers or webhooks. Verified downloads are cached under the
     user cache directory; `uninstall` removes the app, its command link and its
     launcher entry, the core only when `removeCore=true`, and the theme only when
-    `removeTheme=true`.
+    `removeTheme=true`. The install workflow also hands Herdr's home to
+    `@jpisgeek/herdr-swamp-layout`, which copies the swamp layout, its theme and
+    five mods into `layouts/`, `themes/` and `mods/` — once: that installer
+    refuses to overwrite, so an existing (or edited) layout is left alone.
 
 repository: https://github.com/svendowideit/swamp-extensions
 
@@ -157,7 +179,8 @@ workflows:
   - herdr-app-worker.yaml
   - herdr-app-ssh.yaml
 
-dependencies: []
+dependencies:
+  - "@jpisgeek/herdr-swamp-layout"
 
 optionalDependencies:
   - "@swamp/ssh"

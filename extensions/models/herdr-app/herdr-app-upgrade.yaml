@@ -7,9 +7,11 @@ description: |
       swamp workflow run @svendowideit/herdr-app-upgrade
 
   It resolves the newest release, installs it only when this machine is not
-  already on it, refreshes a herdr-core only when there is none, and then reads
-  the result back and fails unless the installed app reports the new version. A
-  run on an up-to-date machine downloads nothing and changes nothing.
+  already on it, refreshes a herdr-core only when there is none, installs the
+  bundled Borland theme and the Herdr swamp layout when they are not there yet,
+  and then reads the result back and fails unless the installed app reports the
+  new version. A run on an up-to-date machine downloads nothing and changes
+  nothing.
 
   Everything it needs is discovered from this machine: the platform, the app
   location and the core it already has. Add inputs only to pin or redirect:
@@ -67,6 +69,13 @@ inputs:
       description: >-
         Select the theme when no theme is chosen yet; an existing choice is
         never overwritten.
+    swampLayout:
+      type: boolean
+      default: true
+      description: >-
+        Also install the Herdr swamp layout — approvals, runs and quick-run
+        panels for this CLI inside Herdr — from @jpisgeek/herdr-swamp-layout.
+        Skipped when already installed; turn it off to leave layouts alone.
   required: []
 jobs:
   - name: upgrade
@@ -91,6 +100,7 @@ jobs:
             releasesUrl: ${{ inputs.releasesUrl }}
             theme: ${{ inputs.theme }}
             selectTheme: ${{ inputs.selectTheme }}
+            swampLayout: ${{ inputs.swampLayout }}
         dependsOn: []
         weight: 0
         allowFailure: false

@@ -29,6 +29,14 @@ repeated:
   turbo-pascal palette (deep blue, cyan accents, amber working) tuned for
   Herdr's chrome: `muted`, `dim`, `border`, `accent` and the status colours were
   lifted until they clear their contrast floors on `#003078`.
+- **Install the swamp layout** — approvals, recent runs and a quick-run menu
+  for this CLI, inside Herdr — through
+  [`@jpisgeek/herdr-swamp-layout`](https://swamp-club.com/extensions/@jpisgeek/herdr-swamp-layout),
+  declared as a dependency so the pull brings it in. It runs after the app is
+  placed, is skipped when the layout is already there (that installer refuses to
+  overwrite), and can be turned off with `swampLayout=false`. It runs on the host
+  that has the extension pulled — the local machine or a `--server` host — not on
+  a swamp worker: see [Dependencies](#dependencies).
 - **Install herdr-core only when the machine has none** — the vendor's rule,
   because the app keeps the core current afterwards — or update it when you ask.
   The macOS core keeps the vendor's `Herdr Core.app` installation path and its
@@ -89,6 +97,8 @@ The model has no global arguments — every setting is a method argument, so
 | `theme` | string | `borland-modern-blue` | Theme to install from the extension's bundled themes. Empty installs no theme. |
 | `selectTheme` | boolean | `true` | Select the theme in `settings.json` — only when no theme is chosen yet. |
 | `herdrHome` | string | `$HERDR_APP_HOME`, else `$XDG_CONFIG_HOME/herdr-app`, else `~/.config/herdr-app` | Herdr's own home, where `themes/` and `settings.json` live. |
+| `swampLayout` | boolean | `true` | Also install the Herdr swamp layout via `@jpisgeek/herdr-swamp-layout`. Skipped when the layout is already there. |
+| `layoutName` | string | `herdr-swamp-layout` | Model instance name for that layout installer. |
 | `uninstall` | boolean | `false` | Workflow input: remove the app instead of installing it. |
 | `removeCore` | boolean | `false` | Uninstall also removes herdr-core and its `hc` alias. |
 | `removeTheme` | boolean | `false` | Uninstall also removes the theme file (settings.json is left alone). |
@@ -147,6 +157,12 @@ swamp model @svendowideit/herdr-app method run installTheme herdr-app
 swamp workflow run @svendowideit/herdr-app-install \
   --input appDir=/opt/herdr --input theme=""
 
+# Upgrade the app, core, theme and Herdr swamp layout in one run — the default.
+swamp workflow run @svendowideit/herdr-app-upgrade
+
+# Same upgrade, but leave the layouts alone.
+swamp workflow run @svendowideit/herdr-app-upgrade --input swampLayout=false
+
 # Force a core update even though the app is current.
 swamp workflow run @svendowideit/herdr-app-install --input core=always
 
@@ -165,8 +181,9 @@ swamp workflow run @svendowideit/herdr-app-upgrade
 
 One command, and the whole upgrade: resolve the newest release, install it only
 if this machine is not already on it, ensure a core exists (or update it with
-`core=always`), refresh and select the bundled theme, then read the installed
-binaries back and fail unless the app reports the planned version. There is nothing to migrate — the app and core are
+`core=always`), refresh and select the bundled theme, install the Herdr swamp
+layout when it is not there yet, then read the installed binaries back and fail
+unless the app reports the planned version. There is nothing to migrate — the app and core are
 replaced in place — and re-running is safe. To upgrade a fleet, run the worker
 workflow per worker, or the SSH workflow for hosts without swamp.
 
@@ -189,11 +206,34 @@ an install would do and why), `install` (what a run did, including a failure),
 `status` (what is on the machine now), `transport` (the `@swamp/ssh` fleet), and
 and `script` (the rendered installer, its targets and its pins).
 
+### Dependencies
+
+`@jpisgeek/herdr-swamp-layout` is a hard dependency: `swamp extension pull
+@svendowideit/herdr-app` installs it too, and `herdr-app-install` (and therefore
+`herdr-app-upgrade`) calls its `install` method with `herdrHome` taken from the
+`status` step, so the layout lands in the same Herdr home the app did. It is
+skipped when `<herdrHome>/layouts/swamp.json` already exists, because that
+installer refuses to overwrite anything — which also protects a layout you have
+edited.
+
+Two transports cannot install it, for reasons outside this extension:
+
+- **A swamp worker.** The layout extension lists its mods, fonts and layout
+  preview under `binaries:` in its manifest. A worker runs a bundle that carries
+  the compiled model and the `additionalFiles:`, but not `binaries:` — so when it
+  tries to copy `layouts/swamp.svg` (and the mod `.js`/`.ttf` files) the source
+  is missing and the install stops half-written. `herdr-app-worker` therefore
+  leaves the layout out; run `herdr-app-upgrade` on a host that has the extension
+  pulled to install it there.
+- **SSH-only hosts.** A host with no swamp cannot run a swamp model at all.
+
+`@swamp/ssh` remains optional, only for the SSH workflow.
+
 ### Workflows
 
 | Workflow | Steps | Transport |
 | -------- | ----- | --------- |
-| `@svendowideit/herdr-app-install` | `plan` → `install` \| `uninstall` → `status` → `verify-install`, `verify-core`, `verify-theme`, `verify-uninstall` | local, or the `--server` host |
+| `@svendowideit/herdr-app-install` | `plan` → `install` \| `uninstall` → `status` → `swamp-layout` → `verify-layout`, `verify-install`, `verify-core`, `verify-theme`, `verify-uninstall` | local, or the `--server` host |
 | `@svendowideit/herdr-app-upgrade` | delegates to the install workflow | local, or the `--server` host |
 | `@svendowideit/herdr-app-worker` | `plan` → `install` → `status` (all placed on `target`) → `verify-install`, `verify-theme`, `verify-core` | swamp worker, via `--server` |
 | `@svendowideit/herdr-app-ssh` | `assert-hosts` → `render` → `fleet` → `install` (`@swamp/ssh` `script`) | SSH to hosts without swamp |
@@ -201,8 +241,10 @@ and `script` (the rendered installer, its targets and its pins).
 The verify steps are asserts, not claims: `verify-install` compares the version
 `status` read off the binary with the version `plan` resolved, `verify-core`
 fails when a core was asked for and is still absent, `verify-theme` fails when a
-theme was asked for and is not in Herdr's themes directory, and `verify-uninstall`
-fails if an uninstall run left the app present.
+theme was asked for and is not in Herdr's themes directory, `verify-layout`
+fails when the swamp layout is neither installed nor already present (it checks
+both the step's own outcome and the `layouts` list `status` read), and
+`verify-uninstall` fails if an uninstall run left the app present.
 
 ### How the code is structured
 
@@ -262,6 +304,12 @@ path through `installHerdr` with real gzipped tars built in the test.
   Over SSH, a host that already has a `settings.json` without a theme gets it
   added; any other settings are preserved (the script inserts one key rather
   than rewriting the file).
+- The swamp layout is installed once. If you delete or edit it, this extension
+  will not put it back (its installer refuses to overwrite) — reinstall it with
+  `swamp extension pull @jpisgeek/herdr-swamp-layout` after removing the files
+  you want replaced, or restore them from the pulled copy. A failed worker
+  attempt leaves `layouts/swamp.json` behind with no mods; remove that one file
+  (and `layouts/swamp.svg`) before retrying anywhere.
 - `herdr-core` is shared by every Herdr install on a machine, which is why
   `uninstall` keeps it unless `removeCore=true` is set. On macOS the core is
   installed through the vendor's own `Herdr Core.app` path, so `removeCore`

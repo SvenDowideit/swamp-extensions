@@ -1411,6 +1411,10 @@ Deno.test("status reports the theme file and the choice", async () => {
       `${appHome}/settings.json`,
       '{"theme": {"light": "paper", "dark": "borland-modern-blue"}}',
     );
+    await Deno.mkdir(`${appHome}/layouts`, { recursive: true });
+    await Deno.writeTextFile(`${appHome}/layouts/main.json`, "{}");
+    await Deno.writeTextFile(`${appHome}/layouts/swamp.json`, "{}");
+    await Deno.writeTextFile(`${appHome}/layouts/notes.txt`, "not a layout");
     const appDir = `${dir}/app`;
     await Deno.mkdir(appDir, { recursive: true });
     await Deno.writeTextFile(

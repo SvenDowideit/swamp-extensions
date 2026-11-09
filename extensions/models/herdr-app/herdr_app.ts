@@ -309,6 +309,7 @@ const StatusSchema = z.object({
   themeInstalled: z.boolean().default(false),
   themeChoice: z.string().default(""),
   themeSelected: z.boolean().default(false),
+  layouts: z.array(z.string()).default([]),
   checkedAt: z.string(),
 });
 
@@ -450,6 +451,8 @@ export interface InstalledState {
   themeInstalled: boolean;
   /** The person's theme choice from settings.json. */
   themeChoice: ThemeChoice;
+  /** Layout ids present in `<appHome>/layouts` (e.g. `main`, `swamp`). */
+  layouts: string[];
 }
 
 /** The plan, as reported by `plan`. */
@@ -695,7 +698,29 @@ export async function probeInstalled(
     themeFile,
     themeInstalled: await pathExists(deps, themeFile, platform.os),
     themeChoice: await readThemeChoice(deps, appHome),
+    layouts: await listLayouts(deps, appHome),
   };
+}
+
+/**
+ * The layout ids Herdr will offer: every `<appHome>/layouts/*.json`. Used to see
+ * whether a layout someone else installs (such as the swamp layout) is already
+ * there before trying to install it again.
+ */
+async function listLayouts(deps: HostDeps, appHome: string): Promise<string[]> {
+  const dir = deps.os === "windows"
+    ? `${appHome}\\layouts`
+    : `${appHome}/layouts`;
+  const names: string[] = [];
+  try {
+    for await (const entry of Deno.readDir(dir)) {
+      if (!entry.isFile || !entry.name.endsWith(".json")) continue;
+      names.push(entry.name.slice(0, -".json".length));
+    }
+  } catch {
+    return [];
+  }
+  return names.sort();
 }
 
 /** Read the person's theme choice, treating an unreadable settings.json as none. */
@@ -1944,7 +1969,7 @@ function bundledThemeText(ctx: MethodContext, id: string): string {
 /** Model definition for `@svendowideit/herdr-app`. */
 export const model = {
   type: "@svendowideit/herdr-app",
-  version: "2026.11.09.2",
+  version: "2026.11.09.3",
   globalArguments: z.object({}),
 
   upgrades: [
@@ -1966,6 +1991,18 @@ export const model = {
         "into Herdr's own home and select it in settings.json when no theme is " +
         "chosen yet. New installTheme method, theme resource, and theme fields " +
         'on status/install. No existing argument changed; theme="" opts out.',
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.09.3",
+      description:
+        "Installs the swamp layout as part of the same run: the install and " +
+        "worker workflows now call @jpisgeek/herdr-swamp-layout's install " +
+        "method after the app is placed (declared in dependencies:), so the " +
+        "upgrade puts the approvals, runs and quick-run panels inside Herdr. " +
+        "It is skipped when the layout is already present, since that " +
+        "installer refuses to overwrite. status now lists the layouts Herdr " +
+        "offers, and swampLayout=false opts out.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -2224,6 +2261,7 @@ export const model = {
               ? `${themeChoice.light}/${themeChoice.dark}`
               : ""),
           themeSelected: themeOnShow(themeChoice),
+          layouts: installed.layouts,
           checkedAt: deps.now().toISOString(),
         });
         ctx.logger.info(

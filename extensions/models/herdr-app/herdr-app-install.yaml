@@ -86,6 +86,18 @@ inputs:
       description: >-
         Select the theme in Herdr's settings.json, but only when no theme is
         chosen yet. An existing choice is never overwritten.
+    swampLayout:
+      type: boolean
+      default: true
+      description: >-
+        Also install the Herdr swamp layout (@jpisgeek/herdr-swamp-layout):
+        approvals, runs and quick-run panels for the swamp CLI inside Herdr. It
+        is skipped when the layout is already installed; turn it off to leave
+        layouts alone.
+    layoutName:
+      type: string
+      default: herdr-swamp-layout
+      description: Model instance name for the swamp layout installer.
     herdrHome:
       type: string
       default: ""
@@ -204,6 +216,51 @@ jobs:
               type: always
         weight: 0
         allowFailure: false
+      - name: swamp_layout
+        description: >-
+          Install the Herdr swamp layout — the approvals, runs and quick-run
+          panels for this CLI — into Herdr's home. It is skipped when the layout
+          is already there, because the layout's own installer refuses to
+          overwrite anything; that also means a layout you have edited is never
+          touched. Skipped on an uninstall run and when swampLayout is false.
+        guard: >-
+          ${{ inputs.uninstall == true || inputs.swampLayout == false ||
+          "swamp" in steps.status.outputs.layouts }}
+        task:
+          type: model_method
+          modelType: '@jpisgeek/herdr-swamp-layout'
+          modelName: ${{ inputs.layoutName }}
+          methodName: install
+          globalArgs:
+            herdrHome: ${{ steps.status.outputs.herdrHome }}
+        dependsOn:
+          - step: status
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: verify-layout
+        description: >-
+          Fail when the swamp layout was asked for and is neither installed nor
+          already present, so a layout that never landed is not reported as
+          success.
+        guard: ${{ inputs.uninstall == true || inputs.swampLayout == false }}
+        task:
+          type: assert
+          expr: >-
+            steps.swamp_layout.status == "succeeded" ||
+            "swamp" in steps.status.outputs.layouts
+          message: >-
+            The swamp layout is not in Herdr's layouts directory: read the
+            install resource and the swamp-layout step's error, then re-run
+            after starting Herdr once if its home did not exist yet.
+          severity: high
+        dependsOn:
+          - step: swamp_layout
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
       - name: verify-install
         description: >-
           Fail when the app on the machine does not report the version that was
@@ -222,6 +279,9 @@ jobs:
           severity: high
         dependsOn:
           - step: status
+            condition:
+              type: always
+          - step: swamp_layout
             condition:
               type: always
         weight: 0

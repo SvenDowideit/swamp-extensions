@@ -18,8 +18,14 @@ description: |
   placement step has nowhere to land without one. On the orchestrator's own
   machine, use @svendowideit/herdr-app-install instead.
 
-  Steps: plan → install → status, all placed on the worker, then the two verify
+  Steps: plan → install → status, all placed on the worker, then the verify
   steps run on the orchestrator against the data the worker wrote.
+
+  It does not install the Herdr swamp layout: that extension's mods, fonts and
+  preview are published as `binaries:`, which swamp ships inside the pulled
+  extension but not inside the bundle a worker runs — so its installer cannot
+  find them there. Install the layout on a host that has the extension pulled
+  (run @svendowideit/herdr-app-install or -upgrade on it).
 tags:
   domain: desktop
 inputs:

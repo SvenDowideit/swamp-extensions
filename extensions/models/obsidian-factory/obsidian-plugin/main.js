@@ -310,11 +310,12 @@ var ObsidianFactoryPlugin = class extends import_obsidian.Plugin {
       this.decorateCards();
     }));
     workspaceEvents.onLayoutReady(() => this.decorateCards());
-    const decorateTimer = globalThis.setInterval(
-      () => this.decorateCards(),
-      2e3
-    );
-    this.registerInterval(decorateTimer);
+    this.registerEvent(workspaceEvents.on("file-open", () => {
+      this.decorateCards();
+    }));
+    this.registerEvent(workspaceEvents.on("active-leaf-change", () => {
+      this.decorateCards();
+    }));
     this.addCommand({
       id: "capture-idea",
       name: "Capture an idea",
@@ -801,8 +802,8 @@ ${ok ? "\u2713" : "\u2717"} ${detail}
     const view = preview ?? leaf.querySelector(
       ".markdown-source-view .cm-scroller"
     );
-    if (!view || view.dataset.factoryCaptureNote === "1") return;
-    view.dataset.factoryCaptureNote = "1";
+    if (!view) return;
+    if (leaf.querySelector(".factory-capture")) return;
     const form = this.addCaptureForm(view);
     const heading = preview?.querySelector("h1");
     if (heading) heading.after(form);
@@ -823,9 +824,8 @@ ${ok ? "\u2713" : "\u2717"} ${detail}
       if (container) containers.add(container);
     }
     for (const container of containers) {
-      if (container.dataset.factoryCapture === "1") continue;
+      if (container.querySelector(".factory-capture")) continue;
       const form = this.addCaptureForm(container);
-      form.dataset.factoryCapture = "1";
       container.prepend(form);
     }
   }

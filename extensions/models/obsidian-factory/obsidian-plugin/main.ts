@@ -194,13 +194,12 @@ export default class ObsidianFactoryPlugin extends Plugin {
       this.decorateCards();
     }));
     workspaceEvents.onLayoutReady(() => this.decorateCards());
-    // Bases and the note view render asynchronously; re-run decoration so the
-    // capture box appears after the view exists (and after a re-render).
-    const decorateTimer = globalThis.setInterval(
-      () => this.decorateCards(),
-      2000,
-    );
-    this.registerInterval(decorateTimer);
+    this.registerEvent(workspaceEvents.on("file-open", () => {
+      this.decorateCards();
+    }));
+    this.registerEvent(workspaceEvents.on("active-leaf-change", () => {
+      this.decorateCards();
+    }));
 
     this.addCommand({
       id: "capture-idea",
@@ -738,8 +737,10 @@ export default class ObsidianFactoryPlugin extends Plugin {
       leaf.querySelector<HTMLElement>(
         ".markdown-source-view .cm-scroller",
       );
-    if (!view || view.dataset.factoryCaptureNote === "1") return;
-    view.dataset.factoryCaptureNote = "1";
+    if (!view) return;
+    // Check the DOM, not only a data attribute: Obsidian may replace the
+    // preview/scroller element, which would make the old attribute useless.
+    if (leaf.querySelector(".factory-capture")) return;
     const form = this.addCaptureForm(view);
     const heading = preview?.querySelector("h1");
     if (heading) heading.after(form);
@@ -764,9 +765,8 @@ export default class ObsidianFactoryPlugin extends Plugin {
       if (container) containers.add(container);
     }
     for (const container of containers) {
-      if (container.dataset.factoryCapture === "1") continue;
+      if (container.querySelector(".factory-capture")) continue;
       const form = this.addCaptureForm(container);
-      form.dataset.factoryCapture = "1";
       container.prepend(form);
     }
   }

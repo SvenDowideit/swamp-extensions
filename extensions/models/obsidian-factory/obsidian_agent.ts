@@ -177,7 +177,7 @@ async function executeRun(
 
 export const model = {
   type: "@svendowideit/obsidian-agent",
-  version: "2026.11.09.2",
+  version: "2026.11.09.3",
   globalArguments: z.object({}),
   upgrades: [
     {
@@ -189,6 +189,12 @@ export const model = {
     {
       toVersion: "2026.11.09.2",
       description: "Released with the Board-note capture box; no " +
+        "global-argument or resource schema changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.09.3",
+      description: "Released with the idempotent Board-note capture box; no " +
         "global-argument or resource schema changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

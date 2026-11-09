@@ -4116,7 +4116,7 @@ async function executeQueue(
 /** The tracker: stagecraft's contract 1 over an Obsidian board. */
 export const model = {
   type: "@svendowideit/obsidian-factory",
-  version: "2026.11.09.2",
+  version: "2026.11.09.3",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -4414,6 +4414,16 @@ export const model = {
         "and before the embedded Bases board, and re-run decoration every " +
         "two seconds so it survives async Bases/note renders. The Bases-only " +
         "anchor is kept for a directly opened Board.base.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.09.3",
+      description:
+        "Make the Board-note capture box idempotent: check the active leaf's " +
+        "DOM for an existing box instead of relying on an element data " +
+        "attribute (Obsidian replaces the preview/scroller element), and " +
+        "drop the 2-second decoration timer that duplicated the box. " +
+        "Decoration now runs on layout, file-open and active-leaf-change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

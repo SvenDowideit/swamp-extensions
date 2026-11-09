@@ -1,0 +1,193 @@
+manifestVersion: 1
+name: "@svendowideit/obsidian-app"
+version: "2026.11.09.1"
+description: >
+  Install, update and configure the Obsidian desktop app **and its official
+  CLI** on Linux from Obsidian's own release assets — rootless, idempotent, and
+  without the in-app toggling that people get stuck on.
+
+  WHAT IT DOES
+
+    Obsidian's in-app updater bumps the app but not the installer, so a machine
+    can run a recent Obsidian with an old installer that ships no CLI — the
+    "Command line interface" setting never appears, and `obsidian` is either
+    missing or resolves to the GUI binary. This extension closes that gap. It
+    resolves the newest desktop release, picks this machine's official
+    `obsidian-<version>.tar.gz` (or the arm64 build), unpacks it under
+    `~/.local/share/obsidian` with no root, then registers the `obsidian-cli`
+    the installer ships by copying it to `~/.local/bin/obsidian` — exactly what
+    Obsidian's own Linux registration does — turns the app's `cli` setting on,
+    writes a user-local desktop launcher, and verifies the result instead of
+    assuming it. It then *starts the app once* to prove it can actually run:
+    Obsidian is Electron, so Chromium refuses to launch without a sandbox, and a
+    user-unpacked tarball's `chrome-sandbox` is not root-owned — on Ubuntu
+    23.10+ that is an instant FATAL. The workflow fixes that the way Obsidian's
+    own .deb does (root-owned mode 4755, through `@svendowideit/sudo`) and fails
+    loudly with the exact command if the host grants no elevation route. It
+    reports honestly when an old system package shadows the CLI on PATH. Pair it
+    with `@svendowideit/obsidian-headless` for Sync.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/obsidian-app
+
+  DEPENDENCIES
+
+    `@svendowideit/github-release-install`, declared in `dependencies:` and
+    installed by the single pull above; the bundled workflows use its `check`
+    and `download` methods to resolve the release and verify the archive.
+    `@svendowideit/sudo` is declared for the one privileged step that gives
+    Chromium's sandbox helper its required owner and mode, and it never prompts:
+    with no granted elevation route the step fails and the final check prints the
+    command to run by hand. Everything else is self-contained — no system
+    package, no Node runtime.
+
+  RUN
+
+      # Install Obsidian and its CLI on a fresh machine, or upgrade an existing
+      # one — the same command decides which. Idempotent: it skips an install
+      # that is already current, and reports what it verified.
+      swamp workflow run @svendowideit/obsidian-app-upgrade
+
+      # Inspect the host first: the install, the app package Obsidian updated
+      # itself to, any system package, the CLI, how `obsidian` resolves and
+      # whether the sandbox lets it start. Changes nothing.
+      swamp model @svendowideit/obsidian-app method run setup obsidian-app
+
+      # Keep the setuid helper out of it entirely: stage an AppArmor profile
+      # that allows Obsidian's own user-namespace sandbox, then load the two
+      # commands it prints. Use this when you would rather not have a
+      # root-owned binary on disk than let the workflow chown chrome-sandbox.
+      swamp workflow run @svendowideit/obsidian-app-upgrade \
+        --input sandbox=apparmor
+
+      # Last resort, and off by default: run the app with --no-sandbox through
+      # a wrapper. Renderer sandboxing is then off, so only do this on a machine
+      # whose sandbox cannot be fixed at all.
+      swamp workflow run @svendowideit/obsidian-app-upgrade \
+        --input sandbox=no-sandbox
+
+  CONFIGURE
+
+    Workflow inputs for @svendowideit/obsidian-app-upgrade (all optional):
+
+      installMode      tar — the official tar.gz installer, rootless  (default tar)
+      installDir       Where the installer is unpacked    (default ~/.local/share/obsidian)
+      cliDir           Where `obsidian` is registered     (default ~/.local/bin)
+      appConfigDir     The app's config directory         (default $XDG_CONFIG_HOME/obsidian)
+      downloadDir      Where the verified archive is staged (default ~/.cache/obsidian-app)
+      desktopEntry     Write a user-local launcher        (default true)
+      enableCli        Turn the app's `cli` setting on     (default true)
+      sandbox          How to make the Chromium sandbox work  (default auto)
+      version          Pin a release instead of latest    (default: latest)
+      force            Reinstall/re-register unconditionally (default false)
+      repo             Installer repository               (default obsidianmd/obsidian-releases)
+
+    `sandbox` takes `auto` (fix `chrome-sandbox` through @svendowideit/sudo),
+    `setuid` (the same thing, stated explicitly), `apparmor` (stage a profile
+    that allows the namespace sandbox, then load it), `no-sandbox` (run with
+    `--no-sandbox`, opt-in only) or `report` (change nothing; the final check
+    then fails when the app cannot start).
+
+    The model's global arguments mirror these; a per-call `--input` wins over a
+    global. The README documents every one.
+
+  SETUP
+
+    `setup` is the discovery step and changes nothing. It reads the config this
+    model persisted on a previous run and reuses it, so nothing is asked twice;
+    anything passed now is persisted even when the picture is incomplete. It
+    reports verified reality, not intent — the installer version this extension
+    recorded, the `obsidian-<version>.asar` app package Obsidian actually
+    updated itself to, the real `cli` flag in `obsidian.json`, the CLI file's
+    existence and executable bit, and which directory on PATH would answer
+    `obsidian` — and it says plainly when a step is blocked:
+
+        swamp model @svendowideit/obsidian-app method run setup obsidian-app
+
+  SANDBOX
+
+    Obsidian is Electron, so Chromium builds a sandbox before the app starts: it
+    either uses unprivileged user namespaces or the setuid helper
+    `chrome-sandbox`, which must be root-owned mode 4755. Ubuntu 23.10+ denies
+    user namespaces to unconfined binaries, so a tarball unpacked by your own
+    user — which is what this extension installs — cannot use either route and
+    refuses to start:
+
+        [FATAL:setuid_sandbox_host.cc:166] The SUID sandbox helper binary was
+        found, but is not configured correctly. Rather than run without
+        sandboxing I'm aborting now.
+
+    The install workflow therefore ends with three steps: `sandbox` starts the
+    app once to see what happens (and stages the fix), `fix-sandbox` installs
+    `chrome-sandbox` root-owned mode 4755 through @svendowideit/sudo — the same
+    thing Obsidian's own .deb postinst does — and `sandbox-check` starts the app
+    again and fails the run, naming the exact `sudo install -D -m 4755 …`
+    command, if the sandbox is still wrong. The helper is never overwritten by
+    an upgrade, so a fixed machine needs no privileges again unless you reinstall
+    from scratch. Run over ssh, where there is no display, the check says so
+    honestly instead of blaming the sandbox: it reports the helper as correct
+    and quotes the app's own line, so start Obsidian in your desktop session to
+    watch it come up.
+
+  UPGRADE
+
+    One workflow installs and upgrades; there is no separate install command, so
+    there is only ever one thing to remember. It resolves the newest release,
+    unpacks the installer only when the version changed (and never over an
+    existing setuid helper), re-registers the CLI so `obsidian` matches the new
+    build, and then proves the app starts. Run it on a machine with nothing
+    installed and it installs; run it again after `swamp extension update` and it
+    upgrades what is there, so the same command is both the first run and the
+    upgrade. Idempotent either way, and a daily trigger keeps the machine
+    current automatically — remove `trigger:` to run it by hand only:
+
+      # Install or upgrade — whichever this machine needs — then re-register the
+      # CLI against the installer now on disk. Safe to re-run.
+      swamp workflow run @svendowideit/obsidian-app-upgrade
+
+  WHAT IT INSTALLS
+
+    One unprivileged install under `installDir` (default
+    `~/.local/share/obsidian`) holding the official `obsidian` binary,
+    `obsidian-cli`, `resources/app.asar` and the rest of the release; a marker
+    file `.swamp-obsidian-app.json` recording the installer version; the CLI
+    registered as `cliDir/obsidian` (default `~/.local/bin/obsidian`, mode 755);
+    and, when `desktopEntry` is true, `$XDG_DATA_HOME/applications/obsidian.desktop`.
+    It sets `"cli": true` in the app's `obsidian.json`, keeping a timestamped
+    `.pre-cli-*` backup beside it, only while the app is not running. The one
+    system-wide change is the sandbox fix: `installDir/chrome-sandbox` becomes
+    root-owned mode 4755 (the mode Chromium requires of a setuid helper, and
+    what the official .deb ships), applied through @svendowideit/sudo from a
+    user-owned copy staged at `installDir/.chrome-sandbox.stage` and removed
+    once the check passes. `sandbox=apparmor` writes `installDir/obsidian.apparmor`
+    instead and leaves the two commands to load it with you;
+    `sandbox=no-sandbox` writes `installDir/obsidian-no-sandbox` and points the
+    launcher at it. No service is created.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - obsidian_app.ts
+  - obsidian_app_shared.ts
+
+workflows:
+  - obsidian-app-upgrade.yaml
+
+dependencies:
+  - "@svendowideit/github-release-install"
+  - "@svendowideit/sudo"
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - obsidian_app_test.ts
+
+platforms:
+  - linux-x86_64
+  - linux-aarch64

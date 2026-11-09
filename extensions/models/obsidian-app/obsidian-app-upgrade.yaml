@@ -1,0 +1,404 @@
+id: 27c1c999-3758-4666-92de-ea2b620e50c3
+name: '@svendowideit/obsidian-app-upgrade'
+description: |
+  Install **or** upgrade the Obsidian desktop app and its official CLI on the
+  machine this workflow runs on — one idempotent command, no model names to
+  remember, no in-app installer dance.
+
+  It decides for itself which half of the job it is doing: on a machine with no
+  Obsidian install it installs the newest release; on a machine that already has
+  one it upgrades in place, and only when the version actually changed (unless
+  `force`). Either way it verifies the result instead of assuming it, so there is
+  no separate install command to remember and no install path that can drift from
+  the upgrade path.
+
+  Steps: fetch-release → plan → download → install-app → register-cli → sandbox →
+  fix-sandbox → sandbox-check → print.
+
+  fetch-release calls @svendowideit/github-release-install's `check`, which
+  resolves the newest Obsidian desktop release (or the pinned `version`) and
+  records it — including every asset, its URL and GitHub's SHA-256 digest.
+  Obsidian publishes no checksums file, so the release is resolved with
+  `fetchChecksums=false` and `requireChecksum=false`; the per-asset digest the
+  API returns is used instead, and the archive is refused if it does not match.
+  plan picks this machine's installer — `obsidian-<version>.tar.gz` on x86_64,
+  `obsidian-<version>-arm64.tar.gz` on arm64 — and records it. download fetches
+  it into `downloadDir` and verifies the bytes before they land. install-app
+  unpacks it under `installDir` (idempotently: the same version is not unpacked
+  twice, and an existing setuid `chrome-sandbox` is left alone) and checks the
+  binary, `obsidian-cli` and `resources/app.asar` are all present. register-cli
+  copies the installer's own `obsidian-cli` to `cliDir/obsidian` the way
+  Obsidian's Linux registration does, turns the app's `cli` setting on, and
+  verifies with `obsidian version` when the app is running. sandbox starts the
+  app once to find out whether Chromium's sandbox lets it run, stages the fix
+  (@svendowideit/sudo's typed `installFile` step) when the helper is not
+  root-owned mode 4755, and sandbox-check proves the sandbox afterwards — a run
+  that cannot make the app startable fails here rather than reporting success.
+  print re-reads the host and ends the log with the verified state and anything
+  that still needs a person.
+
+  Install on a fresh machine, or upgrade an existing one — the same command:
+
+      swamp workflow run @svendowideit/obsidian-app-upgrade
+
+  Pin a release, or install somewhere other than the default directories:
+
+      swamp workflow run @svendowideit/obsidian-app-upgrade \
+        --input version=1.15.0 --input installDir=~/opt/obsidian \
+        --input cliDir=~/bin
+
+  Leave the app's `cli` setting and the desktop launcher alone (for example on a
+  machine where a person manages those):
+
+      swamp workflow run @svendowideit/obsidian-app-upgrade \
+        --input enableCli=false --input desktopEntry=false
+
+  Idempotent: running it again on an up-to-date machine unpacks nothing, copies
+  nothing, elevates nothing and changes nothing. The workflow auto-registers the
+  `github-release` and `obsidian-app` model instances on first run; nothing needs
+  creating by hand.
+tags: {}
+trigger:
+  schedule: "0 5 * * *"
+inputs:
+  properties:
+    repo:
+      type: string
+      default: obsidianmd/obsidian-releases
+      description: GitHub repository publishing the Obsidian desktop installers.
+    version:
+      type: string
+      default: ""
+      description: >-
+        Release to install (e.g. 1.15.0 or v1.15.0). Empty installs the latest.
+    installMode:
+      type: string
+      default: tar
+      description: >-
+        Installer to use. `tar` is the official tar.gz build, unpacked rootless;
+        it is the only mode this extension implements.
+    installDir:
+      type: string
+      default: ""
+      description: >-
+        Directory the installer is unpacked into. Empty uses
+        ~/.local/share/obsidian.
+    cliDir:
+      type: string
+      default: ""
+      description: >-
+        Directory the Obsidian CLI is registered in. Empty uses ~/.local/bin.
+    appConfigDir:
+      type: string
+      default: ""
+      description: >-
+        The Obsidian desktop app's config directory. Empty uses
+        $XDG_CONFIG_HOME/obsidian.
+    downloadDir:
+      type: string
+      default: ~/.cache/obsidian-app
+      description: >-
+        Directory the verified installer archive is staged in before unpacking.
+    desktopEntry:
+      type: boolean
+      default: true
+      description: >-
+        Write a user-local obsidian.desktop launcher pointing at installDir, so
+        the desktop menu runs the installer this workflow installed.
+    enableCli:
+      type: boolean
+      default: true
+      description: >-
+        Turn the app's `cli` setting on so the registered CLI is allowed to run.
+        Skipped (and reported) while the app is running, because the app
+        rewrites its config on exit.
+    sandbox:
+      type: string
+      default: auto
+      description: >-
+        How to make Chromium's sandbox let the app start: `auto`/`setuid`
+        install chrome-sandbox root-owned mode 4755 through
+        @svendowideit/sudo (what Obsidian's .deb does); `apparmor` stages a
+        profile that allows the namespace sandbox for a person to load;
+        `no-sandbox` runs the app with --no-sandbox (renderer sandboxing off,
+        opt-in only); `report` changes nothing and only reports, so the final
+        check fails when the app cannot start.
+    force:
+      type: boolean
+      default: false
+      description: >-
+        Reinstall and re-register even when the version and CLI are already
+        current.
+  required: []
+jobs:
+  - name: main
+    description: >-
+      Resolve and verify the release, unpack this platform's installer, register
+      the CLI, and report the verified end state.
+    steps:
+      - name: fetch-release
+        description: >-
+          Resolve the newest Obsidian desktop release (or the pinned version)
+          and record it with every asset, URL and GitHub digest. Obsidian ships
+          no checksums file, so the checksum lookup is skipped here; the
+          per-asset digest is what download verifies against. This is the only
+          writer of the `release` resource in a run.
+        task:
+          type: model_method
+          modelType: "@svendowideit/github-release-install"
+          modelName: github-release
+          methodName: check
+          globalArgs:
+            repo: ${{ inputs.repo }}
+          inputs:
+            version: ${{ inputs.version }}
+            fetchChecksums: false
+            requireChecksum: false
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: plan
+        description: >-
+          Choose this machine's installer archive from the recorded release
+          (obsidian-<version>.tar.gz on x86_64, -arm64 on arm64) and record its
+          URL, size and digest. Fails loudly when the release ships no archive
+          for this platform instead of downloading the wrong one. It is the only
+          writer of the `asset` resource in a run.
+        task:
+          type: model_method
+          modelType: "@svendowideit/obsidian-app"
+          modelName: obsidian-app
+          methodName: plan
+          globalArgs:
+            installMode: ${{ inputs.installMode }}
+            installDir: ${{ inputs.installDir }}
+            cliDir: ${{ inputs.cliDir }}
+            appConfigDir: ${{ inputs.appConfigDir }}
+            downloadDir: ${{ inputs.downloadDir }}
+            desktopEntry: ${{ inputs.desktopEntry }}
+            enableCli: ${{ inputs.enableCli }}
+            sandbox: ${{ inputs.sandbox }}
+            repo: ${{ inputs.repo }}
+          inputs:
+            releaseModel: github-release
+        dependsOn:
+          - step: fetch-release
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: download
+        description: >-
+          Download the archive plan chose and verify its SHA-256 against the
+          digest GitHub published for that asset. Refuses an archive whose bytes
+          do not match, so the installer is never unpacked unverified. It is the
+          only writer of the `archive` resource in a run.
+        task:
+          type: model_method
+          modelType: "@svendowideit/github-release-install"
+          modelName: github-release
+          methodName: download
+          globalArgs:
+            repo: ${{ inputs.repo }}
+          inputs:
+            outputDir: ${{ inputs.downloadDir }}
+            assetName: ${{ data.latest("obsidian-app", "asset").attributes.archiveName }}
+            downloadUrl: ${{ data.latest("obsidian-app", "asset").attributes.downloadUrl }}
+            releaseVersion: ${{ data.latest("obsidian-app", "asset").attributes.version }}
+            checksum: ${{ data.latest("obsidian-app", "asset").attributes.checksum }}
+            requireChecksum: false
+            force: ${{ inputs.force }}
+        dependsOn:
+          - step: plan
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: install-app
+        description: >-
+          Unpack the verified archive into installDir, verify the binary,
+          obsidian-cli and app.asar are all in place, record the installer
+          version and write the user-local desktop entry. Idempotent: an install
+          already at that version is left alone unless force is set. It is the
+          only writer of the `install` resource in a run.
+        task:
+          type: model_method
+          modelType: "@svendowideit/obsidian-app"
+          modelName: obsidian-app
+          methodName: install
+          globalArgs:
+            installMode: ${{ inputs.installMode }}
+            installDir: ${{ inputs.installDir }}
+            cliDir: ${{ inputs.cliDir }}
+            appConfigDir: ${{ inputs.appConfigDir }}
+            downloadDir: ${{ inputs.downloadDir }}
+            desktopEntry: ${{ inputs.desktopEntry }}
+            enableCli: ${{ inputs.enableCli }}
+            sandbox: ${{ inputs.sandbox }}
+            repo: ${{ inputs.repo }}
+          inputs:
+            archivePath: ${{ data.latest("github-release", "archive").attributes.?path.orValue("") }}
+            archiveName: ${{ data.latest("obsidian-app", "asset").attributes.archiveName }}
+            version: ${{ data.latest("obsidian-app", "asset").attributes.version }}
+            checksum: ${{ data.latest("obsidian-app", "asset").attributes.checksum }}
+            force: ${{ inputs.force }}
+        dependsOn:
+          - step: download
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: register-cli
+        description: >-
+          Register the installer's own obsidian-cli as `obsidian` in cliDir,
+          turn the app's `cli` setting on (with a backup, only while the app is
+          not running), report which directory on PATH would win, and verify
+          with `obsidian version` when the app is running. This is what makes
+          the CLI usable without hunting for the Settings toggle. It is the only
+          writer of the `cli` resource in a run.
+        task:
+          type: model_method
+          modelType: "@svendowideit/obsidian-app"
+          modelName: obsidian-app
+          methodName: registerCli
+          globalArgs:
+            installMode: ${{ inputs.installMode }}
+            installDir: ${{ inputs.installDir }}
+            cliDir: ${{ inputs.cliDir }}
+            appConfigDir: ${{ inputs.appConfigDir }}
+            downloadDir: ${{ inputs.downloadDir }}
+            desktopEntry: ${{ inputs.desktopEntry }}
+            enableCli: ${{ inputs.enableCli }}
+            sandbox: ${{ inputs.sandbox }}
+            repo: ${{ inputs.repo }}
+          inputs:
+            force: ${{ inputs.force }}
+        dependsOn:
+          - step: install-app
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: sandbox
+        description: >-
+          Start the installed app once (`--version`) to find out whether
+          Chromium's sandbox actually lets it run. A rootless tarball unpack
+          leaves `chrome-sandbox` owned by the user, which Chromium refuses, so
+          on hosts that deny unprivileged user namespaces the app aborts at
+          startup. This step changes nothing privileged: it stages the helper
+          for the next step, stages an AppArmor profile when
+          `sandbox=apparmor`, writes a `--no-sandbox` wrapper when that was
+          asked for, and records the exact host command when no elevation route
+          exists. It is the only writer of the `sandbox` resource in a run.
+        task:
+          type: model_method
+          modelType: "@svendowideit/obsidian-app"
+          modelName: obsidian-app
+          methodName: sandbox
+          globalArgs:
+            installMode: ${{ inputs.installMode }}
+            installDir: ${{ inputs.installDir }}
+            cliDir: ${{ inputs.cliDir }}
+            appConfigDir: ${{ inputs.appConfigDir }}
+            downloadDir: ${{ inputs.downloadDir }}
+            desktopEntry: ${{ inputs.desktopEntry }}
+            enableCli: ${{ inputs.enableCli }}
+            sandbox: ${{ inputs.sandbox }}
+            repo: ${{ inputs.repo }}
+        dependsOn:
+          - step: register-cli
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: fix-sandbox
+        description: >-
+          Give Chromium's setuid sandbox helper the ownership and mode Chromium
+          demands (root:root 4755) through @svendowideit/sudo's `installFile`
+          operation, so the app starts with its sandbox intact — the same thing
+          Obsidian's own .deb postinst does. Guarded: skipped when the app
+          already starts. Non-interactive by design (sudo never prompts), so on
+          a host with no granted elevation route this step fails and the
+          `sandbox-check` step below prints the one command to run by hand.
+        guard: ${{ !data.latest("obsidian-app", "sandbox").attributes.sudoRequired }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/sudo"
+          modelName: sudo-obsidian-app
+          methodName: run
+          inputs:
+            operation: ${{ data.latest("obsidian-app", "sandbox").attributes.sudoOperation }}
+            allowedOperations:
+              - installFile
+            requireSuccess: true
+            args:
+              src: '${{ data.latest("obsidian-app", "sandbox").attributes.sudoSrc }}'
+              dest: '${{ data.latest("obsidian-app", "sandbox").attributes.sudoDest }}'
+              mode: ${{ data.latest("obsidian-app", "sandbox").attributes.sudoMode }}
+        dependsOn:
+          - step: sandbox
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+      - name: sandbox-check
+        description: >-
+          Start the app again and prove the sandbox is right: the workflow fails
+          here, with the exact `sudo install -D -m 4755 …` command in the
+          message, when Obsidian still cannot launch. This is the check that
+          turns "installed and registered" into "installed, registered and able
+          to start".
+        task:
+          type: model_method
+          modelType: "@svendowideit/obsidian-app"
+          modelName: obsidian-app
+          methodName: verifySandbox
+          globalArgs:
+            installMode: ${{ inputs.installMode }}
+            installDir: ${{ inputs.installDir }}
+            cliDir: ${{ inputs.cliDir }}
+            appConfigDir: ${{ inputs.appConfigDir }}
+            downloadDir: ${{ inputs.downloadDir }}
+            desktopEntry: ${{ inputs.desktopEntry }}
+            enableCli: ${{ inputs.enableCli }}
+            sandbox: ${{ inputs.sandbox }}
+            repo: ${{ inputs.repo }}
+        dependsOn:
+          - step: fix-sandbox
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+      - name: print
+        description: >-
+          Re-read the host and end the run log with the verified state: the
+          installer version and path, the app package Obsidian updated itself
+          to, the registered CLI, how `obsidian` actually resolves, whether the
+          sandbox lets the app start, and the commands that still need a person
+          (quit the app to enable the cli setting, retire an old system
+          package, fix PATH).
+        task:
+          type: model_method
+          modelType: "@svendowideit/obsidian-app"
+          modelName: obsidian-app
+          methodName: print
+          globalArgs:
+            installMode: ${{ inputs.installMode }}
+            installDir: ${{ inputs.installDir }}
+            cliDir: ${{ inputs.cliDir }}
+            appConfigDir: ${{ inputs.appConfigDir }}
+            downloadDir: ${{ inputs.downloadDir }}
+            desktopEntry: ${{ inputs.desktopEntry }}
+            enableCli: ${{ inputs.enableCli }}
+            sandbox: ${{ inputs.sandbox }}
+            repo: ${{ inputs.repo }}
+        dependsOn:
+          - step: sandbox-check
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1
+

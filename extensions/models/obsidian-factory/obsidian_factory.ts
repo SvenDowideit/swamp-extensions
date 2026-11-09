@@ -902,13 +902,56 @@ function summaryChecks(summary: string): string {
     .join("; ");
 }
 
+/** First sentence of a paragraph, trimmed to fit a card face. */
+function firstSentence(text: string, limit = 140): string {
+  const plain = text.replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/^#{1,6}\s+.*$/gm, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (plain === "") return "";
+  const sentence = /^(.+?[.!?])(\s|$)/.exec(plain)?.[1] ?? plain;
+  const value = sentence.length > limit
+    ? `${sentence.slice(0, limit - 1)}…`
+    : sentence;
+  return value.trim();
+}
+
+/** The description paragraph above the card's first section. */
+function cardIntro(body: string): string {
+  let plain = body;
+  for (
+    const [begin, end] of [
+      [SUMMARY_BEGIN, SUMMARY_END],
+      [PLAN_BEGIN, PLAN_END],
+      [DEFINITION_BEGIN, DEFINITION_END],
+      [ACTIVITY_BEGIN, ACTIVITY_END],
+    ] as const
+  ) {
+    plain = stripManaged(plain, begin, end);
+  }
+  const withoutTitle = plain.replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/^#\s+.*$/m, "").trim();
+  const firstSection = withoutTitle.indexOf("\n## ");
+  const intro = firstSection >= 0
+    ? withoutTitle.slice(0, firstSection)
+    : withoutTitle;
+  return firstSentence(intro);
+}
+
+/** The Plan's one-sentence summary, if it has one. */
+function planSummary(plan: string): string {
+  const match = /\*\*Summary:\*\*\s*(.+)/.exec(plan);
+  return match ? firstSentence(match[1], 120) : "";
+}
+
 /**
  * The one-line card face summary, chosen by the card's column.
  *
- * This is deliberately not "stage + plan": the column already says the stage.
- * It shows what the next person needs to know in this column: needs/project in
- * Proposed, plan and task/test progress in the plan columns, checks in Test and
- * Release, ideas/questions in Category, and the next action where there is one.
+ * The column already says the stage, so this shows the card's actual content
+ * and the one fact that column needs: the card intro in Proposed, the plan
+ * summary and task/test progress in the plan columns, the check result in Test
+ * and Release, ideas/questions in Category, and thoughts in the inbox. It does
+ * not add "At a glance", "Needs:" or "Next:" boilerplate.
  */
 export function columnCardSummary(
   status: string,
@@ -918,16 +961,14 @@ export function columnCardSummary(
   const summary = extractManaged(body, SUMMARY_BEGIN, SUMMARY_END) ?? "";
   const plan = extractManaged(body, PLAN_BEGIN, PLAN_END) ?? "";
   const need = firstNeed(summary);
-  const nextMatch = /\*\*Next:\*\*\s*(.+)/.exec(summary);
-  const next = nextMatch ? nextMatch[1].trim() : "";
-  const planMatch = /\*\*Plan:\*\*\s*([a-zA-Z]+)/.exec(summary);
-  const planStatus = planMatch ? planMatch[1] : "";
   const tasks = planProgress(plan, "Tasks");
   const tests = planProgress(plan, "Tests");
   const checks = summaryChecks(summary);
   const ideas = sectionBullets(body, "Ideas").length;
   const questions = sectionBullets(body, "Questions").length;
   const thoughts = sectionBullets(body, "Thoughts").length;
+  const intro = cardIntro(body);
+  const planLine = planSummary(plan);
   const parts: string[] = [];
   const add = (value: string) => {
     if (value !== "") parts.push(value);
@@ -943,30 +984,29 @@ export function columnCardSummary(
       }
       break;
     case "Proposed":
-      if (need !== "") add(`Needs: ${need}`);
+      add(intro || need);
       if (project.trim() !== "") add(`Project: ${project.trim()}`);
       break;
     case "Please Plan":
     case "Work Planned":
     case "Please Implement":
-      if (planStatus !== "") add(`Plan ${planStatus}`);
+      add(planLine || intro);
       if (tasks.total > 0) add(`Tasks ${tasks.done}/${tasks.total}`);
       if (tests.total > 0) add(`Tests ${tests.done}/${tests.total}`);
       break;
     case "Please Test":
-      if (checks !== "") add(`Checks: ${checks}`);
+      if (checks !== "") add(checks);
       if (tests.total > 0) add(`Tests ${tests.done}/${tests.total}`);
       break;
     case "Please Release":
-      if (checks !== "") add(`Checks: ${checks}`);
+      if (checks !== "") add(checks);
       break;
     case "User Acceptance":
-      if (need !== "") add(`Needs: ${need}`);
+      add(need || planLine || intro);
       break;
     default:
       break;
   }
-  if (next !== "" && !/^_.*_$/.test(next)) add(`Next: ${next}`);
   if (parts.length === 0) return "";
   const line = parts.join(" · ").replace(/\s+/g, " ").trim();
   return line.length > 240 ? `${line.slice(0, 237)}…` : line;
@@ -4287,7 +4327,7 @@ async function executeQueue(
 /** The tracker: stagecraft's contract 1 over an Obsidian board. */
 export const model = {
   type: "@svendowideit/obsidian-factory",
-  version: "2026.11.09.10",
+  version: "2026.11.09.11",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -4663,6 +4703,16 @@ export const model = {
         "and plan: Proposed shows needs/project, plan columns show task/test " +
         "progress, Test/Release show checks, Category shows ideas/questions, " +
         "the inbox shows thoughts. Refresh rewrites every card.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.09.11",
+      description:
+        "Put actual content first on the native card face: the card intro in " +
+        "Proposed, the Plan summary plus task/test progress in the plan " +
+        "columns, checks in Test/Release, ideas/questions in Category and " +
+        "thoughts in the inbox. Remove stage/plan/Needs/Next boilerplate and " +
+        "hide the property label on the kanban card face.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

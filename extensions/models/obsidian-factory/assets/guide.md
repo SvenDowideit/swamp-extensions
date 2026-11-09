@@ -115,12 +115,13 @@ factory writes it from the card's managed At a glance, so the face is one
 readable line such as:
 
 ```text
-Plan final · Tasks 2/6 · Tests 1/5 · Next: Move to Please Implement
+Add the ESPHome ingest method… · Tasks 3/6 · Tests 2/5
 ```
 
-Other columns use their own facts: `Needs: … · Project: … · Next: …` in Proposed,
-`Checks: 11 passed · Next: …` in Please Test/Please Release, `4 ideas ·
-1 question · Next: …` in Category, and `2 thoughts · Next: …` in the inbox.
+Other columns use their own facts: the card intro plus `Project: /repo` in
+Proposed, `11 passed` in Please Test/Please Release, `4 ideas · 1 question` in
+Category, and `3 thoughts` in the inbox. The property label is hidden on the
+card face by the plugin styles, so the summary gets the full width.
 
 The card dialog has the full At a glance, the brief and the Plan. Kind, project,
 source and updated stay in the frontmatter and the table/cards views, not on the

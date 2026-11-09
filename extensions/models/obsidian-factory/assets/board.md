@@ -62,12 +62,13 @@ anything on a card. The line is the stage, plan status, first open question and
 next move:
 
 ```text
-Plan final · Tasks 2/6 · Tests 1/5 · Next: Move to Please Implement
+Add the ESPHome ingest method… · Tasks 3/6 · Tests 2/5
 ```
 
-Other columns use their own facts: `Needs: … · Project: … · Next: …` in Proposed,
-`Checks: 11 passed · Next: …` in Please Test/Please Release, `4 ideas ·
-1 question · Next: …` in Category, and `2 thoughts · Next: …` in the inbox.
+Other columns use their own facts: the card intro plus `Project: /repo` in
+Proposed, `11 passed` in Please Test/Please Release, `4 ideas · 1 question` in
+Category, and `3 thoughts` in the inbox. The property label is hidden on the
+card face by the plugin styles, so the summary gets the full width.
 
 Every column uses the same native line. The full At a glance and Plan are in
 the card dialog and the note. **Kind**, **Project**, **Source** and **Updated**

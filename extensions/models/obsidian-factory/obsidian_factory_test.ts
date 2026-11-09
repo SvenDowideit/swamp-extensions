@@ -1480,8 +1480,8 @@ Deno.test("columnCardSummary is column-specific, not stage boilerplate", () => {
   ].join("\n"));
   assertEquals(
     columnCardSummary("Proposed", proposed, "/repo"),
-    "Needs: Confirm the project path · Project: /repo · Next: Move to Please Plan",
-    "Proposed shows the decision inputs, not the stage",
+    "Confirm the project path · Project: /repo",
+    "Proposed shows the card need and project, not the stage",
   );
 
   const plan = nativeCard(
@@ -1503,8 +1503,8 @@ Deno.test("columnCardSummary is column-specific, not stage boilerplate", () => {
   );
   assertEquals(
     columnCardSummary("Work Planned", plan),
-    "Plan final · Tasks 1/2 · Tests 0/1 · Next: Move to Please Implement",
-    "Work Planned shows plan progress",
+    "Tasks 1/2 · Tests 0/1",
+    "Work Planned shows task and test progress",
   );
 
   const release = nativeCard([
@@ -1520,7 +1520,7 @@ Deno.test("columnCardSummary is column-specific, not stage boilerplate", () => {
   ].join("\n"));
   assertEquals(
     columnCardSummary("Please Release", release),
-    "Checks: 11 passed · Next: Publish 2026.11.09.9",
+    "11 passed",
     "Please Release shows the check result",
   );
 
@@ -1546,7 +1546,7 @@ Deno.test("columnCardSummary is column-specific, not stage boilerplate", () => {
   );
   assertEquals(
     acceptanceLine,
-    "Needs: Restart Obsidian · Next: Accept",
+    "Restart Obsidian",
     "acceptance",
   );
 });
@@ -1564,7 +1564,7 @@ Deno.test("columnCardSummary uses ideas/questions and thoughts per column", () =
   ].join("\n");
   assertEquals(
     columnCardSummary("Category", category),
-    "2 ideas · 1 question · Next: Propose a subset",
+    "2 ideas · 1 question",
     "category",
   );
   const inbox = [
@@ -1577,7 +1577,7 @@ Deno.test("columnCardSummary uses ideas/questions and thoughts per column", () =
   ].join("\n");
   assertEquals(
     columnCardSummary("Uncharacterised", inbox),
-    "2 thoughts · Next: Triage",
+    "2 thoughts",
     "inbox",
   );
 });

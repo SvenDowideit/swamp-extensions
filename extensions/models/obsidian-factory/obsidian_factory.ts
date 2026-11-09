@@ -1866,6 +1866,11 @@ export interface CardPathMigration {
   pending: string[];
 }
 
+/** A path migration plus the cards it last read, for the layout pass. */
+export interface CardPathMigrationResult extends CardPathMigration {
+  cards: Card[];
+}
+
 /**
  * Give every card a title-only filename and drop the codename property. A card
  * that is already title-only is a no-op. When the vault cannot rename (the
@@ -1881,12 +1886,13 @@ export async function migrateCardPaths(
   context: FactoryContext,
   dryRun = false,
   maxRenames = 8,
-): Promise<CardPathMigration> {
-  const migration: CardPathMigration = {
+): Promise<CardPathMigrationResult> {
+  const migration: CardPathMigrationResult = {
     renamed: [],
     displayCleared: [],
     failures: [],
     pending: [],
+    cards: [],
   };
   const folder = cardsFolder(context);
   const cards = await readAllCards(context);
@@ -1926,13 +1932,19 @@ export async function migrateCardPaths(
         migration.displayCleared.push(card.frontmatter.id);
       }
     }
+    migration.cards = cards;
     return migration;
   }
   // Then drop the codename property and rewrite old activity text. The re-read
   // is also the check that each rename happened: the CLI reports success for a
   // file it did not find.
   const pending = new Set(migration.pending);
-  const fresh = await readAllCards(context);
+  // The vault rewrites wikilinks on a move, so a rename needs a fresh read.
+  // With no rename the board snapshot is still current, and this read is the
+  // difference between a tick that fits its call budget and one that does not.
+  const fresh = migration.renamed.length > 0
+    ? await readAllCards(context)
+    : cards;
   const freshTaken = new Set(fresh.map((card) => card.path.toLowerCase()));
   for (const card of fresh) {
     const id = card.frontmatter.id;
@@ -1981,6 +1993,7 @@ export async function migrateCardPaths(
       composeNote(card.frontmatter, card.body),
     );
   }
+  migration.cards = fresh;
   return migration;
 }
 
@@ -3388,7 +3401,7 @@ async function migrateCardsInternal(
   maxRenames = 8,
 ): Promise<CardMigration> {
   const paths = await migrateCardPaths(context, dryRun, maxRenames);
-  const cards = await readAllCards(context);
+  const cards = paths.cards;
   let changed = 0;
   for (const card of cards) {
     let touched = false;
@@ -3450,8 +3463,8 @@ async function migrateCardsInternal(
   return { changed, ...paths };
 }
 
-/** What one card migration pass did. */
-export interface CardMigration extends CardPathMigration {
+/** What one card migration pass did, with the cards it left current. */
+export interface CardMigration extends CardPathMigrationResult {
   changed: number;
 }
 
@@ -3693,6 +3706,7 @@ async function upgradeDefinitions(
   context: FactoryContext,
   factoryDefinition: string,
   dryRun: boolean,
+  snapshot?: Card[],
 ): Promise<{ repinned: string[]; pinned: string[]; errors: string[] }> {
   const repinned: string[] = [];
   const pinned: string[] = [];
@@ -3713,7 +3727,7 @@ async function upgradeDefinitions(
       ],
     };
   }
-  const cards = await readAllCards(context);
+  const cards = snapshot ?? await readAllCards(context);
   for (const card of cards) {
     const key = card.frontmatter.id.toLowerCase();
     const runs = await context.readModelData(key, "run");
@@ -3856,6 +3870,7 @@ async function executeTick(
       context,
       args.factoryDefinition ?? "",
       dryRun,
+      migration.cards,
     );
   const handle = await context.writeResource("tick", "tick", {
     board: queue.cards,

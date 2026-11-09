@@ -842,6 +842,8 @@ class FakeVault {
   moveSilentlyDoesNothing = false;
   /** Folders the fake vault reports as absent. */
   missingFolders = new Set<string>();
+  /** How many times the board has been listed, to watch the call budget. */
+  listCalls = 0;
   readonly context: FactoryContext;
   private records = new Map<string, FakeDataRecord[]>();
   private counter = 0;
@@ -956,6 +958,7 @@ class FakeVault {
           });
         }
         case "list": {
+          this.listCalls++;
           const folder = String(args.folder ?? "").replace(/\/+$/, "");
           if (this.missingFolders.has(folder)) {
             return answer({
@@ -1672,4 +1675,21 @@ Deno.test("a vault with no Cards folder yet is an empty board, not an error", as
   const migration = await migrateCardPaths(vault.context);
   assertEquals(migration.renamed, [], "nothing to rename");
   assertEquals(migration.failures, [], "no failure");
+});
+
+Deno.test("a migration with nothing to do reads the board only once", async () => {
+  const vault = new FakeVault({
+    "Factory/Cards/board-automation.md": sampleCardNote(),
+  });
+  await migrateCardPaths(vault.context);
+  assertEquals(vault.listCalls, 1, "one board read when nothing moves");
+  assertEquals(vault.notes.size, 1, "nothing created");
+});
+
+Deno.test("a migration that renames reads the board again for the new links", async () => {
+  const vault = new FakeVault({
+    "Factory/Cards/FAC-2 board-automation.md": sampleCardNote(),
+  });
+  await migrateCardPaths(vault.context);
+  assertEquals(vault.listCalls, 2, "a second read after the rename");
 });

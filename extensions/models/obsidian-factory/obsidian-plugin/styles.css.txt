@@ -123,3 +123,55 @@
   font-size: var(--font-ui-smaller);
   margin: 0 0 0.5rem;
 }
+
+/* Capture box: the first row of the kanban board page. */
+.factory-capture {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+  background: var(--background-primary);
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.factory-capture input {
+  flex: 1 1 16rem;
+  font-size: var(--font-ui-small);
+}
+
+.factory-capture button {
+  font-size: var(--font-ui-smaller);
+  padding: 2px 8px;
+  cursor: pointer;
+}
+
+.factory-capture-hint {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+}
+
+.factory-capture-dialog .factory-capture-form p {
+  color: var(--text-muted);
+  font-size: var(--font-ui-smaller);
+  margin: 0 0 0.75rem;
+}
+
+.factory-capture-dialog .factory-capture-form textarea {
+  width: 100%;
+  font-size: var(--font-ui-small);
+}
+
+.factory-capture-error:empty {
+  display: none;
+}
+
+.factory-capture-error {
+  color: var(--text-error);
+  font-size: var(--font-ui-smaller);
+  margin: 0.5rem 0 0;
+}

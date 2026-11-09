@@ -3,6 +3,8 @@
  */
 import archiveBase from "./assets/archive.base.yaml" with { type: "text" };
 import boardBase from "./assets/board.base.yaml" with { type: "text" };
+import boardPage from "./assets/board.md" with { type: "text" };
+import guidePage from "./assets/guide.md" with { type: "text" };
 import {
   addEnabledPlugin,
   appendActivity,
@@ -14,6 +16,7 @@ import {
   archiveFolder,
   archivePathFor,
   buildTickPrompt,
+  captureThought,
   cardDisplay,
   cardMatches,
   cardSummary,
@@ -1692,4 +1695,111 @@ Deno.test("a migration that renames reads the board again for the new links", as
   });
   await migrateCardPaths(vault.context);
   assertEquals(vault.listCalls, 2, "a second read after the rename");
+});
+
+Deno.test("capture appends the exact text to the inbox Thoughts", () => {
+  const inbox = "# Uncharacterised\n\n## Thoughts\n\n- an older thought\n";
+  const text = "can we have an idea input on the kanban board?";
+  const line = captureThought("2026-11-09T09:00:00.000Z", text);
+  const body = appendBullet(inbox, "Thoughts", line);
+  const thoughts = sectionBullets(body, "Thoughts");
+  assertEquals(thoughts.length, 2, "one bullet added");
+  assertEquals(thoughts[1], `2026-11-09T09:00:00.000Z ${text}`, "exact text");
+  assertEquals(
+    sectionBullets(
+      appendBullet(inbox, "Thoughts", captureThought("t", `  ${text}  `)),
+      "Thoughts",
+    )[1],
+    "t " + text,
+    "edge whitespace is trimmed, the words are untouched",
+  );
+  assertEquals(
+    sectionBullets(
+      appendBullet(inbox, "Thoughts", captureThought("t", "x", " phone ")),
+      "Thoughts",
+    )[1],
+    "t (phone) x",
+    "the source is annotated",
+  );
+});
+
+Deno.test("the guide names every card section and who writes it", () => {
+  const guide = guidePage;
+  for (
+    const heading of [
+      "At a glance",
+      "Needs your input",
+      "Brief",
+      "Ideas",
+      "Thoughts",
+      "Questions",
+      "Feedback",
+      "Plan",
+      "Definition",
+      "Activity",
+    ]
+  ) {
+    assert(guide.includes(heading), `the guide names ${heading}`);
+  }
+  assert(guide.includes("You write"), "the guide says what a person writes");
+  assert(
+    guide.includes("written by the"),
+    "the guide says what the factory writes",
+  );
+  for (
+    const marker of [
+      "swamp:summary",
+      "swamp:plan",
+      "swamp:definition",
+      "swamp:activity",
+    ]
+  ) {
+    assert(guide.includes(marker), `the guide names ${marker}`);
+  }
+});
+
+Deno.test("the guide puts the readable order first", () => {
+  const guide = guidePage;
+  const sectionStart = guide.indexOf("## Reading a card");
+  assert(sectionStart > 0, "the guide has a reading section");
+  const reading = guide.slice(sectionStart);
+  const order = [
+    "The title",
+    "`## At a glance`",
+    "Your prose",
+    "`## Questions` and `## Feedback`",
+    "`## Plan`",
+    "`## Activity`",
+  ].map((needle) => reading.indexOf(needle));
+  assert(order.every((at) => at >= 0), "every step of the order is named");
+  assertEquals(
+    order,
+    [...order].sort((a, b) => a - b),
+    "the order is top-first",
+  );
+});
+
+Deno.test("the guide and the board page document the capture box and its fallbacks", () => {
+  for (
+    const [name, page] of [["guide", guidePage], ["board", boardPage]] as const
+  ) {
+    const flat = page.replace(/\s+/g, " ");
+    assert(flat.includes("capture box"), `${name} names the capture box`);
+    assert(
+      flat.includes("kanban board page") || flat.includes("top of this page"),
+      `${name} says where it is`,
+    );
+    assert(
+      flat.includes("obsidian-board capture"),
+      `${name} shows the CLI path`,
+    );
+  }
+  assert(
+    guidePage.replace(/\s+/g, " ").includes("Capture an idea"),
+    "the guide names the palette",
+  );
+  assert(
+    guidePage.includes("plugin never writes the note"),
+    "the guide says the plugin never writes the note",
+  );
 });

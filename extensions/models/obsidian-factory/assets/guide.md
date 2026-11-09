@@ -7,16 +7,26 @@ file.
 
 ## Capture
 
-Add a bullet under `## Thoughts` on the one card in the **Uncharacterised**
-column (its note is `{{folder}}/Cards/uncharacterised.md`), or:
+On the kanban board page — the **Board** page — the **Obsidian Factory** plugin
+adds a capture box above the columns: type the thought, press Enter or **Add
+idea**, and it lands on the one **Uncharacterised** card. The box is part of the plugin because a native
+Bases view cannot host an input widget; the command palette (**Capture an
+idea**) does the same from anywhere in the vault.
+
+Without the plugin, add a bullet under `## Thoughts` on the one card in the
+**Uncharacterised** column (its note is
+`{{folder}}/Cards/uncharacterised.md`), or run:
 
 ```sh
 swamp behavior run obsidian-board capture --input 'text=...'
 ```
 
-The inbox is one card on purpose: ideas arrive mixed up and the factory does
-the separating. It routes each thought to an existing category card or creates
-a new category, and records why in the inbox card's activity.
+Empty text is refused: nothing is written until there is a thought to keep.
+Every path calls the board model's `capture` method, which appends the bullet;
+the plugin never writes the note itself. The inbox is one card on purpose:
+ideas arrive mixed up and the factory does the separating. It routes each
+thought to an existing category card or creates a new category, and records why
+in the inbox card's activity.
 
 ## Category cards
 
@@ -129,26 +139,43 @@ exists), and refuses rather than overwrite a card already on the board.
 
 ## Reading a card
 
-Each card has three kinds of writing:
+Read a card top to bottom; the top is what the factory and you act on.
 
-- **Your prose** — the title, brief, ideas, questions and feedback.
-- **`## At a glance`** — the first thing under the title. It shows the current
-  stage, whether the plan is absent, draft or final, **Needs your input**, the
-  next step, and what is known and unknown. Put your questions and decisions
-  here so they are visible without scrolling.
-- **`## Questions` and `## Feedback`** — sit above the Plan, so they are easy
-  to reach. Any new or changed word anywhere on the card is feedback.
-- **`## Plan`** — a live checkbox list of tasks and tests, what existing
-  functionality changes, what functionality is added or removed, and the
-  known/unknown lists. The factory ticks a task when it is actually done and a
-  test when it has run and passed. It is written as a draft by the plan stage
-  and marked final after the adversarial review and cleanup. It is detail to
-  scroll to, not the first thing you must read.
-- **`## Activity`** — the detailed agent journal. Use it for deep
-  investigations; it is not the summary.
+1. **The title** — one human-readable title. The card's id lives in the
+   frontmatter and in links, not in the title or the filename.
+2. **`## At a glance`** — the first thing under the title, written by the
+   factory. It shows the current stage, whether the plan is absent, draft or
+   final, **Needs your input**, the next step, and what is known and unknown.
+   **Needs your input** holds the questions and decisions waiting on you, so
+   you do not have to hunt for them. Put your own questions and decisions here
+   too, and they stay visible without scrolling.
+3. **Your prose** — the `## Brief`, the `## Ideas` bullets, the `## Thoughts`
+   capture, `## Questions` and `## Feedback`. You write all of this; the
+   factory only reads it, quotes it into the activity log and answers it. Any
+   new or changed word here is feedback, and so is an edit anywhere else on the
+   page.
+4. **`## Questions` and `## Feedback`** — kept directly above the Plan so they
+   are easy to reach. They are ordinary sections: using them is a habit, not a
+   requirement.
+5. **`## Plan`** — a live checkbox list of tasks and tests, what existing
+   functionality changes, what functionality is added or removed, and the
+   known/unknown lists. The factory writes it as a draft in **Please Plan** and
+   marks it final after the adversarial review and cleanup. It ticks a task
+   when the work is actually done and a test when it has run and passed. It is
+   detail to scroll to, not the first thing you must read.
+6. **`## Definition`** — one line saying which factory definition version the
+   work item is pinned to. A running work item keeps the definition it started
+   with, so editing the factory never changes work in flight.
+7. **`## Activity`** — the detailed agent journal: what each stage did and
+   learned, and every move a person made. Use it for deep investigations; it is
+   not the summary.
 
-The `swamp:summary`, `swamp:plan` and `swamp:activity` markers keep the
-machine-written sections separate from your prose.
+The factory writes `## At a glance`, `## Plan`, `## Definition` and
+`## Activity` between `swamp:summary`, `swamp:plan`, `swamp:definition` and
+`swamp:activity` markers. The markers keep the machine-written sections
+separate from your prose, and the factory refuses to overwrite one you have
+edited until it has quoted your words back. Everything outside those blocks is
+yours.
 
 ## Hiding the Obsidian metadata
 

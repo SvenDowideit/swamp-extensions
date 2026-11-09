@@ -158,6 +158,16 @@ function readableCard(raw) {
     plan: stripManagedMarkers(planBlock)
   };
 }
+var CAPTURE_PLACEHOLDER = "Add an idea to the inbox...";
+function captureTextProblem(text) {
+  if (text.trim() === "") {
+    return "Write the thought before adding it to the inbox.";
+  }
+  return "";
+}
+function captureRequestBody(text) {
+  return { text: text.trim() };
+}
 var ARCHIVE_OUTCOMES = ["done", "deleted", "duplicate"];
 function isArchivablePath(path, folder = "Factory") {
   const normalized = folder.replace(/^\/+|\/+$/g, "");
@@ -297,6 +307,15 @@ var ObsidianFactoryPlugin = class extends import_obsidian.Plugin {
     }));
     workspaceEvents.onLayoutReady(() => this.decorateCards());
     this.addCommand({
+      id: "capture-idea",
+      name: "Capture an idea",
+      callback: () => {
+        new CaptureIdeaModal(this.app, (text) => {
+          void this.captureIdea(text);
+        }).open();
+      }
+    });
+    this.addCommand({
       id: "tick-factory",
       name: "Tick the Obsidian factory",
       callback: () => {
@@ -416,6 +435,57 @@ var ObsidianFactoryPlugin = class extends import_obsidian.Plugin {
     child.on("error", (error) => this.finishTick(false, error.message));
     child.on("close", (code) => {
       this.finishTick(code === 0, `exit ${code ?? "unknown"}`);
+    });
+  }
+  /**
+   * Send one captured thought to the board model's capture method. The plugin
+   * never writes the inbox note: obsidian-board is its only writer.
+   */
+  async captureIdea(text) {
+    await this.loadSettings();
+    const problem = captureTextProblem(text);
+    if (problem) {
+      new import_obsidian.Notice(problem);
+      return;
+    }
+    const repo = this.settings.repoPath.trim();
+    if (!repo) {
+      new import_obsidian.Notice(
+        "Capturing needs a swamp repo path. Set one in Settings -> Community plugins -> Obsidian Factory."
+      );
+      return;
+    }
+    const payload = captureRequestBody(text);
+    const child = (0, import_child_process.spawn)(
+      this.settings.swampBinary || "swamp",
+      [
+        "behavior",
+        "run",
+        "obsidian-board",
+        "capture",
+        "--input",
+        `text=${payload.text}`
+      ],
+      { cwd: repo, env: { ...process.env, PATH: agentPath() } }
+    );
+    let output = "";
+    child.stdout?.on("data", (data) => {
+      output += data.toString();
+    });
+    child.stderr?.on("data", (data) => {
+      output += data.toString();
+    });
+    child.on("error", (error) => {
+      new import_obsidian.Notice(`Capture failed: ${error.message}`);
+    });
+    child.on("close", (code) => {
+      if (code === 0) {
+        new import_obsidian.Notice("Added to the inbox card in Uncharacterised.");
+      } else {
+        new import_obsidian.Notice(
+          `Capture failed (exit ${code}): ${output.trim().split("\n").slice(-3).join(" ")}`
+        );
+      }
     });
   }
   openArchiveDialog(file) {
@@ -624,6 +694,7 @@ ${ok ? "\u2713" : "\u2717"} ${detail}
     this.decorateCards();
   }
   decorateCards() {
+    this.decorateCaptureBoxes();
     const cards = Array.from(
       document.querySelectorAll(".bases-kanban-card")
     );
@@ -668,6 +739,45 @@ ${ok ? "\u2713" : "\u2717"} ${detail}
       row.appendChild(open);
       cardEl.prepend(row);
       cardEl.dataset.factoryMoves = "1";
+    }
+  }
+  /**
+   * Put the capture box on the kanban board page: the Board view is a Bases
+   * Kanban, and the native view cannot host an input widget, so the plugin
+   * adds the box above the columns. The box submits through captureIdea, so
+   * obsidian-board stays the only writer of the inbox note.
+   */
+  decorateCaptureBoxes() {
+    const containers = /* @__PURE__ */ new Set();
+    for (const card of Array.from(
+      document.querySelectorAll(".bases-kanban-card")
+    )) {
+      const container = card.closest(".bases-view") ?? card.closest(".bases-kanban");
+      if (container) containers.add(container);
+    }
+    for (const container of containers) {
+      if (container.dataset.factoryCapture === "1") continue;
+      const form = container.createDiv({ cls: "factory-capture" });
+      form.dataset.factoryCapture = "1";
+      const input = form.createEl("input", { type: "text" });
+      input.placeholder = CAPTURE_PLACEHOLDER;
+      const submit = () => {
+        void this.captureIdea(input.value);
+        input.value = "";
+      };
+      const button = form.createEl("button", { text: "Add idea" });
+      button.addEventListener("click", submit);
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          submit();
+        }
+      });
+      form.createEl("span", {
+        cls: "factory-capture-hint",
+        text: "Lands on the inbox card in Uncharacterised"
+      });
+      container.prepend(form);
     }
   }
   async onClick(event) {
@@ -873,6 +983,40 @@ var ArchiveCardModal = class extends import_obsidian.Modal {
     });
     const cancel = actions.createEl("button", { text: "Cancel" });
     cancel.addEventListener("click", () => this.close());
+  }
+};
+var CaptureIdeaModal = class extends import_obsidian.Modal {
+  constructor(app, onSubmit) {
+    super(app);
+    this.onSubmit = onSubmit;
+  }
+  onOpen() {
+    this.modalEl.addClass("factory-capture-dialog");
+    this.titleEl.setText("Capture an idea");
+    const form = this.contentEl.createDiv({ cls: "factory-capture-form" });
+    form.createEl("p", {
+      text: "The thought lands on the inbox card in Uncharacterised; the next tick routes it to a category."
+    });
+    const input = form.createEl("textarea");
+    input.rows = 3;
+    input.placeholder = CAPTURE_PLACEHOLDER;
+    const error = form.createEl("p", { cls: "factory-capture-error" });
+    const actions = this.contentEl.createDiv({
+      cls: "factory-dialog-actions"
+    });
+    const submit = actions.createEl("button", { text: "Add idea" });
+    submit.addEventListener("click", () => {
+      const problem = captureTextProblem(input.value);
+      if (problem) {
+        error.setText(problem);
+        return;
+      }
+      this.onSubmit(input.value);
+      this.close();
+    });
+    const cancel = actions.createEl("button", { text: "Cancel" });
+    cancel.addEventListener("click", () => this.close());
+    input.focus();
   }
 };
 var TickLogModal = class extends import_obsidian.Modal {

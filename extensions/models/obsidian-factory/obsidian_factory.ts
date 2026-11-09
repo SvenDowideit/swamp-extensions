@@ -2814,6 +2814,19 @@ async function executeInstallBoardPlugin(
   return { dataHandles: [handle] };
 }
 
+/**
+ * The bullet one capture appends: when it arrived, an optional source, then
+ * the words exactly as typed. Shared by the capture method and its test.
+ */
+export function captureThought(
+  stamp: string,
+  text: string,
+  source?: string,
+): string {
+  const origin = source?.trim() ? ` (${source.trim()})` : "";
+  return `${stamp}${origin} ${text.trim()}`;
+}
+
 async function executeCapture(
   args: { text: string; source?: string },
   context: FactoryContext,
@@ -2830,11 +2843,10 @@ async function executeCapture(
     );
   }
   const stamp = nowIso();
-  const source = args.source ? ` (${args.source})` : "";
   card.body = appendBullet(
     card.body,
     "Thoughts",
-    `${stamp}${source} ${args.text}`,
+    captureThought(stamp, args.text, args.source),
   );
   await writeCardNote(context, card);
   const handle = await context.writeResource(

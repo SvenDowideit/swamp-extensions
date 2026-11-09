@@ -38,9 +38,11 @@ description: >
       # Re-running changes nothing unless you pass --input force=true.
       swamp behavior run obsidian-board installBoard
 
-      # Optional: install the read-only card dialog plugin. It is added to
-      # community-plugins.json by default; restart Obsidian once to load it.
-      # Pass enable=false to leave it disabled for Settings -> Community plugins.
+      # Optional: install the card dialog plugin. It adds the capture box on
+      # the Board page, the read-only card dialog and the move buttons, and is
+      # added to community-plugins.json by default; restart Obsidian once to
+      # load it. Pass enable=false to leave it disabled for Settings ->
+      # Community plugins.
       swamp behavior run obsidian-board installBoardPlugin
 
       # One-time: create the agent runner. It is deliberately a separate
@@ -54,7 +56,9 @@ description: >
         --input repo=$PWD --input agent=pi \
         --input model=ollama-cloud/deepseek-v4.1-flash
 
-      # Capture a raw thought on the uncharacterised card.
+      # Capture a raw thought on the uncharacterised card. The Board page's
+      # capture box and the command palette (Capture an idea) call the same
+      # method; this line is the path with no plugin installed.
       swamp behavior run obsidian-board capture \
         --input 'text=the cache should be write-through'
 

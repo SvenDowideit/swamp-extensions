@@ -20,6 +20,9 @@ import {
   ARCHIVE_OUTCOMES,
   archiveRequestBody,
   archiveRequestProblem,
+  CAPTURE_PLACEHOLDER,
+  captureRequestBody,
+  captureTextProblem,
   isArchivablePath,
   isArchivedPath,
   isCardPath,
@@ -192,6 +195,16 @@ export default class ObsidianFactoryPlugin extends Plugin {
     workspaceEvents.onLayoutReady(() => this.decorateCards());
 
     this.addCommand({
+      id: "capture-idea",
+      name: "Capture an idea",
+      callback: () => {
+        new CaptureIdeaModal(this.app, (text) => {
+          void this.captureIdea(text);
+        }).open();
+      },
+    });
+
+    this.addCommand({
       id: "tick-factory",
       name: "Tick the Obsidian factory",
       callback: () => {
@@ -322,6 +335,60 @@ export default class ObsidianFactoryPlugin extends Plugin {
     child.on("error", (error) => this.finishTick(false, error.message));
     child.on("close", (code) => {
       this.finishTick(code === 0, `exit ${code ?? "unknown"}`);
+    });
+  }
+
+  /**
+   * Send one captured thought to the board model's capture method. The plugin
+   * never writes the inbox note: obsidian-board is its only writer.
+   */
+  private async captureIdea(text: string): Promise<void> {
+    await this.loadSettings();
+    const problem = captureTextProblem(text);
+    if (problem) {
+      new Notice(problem);
+      return;
+    }
+    const repo = this.settings.repoPath.trim();
+    if (!repo) {
+      new Notice(
+        "Capturing needs a swamp repo path. Set one in Settings -> Community plugins -> Obsidian Factory.",
+      );
+      return;
+    }
+    const payload = captureRequestBody(text);
+    const child = spawn(
+      this.settings.swampBinary || "swamp",
+      [
+        "behavior",
+        "run",
+        "obsidian-board",
+        "capture",
+        "--input",
+        `text=${payload.text}`,
+      ],
+      { cwd: repo, env: { ...process.env, PATH: agentPath() } },
+    );
+    let output = "";
+    child.stdout?.on("data", (data) => {
+      output += data.toString();
+    });
+    child.stderr?.on("data", (data) => {
+      output += data.toString();
+    });
+    child.on("error", (error) => {
+      new Notice(`Capture failed: ${error.message}`);
+    });
+    child.on("close", (code) => {
+      if (code === 0) {
+        new Notice("Added to the inbox card in Uncharacterised.");
+      } else {
+        new Notice(
+          `Capture failed (exit ${code}): ${
+            output.trim().split("\n").slice(-3).join(" ")
+          }`,
+        );
+      }
     });
   }
 
@@ -558,6 +625,7 @@ export default class ObsidianFactoryPlugin extends Plugin {
   }
 
   private decorateCards(): void {
+    this.decorateCaptureBoxes();
     const cards = Array.from(
       document.querySelectorAll<HTMLElement>(".bases-kanban-card"),
     );
@@ -605,6 +673,49 @@ export default class ObsidianFactoryPlugin extends Plugin {
       row.appendChild(open);
       cardEl.prepend(row);
       cardEl.dataset.factoryMoves = "1";
+    }
+  }
+
+  /**
+   * Put the capture box on the kanban board page: the Board view is a Bases
+   * Kanban, and the native view cannot host an input widget, so the plugin
+   * adds the box above the columns. The box submits through captureIdea, so
+   * obsidian-board stays the only writer of the inbox note.
+   */
+  private decorateCaptureBoxes(): void {
+    const containers = new Set<HTMLElement>();
+    for (
+      const card of Array.from(
+        document.querySelectorAll<HTMLElement>(".bases-kanban-card"),
+      )
+    ) {
+      const container = card.closest<HTMLElement>(".bases-view") ??
+        card.closest<HTMLElement>(".bases-kanban");
+      if (container) containers.add(container);
+    }
+    for (const container of containers) {
+      if (container.dataset.factoryCapture === "1") continue;
+      const form = container.createDiv({ cls: "factory-capture" });
+      form.dataset.factoryCapture = "1";
+      const input = form.createEl("input", { type: "text" });
+      input.placeholder = CAPTURE_PLACEHOLDER;
+      const submit = () => {
+        void this.captureIdea(input.value);
+        input.value = "";
+      };
+      const button = form.createEl("button", { text: "Add idea" });
+      button.addEventListener("click", submit);
+      input.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          submit();
+        }
+      });
+      form.createEl("span", {
+        cls: "factory-capture-hint",
+        text: "Lands on the inbox card in Uncharacterised",
+      });
+      container.prepend(form);
     }
   }
 
@@ -857,6 +968,47 @@ class ArchiveCardModal extends Modal {
     });
     const cancel = actions.createEl("button", { text: "Cancel" });
     cancel.addEventListener("click", () => this.close());
+  }
+}
+
+/**
+ * The command-palette capture fallback: type one thought, then hand it to the
+ * board model. The dialog never writes the note itself, and it refuses empty
+ * text so a blank idea cannot land in the inbox.
+ */
+class CaptureIdeaModal extends Modal {
+  constructor(app: App, private onSubmit: (text: string) => void) {
+    super(app);
+  }
+
+  override onOpen(): void {
+    this.modalEl.addClass("factory-capture-dialog");
+    this.titleEl.setText("Capture an idea");
+    const form = this.contentEl.createDiv({ cls: "factory-capture-form" });
+    form.createEl("p", {
+      text:
+        "The thought lands on the inbox card in Uncharacterised; the next tick routes it to a category.",
+    });
+    const input = form.createEl("textarea");
+    input.rows = 3;
+    input.placeholder = CAPTURE_PLACEHOLDER;
+    const error = form.createEl("p", { cls: "factory-capture-error" });
+    const actions = this.contentEl.createDiv({
+      cls: "factory-dialog-actions",
+    });
+    const submit = actions.createEl("button", { text: "Add idea" });
+    submit.addEventListener("click", () => {
+      const problem = captureTextProblem(input.value);
+      if (problem) {
+        error.setText(problem);
+        return;
+      }
+      this.onSubmit(input.value);
+      this.close();
+    });
+    const cancel = actions.createEl("button", { text: "Cancel" });
+    cancel.addEventListener("click", () => this.close());
+    input.focus();
   }
 }
 

@@ -195,6 +195,26 @@ export function readableCard(raw: string): ReadableCard {
 }
 
 // ---------------------------------------------------------------------------
+// Capture
+// ---------------------------------------------------------------------------
+
+/** The line the capture box shows while it is empty. */
+export const CAPTURE_PLACEHOLDER = "Add an idea to the inbox...";
+
+/** What is wrong with one captured thought, or "" when it can be sent. */
+export function captureTextProblem(text: string): string {
+  if (text.trim() === "") {
+    return "Write the thought before adding it to the inbox.";
+  }
+  return "";
+}
+
+/** The request the plugin sends: the text as typed, without edge whitespace. */
+export function captureRequestBody(text: string): { text: string } {
+  return { text: text.trim() };
+}
+
+// ---------------------------------------------------------------------------
 // Archive
 // ---------------------------------------------------------------------------
 

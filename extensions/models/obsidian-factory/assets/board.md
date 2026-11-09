@@ -23,9 +23,16 @@ stored in the board file.
 
 ## Adding a thought
 
-Open the one card in the **Uncharacterised** column (its note is
-`{{folder}}/Cards/uncharacterised.md`) and add a bullet under `## Thoughts`,
-or run:
+With the optional **Obsidian Factory** plugin, the top of this page has a capture
+box: type the thought, press Enter, and it lands on the one inbox card. The
+native Bases view cannot host an input widget, so the box comes from the plugin;
+the command palette (**Capture an idea**) and the CLI work without it. The box,
+the palette and the CLI all call the same board method, so the inbox note has
+one writer.
+
+Without the plugin, open the one card in the **Uncharacterised** column (its
+note is `{{folder}}/Cards/uncharacterised.md`) and add a bullet under
+`## Thoughts`, or run:
 
 ```sh
 swamp behavior run obsidian-board capture \
@@ -38,7 +45,8 @@ Every card is a normal Obsidian note. Read `## At a glance` first: it says the
 current stage, whether the plan is draft or final, what is known, what is still
 unknown and what happens next. `## Plan` is a checkbox list of tasks and tests,
 with what existing functionality changes and what functionality is added or
-removed. `## Activity` is the detailed agent journal.
+removed. `## Activity` is the detailed agent journal. Who writes what, in
+reading order, is in the [Guide](Guide.md#reading-a-card).
 
 The machine-written sections use markers (`swamp:summary`, `swamp:plan`,
 `swamp:activity`); leave them alone. To hide the raw frontmatter block in

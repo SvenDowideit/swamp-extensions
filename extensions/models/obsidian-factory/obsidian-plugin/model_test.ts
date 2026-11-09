@@ -2,6 +2,9 @@ import {
   ARCHIVE_OUTCOMES,
   archiveRequestBody,
   archiveRequestProblem,
+  CAPTURE_PLACEHOLDER,
+  captureRequestBody,
+  captureTextProblem,
   isArchivablePath,
   isArchivedPath,
   isCardPath,
@@ -14,6 +17,7 @@ import {
   stripFrontmatter,
   stripManagedMarkers,
 } from "./model.ts";
+import mainSource from "./main.ts" with { type: "text" };
 import { assert, assertEquals } from "jsr:@std/assert@1.0.0";
 
 const raw = `---
@@ -148,6 +152,51 @@ Deno.test("card paths and markers", () => {
       "<!-- swamp:plan:begin -->\nx\n<!-- swamp:plan:end -->",
     ).includes("swamp:"),
     "markers",
+  );
+});
+
+Deno.test("a capture box refuses empty or whitespace-only text", () => {
+  assert(captureTextProblem("") !== "", "empty text refused");
+  assert(captureTextProblem("   \n\t") !== "", "whitespace refused");
+  assertEquals(
+    captureTextProblem("the cache should be write-through"),
+    "",
+    "a thought is enough",
+  );
+  assert(CAPTURE_PLACEHOLDER.length > 0, "the box has a placeholder");
+});
+
+Deno.test("a capture request keeps the text and trims the edges", () => {
+  assertEquals(
+    captureRequestBody("  the cache should be write-through  "),
+    { text: "the cache should be write-through" },
+    "text kept as typed, edges trimmed",
+  );
+  assertEquals(
+    captureRequestBody("keep  the double space"),
+    { text: "keep  the double space" },
+    "inner spacing is not rewritten",
+  );
+});
+
+Deno.test("the kanban board page gets a capture box that calls the tracker", () => {
+  const source = mainSource;
+  assert(source.includes("factory-capture"), "a capture box is added");
+  assert(
+    source.includes("bases-kanban-card"),
+    "the box is attached to the kanban board",
+  );
+  const start = source.indexOf("private async captureIdea(");
+  assert(start > 0, "the plugin has a captureIdea method");
+  const rest = source.slice(start + 1);
+  const end = rest.indexOf("\n  private ");
+  const body = end > 0 ? rest.slice(0, end) : rest;
+  assert(body.includes('"obsidian-board"'), "calls the board behavior");
+  assert(body.includes('"capture"'), "calls the capture method");
+  assert(!body.includes("vault."), "never writes the note itself");
+  assert(
+    /id: "capture-idea"/.test(source),
+    "the command palette has the fallback",
   );
 });
 

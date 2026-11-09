@@ -97,13 +97,16 @@ swamp model create @magistr/obsidian/vault obsidian-vault \
 # --input force=true (which rewrites the board assets, never the inbox card).
 swamp behavior run obsidian-board installBoard
 
-# Optional: install the read-only card dialog plugin. The bundle hash is
-# verified, changed files are backed up, and the plugin is left disabled for
-# you to enable in Settings -> Community plugins.
+# Optional: install the card dialog plugin. The bundle hash is verified,
+# changed files are backed up, and the plugin is added to
+# community-plugins.json; restart Obsidian once. It adds the capture box on the
+# Board page, the read-only card dialog and the move buttons.
 swamp behavior run obsidian-board installBoardPlugin
 
-# Capture a raw thought on the uncharacterised card. Use this from a phone,
-# a script, or an agent; editing the card's ## Thoughts section does the same.
+# Capture a raw thought on the uncharacterised card. Use this from a phone, a
+# script or an agent; the Board page's capture box and the command palette
+# (**Capture an idea**) do the same when the plugin is installed, and editing
+# the card's ## Thoughts section does the same without either.
 swamp behavior run obsidian-board capture \
   --input 'text=the cache should be write-through'
 
@@ -157,18 +160,31 @@ The two extensions are declared in `dependencies:`, so one pull installs both.
 
 ### Reading a card
 
-Each card has three layers:
+Read a card top to bottom: the title, then `## At a glance`, then your prose,
+then `## Questions`/`## Feedback`, then `## Plan`, then `## Activity`. The top is
+what you read and act on; the Plan is detail to scroll to.
 
 - `## At a glance` — the current stage, whether the plan is absent, draft or
-  final, what is known, what is still unknown, and the next step.
+  final, **Needs your input**, the next step, and what is known and still
+  unknown.
 - `## Plan` — checkbox tasks and tests, existing functionality changing,
   functionality added/removed, and known/unknown. It is written as a draft by
   the plan stage and marked final after review and cleanup.
 - `## Activity` — the detailed agent journal, for deep investigation.
+- `## Definition` — the definition version the work item is pinned to. Work in
+  flight keeps the definition it started with.
 
-The machine-written layers use `swamp:summary`, `swamp:plan` and
-`swamp:activity` markers, so the factory can rewrite them without touching the
-person's prose.
+**You write** the title, the brief, `## Ideas`, `## Thoughts`,
+`## Questions`, `## Feedback` and any prose elsewhere. The factory only reads
+those words, quotes them into the activity log and answers them. The
+`## At a glance`, `## Plan`, `## Definition` and `## Activity` sections are
+written by the factory.
+
+The machine-written sections use `swamp:summary`, `swamp:plan`,
+`swamp:definition` and `swamp:activity` markers, so the factory can rewrite them
+without touching your prose, and it refuses to overwrite a section you edited
+until it has quoted your words. A change anywhere on the page — a ticked task, a
+new question, an edited brief — is feedback.
 
 ### The card
 
@@ -433,6 +449,23 @@ Set the repo input once with
 then reload/restart serve. The route secret is mandatory; use TLS. The local
 ribbon/command needs no token. The factory still never publishes.
 
+### Capturing an idea
+
+With the plugin installed, the top of the **Board** page has a capture box: type
+the thought, press Enter or **Add idea**, and it lands on the one inbox card in
+**Uncharacterised**. The box is in the plugin because a native Bases view cannot
+host an input widget; the command palette (**Capture an idea**) opens the same
+box from anywhere in the vault. Empty or whitespace-only text is refused and
+nothing is written. Without the plugin the command palette entry is not there,
+so capture from the CLI (or by editing `## Thoughts`):
+
+```sh
+swamp behavior run obsidian-board capture --input 'text=the cache should be write-through'
+```
+
+Every path calls the board's `capture` method, which appends the bullet, so the
+vault model remains the only writer of the note file.
+
 ### The card dialog plugin
 
 The optional plugin opens a factory card as a read-only prose dialog instead of
@@ -451,6 +484,14 @@ for the outcome, the reason and an optional detail, then hands them to
 It deliberately omits frontmatter, the Definition section, the Activity log and
 the `swamp:` markers. **Open in editor** is the path to the rest; **Close** and
 Escape close the dialog.
+
+The same plugin puts a capture box at the top of the **Board** page: type one
+thought, press Enter or **Add idea**, and it lands on the inbox card in
+**Uncharacterised**. The native Bases Kanban cannot host an input widget, so the
+box is plugin DOM work; it submits through the board's `capture` method and
+never writes the note. Empty text is refused. The command palette (**Capture an
+idea**) opens the same box from anywhere, and without the plugin the CLI
+(`swamp behavior run obsidian-board capture`) is the path.
 
 The same plugin adds the documented normal moves as buttons at the top of the
 Bases kanban card face and at the top of the card dialog, with **Open in

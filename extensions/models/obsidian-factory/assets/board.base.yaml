@@ -9,7 +9,7 @@ properties:
   file.name:
     displayName: Card
   note.cardSummary:
-    displayName: At a glance
+    displayName: "​"
   note.status:
     displayName: Column
   note.kind:

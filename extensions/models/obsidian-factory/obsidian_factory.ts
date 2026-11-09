@@ -4327,7 +4327,7 @@ async function executeQueue(
 /** The tracker: stagecraft's contract 1 over an Obsidian board. */
 export const model = {
   type: "@svendowideit/obsidian-factory",
-  version: "2026.11.09.11",
+  version: "2026.11.09.12",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -4713,6 +4713,14 @@ export const model = {
         "columns, checks in Test/Release, ideas/questions in Category and " +
         "thoughts in the inbox. Remove stage/plan/Needs/Next boilerplate and " +
         "hide the property label on the kanban card face.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.09.12",
+      description:
+        "Remove the visible At a glance label from the native card face by " +
+        "giving note.cardSummary an invisible display name; the card shows " +
+        "the title and the summary text only.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

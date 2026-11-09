@@ -546,6 +546,294 @@ export function encodePowerShell(script: string): string {
   return btoa(binary);
 }
 
+/** A thrown value's message, for error text. */
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+/** The Herdr theme this extension ships and installs by default. */
+export const HERDR_THEME_ID = "borland-modern-blue";
+
+/**
+ * The colour names Herdr resolves (its `theme()` map) plus the 16 ANSI slots.
+ * A theme file may override only these; anything else would be silently
+ * ignored by the app, so it is reported instead.
+ */
+export const HERDR_THEME_COLORS = [
+  "background",
+  "terminal_foreground",
+  "foreground",
+  "surface",
+  "canvas",
+  "chrome",
+  "popover",
+  "raised",
+  "hover",
+  "selected",
+  "border",
+  "input",
+  "muted",
+  "dim",
+  "accent",
+  "accent_foreground",
+  "solid",
+  "solid_foreground",
+  "ring",
+  "selection",
+  "cursor",
+  "working",
+  "blocked",
+  "done",
+  "idle",
+  "unknown",
+  ...Array.from({ length: 16 }, (_, i) => `ansi${i}`),
+] as const;
+
+/** A Herdr theme document, as `themes/<name>.json`. */
+export interface HerdrTheme {
+  /** Terminal background, `#rrggbb`. */
+  background: string;
+  /** Terminal foreground, `#rrggbb`. */
+  foreground: string;
+  /** Selection background, `#rrggbb`. */
+  selection: string;
+  /** Cursor colour, `#rrggbb`, or "". */
+  cursor: string;
+  /** The 16 ANSI colours, `#rrggbb`. */
+  ansi: string[];
+  /** Panel colour overrides, `#rrggbb` or `#rrggbbaa`. */
+  colors: Record<string, string>;
+}
+
+const HEX6 = /^#[0-9a-fA-F]{6}$/;
+const HEX8 = /^#[0-9a-fA-F]{8}$/;
+
+/**
+ * Validate a Herdr theme document against the app's own rules — it rejects
+ * unknown top-level keys, requires 16 ANSI colours, and takes `#rrggbb` for the
+ * palette and `#rrggbb`/`#rrggbbaa` for overrides. Colour names the app does not
+ * resolve are returned in `unknownColors` (the app would ignore them silently).
+ *
+ * @param text The JSON text.
+ * @param source Where the text came from, for the error message.
+ */
+export function parseHerdrTheme(
+  text: string,
+  source: string,
+): { theme: HerdrTheme; unknownColors: string[] } {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch (error) {
+    throw new Error(`${source} is not valid JSON: ${errorMessage(error)}`);
+  }
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error(`${source} is not a theme object`);
+  }
+  const obj = raw as Record<string, unknown>;
+  const allowed = new Set([
+    "background",
+    "foreground",
+    "selection",
+    "cursor",
+    "ansi",
+    "colors",
+  ]);
+  for (const key of Object.keys(obj)) {
+    if (!allowed.has(key)) {
+      throw new Error(
+        `${source}: "${key}" is not a theme field (Herdr accepts background, ` +
+          `foreground, selection, cursor, ansi, colors)`,
+      );
+    }
+  }
+  const hex6 = (key: string): string => {
+    const value = obj[key];
+    if (typeof value !== "string" || !HEX6.test(value)) {
+      throw new Error(`${source}: ${key} must be #rrggbb`);
+    }
+    return value;
+  };
+  const ansi = obj["ansi"];
+  if (!Array.isArray(ansi) || ansi.length !== 16) {
+    throw new Error(`${source}: ansi must be an array of 16 #rrggbb colours`);
+  }
+  for (const [i, colour] of ansi.entries()) {
+    if (typeof colour !== "string" || !HEX6.test(colour)) {
+      throw new Error(`${source}: ansi[${i}] must be #rrggbb`);
+    }
+  }
+  const colors: Record<string, string> = {};
+  const unknownColors: string[] = [];
+  const rawColors = obj["colors"];
+  if (rawColors !== undefined) {
+    if (
+      !rawColors || typeof rawColors !== "object" || Array.isArray(rawColors)
+    ) {
+      throw new Error(
+        `${source}: colors must be an object of #rrggbb or #rrggbbaa`,
+      );
+    }
+    for (
+      const [name, value] of Object.entries(
+        rawColors as Record<string, unknown>,
+      )
+    ) {
+      if (
+        typeof value !== "string" || !(HEX6.test(value) || HEX8.test(value))
+      ) {
+        throw new Error(
+          `${source}: colors.${name} must be #rrggbb or #rrggbbaa`,
+        );
+      }
+      colors[name] = value;
+      if (!(HERDR_THEME_COLORS as readonly string[]).includes(name)) {
+        unknownColors.push(name);
+      }
+    }
+  }
+  const cursor = obj["cursor"];
+  if (
+    cursor !== undefined && (typeof cursor !== "string" || !HEX6.test(cursor))
+  ) {
+    throw new Error(`${source}: cursor must be #rrggbb`);
+  }
+  return {
+    theme: {
+      background: hex6("background"),
+      foreground: hex6("foreground"),
+      selection: hex6("selection"),
+      cursor: typeof cursor === "string" ? cursor : "",
+      ansi: ansi as string[],
+      colors,
+    },
+    unknownColors,
+  };
+}
+
+/** Inputs for {@link herdrAppHomeFor}, mirroring how the app finds its home. */
+export interface HerdrHomeInputs {
+  /** Host family (path separators). */
+  os: HostOs;
+  /** `$HOME` / `%USERPROFILE%`. */
+  home: string;
+  /** `$XDG_CONFIG_HOME`, or "". */
+  xdgConfig?: string;
+  /** `$HERDR_APP_HOME`, or "". */
+  herdrAppHome?: string;
+}
+
+/**
+ * Herdr's own home: `$HERDR_APP_HOME`, else `$XDG_CONFIG_HOME/herdr-app`, else
+ * `~/.config/herdr-app` — the order the app itself resolves (`app_dir()`).
+ */
+export function herdrAppHomeFor(inputs: HerdrHomeInputs): string {
+  const override = (inputs.herdrAppHome ?? "").trim();
+  if (override) return override.replace(/[\\/]+$/, "");
+  const xdg = (inputs.xdgConfig ?? "").trim().replace(/[\\/]+$/, "");
+  if (inputs.os === "windows") {
+    const base = xdg || `${inputs.home.replace(/[\\/]+$/, "")}\\.config`;
+    return `${base}\\herdr-app`;
+  }
+  const base = xdg || `${inputs.home.replace(/\/+$/, "")}/.config`;
+  return `${base}/herdr-app`;
+}
+
+/** Join a path under the app home with the host's separator. */
+function under(home: string, rest: string, os: HostOs): string {
+  return os === "windows"
+    ? `${home}\\${rest.replace(/\//g, "\\")}`
+    : `${home}/${rest}`;
+}
+
+/** `themes/<id>.json` inside the app home. */
+export function themeFilePath(
+  appHome: string,
+  id: string,
+  os: HostOs,
+): string {
+  return under(appHome, `themes/${id}.json`, os);
+}
+
+/** `settings.json` inside the app home. */
+export function settingsFilePath(appHome: string, os: HostOs): string {
+  return under(appHome, "settings.json", os);
+}
+
+/** The person's theme choice in `settings.json`. */
+export interface ThemeChoice {
+  /** True when a theme (one name, or a light/dark pair) is already chosen. */
+  chosen: boolean;
+  /** The single theme name, or "" for a pair or nothing. */
+  theme: string;
+  /** The light half of a pair (or the single name), or "". */
+  light: string;
+  /** The dark half of a pair (or the single name), or "". */
+  dark: string;
+}
+
+/**
+ * Read the theme choice out of `settings.json`. A missing file, a missing
+ * `theme` key and an explicit `null` all mean "not chosen"; an unreadable
+ * settings file throws, so a caller never overwrites it by accident.
+ */
+export function themeChoiceOf(
+  settingsText: string,
+  source = "settings.json",
+): ThemeChoice {
+  if (!settingsText.trim()) {
+    return { chosen: false, theme: "", light: "", dark: "" };
+  }
+  let raw: unknown;
+  try {
+    raw = JSON.parse(settingsText);
+  } catch (error) {
+    throw new Error(
+      `${source} is not valid JSON (${
+        errorMessage(error)
+      }); the theme was not ` +
+        `selected — fix or remove the file and re-run`,
+    );
+  }
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error(
+      `${source} is not a JSON object; the theme was not selected`,
+    );
+  }
+  const theme = (raw as Record<string, unknown>)["theme"];
+  if (typeof theme === "string") {
+    return theme.trim()
+      ? { chosen: true, theme, light: theme, dark: theme }
+      : { chosen: false, theme: "", light: "", dark: "" };
+  }
+  if (theme && typeof theme === "object" && !Array.isArray(theme)) {
+    const pair = theme as Record<string, unknown>;
+    const light = typeof pair["light"] === "string" ? pair["light"] : "";
+    const dark = typeof pair["dark"] === "string" ? pair["dark"] : "";
+    return { chosen: Boolean(light || dark), theme: "", light, dark };
+  }
+  return { chosen: false, theme: "", light: "", dark: "" };
+}
+
+/**
+ * Return `settings.json` text with `theme` set to `id`, or unchanged when a
+ * theme is already chosen (a person's choice is never overwritten). Other keys
+ * and their order are preserved.
+ */
+export function withThemeChoice(
+  settingsText: string,
+  id: string,
+): { text: string; changed: boolean } {
+  const choice = themeChoiceOf(settingsText);
+  if (choice.chosen) return { text: settingsText, changed: false };
+  const raw = settingsText.trim() ? JSON.parse(settingsText) : {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error("settings.json is not a JSON object");
+  }
+  (raw as Record<string, unknown>)["theme"] = id;
+  return { text: `${JSON.stringify(raw, null, 2)}\n`, changed: true };
+}
+
 /** One host platform's pinned archives, for the SSH installer. */
 export interface InstallPin {
   /** Release target id, e.g. `linux-x86_64`. */
@@ -574,6 +862,15 @@ export interface RenderedInstall {
   coreMode: "auto" | "always" | "never";
   /** Verify the macOS core app's release signature (vendor URLs only). */
   verifyCoreSignature: boolean;
+  /** The theme to install on every host, or absent to leave themes alone. */
+  theme?: {
+    /** Theme id (= file name without `.json`). */
+    id: string;
+    /** The theme document, shipped with this extension. */
+    json: string;
+    /** Select it when the person has not chosen a theme yet. */
+    select: boolean;
+  };
 }
 
 /** The targets the POSIX SSH installer can serve. */
@@ -621,6 +918,8 @@ CORE_VERSION=${q(release.coreVersion)}
 CORE_MODE=${q(release.coreMode)}
 FORCE=${q(release.force ? "1" : "0")}
 VERIFY_CORE_SIGNATURE=${q(release.verifyCoreSignature ? "1" : "0")}
+THEME_ID=${q(release.theme?.id ?? "")}
+THEME_SELECT=${q(release.theme?.select ? "1" : "0")}
 
 say() { printf '%s\\n' "$*"; }
 fail() { say "herdr-app: $*" >&2; exit 1; }
@@ -824,10 +1123,65 @@ if [ "$core_wanted" = 1 ]; then
   core_have=$(version_of "$core_bin")
 fi
 
+# The theme ships with the extension; it is written only when it differs, and
+# selected only when settings.json names no theme yet (a person's choice is
+# never overwritten).
+app_home="\${HERDR_APP_HOME:-\${XDG_CONFIG_HOME:-$HOME/.config}/herdr-app}"
+theme_action=skipped
+theme_selected=no
+if [ -n "$THEME_ID" ]; then
+  theme_dir="$app_home/themes"
+  theme_file="$theme_dir/$THEME_ID.json"
+  mkdir -p "$theme_dir"
+  themed="$theme_dir/.$THEME_ID.json.new"
+  cat > "$themed" <<'HERDR_THEME'
+${release.theme?.json?.trimEnd() ?? ""}
+HERDR_THEME
+  if cmp -s "$themed" "$theme_file"; then
+    rm -f "$themed"
+    theme_action=unchanged
+  else
+    mv -f "$themed" "$theme_file"
+    theme_action=installed
+  fi
+  settings="$app_home/settings.json"
+  if [ "$THEME_SELECT" = 1 ]; then
+    if [ ! -f "$settings" ]; then
+      mkdir -p "$app_home"
+      printf '{\\n  "theme": "%s"\\n}\\n' "$THEME_ID" > "$settings"
+      theme_selected=yes
+    elif grep -q '"theme"[[:space:]]*:' "$settings" 2>/dev/null; then
+      theme_selected=already-chosen
+    elif [ "$(tr -d '[:space:]' < "$settings")" = "{}" ]; then
+      printf '{\\n  "theme": "%s"\\n}\\n' "$THEME_ID" > "$settings"
+      theme_selected=yes
+    else
+      # Add one key to an object that already has members: the comma is only
+      # valid because something else follows it.
+      awk -v id="$THEME_ID" '
+        !done && match($0, /^[[:space:]]*\{/) {
+          print substr($0, 1, RSTART + RLENGTH - 1)
+          printf "  \\"theme\\": \\"%s\\",\\n", id
+          rest = substr($0, RSTART + RLENGTH)
+          if (length(rest) > 0) print rest
+          done = 1
+          next
+        }
+        { print }
+      ' "$settings" > "$settings.new" && mv -f "$settings.new" "$settings"
+      theme_selected=yes
+    fi
+  fi
+  say "herdr-theme: $THEME_ID $theme_action, selected: $theme_selected"
+fi
+
 say "herdr-app-version: $have"
 say "herdr-app-action: $app_action"
 say "herdr-core-version: \${core_have:-none}"
 say "herdr-core-action: $core_action"
+say "herdr-theme-id: \${THEME_ID:-none}"
+say "herdr-theme-action: $theme_action"
+say "herdr-theme-selected: $theme_selected"
 case ":$PATH:" in
   *":$bin:"*) ;;
   *) say "Add $bin to your PATH to use herdr-app and hc from a terminal." ;;

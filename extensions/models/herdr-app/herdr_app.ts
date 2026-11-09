@@ -32,6 +32,8 @@ import {
   desktopEntry,
   encodePowerShell,
   HERDR_TEAM_ID,
+  HERDR_THEME_ID,
+  herdrAppHomeFor,
   type HostOs,
   type InstallAction,
   installAction,
@@ -42,19 +44,25 @@ import {
   manifestUrl,
   parseAppVersion,
   parseCoreVersion,
+  parseHerdrTheme,
   parseManifest,
   pickAsset,
   type Platform,
   POSIX_TARGETS,
   renderInstallScript,
+  settingsFilePath,
   type Target,
   targetFor,
+  type ThemeChoice,
+  themeChoiceOf,
+  themeFilePath,
   versionsEqual,
   windowsPathRemoveScript,
   windowsPathScript,
   windowsShortcutRemoveScript,
   windowsShortcutScript,
   withSource,
+  withThemeChoice,
 } from "./herdr_app_shared.ts";
 
 // ---------------------------------------------------------------------------
@@ -98,6 +106,18 @@ const PlanArgsSchema = z.object({ ...LocationArgsSchema }).strict();
 
 const InstallArgsSchema = z.object({
   ...LocationArgsSchema,
+  theme: z.string().default(HERDR_THEME_ID).describe(
+    "Theme to install from this extension's bundled themes. Empty installs no " +
+      "theme.",
+  ),
+  selectTheme: z.boolean().default(true).describe(
+    "Select the theme in settings.json, but only when the person has not " +
+      "chosen a theme yet. An existing choice is never overwritten.",
+  ),
+  herdrHome: z.string().default("").describe(
+    "Override Herdr's own home (themes/ and settings.json). Empty uses " +
+      "$HERDR_APP_HOME, then $XDG_CONFIG_HOME/herdr-app, then ~/.config/herdr-app.",
+  ),
   release: z.record(z.string(), z.unknown()).optional().describe(
     "A resolved `release` resource from `plan`. When given, its versions, " +
       "URLs and checksums are used and no manifest is fetched — so a plan made " +
@@ -108,6 +128,27 @@ const InstallArgsSchema = z.object({
 const StatusArgsSchema = z.object({
   appDir: LocationArgsSchema.appDir,
   binDir: LocationArgsSchema.binDir,
+  herdrHome: z.string().default("").describe(
+    "Override Herdr's own home when reading the theme back. Empty uses " +
+      "$HERDR_APP_HOME, then $XDG_CONFIG_HOME/herdr-app, then ~/.config/herdr-app.",
+  ),
+}).strict();
+
+const InstallThemeArgsSchema = z.object({
+  theme: z.string().default(HERDR_THEME_ID).describe(
+    "Theme to install from this extension's bundled themes.",
+  ),
+  herdrHome: z.string().default("").describe(
+    "Override Herdr's own home. Empty uses $HERDR_APP_HOME, then " +
+      "$XDG_CONFIG_HOME/herdr-app, then ~/.config/herdr-app.",
+  ),
+  select: z.boolean().default(true).describe(
+    "Select the theme in settings.json when the person has not chosen one. An " +
+      "existing choice is never overwritten.",
+  ),
+  force: z.boolean().default(false).describe(
+    "Rewrite the theme file even when its text already matches.",
+  ),
 }).strict();
 
 const UninstallArgsSchema = z.object({
@@ -116,6 +157,13 @@ const UninstallArgsSchema = z.object({
   removeCore: z.boolean().default(false).describe(
     "Also remove herdr-core and its `hc` alias. Off by default because the " +
       "core is shared by every Herdr app install on the machine.",
+  ),
+  removeTheme: z.boolean().default(false).describe(
+    "Also remove the theme this extension installed from Herdr's themes " +
+      "directory. settings.json is left alone.",
+  ),
+  herdrHome: z.string().default("").describe(
+    "Override Herdr's own home when removing the theme.",
   ),
   force: z.boolean().default(false).describe(
     "Ignore a running app and remove files anyway.",
@@ -134,6 +182,13 @@ const RenderScriptArgsSchema = z.object({
   ),
   core: CoreModeSchema.default("auto").describe(
     "herdr-core handling the remote script should apply.",
+  ),
+  theme: z.string().default(HERDR_THEME_ID).describe(
+    "Theme to install on every host from this extension's bundled themes. " +
+      "Empty installs no theme.",
+  ),
+  selectTheme: z.boolean().default(true).describe(
+    "Select the theme on a host whose settings.json has no theme yet.",
   ),
   force: z.boolean().default(false).describe(
     "Reinstall on the remote host even when it already matches.",
@@ -171,6 +226,7 @@ const PlanArgs = PlanArgsSchema;
 const InstallArgs = InstallArgsSchema;
 const StatusArgs = StatusArgsSchema;
 const UninstallArgs = UninstallArgsSchema;
+const InstallThemeArgs = InstallThemeArgsSchema;
 const RenderScriptArgs = RenderScriptArgsSchema;
 const SshFleetArgs = SshFleetArgsSchema;
 
@@ -178,6 +234,7 @@ type PlanArgsType = z.infer<typeof PlanArgsSchema>;
 type InstallArgsType = z.infer<typeof InstallArgsSchema>;
 type StatusArgsType = z.infer<typeof StatusArgsSchema>;
 type UninstallArgsType = z.infer<typeof UninstallArgsSchema>;
+type InstallThemeArgsType = z.infer<typeof InstallThemeArgsSchema>;
 type RenderScriptArgsType = z.infer<typeof RenderScriptArgsSchema>;
 type SshFleetArgsType = z.infer<typeof SshFleetArgsSchema>;
 
@@ -229,6 +286,10 @@ const InstallSchema = z.object({
   corePath: z.string().default(""),
   force: z.boolean(),
   notes: z.string().default(""),
+  theme: z.string().default(""),
+  themeAction: z.string().default(""),
+  themeSelected: z.boolean().default(false),
+  themePath: z.string().default(""),
   installedAt: z.string(),
 });
 
@@ -243,6 +304,22 @@ const StatusSchema = z.object({
   corePresent: z.boolean(),
   coreVersion: z.string().default(""),
   corePath: z.string().default(""),
+  herdrHome: z.string().default(""),
+  themeFile: z.string().default(""),
+  themeInstalled: z.boolean().default(false),
+  themeChoice: z.string().default(""),
+  themeSelected: z.boolean().default(false),
+  checkedAt: z.string(),
+});
+
+const ThemeSchema = z.object({
+  id: z.string(),
+  path: z.string().default(""),
+  action: z.string(),
+  selected: z.boolean().default(false),
+  previousTheme: z.string().default(""),
+  settingsPath: z.string().default(""),
+  warning: z.string().default(""),
   checkedAt: z.string(),
 });
 
@@ -261,6 +338,7 @@ const TransportSchema = z.object({
 const ScriptSchema = z.object({
   targets: z.array(z.string()),
   appVersion: z.string(),
+  theme: z.string().default(""),
   coreVersion: z.string().default(""),
   coreMode: z.string(),
   force: z.boolean(),
@@ -307,6 +385,8 @@ export interface HostDeps {
     localAppData: string;
     xdgData: string;
     xdgCache: string;
+    xdgConfig: string;
+    herdrAppHome: string;
     userProfile: string;
     systemRoot: string;
   };
@@ -362,6 +442,14 @@ export interface InstalledState {
   coreVersion: string;
   /** Where the core was found, or "". */
   corePath: string;
+  /** Herdr's own home (themes/, settings.json). */
+  appHome: string;
+  /** Path of the bundled theme's file in the app home. */
+  themeFile: string;
+  /** True when that theme file is present. */
+  themeInstalled: boolean;
+  /** The person's theme choice from settings.json. */
+  themeChoice: ThemeChoice;
 }
 
 /** The plan, as reported by `plan`. */
@@ -384,6 +472,8 @@ export interface InstallResult {
   coreAction: string;
   coreVersion: string;
   notes: string;
+  /** What happened to the bundled theme. */
+  theme: ThemeInstallResult;
 }
 
 /** Build a layout for a host from its deps. */
@@ -397,6 +487,20 @@ export function layoutOf(
     xdgData: deps.env.xdgData,
     xdgCache: deps.env.xdgCache,
   }, overrides);
+}
+
+/**
+ * Herdr's own home on this host: `$HERDR_APP_HOME`, else
+ * `$XDG_CONFIG_HOME/herdr-app`, else `~/.config/herdr-app` — the order the app
+ * resolves it in, so the theme lands where the app looks for it.
+ */
+export function appHomeOf(deps: HostDeps, override = ""): string {
+  return herdrAppHomeFor({
+    os: deps.os,
+    home: deps.env.home,
+    xdgConfig: deps.env.xdgConfig,
+    herdrAppHome: override.trim() || deps.env.herdrAppHome,
+  });
 }
 
 /** Resolve this host's platform from its deps, or throw a supported-target error. */
@@ -576,6 +680,8 @@ export async function probeInstalled(
     }
   }
   const coreVersion = corePath ? await probeCoreVersion(deps, corePath) : "";
+  const appHome = appHomeOf(deps);
+  const themeFile = themeFilePath(appHome, HERDR_THEME_ID, platform.os);
   return {
     platform,
     layout,
@@ -585,7 +691,42 @@ export async function probeInstalled(
     corePresent: corePath !== "" || coreVersion !== "",
     coreVersion,
     corePath,
+    appHome,
+    themeFile,
+    themeInstalled: await pathExists(deps, themeFile, platform.os),
+    themeChoice: await readThemeChoice(deps, appHome),
   };
+}
+
+/** Read the person's theme choice, treating an unreadable settings.json as none. */
+async function readThemeChoice(
+  deps: HostDeps,
+  appHome: string,
+): Promise<ThemeChoice> {
+  const path = settingsFilePath(appHome, deps.os);
+  let text = "";
+  try {
+    text = await Deno.readTextFile(path);
+  } catch {
+    return { chosen: false, theme: "", light: "", dark: "" };
+  }
+  try {
+    return themeChoiceOf(text, path);
+  } catch {
+    deps.log(
+      `${path} is not readable JSON; leaving the theme choice alone (the theme ` +
+        `file is still installed and can be picked in Settings)`,
+    );
+    return { chosen: false, theme: "", light: "", dark: "" };
+  }
+}
+
+/**
+ * True when the bundled theme is the one on show: either named directly, or as
+ * one half of a light/dark pair.
+ */
+export function themeOnShow(choice: ThemeChoice, id = HERDR_THEME_ID): boolean {
+  return choice.theme === id || choice.light === id || choice.dark === id;
 }
 
 /** Read the app's version through its own `--version`. */
@@ -869,6 +1010,10 @@ export async function installHerdr(
     appDir: string;
     binDir: string;
     downloadDir: string;
+    herdrHome: string;
+    theme: string;
+    themeText: string;
+    selectTheme: boolean;
   },
 ): Promise<InstallResult> {
   const platform = platformOf(deps);
@@ -899,6 +1044,14 @@ export async function installHerdr(
     installed,
   });
 
+  const theme = await installHerdrTheme(deps, {
+    themeId: opts.theme,
+    themeText: opts.themeText,
+    appHome: appHomeOf(deps, opts.herdrHome),
+    select: opts.selectTheme,
+    force: opts.force,
+  });
+
   return {
     action: plan.appAction,
     version: opts.release.version,
@@ -908,6 +1061,7 @@ export async function installHerdr(
     coreAction: core.action,
     coreVersion: core.version,
     notes: opts.release.notes,
+    theme,
   };
 }
 
@@ -1393,6 +1547,155 @@ async function runPowerShell(deps: HostDeps, script: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Theme
+// ---------------------------------------------------------------------------
+
+/** What installing the bundled theme did. */
+export interface ThemeInstallResult {
+  /** Theme id, or "" when themes were skipped. */
+  id: string;
+  /** The theme file's path, or "". */
+  path: string;
+  /** installed | unchanged | skipped. */
+  action: string;
+  /** True when this run set the theme in settings.json. */
+  selected: boolean;
+  /** The theme that was on show before (a name, a light/dark pair, or ""). */
+  previousTheme: string;
+  /** settings.json's path. */
+  settingsPath: string;
+  /** Anything the person should know, or "". */
+  warning: string;
+}
+
+/**
+ * Install the bundled theme into Herdr's `themes/` and, when the person has not
+ * chosen a theme yet, select it in `settings.json`.
+ *
+ * The theme file is rewritten only when its text differs (or `force`), and an
+ * existing choice — a name or a light/dark pair — is never overwritten: Herdr's
+ * own setting is the person's, so a chosen theme stays chosen. An unreadable
+ * `settings.json` is reported, never replaced.
+ */
+export async function installHerdrTheme(
+  deps: HostDeps,
+  opts: {
+    themeId: string;
+    themeText: string;
+    appHome: string;
+    select: boolean;
+    force: boolean;
+  },
+): Promise<ThemeInstallResult> {
+  const settingsPath = settingsFilePath(opts.appHome, deps.os);
+  if (!opts.themeId.trim()) {
+    return {
+      id: "",
+      path: "",
+      action: "skipped",
+      selected: false,
+      previousTheme: "",
+      settingsPath,
+      warning: "",
+    };
+  }
+  const id = opts.themeId.trim();
+  const path = themeFilePath(opts.appHome, id, deps.os);
+  const { unknownColors } = parseHerdrTheme(opts.themeText, `theme ${id}`);
+  const warnings: string[] = [];
+  if (unknownColors.length) {
+    warnings.push(
+      `theme ${id} sets colours Herdr does not resolve (${
+        unknownColors.join(", ")
+      }); they are ignored`,
+    );
+  }
+
+  let action = "unchanged";
+  const existing = await readTextOr(path, "");
+  if (opts.force || existing !== opts.themeText) {
+    await writeFileAtomic(path, opts.themeText);
+    action = "installed";
+  }
+
+  const current = await readThemeChoice(deps, opts.appHome);
+  const shown = current.theme || (current.light || current.dark)
+    ? current.theme || `${current.light}/${current.dark}`
+    : "";
+  let selected = false;
+  if (opts.select && !current.chosen) {
+    const settingsText = await readTextOr(settingsPath, "");
+    try {
+      const merged = withThemeChoice(settingsText, id);
+      if (merged.changed) {
+        await writeFileAtomic(settingsPath, merged.text);
+        selected = true;
+      }
+    } catch (error) {
+      warnings.push(errorMessage(error));
+    }
+  }
+  const result: ThemeInstallResult = {
+    id,
+    path,
+    action,
+    selected,
+    previousTheme: shown,
+    settingsPath,
+    warning: warnings.join("; "),
+  };
+  deps.log(
+    `theme ${id}: ${action} at ${path}; ${
+      selected
+        ? "selected in settings.json"
+        : current.chosen
+        ? `kept the chosen theme (${shown || "set"})`
+        : "not selected"
+    }`,
+  );
+  if (result.warning) deps.log(`theme ${id}: ${result.warning}`);
+  return result;
+}
+
+/** Read a text file, or `fallback` when it is absent or unreadable. */
+async function readTextOr(path: string, fallback: string): Promise<string> {
+  try {
+    return await Deno.readTextFile(path);
+  } catch {
+    return fallback;
+  }
+}
+
+/** Write a file through a temporary neighbour, so a reader never sees half. */
+async function writeFileAtomic(path: string, text: string): Promise<void> {
+  await Deno.mkdir(dirname(path), { recursive: true });
+  const tmp = `${path}.new-${crypto.randomUUID()}`;
+  await Deno.writeTextFile(tmp, text);
+  try {
+    await Deno.rename(tmp, path);
+  } finally {
+    try {
+      await Deno.remove(tmp);
+    } catch {
+      // renamed (the normal path)
+    }
+  }
+}
+
+/** Remove the bundled theme file; a missing one is a no-op. */
+async function removeHerdrTheme(
+  deps: HostDeps,
+  appHome: string,
+  themeId: string,
+): Promise<boolean> {
+  if (!themeId.trim()) return false;
+  const path = themeFilePath(appHome, themeId.trim(), deps.os);
+  if (!(await pathExists(deps, path, deps.os))) return false;
+  await removeTree(path);
+  return true;
+}
+
+// ---------------------------------------------------------------------------
 // Uninstall
 // ---------------------------------------------------------------------------
 
@@ -1413,6 +1716,9 @@ export async function uninstallHerdr(
     appDir: string;
     binDir: string;
     removeCore: boolean;
+    removeTheme: boolean;
+    herdrHome: string;
+    theme: string;
   },
 ): Promise<UninstallResult> {
   const platform = platformOf(deps);
@@ -1463,6 +1769,14 @@ export async function uninstallHerdr(
     await pathExists(deps, layout.corePath, platform.os)
   ) {
     kept.push(`${layout.corePath} (pass removeCore=true to remove it too)`);
+  }
+
+  if (opts.removeTheme) {
+    const appHome = appHomeOf(deps, opts.herdrHome);
+    const themePath = themeFilePath(appHome, opts.theme, platform.os);
+    if (await removeHerdrTheme(deps, appHome, opts.theme)) {
+      removed.push(themePath);
+    }
   }
 
   return { removed, kept };
@@ -1576,6 +1890,8 @@ export async function hostDeps(
       localAppData: Deno.env.get("LOCALAPPDATA") ?? "",
       xdgData: Deno.env.get("XDG_DATA_HOME") ?? "",
       xdgCache: Deno.env.get("XDG_CACHE_HOME") ?? "",
+      xdgConfig: Deno.env.get("XDG_CONFIG_HOME") ?? "",
+      herdrAppHome: Deno.env.get("HERDR_APP_HOME") ?? "",
       userProfile: Deno.env.get("USERPROFILE") ?? home,
       systemRoot: Deno.env.get("SystemRoot") ?? "",
     },
@@ -1589,6 +1905,8 @@ export async function hostDeps(
 // ---------------------------------------------------------------------------
 
 interface MethodContext {
+  /** Resolves an `additionalFiles:` entry to a path (swamp's own resolver). */
+  extensionFile?: (relativePath: string) => string;
   logger: {
     info: (message: string, props?: Record<string, unknown>) => void;
     warn: (message: string, props?: Record<string, unknown>) => void;
@@ -1600,10 +1918,33 @@ interface MethodContext {
   ) => Promise<{ name: string }>;
 }
 
+/**
+ * Read one of this extension's bundled theme documents. Throws when the theme
+ * is not bundled, rather than installing nothing quietly.
+ */
+function bundledThemeText(ctx: MethodContext, id: string): string {
+  const relative = `themes/${id}.json`;
+  if (!ctx.extensionFile) {
+    throw new Error(
+      `cannot read the bundled theme ${id}: this swamp build does not expose ` +
+        `extension files`,
+    );
+  }
+  const path = ctx.extensionFile(relative);
+  try {
+    return Deno.readTextFileSync(path);
+  } catch (error) {
+    throw new Error(
+      `the bundled theme ${id} is not readable at ${path} ` +
+        `(${errorMessage(error)}); pass theme="" to skip themes`,
+    );
+  }
+}
+
 /** Model definition for `@svendowideit/herdr-app`. */
 export const model = {
   type: "@svendowideit/herdr-app",
-  version: "2026.11.09.1",
+  version: "2026.11.09.2",
   globalArguments: z.object({}),
 
   upgrades: [
@@ -1615,6 +1956,16 @@ export const model = {
         "releases.herdr.dev with SHA-256 verification; plus a pinned POSIX " +
         "installer for hosts without swamp (via @swamp/ssh) and an @swamp/ssh " +
         "fleet builder.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.09.2",
+      description:
+        "Ships the Borland Modern Blue theme and installs it by default: " +
+        "install (and the ssh installer) now write themes/borland-modern-blue.json " +
+        "into Herdr's own home and select it in settings.json when no theme is " +
+        "chosen yet. New installTheme method, theme resource, and theme fields " +
+        'on status/install. No existing argument changed; theme="" opts out.',
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1659,6 +2010,14 @@ export const model = {
       schema: TransportSchema,
       lifetime: "infinite" as const,
       garbageCollection: 5,
+    },
+    theme: {
+      description:
+        "The result of `installTheme`: where the bundled theme was written, " +
+        "whether it is on show, and anything the person should know.",
+      schema: ThemeSchema,
+      lifetime: "infinite" as const,
+      garbageCollection: 10,
     },
     script: {
       description:
@@ -1744,6 +2103,7 @@ export const model = {
             coreVersion: args.coreVersion,
             core: args.core,
           });
+        const themeText = args.theme ? bundledThemeText(ctx, args.theme) : "";
         let result: InstallResult;
         try {
           result = await installHerdr(deps, {
@@ -1753,6 +2113,10 @@ export const model = {
             appDir: args.appDir,
             binDir: args.binDir,
             downloadDir: "",
+            herdrHome: args.herdrHome,
+            theme: args.theme,
+            themeText,
+            selectTheme: args.selectTheme,
           });
         } catch (error) {
           await ctx.writeResource("install", "install", {
@@ -1770,6 +2134,10 @@ export const model = {
             corePath: "",
             force: args.force,
             notes: errorMessage(error),
+            theme: args.theme,
+            themeAction: "unknown",
+            themeSelected: false,
+            themePath: "",
             installedAt: deps.now().toISOString(),
           });
           throw error;
@@ -1787,10 +2155,14 @@ export const model = {
           corePath: result.layout.corePath,
           force: args.force,
           notes: result.notes,
+          theme: result.theme.id,
+          themeAction: result.theme.action,
+          themeSelected: result.theme.selected,
+          themePath: result.theme.path,
           installedAt: deps.now().toISOString(),
         });
         ctx.logger.info(
-          "herdr-app {action}: {version} at {path} (herdr-core: {core})",
+          "herdr-app {action}: {version} at {path} (herdr-core: {core}; theme: {theme})",
           {
             action: result.action,
             version: result.version,
@@ -1798,6 +2170,11 @@ export const model = {
             core: result.coreAction === "skipped"
               ? "left alone"
               : `${result.coreVersion || "absent"} (${result.coreAction})`,
+            theme: result.theme.id
+              ? `${result.theme.id} ${result.theme.action}${
+                result.theme.selected ? ", selected" : ""
+              }`
+              : "none",
           },
         );
         return { dataHandles: [handle] };
@@ -1816,6 +2193,18 @@ export const model = {
           appDir: args.appDir,
           binDir: args.binDir,
         });
+        const appHome = appHomeOf(deps, args.herdrHome);
+        const themeFile = themeFilePath(
+          appHome,
+          HERDR_THEME_ID,
+          installed.platform.os,
+        );
+        const themeInstalled = await pathExists(
+          deps,
+          themeFile,
+          installed.platform.os,
+        );
+        const themeChoice = await readThemeChoice(deps, appHome);
         const handle = await ctx.writeResource("status", "status", {
           target: installed.platform.target,
           os: installed.platform.os,
@@ -1827,10 +2216,18 @@ export const model = {
           corePresent: installed.corePresent,
           coreVersion: installed.coreVersion,
           corePath: installed.corePath,
+          herdrHome: appHome,
+          themeFile,
+          themeInstalled,
+          themeChoice: themeChoice.theme ||
+            (themeChoice.chosen
+              ? `${themeChoice.light}/${themeChoice.dark}`
+              : ""),
+          themeSelected: themeOnShow(themeChoice),
           checkedAt: deps.now().toISOString(),
         });
         ctx.logger.info(
-          "herdr-app {app}; herdr-core {core}",
+          "herdr-app {app}; herdr-core {core}; theme {theme}",
           {
             app: installed.appVersion
               ? `${installed.appVersion} at ${installed.layout.appDir}`
@@ -1838,6 +2235,11 @@ export const model = {
             core: installed.corePresent
               ? `${installed.coreVersion || "present"} at ${installed.corePath}`
               : "is not installed",
+            theme: themeInstalled
+              ? `${HERDR_THEME_ID} installed${
+                themeOnShow(themeChoice) ? ", on show" : ", not selected"
+              }`
+              : "not installed",
           },
         );
         return { dataHandles: [handle] };
@@ -1856,6 +2258,9 @@ export const model = {
           appDir: args.appDir,
           binDir: args.binDir,
           removeCore: args.removeCore,
+          removeTheme: args.removeTheme,
+          herdrHome: args.herdrHome,
+          theme: HERDR_THEME_ID,
         });
         const handle = await ctx.writeResource("install", "install", {
           action: "uninstalled",
@@ -1870,6 +2275,10 @@ export const model = {
           coreVersion: "",
           corePath: "",
           force: args.force,
+          theme: args.removeTheme ? HERDR_THEME_ID : "",
+          themeAction: args.removeTheme ? "removed" : "kept",
+          themeSelected: false,
+          themePath: "",
           notes: [
             result.removed.length
               ? `removed ${result.removed.join(", ")}`
@@ -1883,6 +2292,36 @@ export const model = {
             ? `removed ${result.removed.join(", ")}`
             : "nothing was installed, so nothing was removed",
         );
+        return { dataHandles: [handle] };
+      },
+    },
+
+    installTheme: {
+      description:
+        "Install the bundled Herdr theme (Borland Modern Blue by default) into " +
+        "Herdr's themes directory and, when the person has not chosen a theme " +
+        "yet, select it in settings.json. Idempotent, and it never overwrites an " +
+        "existing choice.",
+      arguments: InstallThemeArgs,
+      execute: async (args: InstallThemeArgsType, ctx: MethodContext) => {
+        const deps = await hostDeps((message) => ctx.logger.info(message));
+        const result = await installHerdrTheme(deps, {
+          themeId: args.theme,
+          themeText: bundledThemeText(ctx, args.theme),
+          appHome: appHomeOf(deps, args.herdrHome),
+          select: args.select,
+          force: args.force,
+        });
+        const handle = await ctx.writeResource("theme", "theme", {
+          id: result.id,
+          path: result.path,
+          action: result.action,
+          selected: result.selected,
+          previousTheme: result.previousTheme,
+          settingsPath: result.settingsPath,
+          warning: result.warning,
+          checkedAt: deps.now().toISOString(),
+        });
         return { dataHandles: [handle] };
       },
     },
@@ -1903,6 +2342,7 @@ export const model = {
           coreVersion: args.coreVersion,
           core: args.core,
         });
+        const themeText = args.theme ? bundledThemeText(ctx, args.theme) : "";
         const script = renderInstallScript({
           appVersion,
           coreVersion: args.core === "never" ? "" : coreVersion,
@@ -1913,6 +2353,9 @@ export const model = {
           coreMode: args.core,
           verifyCoreSignature: args.verifyCoreSignature &&
             isVendorReleaseHost(args.releasesUrl),
+          theme: args.theme
+            ? { id: args.theme, json: themeText, select: args.selectTheme }
+            : undefined,
         });
         const handle = await ctx.writeResource("script", "script", {
           targets: pins.map((pin) => pin.target),
@@ -1920,14 +2363,16 @@ export const model = {
           coreVersion: args.core === "never" ? "" : coreVersion,
           coreMode: args.core,
           force: args.force,
+          theme: args.theme,
           script,
           generatedAt: deps.now().toISOString(),
         });
         ctx.logger.info(
-          "rendered the herdr-app {version} installer for {targets} ({lines} lines)",
+          "rendered the herdr-app {version} installer for {targets} with theme {theme} ({lines} lines)",
           {
             version: appVersion,
             targets: pins.map((pin) => pin.target).join(", "),
+            theme: args.theme || "none",
             lines: script.split("\n").length,
           },
         );

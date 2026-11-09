@@ -376,6 +376,10 @@ const LINUX_PIN = {
   coreSha256: "",
 };
 
+const THEME_TEXT = await Deno.readTextFile(
+  new URL("./themes/borland-modern-blue.json", import.meta.url),
+);
+
 const PINS = {
   appVersion: "0.1.14",
   coreVersion: "",
@@ -488,6 +492,7 @@ async function harness(
     archive: Uint8Array;
     sha256: string;
     target?: string;
+    theme?: boolean;
   },
 ): Promise<{
   home: string;
@@ -515,6 +520,9 @@ async function harness(
         target: opts.target ?? LINUX_PIN.target,
         appSha256: opts.sha256,
       }],
+      theme: opts.theme
+        ? { id: "borland-modern-blue", json: THEME_TEXT, select: true }
+        : undefined,
     }),
   );
   return {
@@ -569,6 +577,107 @@ if (Deno.build.os === "linux" || Deno.build.os === "darwin") {
       assertEquals(second.code, 0, second.stderr);
       assertStringIncludes(second.stdout, "already installed");
       assertStringIncludes(second.stdout, "herdr-app-action: unchanged");
+    } finally {
+      await Deno.remove(dir, { recursive: true });
+    }
+  });
+
+  Deno.test("the rendered installer installs the theme and selects it once", async () => {
+    const dir = await Deno.makeTempDir({ prefix: "herdr-script-" });
+    try {
+      const archive = await fakeArchive("0.1.14", dir);
+      const { home, run } = await harness(dir, {
+        version: "0.1.14",
+        archive: archive.bytes,
+        sha256: archive.sha256,
+        theme: true,
+      });
+      const first = await run();
+      assertEquals(first.code, 0, first.stderr);
+      assertStringIncludes(
+        first.stdout,
+        "herdr-theme: borland-modern-blue installed, selected: yes",
+      );
+      assertStringIncludes(
+        first.stdout,
+        "herdr-theme-selected: yes",
+      );
+      const appHome = `${home}/.config/herdr-app`;
+      assertEquals(
+        await Deno.readTextFile(`${appHome}/themes/borland-modern-blue.json`),
+        THEME_TEXT,
+      );
+      assertEquals(
+        JSON.parse(await Deno.readTextFile(`${appHome}/settings.json`)),
+        { theme: "borland-modern-blue" },
+      );
+
+      const second = await run();
+      assertEquals(second.code, 0, second.stderr);
+      assertStringIncludes(
+        second.stdout,
+        "unchanged, selected: already-chosen",
+      );
+    } finally {
+      await Deno.remove(dir, { recursive: true });
+    }
+  });
+
+  Deno.test("the rendered installer keeps an existing settings.json valid", async () => {
+    const dir = await Deno.makeTempDir({ prefix: "herdr-script-" });
+    try {
+      const archive = await fakeArchive("0.1.14", dir);
+      const { home, run } = await harness(dir, {
+        version: "0.1.14",
+        archive: archive.bytes,
+        sha256: archive.sha256,
+        theme: true,
+      });
+      const appHome = `${home}/.config/herdr-app`;
+      await Deno.mkdir(appHome, { recursive: true });
+      await Deno.writeTextFile(
+        `${appHome}/settings.json`,
+        '{"zoom": 1.0, "sounds": {"enabled": false}}',
+      );
+      const out = await run();
+      assertEquals(out.code, 0, out.stderr);
+      assertStringIncludes(out.stdout, "selected: yes");
+      assertEquals(
+        JSON.parse(await Deno.readTextFile(`${appHome}/settings.json`)),
+        {
+          theme: "borland-modern-blue",
+          zoom: 1.0,
+          sounds: { enabled: false },
+        },
+      );
+    } finally {
+      await Deno.remove(dir, { recursive: true });
+    }
+  });
+
+  Deno.test("the rendered installer never replaces a chosen theme", async () => {
+    const dir = await Deno.makeTempDir({ prefix: "herdr-script-" });
+    try {
+      const archive = await fakeArchive("0.1.14", dir);
+      const { home, run } = await harness(dir, {
+        version: "0.1.14",
+        archive: archive.bytes,
+        sha256: archive.sha256,
+        theme: true,
+      });
+      const appHome = `${home}/.config/herdr-app`;
+      await Deno.mkdir(appHome, { recursive: true });
+      await Deno.writeTextFile(
+        `${appHome}/settings.json`,
+        '{"theme": {"light": "paper", "dark": "ink"}}',
+      );
+      const out = await run();
+      assertEquals(out.code, 0, out.stderr);
+      assertStringIncludes(out.stdout, "selected: already-chosen");
+      assertEquals(
+        JSON.parse(await Deno.readTextFile(`${appHome}/settings.json`)),
+        { theme: { light: "paper", dark: "ink" } },
+      );
     } finally {
       await Deno.remove(dir, { recursive: true });
     }

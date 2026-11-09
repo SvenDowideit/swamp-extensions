@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/herdr-app"
-version: "2026.11.09.1"
+version: "2026.11.09.2"
 description: >
   Install, update and remove the Herdr desktop app — and herdr-core with it —
   on Linux, macOS and Windows, from swamp, whichever machine swamp is running on.
@@ -8,16 +8,16 @@ description: >
   WHAT IT DOES
 
     Herdr (https://herdr.dev) is a desktop app for terminals and coding agents
-    that keep running. This extension does what the vendor's one-line installer
-    does, but as methods a workflow can plan, pin, verify and report: it resolves
-    the release manifest, picks this host's archive, checks its SHA-256 before
-    anything is extracted, and places the app the way the vendor does for that
-    platform. It installs herdr-core only when the machine has none — the
-    vendor's rule, because the app keeps the core current afterwards — or updates
-    it on request. Re-running is safe: a host already on the target version
-    downloads nothing. Prefer it to `curl | sh` when you want a pinned version,
-    a verified download, a report of what changed, or the same install on a
-    server, a worker, or a fleet over SSH.
+    that keep running. This extension does the vendor's one-line install as
+    methods a workflow can plan, pin, verify and report: it resolves the release,
+    picks this host's archive, checks its SHA-256 before extracting anything, and
+    places the app the vendor's way for that platform. It installs herdr-core
+    only when the machine has none — the app keeps it current afterwards — or
+    updates it on request, and it installs the Borland Modern Blue theme,
+    selecting it when you have not chosen one. Re-running is safe: a host already
+    current downloads nothing. Prefer it to `curl | sh` when you want a pinned,
+    verified install, a report of what changed, or the same install on a server,
+    a worker, or a fleet over SSH.
 
   INSTALL
 
@@ -64,7 +64,16 @@ description: >
       swamp workflow run @svendowideit/herdr-app-ssh \
         --input sshHosts=mac-mini=192.0.2.20,studio=studio.lan
 
-      # Read back what is installed now — the versions the binaries report.
+      # Install or refresh just the bundled theme. It lands in Herdr's own home
+      # and is selected only when no theme is chosen yet.
+      swamp model @svendowideit/herdr-app method run installTheme herdr-app
+
+      # Install the app somewhere else, and leave themes entirely alone.
+      swamp workflow run @svendowideit/herdr-app-install \
+        --input appDir=/opt/herdr --input theme=""
+
+      # Read back what is installed now — the versions the binaries report, and
+      # whether the theme is on show.
       swamp model @svendowideit/herdr-app method run status herdr-app
 
       # Remove the app, keeping the shared herdr-core. Add removeCore=true to
@@ -84,7 +93,11 @@ description: >
       binDir         override the command directory           (default ~/.local/bin)
       releasesUrl    release host                             (default https://releases.herdr.dev)
       downloadDir    where verified archives are staged       (default cache dir)
+      theme          theme to install from the bundle         (default borland-modern-blue)
+      selectTheme    select it when none is chosen yet        (default true)
+      herdrHome      override Herdr's own home                ($HERDR_APP_HOME, XDG, ~/.config/herdr-app)
       removeCore     uninstall also removes the core          (default false)
+      removeTheme    uninstall also removes the theme file    (default false)
       uninstall      remove instead of install                (default false)
 
     Platform defaults: Linux `$XDG_DATA_HOME/herdr-app` with `~/.local/bin` and a
@@ -119,10 +132,14 @@ description: >
     Start menu shortcut and a user PATH entry on Windows), a `herdr-app` command
     symlink on Linux/macOS, and — only when the machine has no core, or when
     asked — `herdr-core` with its `hc` alias. On Windows the core also brings its
-    bundled ConPTY. It creates no services, daemons, cron triggers or webhooks.
-    Verified downloads are cached under the user cache directory; `uninstall`
-    removes the app, its command link and its launcher entry, and the core only
-    when `removeCore=true`.
+    bundled ConPTY. It also writes the Borland Modern Blue theme into Herdr's
+    own home (`themes/borland-modern-blue.json`) and, when settings.json names
+    no theme yet, selects it there — a theme you have chosen is never
+    overwritten, and `theme=""` skips themes entirely. It creates no services,
+    daemons, cron triggers or webhooks. Verified downloads are cached under the
+    user cache directory; `uninstall` removes the app, its command link and its
+    launcher entry, the core only when `removeCore=true`, and the theme only when
+    `removeTheme=true`.
 
 repository: https://github.com/svendowideit/swamp-extensions
 
@@ -148,6 +165,7 @@ optionalDependencies:
 additionalFiles:
   - README.md
   - LICENSE.txt
+  - themes/borland-modern-blue.json
   - herdr_app_test.ts
   - herdr_app_shared_test.ts
 

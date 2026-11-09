@@ -74,6 +74,24 @@ inputs:
       type: string
       default: https://releases.herdr.dev
       description: Release host to resolve and download from.
+    theme:
+      type: string
+      default: borland-modern-blue
+      description: >-
+        Theme to install from the extension's bundled themes. Empty installs no
+        theme.
+    selectTheme:
+      type: boolean
+      default: true
+      description: >-
+        Select the theme in Herdr's settings.json, but only when no theme is
+        chosen yet. An existing choice is never overwritten.
+    herdrHome:
+      type: string
+      default: ""
+      description: >-
+        Override Herdr's own home (themes/ and settings.json). Empty uses
+        HERDR_APP_HOME, then XDG_CONFIG_HOME/herdr-app, then ~/.config/herdr-app.
     uninstall:
       type: boolean
       default: false
@@ -130,6 +148,9 @@ jobs:
             appDir: ${{ inputs.appDir }}
             binDir: ${{ inputs.binDir }}
             releasesUrl: ${{ inputs.releasesUrl }}
+            theme: ${{ inputs.theme }}
+            selectTheme: ${{ inputs.selectTheme }}
+            herdrHome: ${{ inputs.herdrHome }}
             release: ${{ data.latest(inputs.appName, "release").attributes }}
         dependsOn:
           - step: plan
@@ -153,6 +174,7 @@ jobs:
             binDir: ${{ inputs.binDir }}
             removeCore: ${{ inputs.removeCore }}
             force: ${{ inputs.force }}
+            herdrHome: ${{ inputs.herdrHome }}
         dependsOn:
           - step: plan
             condition:
@@ -172,6 +194,7 @@ jobs:
           inputs:
             appDir: ${{ inputs.appDir }}
             binDir: ${{ inputs.binDir }}
+            herdrHome: ${{ inputs.herdrHome }}
         dependsOn:
           - step: install
             condition:
@@ -217,6 +240,25 @@ jobs:
             herdr-core is still missing after a run that asked for it: read the
             install resource for the core's action, re-run, or open Herdr so it
             installs the core itself.
+          severity: high
+        dependsOn:
+          - step: status
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+      - name: verify-theme
+        description: >-
+          Fail when a theme was asked for and is not in Herdr's themes directory,
+          so an install that could not place it is never reported as success.
+        guard: ${{ inputs.uninstall == true || inputs.theme == "" }}
+        task:
+          type: assert
+          expr: >-
+            data.latest(inputs.appName, "status").attributes.themeInstalled == true
+          message: >-
+            The bundled theme is not in Herdr's themes directory: read the
+            install and status resources for the paths it used, then re-run.
           severity: high
         dependsOn:
           - step: status

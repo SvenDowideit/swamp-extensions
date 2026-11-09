@@ -28,6 +28,7 @@ import {
   type HostDeps,
   hostDeps,
   installHerdr,
+  installHerdrTheme,
   layoutOf,
   model,
   parseHosts,
@@ -40,6 +41,12 @@ import {
   sha256Hex,
   uninstallHerdr,
 } from "./herdr_app.ts";
+import {
+  herdrAppHomeFor,
+  parseHerdrTheme,
+  themeChoiceOf,
+  withThemeChoice,
+} from "./herdr_app_shared.ts";
 import {
   DEFAULT_RELEASES_URL,
   type ReleaseManifest,
@@ -146,6 +153,8 @@ function fakeDeps(
       localAppData: `${dir}/localappdata`,
       xdgData: `${dir}/data`,
       xdgCache: `${dir}/cache`,
+      xdgConfig: "",
+      herdrAppHome: "",
       userProfile: `${dir}/home`,
       systemRoot: "",
     },
@@ -172,6 +181,11 @@ function stubFetch(
     );
   }) as unknown as typeof fetch;
 }
+
+/** The theme this extension ships, as text (read from the real bundled file). */
+const THEME_TEXT = await Deno.readTextFile(
+  new URL("./themes/borland-modern-blue.json", import.meta.url),
+);
 
 const RELEASE: ResolvedRelease = {
   version: APP_VERSION,
@@ -646,6 +660,10 @@ Deno.test("installHerdr places the app, link and launcher", async () => {
       appDir: "",
       binDir: "",
       downloadDir: "",
+      herdrHome: "",
+      theme: "borland-modern-blue",
+      themeText: THEME_TEXT,
+      selectTheme: true,
     });
     const layout = layoutOf(deps);
     assertEquals(result.action, "installed");
@@ -681,6 +699,10 @@ Deno.test("installHerdr is idempotent and downloads nothing when current", async
       appDir: "",
       binDir: "",
       downloadDir: "",
+      herdrHome: "",
+      theme: "borland-modern-blue",
+      themeText: THEME_TEXT,
+      selectTheme: true,
     };
     await installHerdr(deps, opts);
     calls.length = 0;
@@ -704,6 +726,10 @@ Deno.test("installHerdr refuses a release resolved for another platform", async 
           appDir: "",
           binDir: "",
           downloadDir: "",
+          herdrHome: "",
+          theme: "",
+          themeText: "",
+          selectTheme: false,
         }),
       Error,
       "re-run plan on this host",
@@ -771,6 +797,10 @@ Deno.test("uninstallHerdr removes the app but keeps the shared core", async () =
       appDir: "",
       binDir: "",
       downloadDir: "",
+      herdrHome: "",
+      theme: "borland-modern-blue",
+      themeText: THEME_TEXT,
+      selectTheme: true,
     });
     await Deno.mkdir(layout.coreDir, { recursive: true });
     await Deno.writeTextFile(layout.corePath, "#!/bin/sh\n");
@@ -779,6 +809,9 @@ Deno.test("uninstallHerdr removes the app but keeps the shared core", async () =
       appDir: "",
       binDir: "",
       removeCore: false,
+      removeTheme: false,
+      herdrHome: "",
+      theme: "borland-modern-blue",
     });
     assertStringIncludes(kept.removed.join(","), layout.appDir);
     await assertRejects(() => Deno.lstat(layout.appDir), Deno.errors.NotFound);
@@ -793,10 +826,311 @@ Deno.test("uninstallHerdr removes the app but keeps the shared core", async () =
       appDir: "",
       binDir: "",
       removeCore: true,
+      removeTheme: true,
+      herdrHome: "",
+      theme: "borland-modern-blue",
     });
     assertStringIncludes(removed.removed.join(","), layout.corePath);
     await assertRejects(
       () => Deno.lstat(layout.corePath),
+      Deno.errors.NotFound,
+    );
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Themes
+// ---------------------------------------------------------------------------
+
+Deno.test("the shipped theme is a valid Herdr theme", () => {
+  const { theme, unknownColors } = parseHerdrTheme(
+    THEME_TEXT,
+    "themes/borland-modern-blue.json",
+  );
+  assertEquals(theme.background, "#003078");
+  assertEquals(theme.foreground, "#e8f1fb");
+  assertEquals(theme.ansi.length, 16);
+  assertEquals(theme.cursor, "#5fe0ff");
+  assertEquals(theme.colors["terminal_foreground"], "#e8f1fb");
+  // Every colour it overrides is one Herdr resolves.
+  assertEquals(unknownColors, []);
+});
+
+Deno.test("parseHerdrTheme mirrors the app's own validation", () => {
+  const base = JSON.parse(THEME_TEXT);
+  assertThrows(
+    () =>
+      parseHerdrTheme(
+        JSON.stringify({ ...base, chrome: "#000000" }),
+        "theme",
+      ),
+    Error,
+    "is not a theme field",
+  );
+  assertThrows(
+    () =>
+      parseHerdrTheme(JSON.stringify({ ...base, ansi: ["#000000"] }), "theme"),
+    Error,
+    "ansi must be an array of 16",
+  );
+  assertThrows(
+    () =>
+      parseHerdrTheme(JSON.stringify({ ...base, background: "blue" }), "theme"),
+    Error,
+    "background must be #rrggbb",
+  );
+  assertThrows(
+    () =>
+      parseHerdrTheme(
+        JSON.stringify({ ...base, colors: { accent: "#12345" } }),
+        "theme",
+      ),
+    Error,
+    "colors.accent must be #rrggbb or #rrggbbaa",
+  );
+  assertThrows(
+    () => parseHerdrTheme("not json", "theme"),
+    Error,
+    "not valid JSON",
+  );
+  const { unknownColors } = parseHerdrTheme(
+    JSON.stringify({
+      ...base,
+      colors: { accent: "#12345678", sparkle: "#ffffff" },
+    }),
+    "theme",
+  );
+  assertEquals(unknownColors, ["sparkle"]);
+});
+
+Deno.test("herdrAppHomeFor follows the app's own precedence", () => {
+  assertEquals(
+    herdrAppHomeFor({ os: "linux", home: "/home/me" }),
+    "/home/me/.config/herdr-app",
+  );
+  assertEquals(
+    herdrAppHomeFor({ os: "linux", home: "/home/me", xdgConfig: "/cfg/" }),
+    "/cfg/herdr-app",
+  );
+  assertEquals(
+    herdrAppHomeFor({
+      os: "linux",
+      home: "/home/me",
+      xdgConfig: "/cfg",
+      herdrAppHome: "/scratch/app/",
+    }),
+    "/scratch/app",
+  );
+  assertEquals(
+    herdrAppHomeFor({ os: "windows", home: "C:\\Users\\me" }),
+    "C:\\Users\\me\\.config\\herdr-app",
+  );
+});
+
+Deno.test("themeChoiceOf reads a name, a pair, and nothing", () => {
+  assertEquals(themeChoiceOf(""), {
+    chosen: false,
+    theme: "",
+    light: "",
+    dark: "",
+  });
+  assertEquals(themeChoiceOf("{}").chosen, false);
+  assertEquals(themeChoiceOf('{"theme": null}').chosen, false);
+  assertEquals(themeChoiceOf('{"theme": ""}').chosen, false);
+  assertEquals(themeChoiceOf('{"theme": "paper"}'), {
+    chosen: true,
+    theme: "paper",
+    light: "paper",
+    dark: "paper",
+  });
+  assertEquals(
+    themeChoiceOf(
+      '{"theme": {"light": "paper", "dark": "borland-modern-blue"}}',
+    ),
+    { chosen: true, theme: "", light: "paper", dark: "borland-modern-blue" },
+  );
+  assertThrows(
+    () => themeChoiceOf("{oops", "settings.json"),
+    Error,
+    "not valid JSON",
+  );
+});
+
+Deno.test("withThemeChoice sets only an unchosen theme, keeping other keys", () => {
+  const set = withThemeChoice(
+    '{"zoom": 1, "sounds": {"enabled": false}}',
+    "borland-modern-blue",
+  );
+  assertEquals(set.changed, true);
+  assertEquals(JSON.parse(set.text), {
+    zoom: 1,
+    sounds: { enabled: false },
+    theme: "borland-modern-blue",
+  });
+  const fromEmpty = withThemeChoice("", "borland-modern-blue");
+  assertEquals(JSON.parse(fromEmpty.text), { theme: "borland-modern-blue" });
+  // A chosen theme is never overwritten, in either form.
+  assertEquals(withThemeChoice('{"theme": "paper"}', "x").changed, false);
+  assertEquals(
+    withThemeChoice('{"theme": {"light": "paper", "dark": "ink"}}', "x")
+      .changed,
+    false,
+  );
+});
+
+Deno.test("installHerdrTheme writes the file and selects it once", async () => {
+  const dir = await Deno.makeTempDir({ prefix: "herdr-theme-" });
+  try {
+    const deps = fakeDeps(dir);
+    const appHome = `${dir}/data/herdr-app`;
+    const first = await installHerdrTheme(deps, {
+      themeId: "borland-modern-blue",
+      themeText: THEME_TEXT,
+      appHome,
+      select: true,
+      force: false,
+    });
+    assertEquals(first.action, "installed");
+    assertEquals(first.selected, true);
+    assertEquals(first.path, `${appHome}/themes/borland-modern-blue.json`);
+    assertEquals(await Deno.readTextFile(first.path), THEME_TEXT);
+    assertEquals(
+      JSON.parse(await Deno.readTextFile(`${appHome}/settings.json`)),
+      { theme: "borland-modern-blue" },
+    );
+
+    const second = await installHerdrTheme(deps, {
+      themeId: "borland-modern-blue",
+      themeText: THEME_TEXT,
+      appHome,
+      select: true,
+      force: false,
+    });
+    assertEquals(second.action, "unchanged");
+    assertEquals(second.selected, false);
+    assertEquals(second.previousTheme, "borland-modern-blue");
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("installHerdrTheme keeps a chosen theme and can be forced", async () => {
+  const dir = await Deno.makeTempDir({ prefix: "herdr-theme-" });
+  try {
+    const deps = fakeDeps(dir);
+    const appHome = `${dir}/data/herdr-app`;
+    await Deno.mkdir(appHome, { recursive: true });
+    await Deno.writeTextFile(
+      `${appHome}/settings.json`,
+      '{"zoom": 1.0, "theme": "paper"}\n',
+    );
+    const result = await installHerdrTheme(deps, {
+      themeId: "borland-modern-blue",
+      themeText: THEME_TEXT,
+      appHome,
+      select: true,
+      force: false,
+    });
+    assertEquals(result.selected, false);
+    assertEquals(result.previousTheme, "paper");
+    // The person's settings are untouched.
+    assertEquals(
+      await Deno.readTextFile(`${appHome}/settings.json`),
+      '{"zoom": 1.0, "theme": "paper"}\n',
+    );
+    const forced = await installHerdrTheme(deps, {
+      themeId: "borland-modern-blue",
+      themeText: THEME_TEXT,
+      appHome,
+      select: false,
+      force: true,
+    });
+    assertEquals(forced.action, "installed");
+    assertEquals(forced.selected, false);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("installHerdrTheme reports an unreadable settings.json, never replaces it", async () => {
+  const dir = await Deno.makeTempDir({ prefix: "herdr-theme-" });
+  try {
+    const deps = fakeDeps(dir);
+    const appHome = `${dir}/data/herdr-app`;
+    await Deno.mkdir(appHome, { recursive: true });
+    await Deno.writeTextFile(`${appHome}/settings.json`, "{not json");
+    const result = await installHerdrTheme(deps, {
+      themeId: "borland-modern-blue",
+      themeText: THEME_TEXT,
+      appHome,
+      select: true,
+      force: false,
+    });
+    assertEquals(result.selected, false);
+    assertStringIncludes(result.warning, "not valid JSON");
+    assertEquals(
+      await Deno.readTextFile(`${appHome}/settings.json`),
+      "{not json",
+    );
+    // The theme itself is still installed.
+    assertEquals(
+      await Deno.readTextFile(`${appHome}/themes/borland-modern-blue.json`),
+      THEME_TEXT,
+    );
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("installHerdr installs the theme and reports it", async () => {
+  const dir = await Deno.makeTempDir({ prefix: "herdr-install-" });
+  try {
+    const archive = await appArchive();
+    const sha256 = await sha256Hex(archive);
+    const deps = fakeDeps(dir, {
+      fetch: stubFetch({ [RELEASE.url]: archive }),
+    });
+    const result = await installHerdr(deps, {
+      release: { ...RELEASE, sha256 },
+      core: "never",
+      force: false,
+      appDir: "",
+      binDir: "",
+      downloadDir: "",
+      herdrHome: "",
+      theme: "borland-modern-blue",
+      themeText: THEME_TEXT,
+      selectTheme: true,
+    });
+    assertEquals(result.theme.id, "borland-modern-blue");
+    assertEquals(result.theme.action, "installed");
+    assertEquals(result.theme.selected, true);
+    assertEquals(
+      await Deno.readTextFile(
+        `${dir}/home/.config/herdr-app/themes/borland-modern-blue.json`,
+      ),
+      THEME_TEXT,
+    );
+
+    // theme="" installs no theme at all.
+    const other = `${dir}/other`;
+    const plain = await installHerdr(deps, {
+      release: { ...RELEASE, sha256 },
+      core: "never",
+      force: false,
+      appDir: `${other}/app`,
+      binDir: `${other}/bin`,
+      downloadDir: "",
+      herdrHome: `${other}/home`,
+      theme: "",
+      themeText: "",
+      selectTheme: false,
+    });
+    assertEquals(plain.theme.action, "skipped");
+    await assertRejects(
+      () => Deno.lstat(`${other}/home/themes`),
       Deno.errors.NotFound,
     );
   } finally {
@@ -985,12 +1319,128 @@ Deno.test("the model declares every method and resource", () => {
   assertEquals(model.type, "@svendowideit/herdr-app");
   assertEquals(
     Object.keys(model.methods).sort(),
-    ["install", "plan", "renderScript", "sshFleet", "status", "uninstall"],
+    [
+      "install",
+      "installTheme",
+      "plan",
+      "renderScript",
+      "sshFleet",
+      "status",
+      "uninstall",
+    ],
   );
   assertEquals(
     Object.keys(model.resources).sort(),
-    ["install", "plan", "release", "script", "status", "transport"],
+    ["install", "plan", "release", "script", "status", "theme", "transport"],
   );
+});
+
+Deno.test("installTheme writes the bundled theme and selects it", async () => {
+  const dir = await Deno.makeTempDir({ prefix: "herdr-method-" });
+  try {
+    const { context, getWrittenResources } = createModelTestContext({
+      globalArgs: {},
+      methodName: "installTheme",
+    });
+    // The model resolves bundled assets through swamp's `extensionFile`.
+    (context as unknown as { extensionFile: (rel: string) => string })
+      .extensionFile = (rel: string) =>
+        new URL(`./${rel}`, import.meta.url).pathname;
+    const appHome = `${dir}/herdr-app`;
+    await (model.methods.installTheme.execute as unknown as (
+      a: Record<string, unknown>,
+      c: unknown,
+    ) => Promise<unknown>)({
+      theme: "borland-modern-blue",
+      herdrHome: appHome,
+      select: true,
+      force: false,
+    }, context);
+    const theme = getWrittenResources().find((r) => r.specName === "theme");
+    assertEquals(theme?.data.id, "borland-modern-blue");
+    assertEquals(theme?.data.action, "installed");
+    assertEquals(theme?.data.selected, true);
+    assertEquals(
+      await Deno.readTextFile(`${appHome}/themes/borland-modern-blue.json`),
+      THEME_TEXT,
+    );
+    assertEquals(
+      JSON.parse(await Deno.readTextFile(`${appHome}/settings.json`)),
+      { theme: "borland-modern-blue" },
+    );
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("installTheme refuses a theme this extension does not ship", async () => {
+  const { context } = createModelTestContext({
+    globalArgs: {},
+    methodName: "installTheme",
+  });
+  (context as unknown as { extensionFile: (rel: string) => string })
+    .extensionFile = (rel: string) =>
+      new URL(`./${rel}`, import.meta.url).pathname;
+  await assertRejects(
+    () =>
+      (model.methods.installTheme.execute as unknown as (
+        a: Record<string, unknown>,
+        c: unknown,
+      ) => Promise<unknown>)({
+        theme: "no-such-theme",
+        herdrHome: "/tmp/unused",
+        select: true,
+        force: false,
+      }, context),
+    Error,
+    "is not readable",
+  );
+});
+
+Deno.test("status reports the theme file and the choice", async () => {
+  if (Deno.build.os === "windows") return;
+  const dir = await Deno.makeTempDir({ prefix: "herdr-method-" });
+  try {
+    const appHome = `${dir}/herdr-app`;
+    await Deno.mkdir(`${appHome}/themes`, { recursive: true });
+    await Deno.writeTextFile(
+      `${appHome}/themes/borland-modern-blue.json`,
+      THEME_TEXT,
+    );
+    await Deno.writeTextFile(
+      `${appHome}/settings.json`,
+      '{"theme": {"light": "paper", "dark": "borland-modern-blue"}}',
+    );
+    const appDir = `${dir}/app`;
+    await Deno.mkdir(appDir, { recursive: true });
+    await Deno.writeTextFile(
+      `${appDir}/herdr-app`,
+      "#!/bin/sh\necho 'herdr-app 0.1.14'\n",
+    );
+    await Deno.chmod(`${appDir}/herdr-app`, 0o755);
+    const { context, getWrittenResources } = createModelTestContext({
+      globalArgs: {},
+      methodName: "status",
+    });
+    await (model.methods.status.execute as unknown as (
+      a: Record<string, unknown>,
+      c: unknown,
+    ) => Promise<unknown>)({
+      appDir,
+      binDir: `${dir}/bin`,
+      herdrHome: appHome,
+    }, context);
+    const status = getWrittenResources().find((r) => r.specName === "status");
+    assertEquals(status?.data.themeInstalled, true);
+    assertEquals(status?.data.themeSelected, true);
+    assertEquals(status?.data.herdrHome, appHome);
+    assertEquals(
+      status?.data.themeFile,
+      `${appHome}/themes/borland-modern-blue.json`,
+    );
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
 });
 
 Deno.test("a real release manifest parses through the shared parser", () => {

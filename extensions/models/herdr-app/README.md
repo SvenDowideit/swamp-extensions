@@ -22,6 +22,13 @@ repeated:
   macOS (release signature verified, or ad-hoc signed with the PATH environment
   an unsigned build needs), and `%LOCALAPPDATA%\Programs\herdr-app` with a Start
   menu shortcut and a user PATH entry on Windows.
+- **Ship and install the Borland Modern Blue theme.** The theme file lands in
+  Herdr's own home (`themes/borland-modern-blue.json`) and is selected in
+  `settings.json` when no theme is chosen yet — so a new install opens in
+  Borland blue, and a theme you already chose stays chosen. It is the classic
+  turbo-pascal palette (deep blue, cyan accents, amber working) tuned for
+  Herdr's chrome: `muted`, `dim`, `border`, `accent` and the status colours were
+  lifted until they clear their contrast floors on `#003078`.
 - **Install herdr-core only when the machine has none** — the vendor's rule,
   because the app keeps the core current afterwards — or update it when you ask.
   The macOS core keeps the vendor's `Herdr Core.app` installation path and its
@@ -79,8 +86,12 @@ The model has no global arguments — every setting is a method argument, so
 | `releasesUrl` | string | `https://releases.herdr.dev` | Release host to resolve and download from. A mirror's URLs are used verbatim (no `?src=` marker). |
 | `downloadDir` | string | user cache dir | Where the verified archives are staged and reused. |
 | `release` | object | — | A resolved `release` resource from `plan`, so one resolution can install many hosts. |
+| `theme` | string | `borland-modern-blue` | Theme to install from the extension's bundled themes. Empty installs no theme. |
+| `selectTheme` | boolean | `true` | Select the theme in `settings.json` — only when no theme is chosen yet. |
+| `herdrHome` | string | `$HERDR_APP_HOME`, else `$XDG_CONFIG_HOME/herdr-app`, else `~/.config/herdr-app` | Herdr's own home, where `themes/` and `settings.json` live. |
 | `uninstall` | boolean | `false` | Workflow input: remove the app instead of installing it. |
 | `removeCore` | boolean | `false` | Uninstall also removes herdr-core and its `hc` alias. |
+| `removeTheme` | boolean | `false` | Uninstall also removes the theme file (settings.json is left alone). |
 
 `@svendowideit/herdr-app-ssh` additionally takes:
 
@@ -128,6 +139,14 @@ swamp workflow run @svendowideit/herdr-app-worker \
 swamp workflow run @svendowideit/herdr-app-ssh \
   --input sshHosts=mac-mini=192.0.2.20,studio=studio.lan
 
+# Install or refresh just the bundled theme, on a machine that already has
+# Herdr. It is selected only when settings.json names no theme yet.
+swamp model @svendowideit/herdr-app method run installTheme herdr-app
+
+# Install the app with a different location and no theme at all.
+swamp workflow run @svendowideit/herdr-app-install \
+  --input appDir=/opt/herdr --input theme=""
+
 # Force a core update even though the app is current.
 swamp workflow run @svendowideit/herdr-app-install --input core=always
 
@@ -146,8 +165,8 @@ swamp workflow run @svendowideit/herdr-app-upgrade
 
 One command, and the whole upgrade: resolve the newest release, install it only
 if this machine is not already on it, ensure a core exists (or update it with
-`core=always`), then read the installed binaries back and fail unless the app
-reports the planned version. There is nothing to migrate — the app and core are
+`core=always`), refresh and select the bundled theme, then read the installed
+binaries back and fail unless the app reports the planned version. There is nothing to migrate — the app and core are
 replaced in place — and re-running is safe. To upgrade a fleet, run the worker
 workflow per worker, or the SSH workflow for hosts without swamp.
 
@@ -160,7 +179,8 @@ workflow per worker, or the SSH workflow for hosts without swamp.
 | `plan` | `version`, `coreVersion`, `core`, `force`, `appDir`, `binDir`, `releasesUrl` | Resolves the app and core release, probes what is installed, writes `release` and `plan`. Downloads only the two manifests. |
 | `install` | the same, plus `release` and `downloadDir` | Downloads and verifies only when the version differs, places the app and (per `core`) herdr-core, writes `install`. A verification failure writes a `failed` `install` resource before the error is raised, so the run's data says what broke. |
 | `status` | `appDir`, `binDir` | Runs the installed binaries and writes `status`: presence, versions, paths, app shape, and where the core was found. |
-| `uninstall` | `appDir`, `binDir`, `removeCore`, `force` | Removes the app, its command link and its launcher entry or shortcut; the shared core only with `removeCore=true`. Writes `install` with action `uninstalled`. |
+| `uninstall` | `appDir`, `binDir`, `removeCore`, `removeTheme`, `herdrHome`, `force` | Removes the app, its command link and its launcher entry or shortcut; the shared core only with `removeCore=true`, the theme file only with `removeTheme=true`. Writes `install` with action `uninstalled`. |
+| `installTheme` | `theme`, `herdrHome`, `select`, `force` | Writes the bundled theme into Herdr's `themes/` and selects it in `settings.json` when nothing is chosen yet. Idempotent; writes the `theme` resource. |
 | `renderScript` | `version`, `coreVersion`, `core`, `force`, `releasesUrl`, `verifyCoreSignature` | Resolves the release and renders the pinned POSIX installer used by the SSH workflow — one branch per Linux/macOS target, so a mixed fleet works — and writes `script`. Windows has no branch because the script is POSIX. |
 | `sshFleet` | `fleet`, `hosts`, `user`, `port`, `identityFile`, `hostKeyChecking`, `connectTimeoutSec` | Turns the host list into an `@swamp/ssh` fleet (hosts plus transport) and writes `transport`. |
 
@@ -173,15 +193,16 @@ and `script` (the rendered installer, its targets and its pins).
 
 | Workflow | Steps | Transport |
 | -------- | ----- | --------- |
-| `@svendowideit/herdr-app-install` | `plan` → `install` \| `uninstall` → `status` → `verify-install`, `verify-core`, `verify-uninstall` | local, or the `--server` host |
+| `@svendowideit/herdr-app-install` | `plan` → `install` \| `uninstall` → `status` → `verify-install`, `verify-core`, `verify-theme`, `verify-uninstall` | local, or the `--server` host |
 | `@svendowideit/herdr-app-upgrade` | delegates to the install workflow | local, or the `--server` host |
-| `@svendowideit/herdr-app-worker` | `plan` → `install` → `status` (all placed on `target`) → `verify-install`, `verify-core` | swamp worker, via `--server` |
+| `@svendowideit/herdr-app-worker` | `plan` → `install` → `status` (all placed on `target`) → `verify-install`, `verify-theme`, `verify-core` | swamp worker, via `--server` |
 | `@svendowideit/herdr-app-ssh` | `assert-hosts` → `render` → `fleet` → `install` (`@swamp/ssh` `script`) | SSH to hosts without swamp |
 
 The verify steps are asserts, not claims: `verify-install` compares the version
 `status` read off the binary with the version `plan` resolved, `verify-core`
-fails when a core was asked for and is still absent, and `verify-uninstall` fails
-if an uninstall run left the app present.
+fails when a core was asked for and is still absent, `verify-theme` fails when a
+theme was asked for and is not in Herdr's themes directory, and `verify-uninstall`
+fails if an uninstall run left the app present.
 
 ### How the code is structured
 
@@ -190,6 +211,9 @@ if an uninstall run left the app present.
   comparison, the Windows PowerShell snippets, and `renderInstallScript`, the
   POSIX installer for the SSH transport. No IO, so it is all unit-tested
   directly.
+- `themes/borland-modern-blue.json` — the theme this extension ships, validated
+  by the tests against Herdr's own rules (16 ANSI colours, `#rrggbb` palette,
+  known colour names) and read at run time through `ctx.extensionFile`.
 - `herdr_app.ts` — the model. `hostDeps()` is the single IO seam (fetch,
   subprocess, platform, environment); `resolveRelease`, `probeInstalled`,
   `installHerdr` and `uninstallHerdr` take it as an argument, so tests run the
@@ -212,9 +236,12 @@ transport should cover it too.
 The shared tests execute the rendered SSH installer for real, with a fake `curl`
 and a temporary `$HOME` on Linux/macOS, proving: it installs, it reports
 `unchanged` on a second run, it refuses a host of the wrong platform, and a
-damaged download fails it without leaving an app behind. The model tests drive
-the same install path through `installHerdr` with real gzipped tars built in the
-test.
+damaged download fails it without leaving an app behind. The theme is covered
+the same way: the shipped file is parsed by the app's own rules, and the rendered
+installer is executed against a fresh, an empty-object, a populated and an
+already-chosen `settings.json`, proving it adds one key (never rewriting the
+rest) and never replaces a chosen theme. The model tests drive the same install
+path through `installHerdr` with real gzipped tars built in the test.
 
 ### Caveats
 
@@ -225,6 +252,16 @@ test.
 - A macOS install verifies the release signature. A Developer ID bundle is left
   untouched; an unsigned or ad-hoc build gets the PATH environment it needs and
   is re-signed ad-hoc, because macOS privacy grants follow the signature.
+- The theme's `ansi0` (`#001f4d`) sits just above the terminal background: that
+  is the Borland "black", so a program that prints black text on the theme's own
+  background is dim by design. Every other ANSI slot and every chrome colour
+  clears a 4.3:1 contrast ratio on `#003078`.
+- Selection is deliberately conservative: `settings.json` gets `theme` only when
+  it has none. Herdr's theme picker writes a per-layout choice, which always wins
+  — so once you pick a theme in the app, this extension never changes it back.
+  Over SSH, a host that already has a `settings.json` without a theme gets it
+  added; any other settings are preserved (the script inserts one key rather
+  than rewriting the file).
 - `herdr-core` is shared by every Herdr install on a machine, which is why
   `uninstall` keeps it unless `removeCore=true` is set. On macOS the core is
   installed through the vendor's own `Herdr Core.app` path, so `removeCore`

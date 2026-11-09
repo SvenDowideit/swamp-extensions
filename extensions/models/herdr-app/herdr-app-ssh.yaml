@@ -15,9 +15,9 @@ description: |
   every host) and pipes the script to each host's `sh`. A host already on the
   pinned version reports `unchanged` and downloads nothing.
 
-  The script refuses a host whose platform differs from the pins, verifies each
-  archive before extracting it, and prints the app and core versions it left
-  behind. Windows hosts are not supported over SSH — install on them locally,
+  The script refuses a host it has no pin for, verifies each archive before
+  extracting it, installs the bundled theme, and prints the app and core
+  versions it left behind. Windows hosts are not supported over SSH — install on them locally,
   through swamp serve, or on a swamp worker.
 
   Steps: assert-hosts → plan → render → fleet → install (over ssh).
@@ -80,6 +80,18 @@ inputs:
       type: string
       default: https://releases.herdr.dev
       description: Release host the resolved pins point at.
+    theme:
+      type: string
+      default: borland-modern-blue
+      description: >-
+        Theme to install on every host from the extension's bundled themes.
+        Empty installs no theme.
+    selectTheme:
+      type: boolean
+      default: true
+      description: >-
+        Select the theme on a host whose settings.json has no theme yet. A host
+        that already chose a theme keeps it.
     verifyCoreSignature:
       type: boolean
       default: true
@@ -120,6 +132,8 @@ jobs:
             core: ${{ inputs.core }}
             force: ${{ inputs.force }}
             releasesUrl: ${{ inputs.releasesUrl }}
+            theme: ${{ inputs.theme }}
+            selectTheme: ${{ inputs.selectTheme }}
             verifyCoreSignature: ${{ inputs.verifyCoreSignature }}
         dependsOn:
           - step: assert-hosts

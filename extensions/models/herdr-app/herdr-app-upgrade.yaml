@@ -55,6 +55,18 @@ inputs:
       type: string
       default: https://releases.herdr.dev
       description: Release host to resolve and download from.
+    theme:
+      type: string
+      default: borland-modern-blue
+      description: >-
+        Theme to install from the extension's bundled themes (default Borland
+        Modern Blue). Empty leaves themes alone.
+    selectTheme:
+      type: boolean
+      default: true
+      description: >-
+        Select the theme when no theme is chosen yet; an existing choice is
+        never overwritten.
   required: []
 jobs:
   - name: upgrade
@@ -77,6 +89,8 @@ jobs:
             appDir: ${{ inputs.appDir }}
             binDir: ${{ inputs.binDir }}
             releasesUrl: ${{ inputs.releasesUrl }}
+            theme: ${{ inputs.theme }}
+            selectTheme: ${{ inputs.selectTheme }}
         dependsOn: []
         weight: 0
         allowFailure: false

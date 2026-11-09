@@ -64,6 +64,21 @@ inputs:
       type: string
       default: https://releases.herdr.dev
       description: Release host the worker resolves and downloads from.
+    theme:
+      type: string
+      default: borland-modern-blue
+      description: >-
+        Theme to install on the worker from the extension's bundled themes.
+        Empty installs no theme.
+    selectTheme:
+      type: boolean
+      default: true
+      description: >-
+        Select the theme in the worker's settings.json when it has no theme yet.
+    herdrHome:
+      type: string
+      default: ""
+      description: Override Herdr's own home on the worker.
   required: [target]
 jobs:
   - name: install-on-worker
@@ -110,6 +125,9 @@ jobs:
             appDir: ${{ inputs.appDir }}
             binDir: ${{ inputs.binDir }}
             releasesUrl: ${{ inputs.releasesUrl }}
+            theme: ${{ inputs.theme }}
+            selectTheme: ${{ inputs.selectTheme }}
+            herdrHome: ${{ inputs.herdrHome }}
             release: ${{ data.latest(inputs.appName, "release").attributes }}
         dependsOn:
           - step: plan
@@ -130,6 +148,7 @@ jobs:
           inputs:
             appDir: ${{ inputs.appDir }}
             binDir: ${{ inputs.binDir }}
+            herdrHome: ${{ inputs.herdrHome }}
         dependsOn:
           - step: install
             condition:
@@ -148,6 +167,26 @@ jobs:
           message: >-
             The worker does not report the planned Herdr version: read the
             install and status resources for what happened on it, then re-run.
+          severity: high
+        dependsOn:
+          - step: status
+            condition:
+              type: always
+        weight: 0
+        allowFailure: false
+      - name: verify-theme
+        description: >-
+          Fail when a theme was asked for and the worker does not have it in
+          Herdr's themes directory.
+        guard: ${{ inputs.theme == "" }}
+        task:
+          type: assert
+          expr: >-
+            data.latest(inputs.appName, "status").attributes.themeInstalled == true
+          message: >-
+            The bundled theme is not in the worker's Herdr themes directory:
+            read the install and status resources for the paths it used, then
+            re-run.
           severity: high
         dependsOn:
           - step: status

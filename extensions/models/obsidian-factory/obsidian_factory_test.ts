@@ -20,9 +20,8 @@ import {
   cardDisplay,
   cardMatches,
   cardSummary,
-  cardSummaryFromSection,
-  cardSummaryLine,
   collapseDuplicateHeadings,
+  columnCardSummary,
   composeNote,
   countBullets,
   createCard,
@@ -1456,50 +1455,131 @@ Deno.test("the board summary shows the human title, not the codename", () => {
   }
 });
 
-Deno.test("cardSummaryLine is one readable native card line", () => {
-  const line = cardSummaryLine({
-    stage: "Please Implement",
-    planStatus: "final",
-    needsInput: ["Confirm the project path", "Second question"],
-    next: "Implement the plan",
-  });
-  assertEquals(
-    line,
-    "Please Implement · Plan final · Needs: Confirm the project path · " +
-      "Next: Implement the plan",
-    "one-line summary",
-  );
-  assert(
-    cardSummaryLine({
-      stage: "Proposed",
-      planStatus: "draft",
-      needsInput: ["_Nothing right now._"],
-      next: "Wait for the person",
-    }).includes("Needs:") === false,
-    "a placeholder is not a need",
-  );
-});
+function nativeCard(summary: string, plan = "") {
+  return [
+    "<!-- swamp:summary:begin -->",
+    summary,
+    "<!-- swamp:summary:end -->",
+    "<!-- swamp:plan:begin -->",
+    plan,
+    "<!-- swamp:plan:end -->",
+  ].join("\n");
+}
 
-Deno.test("cardSummaryFromSection rebuilds the line from At a glance", () => {
-  const summary = [
+Deno.test("columnCardSummary is column-specific, not stage boilerplate", () => {
+  const proposed = nativeCard([
     "## At a glance",
     "",
-    "**Stage:** Work Planned · **Plan:** final · **Updated:** now",
+    "**Stage:** Proposed · **Plan:** draft · **Updated:** now",
     "",
     "**Needs your input**",
     "",
-    "- Read the plan",
+    "- Confirm the project path",
     "",
-    "**Next:** Move to Please Implement",
+    "**Next:** Move to Please Plan",
+  ].join("\n"));
+  assertEquals(
+    columnCardSummary("Proposed", proposed, "/repo"),
+    "Needs: Confirm the project path · Project: /repo · Next: Move to Please Plan",
+    "Proposed shows the decision inputs, not the stage",
+  );
+
+  const plan = nativeCard(
+    [
+      "## At a glance",
+      "",
+      "**Stage:** Work Planned · **Plan:** final · **Updated:** now",
+      "",
+      "**Next:** Move to Please Implement",
+    ].join("\n"),
+    [
+      "## Plan",
+      "### Tasks",
+      "- [x] one",
+      "- [ ] two",
+      "### Tests",
+      "- [ ] check it",
+    ].join("\n"),
+  );
+  assertEquals(
+    columnCardSummary("Work Planned", plan),
+    "Plan final · Tasks 1/2 · Tests 0/1 · Next: Move to Please Implement",
+    "Work Planned shows plan progress",
+  );
+
+  const release = nativeCard([
+    "## At a glance",
+    "",
+    "**Stage:** Please Release · **Plan:** final · **Updated:** now",
+    "",
+    "**Known**",
+    "",
+    "- Checks: 11 passed",
+    "",
+    "**Next:** Publish 2026.11.09.9",
+  ].join("\n"));
+  assertEquals(
+    columnCardSummary("Please Release", release),
+    "Checks: 11 passed · Next: Publish 2026.11.09.9",
+    "Please Release shows the check result",
+  );
+
+  const acceptance = nativeCard([
+    "## At a glance",
+    "",
+    "**Stage:** User Acceptance · **Plan:** final · **Updated:** now",
+    "",
+    "**Needs your input**",
+    "",
+    "- Restart Obsidian",
+    "",
+    "**Next:** Accept",
+  ].join("\n"));
+  const acceptanceLine = columnCardSummary("User Acceptance", acceptance);
+  assert(
+    !acceptanceLine.includes("User Acceptance"),
+    "the column name is not repeated",
+  );
+  assert(
+    !acceptanceLine.includes("Plan final"),
+    "plan status is not repeated in acceptance",
+  );
+  assertEquals(
+    acceptanceLine,
+    "Needs: Restart Obsidian · Next: Accept",
+    "acceptance",
+  );
+});
+
+Deno.test("columnCardSummary uses ideas/questions and thoughts per column", () => {
+  const category = [
+    "<!-- swamp:summary:begin -->",
+    "**Next:** Propose a subset",
+    "<!-- swamp:summary:end -->",
+    "## Ideas",
+    "- a",
+    "- b",
+    "## Questions",
+    "- q",
   ].join("\n");
   assertEquals(
-    cardSummaryFromSection(summary),
-    "Work Planned · Plan final · Needs: Read the plan · " +
-      "Next: Move to Please Implement",
-    "rebuilt from At a glance",
+    columnCardSummary("Category", category),
+    "2 ideas · 1 question · Next: Propose a subset",
+    "category",
   );
-  assertEquals(cardSummaryFromSection(""), "", "empty summary");
-  assertEquals(cardSummaryFromSection("nothing here"), "", "no summary");
+  const inbox = [
+    "<!-- swamp:summary:begin -->",
+    "**Next:** Triage",
+    "<!-- swamp:summary:end -->",
+    "## Thoughts",
+    "- one",
+    "- two",
+  ].join("\n");
+  assertEquals(
+    columnCardSummary("Uncharacterised", inbox),
+    "2 thoughts · Next: Triage",
+    "inbox",
+  );
 });
 
 Deno.test(

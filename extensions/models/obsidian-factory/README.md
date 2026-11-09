@@ -250,8 +250,12 @@ property, written by `obsidian-board` from the card's managed `## At a glance`.
 The line carries the stage, plan status, first open question and next move:
 
 ```text
-Please Implement · Plan final · Needs: Confirm the project path · Next: Implement the plan
+Plan final · Tasks 2/6 · Tests 1/5 · Next: Move to Please Implement
 ```
+
+Other columns use their own facts: `Needs: … · Project: … · Next: …` in Proposed,
+`Checks: 11 passed · Next: …` in Please Test/Please Release, `4 ideas ·
+1 question · Next: …` in Category, and `2 thoughts · Next: …` in the inbox.
 
 The plugin does **not** inject fields or move buttons into a card. Clicking a
 card opens the card dialog, whose top action row has the documented moves and

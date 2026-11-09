@@ -62,8 +62,12 @@ anything on a card. The line is the stage, plan status, first open question and
 next move:
 
 ```text
-Please Implement · Plan final · Needs: Confirm the project path · Next: Implement the plan
+Plan final · Tasks 2/6 · Tests 1/5 · Next: Move to Please Implement
 ```
+
+Other columns use their own facts: `Needs: … · Project: … · Next: …` in Proposed,
+`Checks: 11 passed · Next: …` in Please Test/Please Release, `4 ideas ·
+1 question · Next: …` in Category, and `2 thoughts · Next: …` in the inbox.
 
 Every column uses the same native line. The full At a glance and Plan are in
 the card dialog and the note. **Kind**, **Project**, **Source** and **Updated**

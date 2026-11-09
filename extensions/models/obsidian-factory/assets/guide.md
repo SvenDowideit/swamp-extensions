@@ -115,8 +115,12 @@ factory writes it from the card's managed At a glance, so the face is one
 readable line such as:
 
 ```text
-Please Implement · Plan final · Needs: Confirm the project path · Next: Implement the plan
+Plan final · Tasks 2/6 · Tests 1/5 · Next: Move to Please Implement
 ```
+
+Other columns use their own facts: `Needs: … · Project: … · Next: …` in Proposed,
+`Checks: 11 passed · Next: …` in Please Test/Please Release, `4 ideas ·
+1 question · Next: …` in Category, and `2 thoughts · Next: …` in the inbox.
 
 The card dialog has the full At a glance, the brief and the Plan. Kind, project,
 source and updated stay in the frontmatter and the table/cards views, not on the

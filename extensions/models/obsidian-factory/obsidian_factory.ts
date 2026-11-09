@@ -858,51 +858,118 @@ ${renderBullets(unknown, "Nothing outstanding.")}
 ${SUMMARY_END}`;
 }
 
-/** The one-line At a glance shown natively on the Bases card face. */
-export function cardSummaryLine(input: {
-  stage: string;
-  planStatus: string;
-  needsInput?: string[];
-  next: string;
-}): string {
-  const need = (input.needsInput ?? []).find((item) =>
-    item.trim() !== "" && !/^_.*_$/.test(item.trim())
-  );
-  const parts = [
-    input.stage,
-    `Plan ${input.planStatus}`,
-    need ? `Needs: ${need}` : "",
-    `Next: ${input.next}`,
-  ].filter(Boolean);
-  const line = parts.join(" · ").replace(/\s+/g, " ").trim();
-  return line.length > 240 ? `${line.slice(0, 237)}…` : line;
+/** Checkbox counts under one Plan heading, ignoring placeholders. */
+export function planProgress(
+  plan: string,
+  heading: string,
+): { done: number; total: number } {
+  const wanted = heading.trim().toLowerCase();
+  let inside = false;
+  let done = 0;
+  let total = 0;
+  for (const line of plan.split(/\r?\n/)) {
+    const match = /^#{1,6}\s+(.*)$/.exec(line);
+    if (match) {
+      inside = match[1].trim().toLowerCase() === wanted;
+      continue;
+    }
+    if (!inside) continue;
+    const box = /^\s*- \[( |x|X)\]\s+(.*)$/.exec(line);
+    if (!box || /^_.*_$/.test(box[2].trim())) continue;
+    total++;
+    if (box[1].toLowerCase() === "x") done++;
+  }
+  return { done, total };
 }
 
-/** Rebuild the card-face line from an existing managed At a glance section. */
-export function cardSummaryFromSection(summary: string): string {
-  const value = (pattern: RegExp): string => {
-    const match = pattern.exec(summary);
-    return match ? match[1].trim() : "";
+function firstNeed(summary: string): string {
+  const block = /\*\*Needs your input\*\*\s*\n+([\s\S]*?)(?=\n\*\*|$)/.exec(
+    summary,
+  );
+  if (!block) return "";
+  return block[1].split(/\r?\n/).map((line) =>
+    /^\s*[-*]\s+(.*)$/.exec(line)?.[1]?.trim() ?? ""
+  ).find((item) => item !== "" && !/^_.*_$/.test(item)) ?? "";
+}
+
+function summaryChecks(summary: string): string {
+  const known = /\*\*Known\*\*\s*\n+([\s\S]*?)(?=\n\*\*|$)/.exec(summary);
+  if (!known) return "";
+  const checks = known[1].split(/\r?\n/).map((line) =>
+    /^\s*[-*]\s+(.*)$/.exec(line)?.[1]?.trim() ?? ""
+  ).filter((item) => /^(the\s+)?(release\s+)?(checks?|tests?)\b/i.test(item));
+  return checks.slice(0, 2).map((line) => line.replace(/^checks?:\s*/i, ""))
+    .join("; ");
+}
+
+/**
+ * The one-line card face summary, chosen by the card's column.
+ *
+ * This is deliberately not "stage + plan": the column already says the stage.
+ * It shows what the next person needs to know in this column: needs/project in
+ * Proposed, plan and task/test progress in the plan columns, checks in Test and
+ * Release, ideas/questions in Category, and the next action where there is one.
+ */
+export function columnCardSummary(
+  status: string,
+  body: string,
+  project = "",
+): string {
+  const summary = extractManaged(body, SUMMARY_BEGIN, SUMMARY_END) ?? "";
+  const plan = extractManaged(body, PLAN_BEGIN, PLAN_END) ?? "";
+  const need = firstNeed(summary);
+  const nextMatch = /\*\*Next:\*\*\s*(.+)/.exec(summary);
+  const next = nextMatch ? nextMatch[1].trim() : "";
+  const planMatch = /\*\*Plan:\*\*\s*([a-zA-Z]+)/.exec(summary);
+  const planStatus = planMatch ? planMatch[1] : "";
+  const tasks = planProgress(plan, "Tasks");
+  const tests = planProgress(plan, "Tests");
+  const checks = summaryChecks(summary);
+  const ideas = sectionBullets(body, "Ideas").length;
+  const questions = sectionBullets(body, "Questions").length;
+  const thoughts = sectionBullets(body, "Thoughts").length;
+  const parts: string[] = [];
+  const add = (value: string) => {
+    if (value !== "") parts.push(value);
   };
-  const stage = value(/\*\*Stage:\*\*\s*([^·\n]+)/);
-  const plan = value(/\*\*Plan:\*\*\s*([a-zA-Z]+)/);
-  const next = value(/\*\*Next:\*\*\s*(.+)/);
-  const needsBlock = /\*\*Needs your input\*\*\s*\n+([\s\S]*?)(?=\n\*\*|$)/
-    .exec(
-      summary,
-    );
-  const needs = needsBlock
-    ? needsBlock[1].split(/\r?\n/).map((line) =>
-      /^\s*[-*]\s+(.*)$/.exec(line)?.[1]?.trim() ?? ""
-    ).filter((item) => item !== "" && !/^_.*_$/.test(item))
-    : [];
-  if (!stage && !next && needs.length === 0) return "";
-  return cardSummaryLine({
-    stage: stage || "Card",
-    planStatus: plan || "—",
-    needsInput: needs,
-    next: next || "—",
-  });
+  switch (status) {
+    case "Uncharacterised":
+      if (thoughts > 0) add(`${thoughts} thought${thoughts === 1 ? "" : "s"}`);
+      break;
+    case "Category":
+      if (ideas > 0) add(`${ideas} idea${ideas === 1 ? "" : "s"}`);
+      if (questions > 0) {
+        add(`${questions} question${questions === 1 ? "" : "s"}`);
+      }
+      break;
+    case "Proposed":
+      if (need !== "") add(`Needs: ${need}`);
+      if (project.trim() !== "") add(`Project: ${project.trim()}`);
+      break;
+    case "Please Plan":
+    case "Work Planned":
+    case "Please Implement":
+      if (planStatus !== "") add(`Plan ${planStatus}`);
+      if (tasks.total > 0) add(`Tasks ${tasks.done}/${tasks.total}`);
+      if (tests.total > 0) add(`Tests ${tests.done}/${tests.total}`);
+      break;
+    case "Please Test":
+      if (checks !== "") add(`Checks: ${checks}`);
+      if (tests.total > 0) add(`Tests ${tests.done}/${tests.total}`);
+      break;
+    case "Please Release":
+      if (checks !== "") add(`Checks: ${checks}`);
+      break;
+    case "User Acceptance":
+      if (need !== "") add(`Needs: ${need}`);
+      break;
+    default:
+      break;
+  }
+  if (next !== "" && !/^_.*_$/.test(next)) add(`Next: ${next}`);
+  if (parts.length === 0) return "";
+  const line = parts.join(" · ").replace(/\s+/g, " ").trim();
+  return line.length > 240 ? `${line.slice(0, 237)}…` : line;
 }
 
 /** What the card's Definition section says about its pinned factory definition. */
@@ -3282,13 +3349,12 @@ async function executeSetSummary(
     next: args.next,
   });
   card.frontmatter.swampSummaryHash = await hashText(block);
-  card.frontmatter.cardSummary = cardSummaryLine({
-    stage: args.stage,
-    planStatus: args.planStatus,
-    needsInput: args.needsInput ?? [],
-    next: args.next,
-  });
   card.body = upsertAfterTitle(card.body, SUMMARY_BEGIN, SUMMARY_END, block);
+  card.frontmatter.cardSummary = columnCardSummary(
+    String(card.frontmatter.status ?? ""),
+    card.body,
+    String(card.frontmatter.project ?? ""),
+  );
   await writeCardNote(context, card);
   const handle = await context.writeResource(
     "operation",
@@ -3915,8 +3981,11 @@ async function refreshCardSummariesInternal(
 ): Promise<{ changed: number }> {
   let changed = 0;
   for (const card of await readAllCards(context)) {
-    const summary = extractManaged(card.body, SUMMARY_BEGIN, SUMMARY_END) ?? "";
-    const line = cardSummaryFromSection(summary);
+    const line = columnCardSummary(
+      String(card.frontmatter.status ?? ""),
+      card.body,
+      String(card.frontmatter.project ?? ""),
+    );
     if (line === "" || card.frontmatter.cardSummary === line) continue;
     if (!dryRun) {
       card.frontmatter.cardSummary = line;
@@ -4218,7 +4287,7 @@ async function executeQueue(
 /** The tracker: stagecraft's contract 1 over an Obsidian board. */
 export const model = {
   type: "@svendowideit/obsidian-factory",
-  version: "2026.11.09.9",
+  version: "2026.11.09.10",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -4585,6 +4654,15 @@ export const model = {
         "Document the native card face: title plus cardSummary, actions in " +
         "the card dialog and command palette, and no plugin field or move " +
         "button injection. No data or method change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.09.10",
+      description:
+        "Make cardSummary column-specific instead of repeating the stage " +
+        "and plan: Proposed shows needs/project, plan columns show task/test " +
+        "progress, Test/Release show checks, Category shows ideas/questions, " +
+        "the inbox shows thoughts. Refresh rewrites every card.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

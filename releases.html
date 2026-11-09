@@ -3417,7 +3417,101 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261102.151815.0-sha.b8f64405" rel="noopener">release v20261102.151815.0-sha.b8f64405</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b8f6440513579d2a9e7c0c68d6c501d584dfd667" rel="noopener">b8f64405</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3546" rel="noopener">#3546</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4150" rel="noopener">#4150</a>𝗔 <a href="https://swamp-club.com/lab/4231" rel="noopener">lab#4231</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261104-163022-0-sha-ed274a65">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261109-005252-0-sha-8c94365a">
+<h2><span class="tier C">C</span>swamp 20261109.005252.0-sha.8c94365a</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-09T00:57:31Z">2026-11-09T00:57:31Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>test(datastore): the Litestream restore tests run as four files sharing one harness, so the sharded suite finishes in about 100 s instead of about 200 s (swamp-club#4528) (#3680)</li>
+</ul>
+<p>Nothing changes in the swamp CLI. This only moves tests between files.</p>
+<h4 class="body-h">What this changes</h4>
+<p><code>integration/datastore_v3_litestream_restore_test.ts</code> held 34 tests that ran one after another for about 170 s. Under <code>test-shards</code>, that one file set the run&#39;s wall time: its shard took about 200 s while the other three finished in 80–100 s.</p>
+<p>Its tests now live in four themed files that share the machine harness through <code>integration/datastore_v3_litestream_restore_helpers.ts</code>:</p>
+<p>| File | Tests | Time |</p>
+<p>|---|---|---|</p>
+<p>| <code>datastore_v3_litestream_restore_test.ts</code> | restore and refresh basics, takeover, zombie and stale lease, GC, setup, replication on, the swamp-club#3642 refusals | ~56 s |</p>
+<p>| <code>datastore_v3_litestream_restore_recovery_test.ts</code> | a reader replaying behind a lease, a serve write surviving a crash, a seeding writer that fails | ~41 s |</p>
+<p>| <code>datastore_v3_litestream_restore_serve_retake_test.ts</code> | serve&#39;s retake into its open store and what may happen before its restore lands | ~46 s |</p>
+<p>| <code>datastore_v3_litestream_restore_serve_replacement_test.ts</code> | retakes while serve&#39;s replacement restores or starts its sidecar, file and opt-in S3 | ~46 s |</p>
+<p>Every test body and assertion is unchanged. The harness moved unchanged apart from <code>export</code>. <code>design/enablers/datastore-litestream.md</code> names</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261109.005252.0-sha.8c94365a" rel="noopener">release v20261109.005252.0-sha.8c94365a</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8c94365a" rel="noopener">8c94365a</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3680" rel="noopener">#3680</a>𝗔 <a href="https://swamp-club.com/lab/4528" rel="noopener">lab#4528</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261109-003948-0-sha-b1781b00">
+<h2><span class="tier C">C</span>swamp 20261109.003948.0-sha.b1781b00</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-09T00:44:17Z">2026-11-09T00:44:17Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(client): workflowRun settles when a run suspends at a gate, and a done frame never leaves a request unsettled (swamp-club#4438) (#3679)</li>
+</ul>
+<p>&gt; <strong>Behaviour change for swamp-lib callers.</strong> <code>workflowRun</code> now settles when a run suspends at an approval gate. It returns a <code>WorkflowRunResult</code>: the run&#39;s fields stay at the top level, next to an <code>outcome</code> of <code>completed</code>, <code>cancelled</code>, <code>suspended</code> (with <code>gate</code>) or <code>replayed</code>. JavaScript code that reads <code>status</code> or <code>jobs</code> keeps working. In TypeScript, reading a run field now needs a check on <code>outcome</code> first:</p>
+<p>&gt;</p>
+<p>&gt; ```ts</p>
+<p>&gt; const result = await client.workflowRun(payload);</p>
+<p>&gt; if (result.outcome === &quot;replayed&quot;) { /* an idempotent retry: only result.runId */ }</p>
+<p>&gt; else if (result.outcome === &quot;suspended&quot;) { /* result.gate.stepId, result.gate.prompt */ }</p>
+<p>&gt; else { /* result.status, result.jobs as before */ }</p>
+<p>&gt; ```</p>
+<p>&gt;</p>
+<p>&gt; This ships as the next <code>0.&lt;date&gt;.&lt;N&gt;</code> release of <code>@swamp-club/swamp-lib</code>.</p>
+<h4 class="body-h">Summary</h4>
+<p><code>workflowRun</code> never settled when a run suspended at a <code>manual_approval</code> gate (swamp-club#4438). It settled only on <code>completed</code>, <code>cancelled</code> and <code>error</code>. The <code>done</code> frame that serve sends after <code>suspended</code> deleted the pending request without settling it, so a caller hung at the first gate.</p>
+<ul>
+<li><strong>A run at a gate settles.</strong> <code>workflowRun</code> resolves with <code>outcome: &quot;suspended&quot;</code> and the gate: job, step, prompt, timeout, and the nested run or signal wait it is waiting on. An idempotent retry, which serve answers with only a replayed `start</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261109.003948.0-sha.b1781b00" rel="noopener">release v20261109.003948.0-sha.b1781b00</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b1781b00" rel="noopener">b1781b00</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3679" rel="noopener">#3679</a>𝗔 <a href="https://swamp-club.com/lab/4438" rel="noopener">lab#4438</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261109-001436-0-sha-04e1cc33">
+<h2><span class="tier C">C</span>swamp 20261109.001436.0-sha.04e1cc33</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-09T00:19:15Z">2026-11-09T00:19:15Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(testing): verify-build runs the test suite in balanced parallel processes, about a quarter faster with every test still run (swamp-club#4505) (#3678)</li>
+</ul>
+<p>Nothing changes in the swamp CLI. This changes only how verify-build runs swamp&#39;s own test suite.</p>
+<h4 class="body-h">What this changes</h4>
+<p><code>verify-build</code>&#39;s test step now runs the suite through a new <code>deno task test-shards</code>, which splits it into several smaller <code>deno test</code> processes and reports one combined result. In one large process the test files contend on process-wide locks, so smaller processes finish sooner and use less CPU. Every test still runs and none changes.</p>
+<ul>
+<li><strong>Balanced shards.</strong> One shard per 8 cores, up to 4. Files are assigned slowest first, using the recorded test time in <code>scripts/test_shard_weights.json</code>. A file it doesn&#39;t list counts as fast, so stale weights only make the balance worse; they never drop a test. <code>--record-weights</code> refreshes them.</li>
+<li><strong>One result.</strong> Each shard&#39;s output streams live with a <code>[n]</code> prefix. At the end there is one summary with every shard&#39;s counts and the ERRORS and FAILURES blocks of any shard that failed. The run fails if any shard fails or leaves temp entries behind.</li>
+<li><strong>Same flags.</strong> Shards read their flags and environment from the <code>test</code> task in <code>deno.json</code>, so the two can&#39;t drift.</li>
+<li><strong>Short temp paths.</strong> Each shard&#39;s TMPDIR is a one-character directory under the caller&#39;s TMPDIR. Under verify-build&#39;s TMPDIR, Litestream&#39;s socket tests have only a few characters to spare</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261109.001436.0-sha.04e1cc33" rel="noopener">release v20261109.001436.0-sha.04e1cc33</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/04e1cc33" rel="noopener">04e1cc33</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3678" rel="noopener">#3678</a>𝗔 <a href="https://swamp-club.com/lab/4505" rel="noopener">lab#4505</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261109-000653-0-sha-1a7a6b71">
+<h2><span class="tier C">C</span>swamp 20261109.000653.0-sha.1a7a6b71</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-09T00:11:14Z">2026-11-09T00:11:14Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(swamp-lib): workflowRunStream and modelMethodRunStream throw a refusal or failure instead of ending as if nothing went wrong (swamp-club#4445) (#3677)</li>
+</ul>
+<p>&gt; <strong>Behaviour change for swamp-lib callers.</strong> <code>workflowRunStream</code> and <code>modelMethodRunStream</code> now throw when a run is refused, fails, or loses its socket. They used to be able to end as if the run had finished cleanly. Every event that arrived is still delivered before the throw. This ships as the next <code>0.&lt;date&gt;.&lt;N&gt;</code> release of <code>@swamp-club/swamp-lib</code>.</p>
+<h4 class="body-h">Summary</h4>
+<p>The stream queue settled a waiting reader with &quot;done&quot; when an error arrived. So a refusal sent while the consumer was waiting ended the <code>for await</code> loop with no events and no exception, and a refused run read as a clean finish (swamp-club#4445). The same path dropped:</p>
+<ul>
+<li>a socket that closed mid-run;</li>
+<li>events already buffered when an error arrived, including the in-band <code>error</code> event that ordinary run failures send. Whether a consumer saw that event depended on timing.</li>
+</ul>
+<p>The queue now lives in <code>packages/client/queue.ts</code>, which <code>mod.ts</code> doesn&#39;t export, and has one terminal state:</p>
+<ul>
+<li>whichever of done and error comes first wins;</li>
+<li>buffered events are delivered before the error;</li>
+<li>an error rejects a waiting reader;</li>
+<li>an error with no reader is only stored, so it can&#39;t cause an unhandled rejection.</li>
+</ul>
+<p>Both stream helpers end an in-band error event through the same reject path. A refused or failed stream therefore throws the same <code>SwampClientError</code> (</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261109.000653.0-sha.1a7a6b71" rel="noopener">release v20261109.000653.0-sha.1a7a6b71</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1a7a6b71" rel="noopener">1a7a6b71</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3677" rel="noopener">#3677</a>𝗔 <a href="https://swamp-club.com/lab/4445" rel="noopener">lab#4445</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261104-163022-0-sha-ed274a65">
 <h2><span class="tier C">C</span>state where a secret stops once a run starts, so serve and extension code no longer expect the vault to reach child processes (swamp-club#2176) (#3609)</h2>
 <p class="lede">`docs` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-11-04T16:36:09Z">2026-11-04T16:36:09Z</time></span><span>vaults</span><span>docs</span></div>
@@ -3565,13 +3659,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261101.202412.0-sha.0500dc35" rel="noopener">release v20261101.202412.0-sha.0500dc35</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0500dc35534060a870a5998e5dddbcd015dfc2e1" rel="noopener">0500dc35</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3528" rel="noopener">#3528</a>𝗔 <a href="https://swamp-club.com/lab/4250" rel="noopener">lab#4250</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>147 items across 1 source(s) in this window:
+<p>151 items across 1 source(s) in this window:
 2 critical, 133 notable, 6 routine,
-6 minor.</p>
-<ul><li><strong>fix</strong> — 105</li><li><strong>feat</strong> — 30</li><li><strong>perf</strong> — 4</li><li><strong>docs</strong> — 3</li><li><strong>test</strong> — 3</li><li><strong>chore</strong> — 1</li></ul></section>
+10 minor.</p>
+<ul><li><strong>fix</strong> — 105</li><li><strong>feat</strong> — 30</li><li><strong>perf</strong> — 4</li><li><strong>changes</strong> — 4</li><li><strong>docs</strong> — 3</li><li><strong>test</strong> — 3</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-09T00:01:51.526Z">2026-11-09T00:01:51.526Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-09T01:02:04.765Z">2026-11-09T01:02:04.765Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

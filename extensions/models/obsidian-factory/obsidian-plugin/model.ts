@@ -146,6 +146,12 @@ export function shouldInterceptCardOpen(
   return !newLeaf && isCardPath(linktext);
 }
 
+/** True when a path is the factory's Board page, the note with the capture box. */
+export function isBoardPath(path: string, folder = "Factory"): boolean {
+  const normalized = folder.replace(/^\/+|\/+$/g, "");
+  return path.replace(/^\/+/, "") === `${normalized}/Board.md`;
+}
+
 export function isCardPath(path: string, folder = "Factory/Cards"): boolean {
   let decoded = path;
   try {

@@ -7,6 +7,7 @@ import {
   captureTextProblem,
   isArchivablePath,
   isArchivedPath,
+  isBoardPath,
   isCardPath,
   movesForStatus,
   readableCard,
@@ -231,4 +232,10 @@ Deno.test("only cards on the active board can be archived", () => {
   assert(isArchivedPath("Factory/Archive/FAC-13 archive.md"), "archived card");
   assert(!isArchivedPath("Factory/Cards/FAC-13 archive.md"), "board card");
   assert(!isArchivedPath("Factory/Archive.base"), "archive base");
+});
+
+Deno.test("isBoardPath finds only the Board page", () => {
+  assert(isBoardPath("Factory/Board.md"));
+  assert(!isBoardPath("Factory/Board.base"));
+  assert(!isBoardPath("Factory/Cards/FAC-1.md"));
 });

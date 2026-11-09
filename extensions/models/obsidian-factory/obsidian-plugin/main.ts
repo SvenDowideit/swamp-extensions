@@ -25,6 +25,7 @@ import {
   captureTextProblem,
   isArchivablePath,
   isArchivedPath,
+  isBoardPath,
   isCardPath,
   movesForStatus,
   readableCard,
@@ -193,6 +194,13 @@ export default class ObsidianFactoryPlugin extends Plugin {
       this.decorateCards();
     }));
     workspaceEvents.onLayoutReady(() => this.decorateCards());
+    // Bases and the note view render asynchronously; re-run decoration so the
+    // capture box appears after the view exists (and after a re-render).
+    const decorateTimer = globalThis.setInterval(
+      () => this.decorateCards(),
+      2000,
+    );
+    this.registerInterval(decorateTimer);
 
     this.addCommand({
       id: "capture-idea",
@@ -625,6 +633,7 @@ export default class ObsidianFactoryPlugin extends Plugin {
   }
 
   private decorateCards(): void {
+    this.decorateBoardNote();
     this.decorateCaptureBoxes();
     const cards = Array.from(
       document.querySelectorAll<HTMLElement>(".bases-kanban-card"),
@@ -682,7 +691,68 @@ export default class ObsidianFactoryPlugin extends Plugin {
    * adds the box above the columns. The box submits through captureIdea, so
    * obsidian-board stays the only writer of the inbox note.
    */
+  /** Add the capture form to a container. */
+  private addCaptureForm(parent: HTMLElement): HTMLElement {
+    const form = parent.createDiv({ cls: "factory-capture" });
+    form.dataset.factoryCapture = "1";
+    const input = form.createEl("input", { type: "text" });
+    input.placeholder = CAPTURE_PLACEHOLDER;
+    const submit = () => {
+      void this.captureIdea(input.value);
+      input.value = "";
+    };
+    const button = form.createEl("button", { text: "Add idea" });
+    button.addEventListener("click", submit);
+    input.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        submit();
+      }
+    });
+    form.createEl("span", {
+      cls: "factory-capture-hint",
+      text: "Lands on the inbox card in Uncharacterised",
+    });
+    return form;
+  }
+
+  /** True when the active note is the Board page itself. */
+  private boardNoteActive(): boolean {
+    const file = this.app.workspace.getActiveFile();
+    return Boolean(file && isBoardPath(file.path));
+  }
+
+  /**
+   * Put the capture box on the Board note page. This is the reliable anchor:
+   * it does not depend on the Bases kanban's internal DOM. It is inserted
+   * after the page title, before the embedded board.
+   */
+  private decorateBoardNote(): void {
+    if (!this.boardNoteActive()) return;
+    const leaf = document.querySelector(".workspace-leaf.mod-active");
+    if (!leaf) return;
+    const preview = leaf.querySelector<HTMLElement>(
+      ".markdown-preview-view",
+    );
+    const view = preview ??
+      leaf.querySelector<HTMLElement>(
+        ".markdown-source-view .cm-scroller",
+      );
+    if (!view || view.dataset.factoryCaptureNote === "1") return;
+    view.dataset.factoryCaptureNote = "1";
+    const form = this.addCaptureForm(view);
+    const heading = preview?.querySelector("h1");
+    if (heading) heading.after(form);
+    else view.prepend(form);
+  }
+
+  /**
+   * Put the capture box on a Bases kanban view when the Board page is not the
+   * active note (for example when Board.base is opened directly). The native
+   * view cannot host an input widget, so the plugin adds one above the cards.
+   */
   private decorateCaptureBoxes(): void {
+    if (this.boardNoteActive()) return;
     const containers = new Set<HTMLElement>();
     for (
       const card of Array.from(
@@ -695,26 +765,8 @@ export default class ObsidianFactoryPlugin extends Plugin {
     }
     for (const container of containers) {
       if (container.dataset.factoryCapture === "1") continue;
-      const form = container.createDiv({ cls: "factory-capture" });
+      const form = this.addCaptureForm(container);
       form.dataset.factoryCapture = "1";
-      const input = form.createEl("input", { type: "text" });
-      input.placeholder = CAPTURE_PLACEHOLDER;
-      const submit = () => {
-        void this.captureIdea(input.value);
-        input.value = "";
-      };
-      const button = form.createEl("button", { text: "Add idea" });
-      button.addEventListener("click", submit);
-      input.addEventListener("keydown", (event) => {
-        if (event.key === "Enter") {
-          event.preventDefault();
-          submit();
-        }
-      });
-      form.createEl("span", {
-        cls: "factory-capture-hint",
-        text: "Lands on the inbox card in Uncharacterised",
-      });
       container.prepend(form);
     }
   }

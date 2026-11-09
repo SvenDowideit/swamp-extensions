@@ -4116,7 +4116,7 @@ async function executeQueue(
 /** The tracker: stagecraft's contract 1 over an Obsidian board. */
 export const model = {
   type: "@svendowideit/obsidian-factory",
-  version: "2026.11.09.1",
+  version: "2026.11.09.2",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -4405,6 +4405,15 @@ export const model = {
         "it could not run instead of creating a duplicate. The inbox card is " +
         "found by kind, and a vault with no Cards folder yet is an empty " +
         "board rather than an error. `migrateCards` takes dryRun.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.09.2",
+      description:
+        "Put the capture box on the Board note page itself, after the title " +
+        "and before the embedded Bases board, and re-run decoration every " +
+        "two seconds so it survives async Bases/note renders. The Bases-only " +
+        "anchor is kept for a directly opened Board.base.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

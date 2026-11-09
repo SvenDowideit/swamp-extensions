@@ -1448,18 +1448,19 @@ async function readNote(
   });
   if (!result.ok) {
     const message = result.error?.message ?? "";
-    if (
-      /not ?found|no such file|does not exist|os error 2|enoent|\bmissing\b/i
-        .test(message)
-    ) {
-      return null;
-    }
+    if (isMissingPathError(message)) return null;
     throw new Error(`vault read failed for '${file}': ${message}`);
   }
   const name = resultDataName(result);
   if (!name) return null;
   const data = await readVaultData(context, "note", name);
   return typeof data?.content === "string" ? data.content : null;
+}
+
+/** Whether a vault error means the note or folder simply is not there. */
+export function isMissingPathError(message: string): boolean {
+  return /not ?found|no such file|does not exist|os error 2|enoent|\bmissing\b/i
+    .test(message);
 }
 
 /** Whether a note exists (a read is enough; missing is normal). */
@@ -1513,7 +1514,11 @@ async function listNotes(
     },
   });
   if (!result.ok) {
-    throw new Error(`vault list failed: ${result.error?.message ?? ""}`);
+    const message = result.error?.message ?? "";
+    // A vault that has never had the board installed has no Cards folder yet;
+    // an empty board is the right answer, not a failed one.
+    if (isMissingPathError(message)) return [];
+    throw new Error(`vault list failed: ${message}`);
   }
   const name = resultDataName(result);
   if (!name) return [];
@@ -4371,7 +4376,8 @@ export const model = {
         "existing card through the vault model's move (rewriting wikilinks), " +
         "rewrites old activity entries to the title, and reports any rename " +
         "it could not run instead of creating a duplicate. The inbox card is " +
-        "found by kind. `migrateCards` takes dryRun.",
+        "found by kind, and a vault with no Cards folder yet is an empty " +
+        "board rather than an error. `migrateCards` takes dryRun.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

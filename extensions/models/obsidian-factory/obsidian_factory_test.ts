@@ -27,6 +27,7 @@ import {
   hashText,
   incomingRelations,
   insertAfterTitle,
+  isMissingPathError,
   managedEditProblem,
   mergePluginSettings,
   migrateCardPaths,
@@ -839,6 +840,8 @@ class FakeVault {
   moveFailure: string | null = null;
   /** When true, `move` reports success but leaves the note where it was. */
   moveSilentlyDoesNothing = false;
+  /** Folders the fake vault reports as absent. */
+  missingFolders = new Set<string>();
   readonly context: FactoryContext;
   private records = new Map<string, FakeDataRecord[]>();
   private counter = 0;
@@ -954,6 +957,15 @@ class FakeVault {
         }
         case "list": {
           const folder = String(args.folder ?? "").replace(/\/+$/, "");
+          if (this.missingFolders.has(folder)) {
+            return answer({
+              ok: false,
+              error: {
+                message:
+                  `No such file or directory (os error 2): readdir '${folder}'`,
+              },
+            });
+          }
           const files = [...this.notes.keys()].filter((path) =>
             path === folder || path.startsWith(`${folder}/`)
           );
@@ -1639,4 +1651,25 @@ Deno.test("a large vault renames in bounded batches and finishes later", async (
     ],
     "every card is title-only",
   );
+});
+
+Deno.test("a vault with no Cards folder yet is an empty board, not an error", async () => {
+  assert(
+    isMissingPathError("No such file or directory (os error 2)"),
+    "a missing path is recognised",
+  );
+  assert(!isMissingPathError("permission denied"), "other errors are not");
+  const vault = new FakeVault();
+  vault.missingFolders.add("Factory/Cards");
+  const created = await createCard(
+    vault.context,
+    "inbox",
+    "Uncharacterised",
+    "Drop raw thoughts here.",
+  );
+  assertEquals(created.path, "Factory/Cards/uncharacterised.md", "path");
+  assertEquals(created.frontmatter.id, "fac-1", "id");
+  const migration = await migrateCardPaths(vault.context);
+  assertEquals(migration.renamed, [], "nothing to rename");
+  assertEquals(migration.failures, [], "no failure");
 });

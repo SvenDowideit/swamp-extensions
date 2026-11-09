@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4407"><span class="tier A">A</span>serve: a webhook route can shadow serve&#39;s own API paths; req</a><a href="#issue-4535"><span class="tier A">A</span>swamp-club: move swamp-lib from the archived @systeminit sco</a><a href="#issue-4545"><span class="tier A">A</span>swamp-club: move from the retired @systeminit/swamp-lib to @</a><a href="#issue-4543"><span class="tier A">A</span>swamp-lib: link a person, act over HTTP and refresh delegate</a><a href="#issue-4544"><span class="tier A">A</span>swamp-club: enable serve links for skunk-ape-test without an</a><a href="#issue-4536"><span class="tier A">A</span>API runs out of Mongo connections under bursts: extension pu</a><a href="#issue-4525"><span class="tier A">A</span>Team mode: a member write takes 2 requests to serve instead </a><a href="#issue-4531"><span class="tier A">A</span>feat(workflows): fan-out rollout: lanes start in canary batc</a><a href="#issue-4529"><span class="tier A">A</span>Delegation: link a person to an integration and issue their </a><a href="#issue-4528"><span class="tier A">A</span>Split the Litestream restore test file so it no longer sets </a><a href="#issue-4438"><span class="tier A">A</span>swamp-lib: workflowRun never settles when a run suspends at </a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4539"><span class="tier A">A</span>Team mode: a commit&#39;s cost on serve grows with history</a><a href="#issue-4553"><span class="tier A">A</span>Skill workflow reference uses range() in a forEach example; </a><a href="#issue-4552"><span class="tier A">A</span>worker connect: a relative --cache-dir enrolls fine but ever</a><a href="#issue-4407"><span class="tier A">A</span>serve: a webhook route can shadow serve&#39;s own API paths; req</a><a href="#issue-4535"><span class="tier A">A</span>swamp-club: move swamp-lib from the archived @systeminit sco</a><a href="#issue-4545"><span class="tier A">A</span>swamp-club: move from the retired @systeminit/swamp-lib to @</a><a href="#issue-4543"><span class="tier A">A</span>swamp-lib: link a person, act over HTTP and refresh delegate</a><a href="#issue-4544"><span class="tier A">A</span>swamp-club: enable serve links for skunk-ape-test without an</a><a href="#issue-4536"><span class="tier A">A</span>API runs out of Mongo connections under bursts: extension pu</a><a href="#issue-4525"><span class="tier A">A</span>Team mode: a member write takes 2 requests to serve instead </a><a href="#issue-4531"><span class="tier A">A</span>feat(workflows): fan-out rollout: lanes start in canary batc</a></aside><div>
 
 <article class="item" id="issue-4239">
 <h2><span class="tier S">S</span>swamp issue: file bugs, features and security reports against the platform source</h2>
@@ -76,6 +76,30 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-4539">
+<h2><span class="tier A">A</span>Team mode: a commit&#39;s cost on serve grows with history</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-09T17:59:12.188Z">2026-11-09T17:59:12.188Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4539" rel="noopener">lab#4539</a></div>
+</article>
+<article class="item" id="issue-4553">
+<h2><span class="tier A">A</span>Skill workflow reference uses range() in a forEach example; swamp CEL has no range(), and workflow validate passes it anyway</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-09T17:43:34.707Z">2026-11-09T17:43:34.707Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4553" rel="noopener">lab#4553</a></div>
+</article>
+<article class="item" id="issue-4552">
+<h2><span class="tier A">A</span>worker connect: a relative --cache-dir enrolls fine but every dispatch fails with &#39;Path must be absolute&#39;</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-09T17:18:36.093Z">2026-11-09T17:18:36.093Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4552" rel="noopener">lab#4552</a></div>
 </article>
 <article class="item" id="issue-4407">
 <h2><span class="tier A">A</span>serve: a webhook route can shadow serve&#39;s own API paths; require a fixed route prefix</h2>
@@ -141,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4531" rel="noopener">lab#4531</a></div>
 </article>
-<article class="item" id="issue-4529">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4529">
 <h2><span class="tier A">A</span>Delegation: link a person to an integration and issue their tokens</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-11-09T03:26:09.933Z">2026-11-09T03:26:09.933Z</time></span></div>
@@ -165,7 +189,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4438" rel="noopener">lab#4438</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4505">
+<article class="item" id="issue-4505">
 <h2><span class="tier A">A</span>Run the test suite in several smaller processes, so verification is faster with no test weakened</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-11-09T00:15:39.541Z">2026-11-09T00:15:39.541Z</time></span></div>
@@ -1877,50 +1901,34 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
-<article class="item" id="issue-4547">
-<h2><span class="tier B">B</span>serve: load webhook routes from reviewed files in the repo</h2>
+<article class="item" id="issue-4557">
+<h2><span class="tier B">B</span>@swamp/gcs-datastore (and @swamp/s3-datastore): a 16 MiB chunk put times out after a flat 30 s, so a slow serve-to-GCS link can never store it</h2>
 <p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-11-09T17:13:56.570Z">2026-11-09T17:13:56.570Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-09T18:00:36.483Z">2026-11-09T18:00:36.483Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4547" rel="noopener">lab#4547</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4557" rel="noopener">lab#4557</a></div>
 </article>
 <article class="item" id="issue-4542">
 <h2><span class="tier B">B</span>Team mode: a large output (64 MiB) takes about 8 minutes to store and usually loses its lease mid-upload, losing the output (F35 from #4374)</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-09T17:13:18.836Z">2026-11-09T17:13:18.836Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-09T17:59:06.160Z">2026-11-09T17:59:06.160Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4542" rel="noopener">lab#4542</a></div>
 </article>
-<article class="item" id="issue-4552">
-<h2><span class="tier B">B</span>worker connect: a relative --cache-dir enrolls fine but every dispatch fails with &#39;Path must be absolute&#39;</h2>
+<article class="item" id="issue-4547">
+<h2><span class="tier B">B</span>serve: load webhook routes from reviewed files in the repo</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-09T17:08:59.099Z">2026-11-09T17:08:59.099Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-09T17:56:46.400Z">2026-11-09T17:56:46.400Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4552" rel="noopener">lab#4552</a></div>
-</article>
-<article class="item" id="issue-4553">
-<h2><span class="tier B">B</span>Skill workflow reference uses range() in a forEach example; swamp CEL has no range(), and workflow validate passes it anyway</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-09T16:40:39.488Z">2026-11-09T16:40:39.488Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4553" rel="noopener">lab#4553</a></div>
-</article>
-<article class="item" id="issue-4539">
-<h2><span class="tier B">B</span>Team mode: a commit&#39;s cost on serve grows with history</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-09T16:04:19.825Z">2026-11-09T16:04:19.825Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4539" rel="noopener">lab#4539</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4547" rel="noopener">lab#4547</a></div>
 </article>
 <article class="item" id="issue-4541">
 <h2><span class="tier B">B</span>feat(workflows): fan-out approval gates: rollout.approve suspends a fan-out job before dispatch with a prompt built from the frozen plan, and after the canary batch</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-09T15:49:24.339Z">2026-11-09T15:49:24.339Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-09T17:36:01.405Z">2026-11-09T17:36:01.405Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4541" rel="noopener">lab#4541</a></div>
@@ -1949,13 +1957,29 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4374" rel="noopener">lab#4374</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4459">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4556">
+<h2><span class="tier C">C</span>Docs: webhook routes from reviewed route files (webhook-routes/)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-09T17:25:25.015Z">2026-11-09T17:25:25.015Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4556" rel="noopener">lab#4556</a></div>
+</article>
+<article class="item" id="issue-4459">
 <h2><span class="tier C">C</span>Slackwater: let customers build integrations that drive workflows securely and auditably</h2>
 <p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-09T16:58:14.494Z">2026-11-09T16:58:14.494Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-09T17:22:34.966Z">2026-11-09T17:22:34.966Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4459" rel="noopener">lab#4459</a></div>
+</article>
+<article class="item" id="issue-4555">
+<h2><span class="tier C">C</span>Slackwater: the reference Slack app, linking people and acting for them through serve&#39;s HTTP routes</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-09T17:21:45.417Z">2026-11-09T17:21:45.417Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4555" rel="noopener">lab#4555</a></div>
 </article>
 <article class="item" id="issue-4551">
 <h2><span class="tier C">C</span>Docs: serve skips webhook routes under its reserved path roots; recommend /hooks/</h2>
@@ -2854,13 +2878,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>348 items across 1 source(s) in this window:
-1 critical, 225 notable, 9 routine,
-113 minor.</p>
-<ul><li><strong>issues</strong> — 348</li></ul></section>
+<p>351 items across 1 source(s) in this window:
+1 critical, 228 notable, 7 routine,
+115 minor.</p>
+<ul><li><strong>issues</strong> — 351</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-09T17:17:37.158Z">2026-11-09T17:17:37.158Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-09T18:02:27.882Z">2026-11-09T18:02:27.882Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

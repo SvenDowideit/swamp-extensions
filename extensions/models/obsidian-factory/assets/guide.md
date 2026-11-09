@@ -81,7 +81,10 @@ The status bar shows **ticking / done / failed**; click it or run **Show factory
 tick log** to read the live output. The log has **Copy log** and **Pause** and
 is selectable; the card dialog has **Copy card markdown** and is selectable
 too. A failure opens the log automatically. The workflow report shows the
-board, queue and the agent output. The Tick process adds the common agent
+board, queue and the agent output. The plugin starts the tick through your
+login shell, so an API key exported in `.bashrc` (for example
+`OLLAMA_API_KEY`) is available even though Obsidian itself was launched from
+the desktop. The Tick process adds the common agent
 directories and nvm Node bins to PATH, so an agent that needs `node` can run
 even when Obsidian's own PATH is minimal.
 

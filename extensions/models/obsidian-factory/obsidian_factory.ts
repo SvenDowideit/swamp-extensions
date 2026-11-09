@@ -3828,7 +3828,7 @@ async function executeQueue(
 /** The tracker: stagecraft's contract 1 over an Obsidian board. */
 export const model = {
   type: "@svendowideit/obsidian-factory",
-  version: "2026.11.08.30",
+  version: "2026.11.08.31",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -4092,6 +4092,17 @@ export const model = {
         "Make a failed agent fail the workflow instead of being reported as " +
         "a successful tick. The agent step's allowFailure is now false, so " +
         "the plugin status bar shows failed and opens the log with the error.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.31",
+      description:
+        "Run the plugin's tick through the user's login shell (`$SHELL -ic`) " +
+        "so the agent inherits the same PATH and API keys as a terminal tick. " +
+        "Obsidian launched from a desktop session does not see .bashrc " +
+        "exports such as OLLAMA_API_KEY, which made a pinned cloud model fail " +
+        "with No API key found. The command is passed as positional args, " +
+        "never interpolated.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

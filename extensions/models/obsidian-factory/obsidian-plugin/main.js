@@ -395,11 +395,22 @@ var ObsidianFactoryPlugin = class extends import_obsidian.Plugin {
     new import_obsidian.Notice(
       "Obsidian factory tick started. Click the status bar for the log."
     );
-    const child = (0, import_child_process.spawn)(
-      this.settings.swampBinary || "swamp",
-      args,
-      { cwd: repo, env: { ...process.env, PATH: agentPath() } }
-    );
+    const swamp = this.settings.swampBinary || "swamp";
+    const env = { ...process.env, PATH: agentPath() };
+    const useLoginShell = process.platform !== "win32";
+    const shell = process.env.SHELL || "/bin/bash";
+    if (useLoginShell) {
+      this.appendLog(
+        `# via ${shell} -ic (loads your login environment)
+
+`
+      );
+    }
+    const child = useLoginShell ? (0, import_child_process.spawn)(
+      shell,
+      ["-ic", 'exec "$0" "$@"', swamp, ...args],
+      { cwd: repo, env }
+    ) : (0, import_child_process.spawn)(swamp, args, { cwd: repo, env });
     child.stdout?.on("data", (data) => this.appendLog(data.toString()));
     child.stderr?.on("data", (data) => this.appendLog(data.toString()));
     child.on("error", (error) => this.finishTick(false, error.message));

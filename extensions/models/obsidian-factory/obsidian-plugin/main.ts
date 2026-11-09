@@ -296,11 +296,27 @@ export default class ObsidianFactoryPlugin extends Plugin {
     new Notice(
       "Obsidian factory tick started. Click the status bar for the log.",
     );
-    const child = spawn(
-      this.settings.swampBinary || "swamp",
-      args,
-      { cwd: repo, env: { ...process.env, PATH: agentPath() } },
-    );
+    const swamp = this.settings.swampBinary || "swamp";
+    const env = { ...process.env, PATH: agentPath() };
+    // Obsidian is usually launched from a desktop session, not your shell, so
+    // its process environment does not contain the API keys you exported in
+    // .bashrc (for example OLLAMA_API_KEY). Run swamp through the login shell
+    // so the agent sees the same environment as a terminal tick. The command
+    // is passed as "$0"/"$@" -- it is never interpolated into a shell string.
+    const useLoginShell = process.platform !== "win32";
+    const shell = process.env.SHELL || "/bin/bash";
+    if (useLoginShell) {
+      this.appendLog(
+        `# via ${shell} -ic (loads your login environment)\n\n`,
+      );
+    }
+    const child = useLoginShell
+      ? spawn(
+        shell,
+        ["-ic", 'exec "$0" "$@"', swamp, ...args],
+        { cwd: repo, env },
+      )
+      : spawn(swamp, args, { cwd: repo, env });
     child.stdout?.on("data", (data) => this.appendLog(data.toString()));
     child.stderr?.on("data", (data) => this.appendLog(data.toString()));
     child.on("error", (error) => this.finishTick(false, error.message));

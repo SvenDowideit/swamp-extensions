@@ -355,12 +355,23 @@ The extension ships `@svendowideit/obsidian-factory-tick`, a workflow that:
 1. runs `obsidian-board tick` (board first, then housekeeping),
 2. runs `obsidian-board brief`: it reads the board, writes the queue and builds
    a self-contained prompt naming every card, its column and its action,
-3. starts one headless agent with `@maphew/agent-task` (`run`) using that brief.
-   The brief orders the agent to read `.agents/skills/obsidian-factory/SKILL.md`
-   first, act only on `work`/`claim` rows, and **not** read `context.md` or any
-   other unrelated project task file. A generic "tick the factory" prompt let
-   the agent wander into unrelated repository work; the brief removes that
-   ambiguity.
+3. starts one headless agent with `@svendowideit/obsidian-agent` (`run`) using
+   that brief. The brief orders the agent to read
+   `.agents/skills/obsidian-factory/SKILL.md` first, act only on `work`/`claim`
+   rows, and **not** read `context.md` or any other unrelated project task file.
+   A generic "tick the factory" prompt let the agent wander into unrelated
+   repository work; the brief removes that ambiguity.
+
+The agent runner is a **separate behavior** from `obsidian-board` on purpose:
+a board method holds the board's instance lock, and every nested board command
+the agent needs would wait for that lock until the agent exits. The runner also
+passes the swamp process environment (PATH, HOME, API keys) and uses
+`pi --no-session`, so a long tick cannot inherit a stale conversation.
+
+```sh
+# One-time, after the extension is pulled: create the separate agent runner.
+swamp behavior create @svendowideit/obsidian-agent obsidian-agent
+```
 
 The agent stops at the person's columns and never publishes.
 
@@ -392,8 +403,7 @@ the generic workflow summary shows.
 swamp workflow run @svendowideit/obsidian-factory-tick   --input repo=/home/me/src/swamp-project   --input agent=pi
 ```
 
-`@maphew/agent-task` is a declared dependency and is pulled with this
-extension. A remote caller can put the workflow behind a `swamp serve` webhook:
+A remote caller can put the workflow behind a `swamp serve` webhook:
 
 ```yaml
 # .swamp/serve.yaml

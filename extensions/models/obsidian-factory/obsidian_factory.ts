@@ -3828,7 +3828,7 @@ async function executeQueue(
 /** The tracker: stagecraft's contract 1 over an Obsidian board. */
 export const model = {
   type: "@svendowideit/obsidian-factory",
-  version: "2026.11.08.28",
+  version: "2026.11.08.29",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -4073,6 +4073,17 @@ export const model = {
         "--allow-read. The plugin also pins pi's configured default " +
         "provider/model when its model setting is empty, preventing a weak " +
         "last-used local model from hallucinating the tick.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.29",
+      description:
+        "Add the separate @svendowideit/obsidian-agent behavior. Its run " +
+        "method launches the agent with the swamp process environment intact " +
+        "(including API keys and PATH), uses pi --no-session, and records " +
+        "stdout/stderr/exit in an agent-run resource. Running it outside " +
+        "obsidian-board leaves the board lock free for the agent's nested " +
+        "commands; @maphew/agent-task dropped env when trace headers were set.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

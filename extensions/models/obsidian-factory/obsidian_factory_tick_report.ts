@@ -264,7 +264,7 @@ export const report = {
       readSpec<Tick>(context, "tick"),
       readSpec<Queue>(context, "queue"),
       readSpec<Brief>(context, "brief"),
-      readSpec<AgentRun>(context, "run"),
+      readSpec<AgentRun>(context, "agent-run"),
     ]);
     return {
       markdown: renderTickSummary(

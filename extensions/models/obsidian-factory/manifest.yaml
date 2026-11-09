@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/obsidian-factory"
-version: "2026.11.08.28"
+version: "2026.11.08.29"
 description: >
   An Obsidian Bases board that is a stagecraft tracker: ideas arrive on one
   uncharacterised card, become category cards and proposed actions, then move
@@ -43,9 +43,16 @@ description: >
       # Pass enable=false to leave it disabled for Settings -> Community plugins.
       swamp behavior run obsidian-board installBoardPlugin
 
-      # Tick from the CLI: housekeeping, queue, then one agent.
+      # One-time: create the agent runner. It is deliberately a separate
+      # behavior from the board so the agent can call the board while it runs.
+      swamp behavior create @svendowideit/obsidian-agent obsidian-agent
+
+      # Tick from the CLI: housekeeping, brief, then one agent. The runner
+      # passes the swamp environment (PATH, HOME, API keys) to the agent and
+      # pins the model when you pass --input model=provider/model.
       swamp workflow run @svendowideit/obsidian-factory-tick \
-        --input repo=$PWD --input agent=pi
+        --input repo=$PWD --input agent=pi \
+        --input model=ollama-cloud/deepseek-v4.1-flash
 
       # Capture a raw thought on the uncharacterised card.
       swamp behavior run obsidian-board capture \
@@ -135,12 +142,12 @@ paths:
   base: manifest
 models:
   - obsidian_factory.ts
+  - obsidian_agent.ts
 skills:
   - obsidian-factory
 dependencies:
   - "@magistr/obsidian-vault"
   - "@swamp/stagecraft"
-  - "@maphew/agent-task"
 workflows:
   - workflows/obsidian-factory-tick.yaml
   - workflows/obsidian-factory-archive.yaml

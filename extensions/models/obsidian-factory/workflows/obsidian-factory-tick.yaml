@@ -67,8 +67,8 @@ jobs:
         description: Start one headless agent to work the board.
         task:
           type: model_method
-          modelType: "@maphew/agent-task"
-          modelName: obsidian-agent-task
+          modelType: "@svendowideit/obsidian-agent"
+          modelName: obsidian-agent
           methodName: run
           inputs:
             workdir: ${{ inputs.repo }}

@@ -136,7 +136,7 @@ footer .ver{color:var(--acc)}
 <li><strong>A refused serve client refuses every link.</strong> If swamp-club answers <code>401 invalid_client</code> or <code>403 client_not_collective</code>, every delegation is suspended (refresh reason <code>links_unavailable</code>), and serve logs once when they will end. If the refusal lasts past an hour, every link ends. Any other 401 or 403 is treated as an outage. While swamp-club is unreachable, links keep working and new links can&#39;t start.</li>
 <li><strong>New reply: <code>consent_required</code>.</strong> A request outside what the person consented to, but inside the integration&#39;s current ceiling and the person&#39;s grants, answers <code>consent_required</code> (WebSocket error code, or HTTP 403 with that code) instead of <code>unauthorized</code></li>
 </ul></div>
-
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/access-control.md" rel="noopener">design/enablers/access-control.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261110.164250.0-sha.07b06aaf" rel="noopener">release v20261110.164250.0-sha.07b06aaf</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/07b06aaf2bc68c6b27f38d469169ca49f259067a" rel="noopener">07b06aaf</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3712" rel="noopener">#3712</a>𝗔 <a href="https://swamp-club.com/lab/4563" rel="noopener">lab#4563</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261110-163424-0-sha-a9942ff6">
@@ -262,7 +262,7 @@ footer .ver{color:var(--acc)}
 <li><strong><code>--reuse-port</code></strong> (opt-in, Linux): listens with <code>SO_REUSEPORT</code> and opens the port only once startup completes, so a new serve can start beside the old one. It checks the bind and TLS pair before startup does any work. The compiled binary, dev and test tasks gain <code>--unstable-net</code>, which Deno requires for <code>reusePort</code>.</li>
 <li><strong>Queued-run ownership:</strong> pending webhook and cron runs record the serve process that que</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261110.072303.0-sha.b1f3b765" rel="noopener">release v20261110.072303.0-sha.b1f3b765</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b1f3b765bab2f295d12bf593f5ab754193b104d7" rel="noopener">b1f3b765</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3706" rel="noopener">#3706</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4439" rel="noopener">#4439</a>𝗔 <a href="https://swamp-club.com/lab/4566" rel="noopener">lab#4566</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261110-035534-0-sha-8325fd88">
@@ -328,7 +328,7 @@ footer .ver{color:var(--acc)}
 <li><strong><code>run gc</code> output.</strong> The confirmation prompt and <code>--dry-run</code> name each auto-definition to be removed. They use the exact files the output gc would delete, so per-method <code>outputLifetime</code> and unfinished runs are counted correctly.</li>
 <li>**Race</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/behavior/references/troubleshooting.md" rel="noopener">.claude/skills/swamp/references/behavior/references/troubleshooting.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/behaviors.md" rel="noopener">design/primitives/behaviors.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/behavior/references/troubleshooting.md" rel="noopener">.claude/skills/swamp/references/behavior/references/troubleshooting.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261110.004355.0-sha.e171eaa8" rel="noopener">release v20261110.004355.0-sha.e171eaa8</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/e171eaa83c0deaebf5fc709d062c3cec0a8afa43" rel="noopener">e171eaa8</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3703" rel="noopener">#3703</a>𝗔 <a href="https://swamp-club.com/lab/4299" rel="noopener">lab#4299</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261109-232613-0-sha-39b46f90">
@@ -351,7 +351,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Denied logins:</strong> the log line and the <code>auth.login.denied</code> audit detail name the collectives read, or say there were none or that the field was absent. The log line adds a personal-collective hint when allowed collectives are configured. The 403 body is unchanged.</li>
 <li>**Webhook rou</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/access-control.md" rel="noopener">design/enablers/access-control.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261109.232613.0-sha.39b46f90" rel="noopener">release v20261109.232613.0-sha.39b46f90</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/39b46f90a084867600319111693c83720b26a8b8" rel="noopener">39b46f90</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3702" rel="noopener">#3702</a>𝗔 <a href="https://swamp-club.com/lab/4565" rel="noopener">lab#4565</a></div>
 </article>
 <section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261109-224726-0-sha-921b1924">
@@ -1131,7 +1131,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Cleanup-grace test (<code>execution_service_test.ts</code>)</strong>: a real 500 ms timer started before the test&#39;s own setup, so on a loaded runner the grace ran out before the step started. <code>cancel_cause.ts</code> gains <code>asCleanupGrace(signal)</code>, which <code>cleanupGraceSignal(ms)</code> now uses unchanged. The test ends the grace from inside the method instead.</li>
 <li>**Defini</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/AGENTS.md" rel="noopener">AGENTS.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261107.215532.0-sha.484279f5" rel="noopener">release v20261107.215532.0-sha.484279f5</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/484279f58ca39089ba4c464fe2c315ef58dcea03" rel="noopener">484279f5</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3664" rel="noopener">#3664</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4231" rel="noopener">#4231</a>𝗔 <a href="https://swamp-club.com/lab/4422" rel="noopener">lab#4422</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261107-214809-0-sha-f32c9a7e">
@@ -1447,7 +1447,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Upgrade note indent.</strong> The leftover-settings note in <code>repo upgrade</code> starts at column 0, like the other top-level warnings.</li>
 <li><strong>Tests.</strong> New <code>audit_hook_command_test.ts</code> pins the binary spellings and anchoring. A <code>repoInit</code> success-path test covers <code>prunableSettings</code>. Two tests pin that a hook event named <code>__proto__</code> survives a prune. Deno has no <code>__proto__</code> setter, so that behaviour was already correct and the tests</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/repo/reference.md" rel="noopener">.claude/skills/swamp/references/repo/reference.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261106.180134.0-sha.6392439c" rel="noopener">release v20261106.180134.0-sha.6392439c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6392439c47093a3ba97c39d9d2b0bfa790f9d0af" rel="noopener">6392439c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3649" rel="noopener">#3649</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3646" rel="noopener">#3646</a>𝗔 <a href="https://swamp-club.com/lab/4481" rel="noopener">lab#4481</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261106-175549-0-sha-0d0282b8">
@@ -3994,7 +3994,7 @@ footer .ver{color:var(--acc)}
 <p>| 5 | A lock&#39;s catch-up page the feed overtook is applied from the copy&#39;s cursor, when the page holds the copy&#39;s own anchor commit there. |</p>
 <p>| 6 | Feed stop and read-model close wait at most 500 ms. Every teardown part gets a span. |</p>
 <p>| 7 | A gap-free catch-up page is appended back to back, so the commit store groups it</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261110.090527.0-sha.543719bf" rel="noopener">release v20261110.090527.0-sha.543719bf</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/543719bf25fca7180a88a460d84ae641322ee053" rel="noopener">543719bf</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3709" rel="noopener">#3709</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4374" rel="noopener">#4374</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4567" rel="noopener">#4567</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4319" rel="noopener">#4319</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4470" rel="noopener">#4470</a>𝗔 <a href="https://swamp-club.com/lab/4574" rel="noopener">lab#4574</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261109-175817-0-sha-72c28edd">
@@ -4400,7 +4400,7 @@ footer .ver{color:var(--acc)}
 <ul><li><strong>fix</strong> — 124</li><li><strong>feat</strong> — 41</li><li><strong>perf</strong> — 7</li><li><strong>test</strong> — 4</li><li><strong>docs</strong> — 3</li><li><strong>chore</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-10T18:01:33.234Z">2026-11-10T18:01:33.234Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-10T19:04:32.985Z">2026-11-10T19:04:32.985Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

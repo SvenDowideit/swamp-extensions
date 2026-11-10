@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4549"><span class="tier A">A</span>serve: optionally poll the webhook route directory so a depl</a><a href="#issue-4541"><span class="tier A">A</span>feat(workflows): fan-out approval gates: rollout.approve sus</a><a href="#issue-4561"><span class="tier A">A</span>serve: a run that reads suspended is refused as busy by appr</a><a href="#issue-4550"><span class="tier A">A</span>serve: reload installs webhook entries from serve.yaml witho</a><a href="#issue-4558"><span class="tier A">A</span>serve: a vault outage during swamp serve reload removes ever</a><a href="#issue-4557"><span class="tier A">A</span>@swamp/gcs-datastore (and @swamp/s3-datastore): a 16 MiB chu</a><a href="#issue-4542"><span class="tier A">A</span>Team mode: a large output (64 MiB) takes about 8 minutes to </a><a href="#issue-4547"><span class="tier A">A</span>serve: load webhook routes from reviewed files in the repo</a><a href="#issue-4539"><span class="tier A">A</span>Team mode: a commit&#39;s cost on serve grows with history</a><a href="#issue-4553"><span class="tier A">A</span>Skill workflow reference uses range() in a forEach example; </a><a href="#issue-4552"><span class="tier A">A</span>worker connect: a relative --cache-dir enrolls fine but ever</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4565"><span class="tier A">A</span>serve: on macOS a webhook routes directory that does not exi</a><a href="#issue-4549"><span class="tier A">A</span>serve: optionally poll the webhook route directory so a depl</a><a href="#issue-4541"><span class="tier A">A</span>feat(workflows): fan-out approval gates: rollout.approve sus</a><a href="#issue-4561"><span class="tier A">A</span>serve: a run that reads suspended is refused as busy by appr</a><a href="#issue-4550"><span class="tier A">A</span>serve: reload installs webhook entries from serve.yaml witho</a><a href="#issue-4558"><span class="tier A">A</span>serve: a vault outage during swamp serve reload removes ever</a><a href="#issue-4557"><span class="tier A">A</span>@swamp/gcs-datastore (and @swamp/s3-datastore): a 16 MiB chu</a><a href="#issue-4542"><span class="tier A">A</span>Team mode: a large output (64 MiB) takes about 8 minutes to </a><a href="#issue-4547"><span class="tier A">A</span>serve: load webhook routes from reviewed files in the repo</a><a href="#issue-4539"><span class="tier A">A</span>Team mode: a commit&#39;s cost on serve grows with history</a><a href="#issue-4553"><span class="tier A">A</span>Skill workflow reference uses range() in a forEach example; </a></aside><div>
 
 <article class="item" id="issue-4239">
 <h2><span class="tier S">S</span>swamp issue: file bugs, features and security reports against the platform source</h2>
@@ -76,6 +76,14 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-4565">
+<h2><span class="tier A">A</span>serve: on macOS a webhook routes directory that does not exist yet under extensions/ escapes the &#39;holds extension code&#39; refusal</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-09T23:27:20.406Z">2026-11-09T23:27:20.406Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4565" rel="noopener">lab#4565</a></div>
 </article>
 <article class="item" id="issue-4549">
 <h2><span class="tier A">A</span>serve: optionally poll the webhook route directory so a deploy alone makes routes live</h2>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4553" rel="noopener">lab#4553</a></div>
 </article>
-<article class="item" id="issue-4552">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4552">
 <h2><span class="tier A">A</span>worker connect: a relative --cache-dir enrolls fine but every dispatch fails with &#39;Path must be absolute&#39;</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-09T17:18:36.093Z">2026-11-09T17:18:36.093Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4552" rel="noopener">lab#4552</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4407">
+<article class="item" id="issue-4407">
 <h2><span class="tier A">A</span>serve: a webhook route can shadow serve&#39;s own API paths; require a fixed route prefix</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-09T17:08:36.769Z">2026-11-09T17:08:36.769Z</time></span></div>
@@ -1968,18 +1976,98 @@ footer .ver{color:var(--acc)}
 <article class="item" id="issue-4299">
 <h2><span class="tier B">B</span>Retention or GC for auto-definitions whose runs and data are gone</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-09T22:52:51.737Z">2026-11-09T22:52:51.737Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-09T23:55:55.289Z">2026-11-09T23:55:55.289Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4299" rel="noopener">lab#4299</a></div>
 </article>
-<article class="item" id="issue-4565">
-<h2><span class="tier B">B</span>serve: on macOS a webhook routes directory that does not exist yet under extensions/ escapes the &#39;holds extension code&#39; refusal</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-09T22:52:41.079Z">2026-11-09T22:52:41.079Z</time></span></div>
+<article class="item" id="issue-4556">
+<h2><span class="tier B">B</span>Docs: webhook routes from reviewed route files (webhook-routes/)</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-09T23:53:52.116Z">2026-11-09T23:53:52.116Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4565" rel="noopener">lab#4565</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4556" rel="noopener">lab#4556</a></div>
+</article>
+<article class="item" id="issue-4566">
+<h2><span class="tier B">B</span>swamp serve: restarts without failed requests (close the listener early, overlap restarts, clients and workers ride out a restart)</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-09T23:49:15.476Z">2026-11-09T23:49:15.476Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4566" rel="noopener">lab#4566</a></div>
+</article>
+<article class="item" id="issue-4358">
+<h2><span class="tier B">B</span>Docs: step concurrency caps only that step&#39;s forEach iterations, not its whole dependency level</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-09T23:34:33.841Z">2026-11-09T23:34:33.841Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4358" rel="noopener">lab#4358</a></div>
+</article>
+<article class="item" id="issue-4360">
+<h2><span class="tier B">B</span>Docs: schedule catch-up and missed-fire tracking for scheduled workflows</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-09T23:34:33.392Z">2026-11-09T23:34:33.392Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4360" rel="noopener">lab#4360</a></div>
+</article>
+<article class="item" id="issue-4386">
+<h2><span class="tier B">B</span>Docs: what serve instances must not share, flat AWS Secrets Manager names, and where OAuth values are stored</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-09T23:34:32.978Z">2026-11-09T23:34:32.978Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4386" rel="noopener">lab#4386</a></div>
+</article>
+<article class="item" id="issue-4417">
+<h2><span class="tier B">B</span>Docs: usage-telemetry reference should describe the telemetry stats empty state and the last-flush record</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-09T23:34:32.505Z">2026-11-09T23:34:32.505Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4417" rel="noopener">lab#4417</a></div>
+</article>
+<article class="item" id="issue-4448">
+<h2><span class="tier B">B</span>Docs: Claude audit hook covers PowerShell, swamp audit install --user, and doctor audit hook warnings</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-09T23:34:32.052Z">2026-11-09T23:34:32.052Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4448" rel="noopener">lab#4448</a></div>
+</article>
+<article class="item" id="issue-4491">
+<h2><span class="tier B">B</span>Manual: the REST API page still says cancelling a workflow run needs admin</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-09T23:34:31.566Z">2026-11-09T23:34:31.566Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4491" rel="noopener">lab#4491</a></div>
+</article>
+<article class="item" id="issue-4515">
+<h2><span class="tier B">B</span>Docs: swamp dashboard --port, --trusted-hosts and its new lifetime (swamp-club#4513, #4509)</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-09T23:34:31.124Z">2026-11-09T23:34:31.124Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4515" rel="noopener">lab#4515</a></div>
+</article>
+<article class="item" id="issue-4533">
+<h2><span class="tier B">B</span>Docs: webhook payload is only in scope in trigger.inputs; document run id header and route reload</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-09T23:34:30.657Z">2026-11-09T23:34:30.657Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4533" rel="noopener">lab#4533</a></div>
+</article>
+<article class="item" id="issue-4551">
+<h2><span class="tier B">B</span>Docs: serve skips webhook routes under its reserved path roots; recommend /hooks/</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-09T23:34:30.054Z">2026-11-09T23:34:30.054Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4551" rel="noopener">lab#4551</a></div>
 </article>
 <article class="item" id="issue-4559">
 <h2><span class="tier B">B</span>Team mode: after a serve failover a member&#39;s writes stall 1-7 minutes, and takeover takes ~8 minutes under the default KillMode (F24, F14 from #4374)</h2>
@@ -2013,13 +2101,21 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4374" rel="noopener">lab#4374</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4566">
-<h2><span class="tier C">C</span>swamp serve: restarts without failed requests (close the listener early, overlap restarts, clients and workers ride out a restart)</h2>
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4567">
+<h2><span class="tier C">C</span>Team mode: a member&#39;s workflow run fails when another member&#39;s overlapping run commits the shared workflow report version first (&#39;version N is already live&#39;), about 1 run in 8 under load (F40 from #4374)</h2>
 <p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-09T23:00:26.009Z">2026-11-09T23:00:26.009Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-10T00:01:40.365Z">2026-11-10T00:01:40.365Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4566" rel="noopener">lab#4566</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4567" rel="noopener">lab#4567</a></div>
+</article>
+<article class="item" id="issue-4420">
+<h2><span class="tier C">C</span>Terminal title should be conversation summary</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-09T23:31:19.365Z">2026-11-09T23:31:19.365Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4420" rel="noopener">lab#4420</a></div>
 </article>
 <article class="item" id="issue-4564">
 <h2><span class="tier C">C</span>Extension versions: print one spelling in log output (drop the v prefix in list, outdated, update, search)</h2>
@@ -2068,30 +2164,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4256" rel="noopener">lab#4256</a></div>
-</article>
-<article class="item" id="issue-4551">
-<h2><span class="tier C">C</span>Docs: serve skips webhook routes under its reserved path roots; recommend /hooks/</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-09T19:36:00.837Z">2026-11-09T19:36:00.837Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4551" rel="noopener">lab#4551</a></div>
-</article>
-<article class="item" id="issue-4556">
-<h2><span class="tier C">C</span>Docs: webhook routes from reviewed route files (webhook-routes/)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-09T19:35:56.427Z">2026-11-09T19:35:56.427Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4556" rel="noopener">lab#4556</a></div>
-</article>
-<article class="item" id="issue-4533">
-<h2><span class="tier C">C</span>Docs: webhook payload is only in scope in trigger.inputs; document run id header and route reload</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-09T19:35:27.769Z">2026-11-09T19:35:27.769Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4533" rel="noopener">lab#4533</a></div>
 </article>
 <article class="item" id="issue-4555">
 <h2><span class="tier C">C</span>Slackwater: the reference Slack app, linking people and acting for them through serve&#39;s HTTP routes</h2>
@@ -2173,14 +2245,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3920" rel="noopener">lab#3920</a></div>
 </article>
-<article class="item" id="issue-4515">
-<h2><span class="tier C">C</span>Docs: swamp dashboard --port, --trusted-hosts and its new lifetime (swamp-club#4513, #4509)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-08T22:23:53.127Z">2026-11-08T22:23:53.127Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4515" rel="noopener">lab#4515</a></div>
-</article>
 <article class="item" id="issue-4433">
 <h2><span class="tier C">C</span>stagecraft tracker: tidy up external relations (duplicate entries, id case, second lookup)</h2>
 <p class="lede">Open issue</p>
@@ -2252,14 +2316,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4493" rel="noopener">lab#4493</a></div>
-</article>
-<article class="item" id="issue-4491">
-<h2><span class="tier C">C</span>Manual: the REST API page still says cancelling a workflow run needs admin</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-07T01:20:42.209Z">2026-11-07T01:20:42.209Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4491" rel="noopener">lab#4491</a></div>
 </article>
 <article class="item" id="issue-4490">
 <h2><span class="tier C">C</span>data query rejects CEL list macros: exists(c, ...) fails with Unknown field &quot;c&quot;</h2>
@@ -2517,14 +2573,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4463" rel="noopener">lab#4463</a></div>
 </article>
-<article class="item" id="issue-4448">
-<h2><span class="tier C">C</span>Docs: Claude audit hook covers PowerShell, swamp audit install --user, and doctor audit hook warnings</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-05T22:01:16.038Z">2026-11-05T22:01:16.038Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4448" rel="noopener">lab#4448</a></div>
-</article>
 <article class="item" id="issue-4440">
 <h2><span class="tier C">C</span>Workflow schema: rename model_method and modelIdOrName to match behaviors</h2>
 <p class="lede">Open issue</p>
@@ -2556,14 +2604,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4450" rel="noopener">lab#4450</a></div>
-</article>
-<article class="item" id="issue-4417">
-<h2><span class="tier C">C</span>Docs: usage-telemetry reference should describe the telemetry stats empty state and the last-flush record</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-05T19:39:59.937Z">2026-11-05T19:39:59.937Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4417" rel="noopener">lab#4417</a></div>
 </article>
 <article class="item" id="issue-4443">
 <h2><span class="tier C">C</span>@swamp/video: describe and chapters for a joined video</h2>
@@ -2597,14 +2637,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4430" rel="noopener">lab#4430</a></div>
 </article>
-<article class="item" id="issue-4420">
-<h2><span class="tier C">C</span>Terminal title should be conversation summary</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-05T13:46:57.667Z">2026-11-05T13:46:57.667Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4420" rel="noopener">lab#4420</a></div>
-</article>
 <article class="item" id="issue-3603">
 <h2><span class="tier C">C</span>Multi-model skill eval: gpt-5.4 and gemini jobs fail preflight every run (OpenAI credits exhausted, Google API key invalid)</h2>
 <p class="lede">Open issue</p>
@@ -2637,22 +2669,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4127" rel="noopener">lab#4127</a></div>
 </article>
-<article class="item" id="issue-4358">
-<h2><span class="tier C">C</span>Docs: step concurrency caps only that step&#39;s forEach iterations, not its whole dependency level</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-04T22:34:06.374Z">2026-11-04T22:34:06.374Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4358" rel="noopener">lab#4358</a></div>
-</article>
-<article class="item" id="issue-4360">
-<h2><span class="tier C">C</span>Docs: schedule catch-up and missed-fire tracking for scheduled workflows</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-04T22:34:01.091Z">2026-11-04T22:34:01.091Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4360" rel="noopener">lab#4360</a></div>
-</article>
 <article class="item" id="issue-4410">
 <h2><span class="tier C">C</span>audit: register legitimate non-swamp commands as approved bypasses</h2>
 <p class="lede">Open issue</p>
@@ -2660,14 +2676,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4410" rel="noopener">lab#4410</a></div>
-</article>
-<article class="item" id="issue-4386">
-<h2><span class="tier C">C</span>Docs: what serve instances must not share, flat AWS Secrets Manager names, and where OAuth values are stored</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-04T21:23:37.727Z">2026-11-04T21:23:37.727Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4386" rel="noopener">lab#4386</a></div>
 </article>
 <article class="item" id="issue-4385">
 <h2><span class="tier C">C</span>Let a serve:* collective key look up usernames, so a recreated swamp serve does not need oauth:manage at runtime</h2>
@@ -2950,13 +2958,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>360 items across 1 source(s) in this window:
-1 critical, 236 notable, 6 routine,
-117 minor.</p>
-<ul><li><strong>issues</strong> — 360</li></ul></section>
+<p>361 items across 1 source(s) in this window:
+1 critical, 237 notable, 16 routine,
+107 minor.</p>
+<ul><li><strong>issues</strong> — 361</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-09T23:03:26.617Z">2026-11-09T23:03:26.617Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-10T00:04:59.330Z">2026-11-10T00:04:59.330Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

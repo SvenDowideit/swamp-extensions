@@ -71,15 +71,21 @@ footer .ver{color:var(--acc)}
 <h2 class="page-title">Documentation changes — This month</h2>
 <div class="cards">
 <div class="card"><div class="n">78</div><div class="l">FILES CHANGED</div></div>
-<div class="card"><div class="n">107</div><div class="l">CHANGES</div></div>
+<div class="card"><div class="n">111</div><div class="l">CHANGES</div></div>
 <div class="card"><div class="n">15</div><div class="l">WITH MANUAL PAGE</div></div>
 </div>
 <p class="lede">Documentation changed in the This month window, newest first. The activity leaderboard is on the
 <a href="leaderboard.html">Leaderboard</a> page.</p>
 <article class="item doc-item">
 <h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>5 changes</span><span>updated <time datetime="2026-11-10T09:05:08Z">2026-11-10T09:05:08Z</time></span><span><a href="https://swamp-club.com/manual/reference/datastore-configuration" rel="noopener">published manual</a></span></div>
+<div class="meta"><span>swamp-club/swamp</span><span>6 changes</span><span>updated <time datetime="2026-11-10T09:09:02Z">2026-11-10T09:09:02Z</time></span><span><a href="https://swamp-club.com/manual/reference/datastore-configuration" rel="noopener">published manual</a></span></div>
 <ul class="doc-changes"><li class="doc-change">
+<span class="tier B">B</span>
+<span class="doc-date"><time datetime="2026-11-10T09:09:02Z">2026-11-10T09:09:02Z</time></span>
+<span class="doc-title">team-mode steps send their lock while their start commits, checkpoints pace from their own run&#39;s flushes, and a run&#39;s final record rides its reports&#39; batch (swamp-club#4574) (#3709)</span>
+<span class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261110.090527.0-sha.543719bf" rel="noopener">release v20261110.090527.0-sha.543719bf</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/543719bf25fca7180a88a460d84ae641322ee053" rel="noopener">543719bf</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3709" rel="noopener">#3709</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4374" rel="noopener">#4374</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4567" rel="noopener">#4567</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4319" rel="noopener">#4319</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4470" rel="noopener">#4470</a>𝗔 <a href="https://swamp-club.com/lab/4574" rel="noopener">lab#4574</a></span>
+</li>
+<li class="doc-change">
 <span class="tier B">B</span>
 <span class="doc-date"><time datetime="2026-11-10T09:05:08Z">2026-11-10T09:05:08Z</time></span>
 <span class="doc-title">team-mode steps send their lock while their start commits, checkpoints pace from their own run&#39;s flushes, and a run&#39;s final record rides its reports&#39; batch (swamp-club#4574) (#3709)</span>
@@ -112,8 +118,14 @@ footer .ver{color:var(--acc)}
 </article>
 <article class="item doc-item">
 <h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/run-tracker.md" rel="noopener">design/enablers/run-tracker.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-11-10T08:13:18Z">2026-11-10T08:13:18Z</time></span><span><a href="https://swamp-club.com/manual/explanation/the-run-tracker" rel="noopener">published manual</a></span></div>
+<div class="meta"><span>swamp-club/swamp</span><span>2 changes</span><span>updated <time datetime="2026-11-10T08:18:20Z">2026-11-10T08:18:20Z</time></span><span><a href="https://swamp-club.com/manual/explanation/the-run-tracker" rel="noopener">published manual</a></span></div>
 <ul class="doc-changes"><li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-10T08:18:20Z">2026-11-10T08:18:20Z</time></span>
+<span class="doc-title">a gone peer&#39;s queued run is replayed once across HA instances, and the sweep counts an unreadable heartbeat as alive (swamp-club#4576) (#3707)</span>
+<span class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261110.081336.0-sha.f1805d83" rel="noopener">release v20261110.081336.0-sha.f1805d83</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/f1805d830acc7feb97c77225318d978042024297" rel="noopener">f1805d83</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3707" rel="noopener">#3707</a>𝗔 <a href="https://swamp-club.com/lab/4576" rel="noopener">lab#4576</a></span>
+</li>
+<li class="doc-change">
 <span class="tier A">A</span>
 <span class="doc-date"><time datetime="2026-11-10T08:13:18Z">2026-11-10T08:13:18Z</time></span>
 <span class="doc-title">a gone peer&#39;s queued run is replayed once across HA instances, and the sweep counts an unreadable heartbeat as alive (swamp-club#4576) (#3707)</span>
@@ -122,8 +134,14 @@ footer .ver{color:var(--acc)}
 </article>
 <article class="item doc-item">
 <h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>2 changes</span><span>updated <time datetime="2026-11-10T07:22:48Z">2026-11-10T07:22:48Z</time></span><span><a href="https://swamp-club.com/manual/explanation/remote-execution" rel="noopener">published manual</a></span></div>
+<div class="meta"><span>swamp-club/swamp</span><span>3 changes</span><span>updated <time datetime="2026-11-10T07:27:07Z">2026-11-10T07:27:07Z</time></span><span><a href="https://swamp-club.com/manual/explanation/remote-execution" rel="noopener">published manual</a></span></div>
 <ul class="doc-changes"><li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-10T07:27:07Z">2026-11-10T07:27:07Z</time></span>
+<span class="doc-title">restart without failed requests: admission gate, listener closes once runs drain, opt-in --reuse-port overlap, clients and workers ride out a restart (swamp-club#4566) (#3706)</span>
+<span class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261110.072303.0-sha.b1f3b765" rel="noopener">release v20261110.072303.0-sha.b1f3b765</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b1f3b765bab2f295d12bf593f5ab754193b104d7" rel="noopener">b1f3b765</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3706" rel="noopener">#3706</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4439" rel="noopener">#4439</a>𝗔 <a href="https://swamp-club.com/lab/4566" rel="noopener">lab#4566</a></span>
+</li>
+<li class="doc-change">
 <span class="tier A">A</span>
 <span class="doc-date"><time datetime="2026-11-10T07:22:48Z">2026-11-10T07:22:48Z</time></span>
 <span class="doc-title">restart without failed requests: admission gate, listener closes once runs drain, opt-in --reuse-port overlap, clients and workers ride out a restart (swamp-club#4566) (#3706)</span>
@@ -138,8 +156,14 @@ footer .ver{color:var(--acc)}
 </article>
 <article class="item doc-item">
 <h2><a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>2 changes</span><span>updated <time datetime="2026-11-10T07:22:48Z">2026-11-10T07:22:48Z</time></span><span><a href="https://swamp-club.com/manual/explanation/swamp-serve" rel="noopener">published manual</a></span></div>
+<div class="meta"><span>swamp-club/swamp</span><span>3 changes</span><span>updated <time datetime="2026-11-10T07:27:07Z">2026-11-10T07:27:07Z</time></span><span><a href="https://swamp-club.com/manual/explanation/swamp-serve" rel="noopener">published manual</a></span></div>
 <ul class="doc-changes"><li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-10T07:27:07Z">2026-11-10T07:27:07Z</time></span>
+<span class="doc-title">restart without failed requests: admission gate, listener closes once runs drain, opt-in --reuse-port overlap, clients and workers ride out a restart (swamp-club#4566) (#3706)</span>
+<span class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261110.072303.0-sha.b1f3b765" rel="noopener">release v20261110.072303.0-sha.b1f3b765</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b1f3b765bab2f295d12bf593f5ab754193b104d7" rel="noopener">b1f3b765</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3706" rel="noopener">#3706</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4439" rel="noopener">#4439</a>𝗔 <a href="https://swamp-club.com/lab/4566" rel="noopener">lab#4566</a></span>
+</li>
+<li class="doc-change">
 <span class="tier A">A</span>
 <span class="doc-date"><time datetime="2026-11-10T07:22:48Z">2026-11-10T07:22:48Z</time></span>
 <span class="doc-title">restart without failed requests: admission gate, listener closes once runs drain, opt-in --reuse-port overlap, clients and workers ride out a restart (swamp-club#4566) (#3706)</span>
@@ -1032,7 +1056,7 @@ footer .ver{color:var(--acc)}
 </article>
 </main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-10T11:04:01.566Z">2026-11-10T11:04:01.566Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-10T12:02:38.551Z">2026-11-10T12:02:38.551Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

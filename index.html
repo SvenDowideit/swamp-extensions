@@ -70,16 +70,80 @@ footer .ver{color:var(--acc)}
 <main>
 <h2 class="page-title">Documentation changes — This month</h2>
 <div class="cards">
-<div class="card"><div class="n">69</div><div class="l">FILES CHANGED</div></div>
-<div class="card"><div class="n">82</div><div class="l">CHANGES</div></div>
-<div class="card"><div class="n">11</div><div class="l">WITH MANUAL PAGE</div></div>
+<div class="card"><div class="n">77</div><div class="l">FILES CHANGED</div></div>
+<div class="card"><div class="n">95</div><div class="l">CHANGES</div></div>
+<div class="card"><div class="n">15</div><div class="l">WITH MANUAL PAGE</div></div>
 </div>
 <p class="lede">Documentation changed in the This month window, newest first. The activity leaderboard is on the
 <a href="leaderboard.html">Leaderboard</a> page.</p>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastore-litestream.md" rel="noopener">design/enablers/datastore-litestream.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>2 changes</span><span>updated <time datetime="2026-11-09T12:11:58Z">2026-11-09T12:11:58Z</time></span><span><span class="dim">no published page</span></span></div>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/access-control.md" rel="noopener">design/enablers/access-control.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>2 changes</span><span>updated <time datetime="2026-11-09T23:25:57Z">2026-11-09T23:25:57Z</time></span><span><a href="https://swamp-club.com/manual/explanation/swamp-serve" rel="noopener">published manual</a></span></div>
 <ul class="doc-changes"><li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-09T23:25:57Z">2026-11-09T23:25:57Z</time></span>
+<span class="doc-title">warn when an allowed collective is a personal one, say which collectives a denied OAuth login had, and refuse a missing webhook routes dir under extensions/ on macOS (swamp-club#4507, swamp-club#4565) (#3702)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/39b46f90a084867600319111693c83720b26a8b8" rel="noopener">39b46f90</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3702" rel="noopener">#3702</a>𝗔 <a href="https://swamp-club.com/lab/4565" rel="noopener">lab#4565</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-07T20:20:38Z">2026-11-07T20:20:38Z</time></span>
+<span class="doc-title">an operator can register an integration and limit it with a ceiling, enforced on every decision, with changes applied without a grant reload (swamp-club#4486) (#3662)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8046d1d2605351eb8fa8bd423d0de9b1640de8c5" rel="noopener">8046d1d2</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3662" rel="noopener">#3662</a>𝗔 <a href="https://swamp-club.com/lab/4486" rel="noopener">lab#4486</a></span>
+</li></ul>
+</article>
+<article class="item doc-item">
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/extensions.md" rel="noopener">design/primitives/extensions.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-11-09T22:47:09Z">2026-11-09T22:47:09Z</time></span><span><a href="https://swamp-club.com/manual/reference/extensions" rel="noopener">published manual</a></span></div>
+<ul class="doc-changes"><li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-09T22:47:09Z">2026-11-09T22:47:09Z</time></span>
+<span class="doc-title">any version spelling swamp prints can be pasted back into promote, yank, unyank and pull (swamp-club#4520, swamp-club#4151) (#3701)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/921b1924c8807c12a216ca75f236ab255fb15f10" rel="noopener">921b1924</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3701" rel="noopener">#3701</a></span>
+</li></ul>
+</article>
+<article class="item doc-item">
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/serve/guide.md" rel="noopener">.claude/skills/swamp/references/serve/guide.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>3 changes</span><span>updated <time datetime="2026-11-09T21:41:48Z">2026-11-09T21:41:48Z</time></span><span><span class="dim">no published page</span></span></div>
+<ul class="doc-changes"><li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-09T21:41:48Z">2026-11-09T21:41:48Z</time></span>
+<span class="doc-title">optionally poll the webhook routes directory so a deploy alone makes route files live, and keep a broken file&#39;s last good route on reload and poll (swamp-club#4549) (#3700)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/2c24fe25baee98c72cdb3224ca8962ba5ec91a23" rel="noopener">2c24fe25</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3700" rel="noopener">#3700</a>𝗔 <a href="https://swamp-club.com/lab/4549" rel="noopener">lab#4549</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-07T20:20:38Z">2026-11-07T20:20:38Z</time></span>
+<span class="doc-title">an operator can register an integration and limit it with a ceiling, enforced on every decision, with changes applied without a grant reload (swamp-club#4486) (#3662)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8046d1d2605351eb8fa8bd423d0de9b1640de8c5" rel="noopener">8046d1d2</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3662" rel="noopener">#3662</a>𝗔 <a href="https://swamp-club.com/lab/4486" rel="noopener">lab#4486</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-03T16:13:29Z">2026-11-03T16:13:29Z</time></span>
+<span class="doc-title">a tokens:mint collective token creates and revokes tokens through swamp auth token, with --ttl, revoke as a disable, a new delete subcommand, and a STATUS column in list (swamp-club#4340) (#3587)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1ac194107af75dcccc44ae6248454c3d2a91fd62" rel="noopener">1ac19410</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3587" rel="noopener">#3587</a>𝗔 <a href="https://swamp-club.com/lab/4340" rel="noopener">lab#4340</a></span>
+</li></ul>
+</article>
+<article class="item doc-item">
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-11-09T21:41:48Z">2026-11-09T21:41:48Z</time></span><span><a href="https://swamp-club.com/manual/explanation/swamp-serve" rel="noopener">published manual</a></span></div>
+<ul class="doc-changes"><li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-09T21:41:48Z">2026-11-09T21:41:48Z</time></span>
+<span class="doc-title">optionally poll the webhook routes directory so a deploy alone makes route files live, and keep a broken file&#39;s last good route on reload and poll (swamp-club#4549) (#3700)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/2c24fe25baee98c72cdb3224ca8962ba5ec91a23" rel="noopener">2c24fe25</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3700" rel="noopener">#3700</a>𝗔 <a href="https://swamp-club.com/lab/4549" rel="noopener">lab#4549</a></span>
+</li></ul>
+</article>
+<article class="item doc-item">
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastore-litestream.md" rel="noopener">design/enablers/datastore-litestream.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>3 changes</span><span>updated <time datetime="2026-11-09T21:33:00Z">2026-11-09T21:33:00Z</time></span><span><span class="dim">no published page</span></span></div>
+<ul class="doc-changes"><li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-09T21:33:00Z">2026-11-09T21:33:00Z</time></span>
+<span class="doc-title">fan-out approval gates: rollout.approve suspends before dispatch with a prompt from the frozen plan, and after the canary batch (swamp-club#4541) (#3699)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/e484ef8f70c1be7bfe71d5a88276155900280795" rel="noopener">e484ef8f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3699" rel="noopener">#3699</a>𝗔 <a href="https://swamp-club.com/lab/4541" rel="noopener">lab#4541</a></span>
+</li>
+<li class="doc-change">
 <span class="tier B">B</span>
 <span class="doc-date"><time datetime="2026-11-09T12:11:58Z">2026-11-09T12:11:58Z</time></span>
 <span class="doc-title">a team-mode workflow step makes 2 commits and no catch-up of its own, a one-step write takes 2 requests to serve, and a far member&#39;s teardown no longer waits on the feed watch (swamp-club#4525) (#3684)</span>
@@ -93,9 +157,35 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>3 changes</span><span>updated <time datetime="2026-11-09T12:11:58Z">2026-11-09T12:11:58Z</time></span><span><a href="https://swamp-club.com/manual/reference/datastore-configuration" rel="noopener">published manual</a></span></div>
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-11-09T21:33:00Z">2026-11-09T21:33:00Z</time></span><span><a href="https://swamp-club.com/manual/explanation/the-workflow-execution-model" rel="noopener">published manual</a></span></div>
 <ul class="doc-changes"><li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-09T21:33:00Z">2026-11-09T21:33:00Z</time></span>
+<span class="doc-title">fan-out approval gates: rollout.approve suspends before dispatch with a prompt from the frozen plan, and after the canary batch (swamp-club#4541) (#3699)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/e484ef8f70c1be7bfe71d5a88276155900280795" rel="noopener">e484ef8f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3699" rel="noopener">#3699</a>𝗔 <a href="https://swamp-club.com/lab/4541" rel="noopener">lab#4541</a></span>
+</li></ul>
+</article>
+<article class="item doc-item">
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/webhook/api.md" rel="noopener">.claude/skills/swamp/references/extension/references/webhook/api.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-11-09T20:10:34Z">2026-11-09T20:10:34Z</time></span><span><span class="dim">no published page</span></span></div>
+<ul class="doc-changes"><li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-09T20:10:34Z">2026-11-09T20:10:34Z</time></span>
+<span class="doc-title">refuse webhook routes whose extension scheme is a pulled type from an untrusted collective (swamp-club#4548) (#3696)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c9a6be0fb2aab073e9d964a3d3dceeaffd64e2f1" rel="noopener">c9a6be0f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3696" rel="noopener">#3696</a></span>
+</li></ul>
+</article>
+<article class="item doc-item">
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>4 changes</span><span>updated <time datetime="2026-11-09T19:12:21Z">2026-11-09T19:12:21Z</time></span><span><a href="https://swamp-club.com/manual/reference/datastore-configuration" rel="noopener">published manual</a></span></div>
+<ul class="doc-changes"><li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-09T19:12:21Z">2026-11-09T19:12:21Z</time></span>
+<span class="doc-title">large team-mode outputs upload under a size-scaled deadline, serve stores chunks while reading, failing uploads are capped at 3, and a lapse mid-request reports lease_lapsed (swamp-club#4542) (#3694)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4d382f0729ed46c935860316e9fede5a63b39165" rel="noopener">4d382f07</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3694" rel="noopener">#3694</a>𝗔 <a href="https://swamp-club.com/lab/4542" rel="noopener">lab#4542</a></span>
+</li>
+<li class="doc-change">
 <span class="tier B">B</span>
 <span class="doc-date"><time datetime="2026-11-09T12:11:58Z">2026-11-09T12:11:58Z</time></span>
 <span class="doc-title">a team-mode workflow step makes 2 commits and no catch-up of its own, a one-step write takes 2 requests to serve, and a far member&#39;s teardown no longer waits on the feed watch (swamp-club#4525) (#3684)</span>
@@ -112,6 +202,62 @@ footer .ver{color:var(--acc)}
 <span class="doc-date"><time datetime="2026-11-02T07:28:15Z">2026-11-02T07:28:15Z</time></span>
 <span class="doc-title">a team member&#39;s datastore lock, datastore status, extension and run gc commands go through serve, never storage, and --json errors carry inFlight (swamp-club#4281) (#3545)</span>
 <span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/37107c15647cbedabf901f49a9747fa3ed051483" rel="noopener">37107c15</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3545" rel="noopener">#3545</a>𝗔 <a href="https://swamp-club.com/lab/4281" rel="noopener">lab#4281</a></span>
+</li></ul>
+</article>
+<article class="item doc-item">
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/reference.md" rel="noopener">.claude/skills/swamp/references/workflow/reference.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-11-09T17:47:23Z">2026-11-09T17:47:23Z</time></span><span><span class="dim">no published page</span></span></div>
+<ul class="doc-changes"><li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-09T17:47:23Z">2026-11-09T17:47:23Z</time></span>
+<span class="doc-title">workflow validate type-checks step expressions, and the skill&#39;s forEach example no longer uses range() (swamp-club#4553) (#3690)</span>
+<span class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261109.174346.0-sha.7675c120" rel="noopener">release v20261109.174346.0-sha.7675c120</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7675c1208ea057b569abec6c7a1950b83d588cf8" rel="noopener">7675c120</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3690" rel="noopener">#3690</a>𝗔 <a href="https://swamp-club.com/lab/4553" rel="noopener">lab#4553</a></span>
+</li></ul>
+</article>
+<article class="item doc-item">
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/references/expressions-and-foreach.md" rel="noopener">.claude/skills/swamp/references/workflow/references/expressions-and-foreach.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-11-09T17:47:23Z">2026-11-09T17:47:23Z</time></span><span><span class="dim">no published page</span></span></div>
+<ul class="doc-changes"><li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-09T17:47:23Z">2026-11-09T17:47:23Z</time></span>
+<span class="doc-title">workflow validate type-checks step expressions, and the skill&#39;s forEach example no longer uses range() (swamp-club#4553) (#3690)</span>
+<span class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261109.174346.0-sha.7675c120" rel="noopener">release v20261109.174346.0-sha.7675c120</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7675c1208ea057b569abec6c7a1950b83d588cf8" rel="noopener">7675c120</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3690" rel="noopener">#3690</a>𝗔 <a href="https://swamp-club.com/lab/4553" rel="noopener">lab#4553</a></span>
+</li></ul>
+</article>
+<article class="item doc-item">
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/reference.md" rel="noopener">.claude/skills/swamp/references/extension/reference.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-11-09T16:34:50Z">2026-11-09T16:34:50Z</time></span><span><span class="dim">no published page</span></span></div>
+<ul class="doc-changes"><li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-09T16:34:50Z">2026-11-09T16:34:50Z</time></span>
+<span class="doc-title">a manifest&#39;s binaries reach workers executable, and a worker&#39;s extensionFile() says why a declared file is absent (swamp-club#4534) (#3687)</span>
+<span class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261109.163112.0-sha.12a2bec1" rel="noopener">release v20261109.163112.0-sha.12a2bec1</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/12a2bec12fe5c321890055431fe1573f97ea9bc2" rel="noopener">12a2bec1</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3687" rel="noopener">#3687</a></span>
+</li></ul>
+</article>
+<article class="item doc-item">
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>2 changes</span><span>updated <time datetime="2026-11-09T16:34:50Z">2026-11-09T16:34:50Z</time></span><span><a href="https://swamp-club.com/manual/explanation/remote-execution" rel="noopener">published manual</a></span></div>
+<ul class="doc-changes"><li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-09T16:34:50Z">2026-11-09T16:34:50Z</time></span>
+<span class="doc-title">a manifest&#39;s binaries reach workers executable, and a worker&#39;s extensionFile() says why a declared file is absent (swamp-club#4534) (#3687)</span>
+<span class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261109.163112.0-sha.12a2bec1" rel="noopener">release v20261109.163112.0-sha.12a2bec1</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/12a2bec12fe5c321890055431fe1573f97ea9bc2" rel="noopener">12a2bec1</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3687" rel="noopener">#3687</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-02T18:18:01Z">2026-11-02T18:18:01Z</time></span>
+<span class="doc-title">a worker status change writes the worker&#39;s state record directly, so a dispatch no longer leaves set_status output records behind (swamp-club#4285) (#3557)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/3c90b482580d19c1302cc797c57ccff7271bd5e0" rel="noopener">3c90b482</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3557" rel="noopener">#3557</a>𝗔 <a href="https://swamp-club.com/lab/4285" rel="noopener">lab#4285</a></span>
+</li></ul>
+</article>
+<article class="item doc-item">
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/serve-audit.md" rel="noopener">design/enablers/serve-audit.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-11-09T15:41:32Z">2026-11-09T15:41:32Z</time></span><span><a href="https://swamp-club.com/manual/explanation/the-audit-system" rel="noopener">published manual</a></span></div>
+<ul class="doc-changes"><li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-09T15:41:32Z">2026-11-09T15:41:32Z</time></span>
+<span class="doc-title">link a person, act over HTTP and refresh delegated tokens; a delegated refresh keeps the refresh token (swamp-club#4543) (#3686)</span>
+<span class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261109.153644.0-sha.7285a656" rel="noopener">release v20261109.153644.0-sha.7285a656</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7285a656c331464f882c6aa0dc78260b091e6896" rel="noopener">7285a656</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3686" rel="noopener">#3686</a>𝗔 <a href="https://swamp-club.com/lab/4543" rel="noopener">lab#4543</a></span>
 </li></ul>
 </article>
 <article class="item doc-item">
@@ -262,32 +408,6 @@ footer .ver{color:var(--acc)}
 <span class="doc-date"><time datetime="2026-11-07T21:59:21Z">2026-11-07T21:59:21Z</time></span>
 <span class="doc-title">the scheduled flaky-test and Windows suites pass again: the HTTP action route tests survive repeats, and four Windows-only test failures are fixed (swamp-club#4422) (#3664)</span>
 <span class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261107.215532.0-sha.484279f5" rel="noopener">release v20261107.215532.0-sha.484279f5</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/484279f58ca39089ba4c464fe2c315ef58dcea03" rel="noopener">484279f5</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3664" rel="noopener">#3664</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4231" rel="noopener">#4231</a>𝗔 <a href="https://swamp-club.com/lab/4422" rel="noopener">lab#4422</a></span>
-</li></ul>
-</article>
-<article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/serve/guide.md" rel="noopener">.claude/skills/swamp/references/serve/guide.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>2 changes</span><span>updated <time datetime="2026-11-07T20:20:38Z">2026-11-07T20:20:38Z</time></span><span><span class="dim">no published page</span></span></div>
-<ul class="doc-changes"><li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-11-07T20:20:38Z">2026-11-07T20:20:38Z</time></span>
-<span class="doc-title">an operator can register an integration and limit it with a ceiling, enforced on every decision, with changes applied without a grant reload (swamp-club#4486) (#3662)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8046d1d2605351eb8fa8bd423d0de9b1640de8c5" rel="noopener">8046d1d2</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3662" rel="noopener">#3662</a>𝗔 <a href="https://swamp-club.com/lab/4486" rel="noopener">lab#4486</a></span>
-</li>
-<li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-11-03T16:13:29Z">2026-11-03T16:13:29Z</time></span>
-<span class="doc-title">a tokens:mint collective token creates and revokes tokens through swamp auth token, with --ttl, revoke as a disable, a new delete subcommand, and a STATUS column in list (swamp-club#4340) (#3587)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/1ac194107af75dcccc44ae6248454c3d2a91fd62" rel="noopener">1ac19410</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3587" rel="noopener">#3587</a>𝗔 <a href="https://swamp-club.com/lab/4340" rel="noopener">lab#4340</a></span>
-</li></ul>
-</article>
-<article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/access-control.md" rel="noopener">design/enablers/access-control.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-11-07T20:20:38Z">2026-11-07T20:20:38Z</time></span><span><a href="https://swamp-club.com/manual/explanation/swamp-serve" rel="noopener">published manual</a></span></div>
-<ul class="doc-changes"><li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-11-07T20:20:38Z">2026-11-07T20:20:38Z</time></span>
-<span class="doc-title">an operator can register an integration and limit it with a ceiling, enforced on every decision, with changes applied without a grant reload (swamp-club#4486) (#3662)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8046d1d2605351eb8fa8bd423d0de9b1640de8c5" rel="noopener">8046d1d2</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3662" rel="noopener">#3662</a>𝗔 <a href="https://swamp-club.com/lab/4486" rel="noopener">lab#4486</a></span>
 </li></ul>
 </article>
 <article class="item doc-item">
@@ -717,16 +837,6 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-11-02T18:18:01Z">2026-11-02T18:18:01Z</time></span><span><a href="https://swamp-club.com/manual/explanation/remote-execution" rel="noopener">published manual</a></span></div>
-<ul class="doc-changes"><li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-11-02T18:18:01Z">2026-11-02T18:18:01Z</time></span>
-<span class="doc-title">a worker status change writes the worker&#39;s state record directly, so a dispatch no longer leaves set_status output records behind (swamp-club#4285) (#3557)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/3c90b482580d19c1302cc797c57ccff7271bd5e0" rel="noopener">3c90b482</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3557" rel="noopener">#3557</a>𝗔 <a href="https://swamp-club.com/lab/4285" rel="noopener">lab#4285</a></span>
-</li></ul>
-</article>
-<article class="item doc-item">
 <h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/output-summary-index.md" rel="noopener">design/enablers/output-summary-index.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-11-02T18:04:23Z">2026-11-02T18:04:23Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
@@ -846,7 +956,7 @@ footer .ver{color:var(--acc)}
 </article>
 </main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-10T00:04:59.330Z">2026-11-10T00:04:59.330Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-10T01:02:35.521Z">2026-11-10T01:02:35.521Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

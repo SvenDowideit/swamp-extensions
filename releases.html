@@ -163,7 +163,7 @@ footer .ver{color:var(--acc)}
 <li>On a v3 datastore, <code>WorkflowExecutionService</code> takes the workflow partition&#39;s lock (the step lock hook, model type <code>workflow</code>, the workflow&#39;s id) around workflow-scope reports and flushes their versions under it, so serve&#39;s lease floor sets the version. Wired at CLI run, CLI resume and serve run deps; nested workflow runs inherit it. v2 datastores are unchanged (no version-live there, and the lock would add a pull/push per run).</li>
 <li>A lock that cannot be taken, or a report save that fail</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/troubleshooting/guide.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/troubleshooting/guide.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261110.034358.0-sha.4b7469c6" rel="noopener">release v20261110.034358.0-sha.4b7469c6</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4b7469c68157e32f06363082f9e6c61207c4c90f" rel="noopener">4b7469c6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3704" rel="noopener">#3704</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4454" rel="noopener">#4454</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4525" rel="noopener">#4525</a>𝗔 <a href="https://swamp-club.com/lab/4567" rel="noopener">lab#4567</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261110-004355-0-sha-e171eaa8">
@@ -250,7 +250,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Last good route, on reload and poll</strong> (<code>keepLastGoodRouteFiles</code>): a file that loaded before keeps serving when an edit breaks it (bad YAML, a schema error, a clash, a refused parse) or when the directory cannot be read.</li>
 <li>The last good entry is par</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/serve/guide.md" rel="noopener">.claude/skills/swamp/references/serve/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/serve/guide.md" rel="noopener">.claude/skills/swamp/references/serve/guide.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261109.214205.0-sha.2c24fe25" rel="noopener">release v20261109.214205.0-sha.2c24fe25</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/2c24fe25baee98c72cdb3224ca8962ba5ec91a23" rel="noopener">2c24fe25</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3700" rel="noopener">#3700</a>𝗔 <a href="https://swamp-club.com/lab/4549" rel="noopener">lab#4549</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261109-213318-0-sha-e484ef8f">
@@ -499,7 +499,7 @@ footer .ver{color:var(--acc)}
 <li><strong>What ships.</strong> A declared file ships only if it is a regular file, not a symlink, whose real path lies inside the real files root. Anything else is withheld: not hashed, not listed, refused with 404 &quot;Asset not shipped with this bundle&quot;, and logged once per fingerprint with the field and reason.</li>
 <li><strong>Worker cache.</strong> Binaries are written executable. Every cached file (the bundle and each asset) is written to a temp file, given its mode and renamed into place, so concurrent dispatches on one worker never read a partial file or run a binary still open for writing (`Text file b</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/reference.md" rel="noopener">.claude/skills/swamp/references/extension/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/reference.md" rel="noopener">.claude/skills/swamp/references/extension/reference.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261109.163112.0-sha.12a2bec1" rel="noopener">release v20261109.163112.0-sha.12a2bec1</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/12a2bec12fe5c321890055431fe1573f97ea9bc2" rel="noopener">12a2bec1</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3687" rel="noopener">#3687</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261109-153644-0-sha-7285a656">
@@ -718,7 +718,7 @@ footer .ver{color:var(--acc)}
 <ul>
 <li>[x] Unit tests: earlier instance in this namespace reaped; another namespace and no id</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/run-tracker.md" rel="noopener">design/enablers/run-tracker.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261108.225107.0-sha.b1d989b0" rel="noopener">release v20261108.225107.0-sha.b1d989b0</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b1d989b08f74ab45b3504d7c04a68f68dc1e98f3" rel="noopener">b1d989b0</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3675" rel="noopener">#3675</a>𝗔 <a href="https://swamp-club.com/lab/4518" rel="noopener">lab#4518</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261108-222207-0-sha-5296fd6f">
@@ -4234,7 +4234,7 @@ footer .ver{color:var(--acc)}
 <ul><li><strong>fix</strong> — 120</li><li><strong>feat</strong> — 39</li><li><strong>perf</strong> — 6</li><li><strong>test</strong> — 4</li><li><strong>docs</strong> — 3</li><li><strong>chore</strong> — 1</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-10T08:02:12.479Z">2026-11-10T08:02:12.479Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-10T09:04:55.145Z">2026-11-10T09:04:55.145Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

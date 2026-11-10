@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4299"><span class="tier A">A</span>Retention or GC for auto-definitions whose runs and data are</a><a href="#issue-4565"><span class="tier A">A</span>serve: on macOS a webhook routes directory that does not exi</a><a href="#issue-4549"><span class="tier A">A</span>serve: optionally poll the webhook route directory so a depl</a><a href="#issue-4541"><span class="tier A">A</span>feat(workflows): fan-out approval gates: rollout.approve sus</a><a href="#issue-4561"><span class="tier A">A</span>serve: a run that reads suspended is refused as busy by appr</a><a href="#issue-4550"><span class="tier A">A</span>serve: reload installs webhook entries from serve.yaml witho</a><a href="#issue-4558"><span class="tier A">A</span>serve: a vault outage during swamp serve reload removes ever</a><a href="#issue-4557"><span class="tier A">A</span>@swamp/gcs-datastore (and @swamp/s3-datastore): a 16 MiB chu</a><a href="#issue-4542"><span class="tier A">A</span>Team mode: a large output (64 MiB) takes about 8 minutes to </a><a href="#issue-4547"><span class="tier A">A</span>serve: load webhook routes from reviewed files in the repo</a><a href="#issue-4539"><span class="tier A">A</span>Team mode: a commit&#39;s cost on serve grows with history</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4573"><span class="tier A">A</span>autoDefinitions retention follow-ups: release failure misrep</a><a href="#issue-4567"><span class="tier A">A</span>Team mode: a member&#39;s workflow run fails when another member</a><a href="#issue-4299"><span class="tier A">A</span>Retention or GC for auto-definitions whose runs and data are</a><a href="#issue-4565"><span class="tier A">A</span>serve: on macOS a webhook routes directory that does not exi</a><a href="#issue-4549"><span class="tier A">A</span>serve: optionally poll the webhook route directory so a depl</a><a href="#issue-4541"><span class="tier A">A</span>feat(workflows): fan-out approval gates: rollout.approve sus</a><a href="#issue-4561"><span class="tier A">A</span>serve: a run that reads suspended is refused as busy by appr</a><a href="#issue-4550"><span class="tier A">A</span>serve: reload installs webhook entries from serve.yaml witho</a><a href="#issue-4558"><span class="tier A">A</span>serve: a vault outage during swamp serve reload removes ever</a><a href="#issue-4557"><span class="tier A">A</span>@swamp/gcs-datastore (and @swamp/s3-datastore): a 16 MiB chu</a><a href="#issue-4542"><span class="tier A">A</span>Team mode: a large output (64 MiB) takes about 8 minutes to </a></aside><div>
 
 <article class="item" id="issue-4239">
 <h2><span class="tier S">S</span>swamp issue: file bugs, features and security reports against the platform source</h2>
@@ -76,6 +76,22 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-4573">
+<h2><span class="tier A">A</span>autoDefinitions retention follow-ups: release failure misreports removals, step wording, quoted log list, lanes doc</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-10T03:56:55.927Z">2026-11-10T03:56:55.927Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4573" rel="noopener">lab#4573</a></div>
+</article>
+<article class="item" id="issue-4567">
+<h2><span class="tier A">A</span>Team mode: a member&#39;s workflow run fails when another member&#39;s overlapping run commits the shared workflow report version first (&#39;version N is already live&#39;), about 1 run in 8 under load (F40 from #4374)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-10T03:44:45.864Z">2026-11-10T03:44:45.864Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4567" rel="noopener">lab#4567</a></div>
 </article>
 <article class="item" id="issue-4299">
 <h2><span class="tier A">A</span>Retention or GC for auto-definitions whose runs and data are gone</h2>
@@ -149,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4542" rel="noopener">lab#4542</a></div>
 </article>
-<article class="item" id="issue-4547">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4547">
 <h2><span class="tier A">A</span>serve: load webhook routes from reviewed files in the repo</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-11-09T19:02:57.287Z">2026-11-09T19:02:57.287Z</time></span></div>
@@ -165,7 +181,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4539" rel="noopener">lab#4539</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4553">
+<article class="item" id="issue-4553">
 <h2><span class="tier A">A</span>Skill workflow reference uses range() in a forEach example; swamp CEL has no range(), and workflow validate passes it anyway</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-09T17:43:34.707Z">2026-11-09T17:43:34.707Z</time></span></div>
@@ -1981,18 +1997,26 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
-<article class="item" id="issue-4567">
-<h2><span class="tier B">B</span>Team mode: a member&#39;s workflow run fails when another member&#39;s overlapping run commits the shared workflow report version first (&#39;version N is already live&#39;), about 1 run in 8 under load (F40 from #4374)</h2>
+<article class="item" id="issue-4574">
+<h2><span class="tier B">B</span>Team mode speed: far-member workflows within 1.5x v2, fewer commits per step and workflow, and no slow fresh clone, cold read or teardown after large outputs (F41, F42 from #4374 run 6)</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-10T03:55:23.210Z">2026-11-10T03:55:23.210Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4574" rel="noopener">lab#4574</a></div>
+</article>
+<article class="item" id="issue-4566">
+<h2><span class="tier B">B</span>swamp serve: restarts without failed requests (close the listener early, overlap restarts, clients and workers ride out a restart)</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-10T00:53:37.892Z">2026-11-10T00:53:37.892Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-10T03:54:28.327Z">2026-11-10T03:54:28.327Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4567" rel="noopener">lab#4567</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4566" rel="noopener">lab#4566</a></div>
 </article>
 <article class="item" id="issue-4358">
 <h2><span class="tier B">B</span>Docs: step concurrency caps only that step&#39;s forEach iterations, not its whole dependency level</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-10T00:03:10.416Z">2026-11-10T00:03:10.416Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-10T03:33:44.051Z">2026-11-10T03:33:44.051Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4358" rel="noopener">lab#4358</a></div>
@@ -2000,7 +2024,7 @@ footer .ver{color:var(--acc)}
 <article class="item" id="issue-4360">
 <h2><span class="tier B">B</span>Docs: schedule catch-up and missed-fire tracking for scheduled workflows</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-10T00:03:10.023Z">2026-11-10T00:03:10.023Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-10T03:33:43.854Z">2026-11-10T03:33:43.854Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4360" rel="noopener">lab#4360</a></div>
@@ -2008,7 +2032,7 @@ footer .ver{color:var(--acc)}
 <article class="item" id="issue-4386">
 <h2><span class="tier B">B</span>Docs: what serve instances must not share, flat AWS Secrets Manager names, and where OAuth values are stored</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-10T00:03:09.837Z">2026-11-10T00:03:09.837Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-10T03:33:43.661Z">2026-11-10T03:33:43.661Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4386" rel="noopener">lab#4386</a></div>
@@ -2016,7 +2040,7 @@ footer .ver{color:var(--acc)}
 <article class="item" id="issue-4417">
 <h2><span class="tier B">B</span>Docs: usage-telemetry reference should describe the telemetry stats empty state and the last-flush record</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-10T00:03:09.650Z">2026-11-10T00:03:09.650Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-10T03:33:43.476Z">2026-11-10T03:33:43.476Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4417" rel="noopener">lab#4417</a></div>
@@ -2024,7 +2048,7 @@ footer .ver{color:var(--acc)}
 <article class="item" id="issue-4448">
 <h2><span class="tier B">B</span>Docs: Claude audit hook covers PowerShell, swamp audit install --user, and doctor audit hook warnings</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-10T00:03:09.466Z">2026-11-10T00:03:09.466Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-10T03:33:43.291Z">2026-11-10T03:33:43.291Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4448" rel="noopener">lab#4448</a></div>
@@ -2032,7 +2056,7 @@ footer .ver{color:var(--acc)}
 <article class="item" id="issue-4491">
 <h2><span class="tier B">B</span>Manual: the REST API page still says cancelling a workflow run needs admin</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-10T00:03:09.281Z">2026-11-10T00:03:09.281Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-10T03:33:43.103Z">2026-11-10T03:33:43.103Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4491" rel="noopener">lab#4491</a></div>
@@ -2040,7 +2064,7 @@ footer .ver{color:var(--acc)}
 <article class="item" id="issue-4515">
 <h2><span class="tier B">B</span>Docs: swamp dashboard --port, --trusted-hosts and its new lifetime (swamp-club#4513, #4509)</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-10T00:03:09.075Z">2026-11-10T00:03:09.075Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-10T03:33:42.691Z">2026-11-10T03:33:42.691Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4515" rel="noopener">lab#4515</a></div>
@@ -2048,7 +2072,7 @@ footer .ver{color:var(--acc)}
 <article class="item" id="issue-4533">
 <h2><span class="tier B">B</span>Docs: webhook payload is only in scope in trigger.inputs; document run id header and route reload</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-10T00:03:08.885Z">2026-11-10T00:03:08.885Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-10T03:33:42.501Z">2026-11-10T03:33:42.501Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4533" rel="noopener">lab#4533</a></div>
@@ -2056,7 +2080,7 @@ footer .ver{color:var(--acc)}
 <article class="item" id="issue-4551">
 <h2><span class="tier B">B</span>Docs: serve skips webhook routes under its reserved path roots; recommend /hooks/</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-10T00:03:08.692Z">2026-11-10T00:03:08.692Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-10T03:33:42.304Z">2026-11-10T03:33:42.304Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4551" rel="noopener">lab#4551</a></div>
@@ -2064,18 +2088,10 @@ footer .ver{color:var(--acc)}
 <article class="item" id="issue-4556">
 <h2><span class="tier B">B</span>Docs: webhook routes from reviewed route files (webhook-routes/)</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-10T00:03:08.292Z">2026-11-10T00:03:08.292Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-10T03:33:42.107Z">2026-11-10T03:33:42.107Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4556" rel="noopener">lab#4556</a></div>
-</article>
-<article class="item" id="issue-4566">
-<h2><span class="tier B">B</span>swamp serve: restarts without failed requests (close the listener early, overlap restarts, clients and workers ride out a restart)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-10T00:02:54.664Z">2026-11-10T00:02:54.664Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4566" rel="noopener">lab#4566</a></div>
 </article>
 <article class="item" id="issue-4559">
 <h2><span class="tier B">B</span>Team mode: after a serve failover a member&#39;s writes stall 1-7 minutes, and takeover takes ~8 minutes under the default KillMode (F24, F14 from #4374)</h2>
@@ -2109,7 +2125,47 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4374" rel="noopener">lab#4374</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4568">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4575">
+<h2><span class="tier C">C</span>software-factory: a work item whose slug extends another&#39;s reads the other&#39;s records</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-10T03:50:47.401Z">2026-11-10T03:50:47.401Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4575" rel="noopener">lab#4575</a></div>
+</article>
+<article class="item" id="issue-4572">
+<h2><span class="tier C">C</span>Docs: document garbageCollection.autoDefinitions and the run gc changes from swamp-club#4299</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-10T03:19:30.464Z">2026-11-10T03:19:30.464Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4572" rel="noopener">lab#4572</a></div>
+</article>
+<article class="item" id="issue-4571">
+<h2><span class="tier C">C</span>Docs: catalogue the audit actions swamp serve records</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-10T03:12:59.437Z">2026-11-10T03:12:59.437Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4571" rel="noopener">lab#4571</a></div>
+</article>
+<article class="item" id="issue-4570">
+<h2><span class="tier C">C</span>Docs: manual page for swamp workflow schedule list and pause</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-10T03:12:57.860Z">2026-11-10T03:12:57.860Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4570" rel="noopener">lab#4570</a></div>
+</article>
+<article class="item" id="issue-4569">
+<h2><span class="tier C">C</span>datastore setup extension skips ${{ }} config interpolation that the load path applies — no clean setup for config-only-credential datastores</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-10T03:11:34.545Z">2026-11-10T03:11:34.545Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4569" rel="noopener">lab#4569</a></div>
+</article>
+<article class="item" id="issue-4568">
 <h2><span class="tier C">C</span>Scheduled flaky-test detection is failing</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-11-10T01:26:38.547Z">2026-11-10T01:26:38.547Z</time></span></div>
@@ -2974,13 +3030,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>363 items across 1 source(s) in this window:
-1 critical, 238 notable, 16 routine,
-108 minor.</p>
-<ul><li><strong>issues</strong> — 363</li></ul></section>
+<p>370 items across 1 source(s) in this window:
+1 critical, 240 notable, 16 routine,
+113 minor.</p>
+<ul><li><strong>issues</strong> — 370</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-10T03:04:55.747Z">2026-11-10T03:04:55.747Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-10T04:01:38.310Z">2026-11-10T04:01:38.310Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

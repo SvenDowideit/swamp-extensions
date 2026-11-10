@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4580"><span class="tier A">A</span>Telemetry still adds about 0.9 s to every command on the dog</a><a href="#issue-4574"><span class="tier A">A</span>Team mode speed: far-member workflows within 1.5x v2, fewer </a><a href="#issue-4559"><span class="tier A">A</span>Team mode: after a serve failover a member&#39;s writes stall 1-</a><a href="#issue-4576"><span class="tier A">A</span>swamp serve HA: a pending-run sweep can replay a queued run </a><a href="#issue-4566"><span class="tier A">A</span>swamp serve: restarts without failed requests (close the lis</a><a href="#issue-4358"><span class="tier A">A</span>Docs: step concurrency caps only that step&#39;s forEach iterati</a><a href="#issue-4360"><span class="tier A">A</span>Docs: schedule catch-up and missed-fire tracking for schedul</a><a href="#issue-4417"><span class="tier A">A</span>Docs: usage-telemetry reference should describe the telemetr</a><a href="#issue-4448"><span class="tier A">A</span>Docs: Claude audit hook covers PowerShell, swamp audit insta</a><a href="#issue-4386"><span class="tier A">A</span>Docs: what serve instances must not share, flat AWS Secrets </a><a href="#issue-4491"><span class="tier A">A</span>Manual: the REST API page still says cancelling a workflow r</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4563"><span class="tier A">A</span>Delegation: keep serve&#39;s links in step with swamp-club after</a><a href="#issue-4579"><span class="tier A">A</span>Team mode: a member&#39;s recovery after an interrupted command </a><a href="#issue-4583"><span class="tier A">A</span>Scoped push queues each key twice: every data file is upload</a><a href="#issue-4580"><span class="tier A">A</span>Telemetry still adds about 0.9 s to every command on the dog</a><a href="#issue-4574"><span class="tier A">A</span>Team mode speed: far-member workflows within 1.5x v2, fewer </a><a href="#issue-4559"><span class="tier A">A</span>Team mode: after a serve failover a member&#39;s writes stall 1-</a><a href="#issue-4576"><span class="tier A">A</span>swamp serve HA: a pending-run sweep can replay a queued run </a><a href="#issue-4566"><span class="tier A">A</span>swamp serve: restarts without failed requests (close the lis</a><a href="#issue-4358"><span class="tier A">A</span>Docs: step concurrency caps only that step&#39;s forEach iterati</a><a href="#issue-4360"><span class="tier A">A</span>Docs: schedule catch-up and missed-fire tracking for schedul</a><a href="#issue-4417"><span class="tier A">A</span>Docs: usage-telemetry reference should describe the telemetr</a></aside><div>
 
 <article class="item" id="issue-4239">
 <h2><span class="tier S">S</span>swamp issue: file bugs, features and security reports against the platform source</h2>
@@ -76,6 +76,30 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-4563">
+<h2><span class="tier A">A</span>Delegation: keep serve&#39;s links in step with swamp-club after linking</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-10T16:42:28.357Z">2026-11-10T16:42:28.357Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4563" rel="noopener">lab#4563</a></div>
+</article>
+<article class="item" id="issue-4579">
+<h2><span class="tier A">A</span>Team mode: a member&#39;s recovery after an interrupted command fails with &#39;Cannot apply commit N of partition run--…&#39; (from #4374 run 5)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-10T16:34:26.488Z">2026-11-10T16:34:26.488Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4579" rel="noopener">lab#4579</a></div>
+</article>
+<article class="item" id="issue-4583">
+<h2><span class="tier A">A</span>Scoped push queues each key twice: every data file is uploaded twice and every delete is sent twice</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-10T16:10:35.409Z">2026-11-10T16:10:35.409Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4583" rel="noopener">lab#4583</a></div>
 </article>
 <article class="item" id="issue-4580">
 <h2><span class="tier A">A</span>Telemetry still adds about 0.9 s to every command on the dogfood VMs despite the detached sender (F33, follows #4511)</h2>
@@ -141,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4417" rel="noopener">lab#4417</a></div>
 </article>
-<article class="item" id="issue-4448">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4448">
 <h2><span class="tier A">A</span>Docs: Claude audit hook covers PowerShell, swamp audit install --user, and doctor audit hook warnings</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-11-10T07:11:30.756Z">2026-11-10T07:11:30.756Z</time></span></div>
@@ -165,7 +189,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4491" rel="noopener">lab#4491</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4515">
+<article class="item" id="issue-4515">
 <h2><span class="tier A">A</span>Docs: swamp dashboard --port, --trusted-hosts and its new lifetime (swamp-club#4513, #4509)</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-11-10T07:11:29.923Z">2026-11-10T07:11:29.923Z</time></span></div>
@@ -2117,45 +2141,69 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
-<article class="item" id="issue-4583">
-<h2><span class="tier B">B</span>Scoped push queues each key twice: every data file is uploaded twice and every delete is sent twice</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-10T15:47:43.161Z">2026-11-10T15:47:43.161Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4583" rel="noopener">lab#4583</a></div>
-</article>
 <article class="item" id="issue-4202">
 <h2><span class="tier B">B</span>Swamp Club collective GUI: show the swamp serve instances currently connected to a collective</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-10T15:31:05.065Z">2026-11-10T15:31:05.065Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-10T16:59:17.973Z">2026-11-10T16:59:17.973Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4202" rel="noopener">lab#4202</a></div>
 </article>
-<article class="item" id="issue-4563">
-<h2><span class="tier B">B</span>Delegation: keep serve&#39;s links in step with swamp-club after linking</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-10T14:55:22.010Z">2026-11-10T14:55:22.010Z</time></span></div>
+<article class="item" id="issue-4590">
+<h2><span class="tier B">B</span>Lazy loading L0: startup benchmark and CLI parity scripts</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-10T16:58:12.438Z">2026-11-10T16:58:12.438Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4563" rel="noopener">lab#4563</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4590" rel="noopener">lab#4590</a></div>
 </article>
-<article class="item" id="issue-4579">
-<h2><span class="tier B">B</span>Team mode: a member&#39;s recovery after an interrupted command fails with &#39;Cannot apply commit N of partition run--…&#39; (from #4374 run 5)</h2>
+<article class="item" id="issue-4588">
+<h2><span class="tier B">B</span>swamp serve reload applies every setting that can change in place, validated and reported (auth lists, audit, limits; no --hot-reload needed)</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-10T14:32:50.504Z">2026-11-10T14:32:50.504Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-10T16:55:34.688Z">2026-11-10T16:55:34.688Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4579" rel="noopener">lab#4579</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4588" rel="noopener">lab#4588</a></div>
 </article>
 <article class="item" id="issue-4578">
 <h2><span class="tier B">B</span>Team mode: serve-driven and member runs of one behavior collide on its method summary (&#39;version 1 is already live&#39;), and a report lease lapse can fail a run whose steps succeeded (#4567 follow-ups)</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-11-10T12:42:45.475Z">2026-11-10T12:42:45.475Z</time></span></div>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-10T16:53:39.458Z">2026-11-10T16:53:39.458Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4578" rel="noopener">lab#4578</a></div>
+</article>
+<article class="item" id="issue-4569">
+<h2><span class="tier B">B</span>datastore setup extension skips ${{ }} config interpolation that the load path applies — no clean setup for config-only-credential datastores</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-10T16:42:48.289Z">2026-11-10T16:42:48.289Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4569" rel="noopener">lab#4569</a></div>
+</article>
+<article class="item" id="issue-4560">
+<h2><span class="tier B">B</span>serve: reload installs trigger overrides from serve.yaml without validating them</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-10T16:29:32.101Z">2026-11-10T16:29:32.101Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4560" rel="noopener">lab#4560</a></div>
+</article>
+<article class="item" id="issue-4562">
+<h2><span class="tier B">B</span>test(workflows): extend the fan-out gates model test to lanes with more than one step</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-10T16:24:15.199Z">2026-11-10T16:24:15.199Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4562" rel="noopener">lab#4562</a></div>
+</article>
+<article class="item" id="issue-4568">
+<h2><span class="tier B">B</span>Scheduled flaky-test detection is failing</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-10T16:24:14.793Z">2026-11-10T16:24:14.793Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4568" rel="noopener">lab#4568</a></div>
 </article>
 <article class="item" id="issue-4577">
 <h2><span class="tier B">B</span>Docs: swamp serve restart behaviour from #4566 (/health draining body, --reuse-port, --shutdown-listener-grace, startup not_ready refusals)</h2>
@@ -2189,7 +2237,55 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4374" rel="noopener">lab#4374</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4587">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4592">
+<h2><span class="tier C">C</span>Lazy loading L2: route table, load only the invoked top-level command</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-10T16:57:54.862Z">2026-11-10T16:57:54.862Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4592" rel="noopener">lab#4592</a></div>
+</article>
+<article class="item" id="issue-4591">
+<h2><span class="tier C">C</span>Lazy loading L1: move VERSION and GIT_SHA out of the version command</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-10T16:57:31.303Z">2026-11-10T16:57:31.303Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4591" rel="noopener">lab#4591</a></div>
+</article>
+<article class="item" id="issue-4589">
+<h2><span class="tier C">C</span>Docs: serve now ends links on its own after a leaked client secret</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-10T16:49:34.418Z">2026-11-10T16:49:34.418Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4589" rel="noopener">lab#4589</a></div>
+</article>
+<article class="item" id="issue-4571">
+<h2><span class="tier C">C</span>Docs: catalogue the audit actions swamp serve records</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-10T16:04:50.711Z">2026-11-10T16:04:50.711Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4571" rel="noopener">lab#4571</a></div>
+</article>
+<article class="item" id="issue-4572">
+<h2><span class="tier C">C</span>Docs: document garbageCollection.autoDefinitions and the run gc changes from swamp-club#4299</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-10T16:04:45.361Z">2026-11-10T16:04:45.361Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4572" rel="noopener">lab#4572</a></div>
+</article>
+<article class="item" id="issue-4582">
+<h2><span class="tier C">C</span>Docs: team members&#39; CLI retries reads refused during a serve failover, and the new recovery failure code</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-10T16:04:41.569Z">2026-11-10T16:04:41.569Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4582" rel="noopener">lab#4582</a></div>
+</article>
+<article class="item" id="issue-4587">
 <h2><span class="tier C">C</span>serve: send instanceId in the swamp.club heartbeat body</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-11-10T15:03:05.610Z">2026-11-10T15:03:05.610Z</time></span></div>
@@ -2229,22 +2325,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4585" rel="noopener">lab#4585</a></div>
 </article>
-<article class="item" id="issue-4582">
-<h2><span class="tier C">C</span>Docs: team members&#39; CLI retries reads refused during a serve failover, and the new recovery failure code</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-10T13:28:04.633Z">2026-11-10T13:28:04.633Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4582" rel="noopener">lab#4582</a></div>
-</article>
-<article class="item" id="issue-4568">
-<h2><span class="tier C">C</span>Scheduled flaky-test detection is failing</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-10T13:17:13.651Z">2026-11-10T13:17:13.651Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4568" rel="noopener">lab#4568</a></div>
-</article>
 <article class="item" id="issue-4581">
 <h2><span class="tier C">C</span>Team mode: a member&#39;s recovery after an interrupted command replays the whole history (minutes at a day of history); recover only the affected data names (starts after #4579)</h2>
 <p class="lede">Open issue</p>
@@ -2261,22 +2341,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4575" rel="noopener">lab#4575</a></div>
 </article>
-<article class="item" id="issue-4572">
-<h2><span class="tier C">C</span>Docs: document garbageCollection.autoDefinitions and the run gc changes from swamp-club#4299</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-10T03:19:30.464Z">2026-11-10T03:19:30.464Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4572" rel="noopener">lab#4572</a></div>
-</article>
-<article class="item" id="issue-4571">
-<h2><span class="tier C">C</span>Docs: catalogue the audit actions swamp serve records</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-10T03:12:59.437Z">2026-11-10T03:12:59.437Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4571" rel="noopener">lab#4571</a></div>
-</article>
 <article class="item" id="issue-4570">
 <h2><span class="tier C">C</span>Docs: manual page for swamp workflow schedule list and pause</h2>
 <p class="lede">Open issue</p>
@@ -2284,14 +2348,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4570" rel="noopener">lab#4570</a></div>
-</article>
-<article class="item" id="issue-4569">
-<h2><span class="tier C">C</span>datastore setup extension skips ${{ }} config interpolation that the load path applies — no clean setup for config-only-credential datastores</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-10T03:11:34.545Z">2026-11-10T03:11:34.545Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4569" rel="noopener">lab#4569</a></div>
 </article>
 <article class="item" id="issue-3539">
 <h2><span class="tier C">C</span>SecretSpec Integration</h2>
@@ -2316,22 +2372,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4564" rel="noopener">lab#4564</a></div>
-</article>
-<article class="item" id="issue-4562">
-<h2><span class="tier C">C</span>test(workflows): extend the fan-out gates model test to lanes with more than one step</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-09T21:28:08.047Z">2026-11-09T21:28:08.047Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4562" rel="noopener">lab#4562</a></div>
-</article>
-<article class="item" id="issue-4560">
-<h2><span class="tier C">C</span>serve: reload installs trigger overrides from serve.yaml without validating them</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-09T20:29:55.093Z">2026-11-09T20:29:55.093Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4560" rel="noopener">lab#4560</a></div>
 </article>
 <article class="item" id="issue-4256">
 <h2><span class="tier C">C</span>CI: an accepted attestation approves the PR, and anything else fails the attestation job</h2>
@@ -3118,13 +3158,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>381 items across 1 source(s) in this window:
-1 critical, 255 notable, 9 routine,
-116 minor.</p>
-<ul><li><strong>issues</strong> — 381</li></ul></section>
+<p>386 items across 1 source(s) in this window:
+1 critical, 258 notable, 12 routine,
+115 minor.</p>
+<ul><li><strong>issues</strong> — 386</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-10T16:03:15.029Z">2026-11-10T16:03:15.029Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-10T17:03:09.113Z">2026-11-10T17:03:09.113Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

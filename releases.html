@@ -4897,7 +4897,67 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261110.191731.0-sha.19a81b5b" rel="noopener">release v20261110.191731.0-sha.19a81b5b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/19a81b5b64973fa95fdb1d673df8c20f039f0546" rel="noopener">19a81b5b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3720" rel="noopener">#3720</a>𝗔 <a href="https://swamp-club.com/lab/4600" rel="noopener">lab#4600</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261111-180503-0-sha-4fa5f6e1">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261111-185242-0-sha-15bad34f">
+<h2><span class="tier C">C</span>swamp 20261111.185242.0-sha.15bad34f</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-11T18:57:15Z">2026-11-11T18:57:15Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(agent-sessions): Swampify contracts move into core as candidate set v2, offer v1 and comparison v2 (swamp-club#4650) (#3750)</li>
+</ul>
+<p>Swampify&#39;s data contracts now live in core, in <code>src/domain/agent_sessions/swampify.ts</code> beside the session record, and are revised for the readers that use them: the Swampify skill (swamp-club#4642) and the dashboard panel (swamp-club#4643). Swampify is experimental. Nothing in core reads or writes these items yet, so no command&#39;s behaviour changes.</p>
+<h4 class="body-h">What changes</h4>
+<ul>
+<li><strong>Every list shows its owner.</strong> The list select returns <code>modelName</code>, as the agent session list does, so a reader can open an item. <code>newestSwampifyItem</code> applies the one rule for which item a reader shows: the newest by time tag, compared as instants; ties go to the <code>swampify</code> behavior, then owner, then name. It reads across every owner.</li>
+<li><strong>Candidate set v2.</strong> Each candidate stores the weighted-tokens range <code>assess</code> ranks by (input + output + cache writes + a tenth of cache reads, <code>swampifyWeightedTokens</code>), its <code>score</code>, and its <code>rank</code> (its position in the list). The summary tag gains <code>thin</code>. v1 is read as <code>older</code>; running <code>assess</code> again rebuilds it.</li>
+<li><strong>Offer v1, new.</strong> One item per assessment holds the one to five options, the candidates considered and not offered (with a reason; <code>merged</code> names its target, and merges cannot cycle), and the user&#39;s pick: <code>offered</code>, <code>picked</code>, <code>built</code> or <code>declined</code>. Option ids are a hash of their candidate ids, so the same chore keep</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261111.185242.0-sha.15bad34f" rel="noopener">release v20261111.185242.0-sha.15bad34f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/15bad34f" rel="noopener">15bad34f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3750" rel="noopener">#3750</a>𝗔 <a href="https://swamp-club.com/lab/4650" rel="noopener">lab#4650</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261111-184308-0-sha-14960300">
+<h2><span class="tier C">C</span>swamp 20261111.184308.0-sha.14960300</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-11T18:48:06Z">2026-11-11T18:48:06Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): a scheduling reload during boot waits for the next reload, shutdown waits for a scheduler still starting, and the own-run replay skips stale remote entries (swamp-club#4652) (#3749)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Follow-up to swamp-club#4633 (#3746). Closes three timing windows the CI adversarial review noted in the scheduler reload lifecycle.</p>
+<p>1. <strong>A reload during boot no longer starts scheduling early.</strong> <code>ScheduledExecutionLifecycle</code> refuses a reload&#39;s <code>turnOn</code> or <code>turnOff</code> with &quot;serve is still starting&quot; until <code>serve.ts</code> calls <code>markBootReplayed()</code>. That call comes right after the boot replay and catch-up, on both the writer and v3-follower paths. The schedule follow-up then takes the existing not-applied path, and the next reload applies it. A catch-up can no longer queue ahead of the boot replay.</p>
+<p>2. <strong>Shutdown waits for a scheduler that is still starting.</strong> <code>turnOn</code> now tracks its start section (build, start, then publish or stop). <code>drain()</code> and <code>stop()</code> wait for it before collecting schedulers, so shutdown no longer closes stores while <code>service.start()</code> is still reading. The replay and catch-up after the start are not waited on.</p>
+<p>3. <strong>The own-cron replay skips stale remote entries.</strong> With <code>ownCronOnly</code>, <code>replayPendingRuns</code> skips pending runs that exist only on the control plane. Every run this process left pending is in its local tracker, because enqueue writes there first.</p>
+<p>The <code>schedule</code> row in <code>design/primitives/serve.md</code> now covers the boot case.</p>
+<h4 class="body-h">Tes</h4></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261111.184308.0-sha.14960300" rel="noopener">release v20261111.184308.0-sha.14960300</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/14960300" rel="noopener">14960300</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3749" rel="noopener">#3749</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3746" rel="noopener">#3746</a>𝗔 <a href="https://swamp-club.com/lab/4652" rel="noopener">lab#4652</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261111-182027-0-sha-3da0a671">
+<h2><span class="tier C">C</span>swamp 20261111.182027.0-sha.3da0a671</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-11T18:25:34Z">2026-11-11T18:25:34Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>perf(cli): root --help lists every command from the route table instead of loading the whole tree (swamp-club#4646) (#3748)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Root help (<code>--help</code>, <code>-h</code>, bare <code>swamp</code>, and <code>swamp --json</code> with no command word) loaded every command module, and every routed group&#39;s subcommands, just to print one line per top-level command. It now registers stand-in commands built from the <code>ROOT_ROUTES</code> rows and imports no command module.</p>
+<ul>
+<li>Each <code>ROOT_ROUTES</code> row carries <code>shortDescription</code> and, for <code>init</code>, <code>arguments</code>. A <code>RootRoute</code> subtype keeps the group tables (<code>data</code>, <code>workflow</code>, <code>model_routes</code>) unchanged; group help is out of scope.</li>
+<li><code>selectRoute</code> returns a new <code>rootHelp</code> selection when argv holds no command word, no <code>--</code>, and only root global options plus <code>-h</code>/<code>--help</code>. Anything the router cannot place (an unknown option, <code>-qh</code>, <code>--help=x</code>, <code>--version</code>, a missing option value) still loads the full tree.</li>
+<li>Help combined with a global (<code>--json --help</code>, <code>-q -h</code>) still fails with Cliffy&#39;s standalone-option error. That error does not depend on the children, so those argv take the stub path too.</li>
+<li>Bare <code>swamp</code> reaches the root action, which needs only the visible names, so it is routed the same way, as the issue asked to check.</li>
+</ul>
+<p>The row field is <code>shortDescription</code> rather than the issue&#39;s <code>description</code>: the row holds only the first line, which is all root help prints, and several commands have multi-line descriptions.</p>
+<h4 class="body-h">Drift protection</h4>
+<ul>
+<li>The top-level table rul</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261111.182027.0-sha.3da0a671" rel="noopener">release v20261111.182027.0-sha.3da0a671</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/3da0a671" rel="noopener">3da0a671</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3748" rel="noopener">#3748</a>𝗔 <a href="https://swamp-club.com/lab/4646" rel="noopener">lab#4646</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261111-180503-0-sha-4fa5f6e1">
 <h2><span class="tier C">C</span>swamp 20261111.180503.0-sha.4fa5f6e1</h2>
 <p class="lede">Change (untyped) · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-11-11T18:09:01Z">2026-11-11T18:09:01Z</time></span></div>
@@ -5188,13 +5248,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261101.202412.0-sha.0500dc35" rel="noopener">release v20261101.202412.0-sha.0500dc35</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0500dc35534060a870a5998e5dddbcd015dfc2e1" rel="noopener">0500dc35</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3528" rel="noopener">#3528</a>𝗔 <a href="https://swamp-club.com/lab/4250" rel="noopener">lab#4250</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>215 items across 1 source(s) in this window:
+<p>218 items across 1 source(s) in this window:
 2 critical, 185 notable, 16 routine,
-12 minor.</p>
-<ul><li><strong>fix</strong> — 138</li><li><strong>feat</strong> — 49</li><li><strong>perf</strong> — 12</li><li><strong>changes</strong> — 4</li><li><strong>test</strong> — 4</li><li><strong>refactor</strong> — 3</li></ul></section>
+15 minor.</p>
+<ul><li><strong>fix</strong> — 138</li><li><strong>feat</strong> — 49</li><li><strong>perf</strong> — 12</li><li><strong>changes</strong> — 7</li><li><strong>test</strong> — 4</li><li><strong>refactor</strong> — 3</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-11T18:20:21.645Z">2026-11-11T18:20:21.645Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-11T19:03:15.599Z">2026-11-11T19:03:15.599Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

@@ -5097,7 +5097,91 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261110.191731.0-sha.19a81b5b" rel="noopener">release v20261110.191731.0-sha.19a81b5b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/19a81b5b64973fa95fdb1d673df8c20f039f0546" rel="noopener">19a81b5b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3720" rel="noopener">#3720</a>𝗔 <a href="https://swamp-club.com/lab/4600" rel="noopener">lab#4600</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261111-194243-0-sha-a72a2318">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261111-214515-0-sha-d7bb6063">
+<h2><span class="tier C">C</span>swamp 20261111.214515.0-sha.d7bb6063</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-11T21:49:38Z">2026-11-11T21:49:38Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): doctor extensions fails and extension list marks a pinned extension missing from disk (swamp-club#4664) (#3757)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>A lockfile entry whose extracted files are missing from disk used to show in <code>swamp extension list</code> as an ordinary installed entry, and <code>swamp doctor extensions</code> reported <code>overallStatus: &quot;pass&quot;</code>. That made a missing pinned extension invisible to preflight checks.</p>
+<ul>
+<li><strong>One rule shared by every command.</strong> <code>findMissingPulledExtensions</code> (<code>src/infrastructure/persistence/installed_entries.ts</code>) classifies each pinned entry as <code>absent</code> (nothing on disk) or <code>truncated</code> (only some files on disk). The startup warning, <code>extension list</code> and <code>doctor extensions</code> (CLI and serve) all use it. Lockfile paths that point outside the repo are never statted.</li>
+<li><strong>doctor extensions:</strong></li>
+<li>Adds a <code>missingExtensions</code> list to the report.</li>
+<li>An absent or truncated pinned extension now fails <code>overallStatus</code> and exits 1, even though every registry still passes.</li>
+<li>An absent entry the auto-resolver will install on next use (managed-config checkouts) is listed as advisory and does not fail the run.</li>
+<li>A lockfile that can&#39;t be read after one retry becomes a <code>LockfileUnreadable</code> warning instead of aborting the report.</li>
+<li><strong>extension list:</strong> entries gain <code>missing</code>, <code>missingFiles</code> and <code>installsOnNextUse</code>. Log mode adds a row marker and a footer pointing to <code>swamp extension install</code>.</li>
+<li><strong>Docs:</strong> <code>design/primitives/extensions.md</code> and the swamp skill&#39;s</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261111.214515.0-sha.d7bb6063" rel="noopener">release v20261111.214515.0-sha.d7bb6063</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d7bb6063" rel="noopener">d7bb6063</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3757" rel="noopener">#3757</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261111-213902-0-sha-ca406133">
+<h2><span class="tier C">C</span>swamp 20261111.213902.0-sha.ca406133</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-11T21:43:40Z">2026-11-11T21:43:40Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(extensions): an extension lockfile that repeats a key is refused instead of silently keeping the last pin (swamp-club#4663) (#3756)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>JSON.parse</code> keeps the last of two equal keys, so a lockfile listing <code>@example/one</code> at 1.0.0 and again at 2.0.0 read as 2.0.0 alone. <code>swamp extension list</code> and <code>swamp extension install</code> exited 0, and the next lockfile write dropped the 1.0.0 entry for good.</p>
+<ul>
+<li><code>findDuplicateJsonKey</code> (new, <code>src/infrastructure/persistence/json_duplicate_keys.ts</code>) scans text <code>JSON.parse</code> has already accepted and reports the first key repeated in any object at any depth, with the path to it. It is iterative, so deep nesting cannot overflow the stack, and it decodes each key as <code>JSON.parse</code> does, so escaped spellings of one key count as a repeat.</li>
+<li><code>readUpstreamExtensions</code> throws its existing path-marked corrupt-lockfile <code>SyntaxError</code> on a repeat: <code>Lockfile &lt;path&gt; lists &quot;@example/one&quot; more than once</code>, or <code>repeats key &quot;version&quot; in &quot;@a/x&quot;</code> when nested. Every lockfile reader goes through this function, and callers that treat a <code>SyntaxError</code> as a corrupt lockfile need no change. <code>LockfileRepository.normalize()</code> and the write paths now refuse before rewriting the file.</li>
+<li>Keys come from a repo-controlled file, so they are printed with <code>JSON.stringify</code> and then <code>escapeControlCharacters</code>, which also covers DEL and the C1 controls that <code>JSON.stringify</code> leaves raw.</li>
+</ul>
+<p>Out of scope, filed separately: a corrupt lockfile still prints a stack tra</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261111.213902.0-sha.ca406133" rel="noopener">release v20261111.213902.0-sha.ca406133</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ca406133" rel="noopener">ca406133</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3756" rel="noopener">#3756</a>𝗔 <a href="https://swamp-club.com/lab/4665" rel="noopener">lab#4665</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261111-213316-0-sha-8aa3e08d">
+<h2><span class="tier C">C</span>swamp 20261111.213316.0-sha.8aa3e08d</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-11T21:38:08Z">2026-11-11T21:38:08Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(behavior): a type marks a method argument data with .meta({ data: true }), and --input-data reads one input from a file as data (swamp-club#4649) (#3755)</li>
+</ul>
+<p><strong>Extension authors:</strong> a method argument marked <code>.meta({ data: true })</code> is now data in every route: <code>${{ ... }}</code> text a caller supplies for it reaches the method verbatim and is stored byte for byte. Swamp before this release ignores the marker and evaluates, so keep passing <code>--literal-inputs</code> until your type requires this release. A server that honours the marker lists <code>data-arguments</code> in <code>server.version</code>.</p>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#4649.</p>
+<ul>
+<li><strong>The marker.</strong> A value a caller supplies for a method argument marked <code>.meta({ data: true })</code> is never evaluated. That holds for <code>--input</code>, <code>--input key=@file</code>, <code>--input-file</code>, <code>--stdin</code>, <code>swamp serve</code>, and a follower forwarding to its leader. It reaches nested fields, array elements and record values; on the arguments object it makes every argument data. A definition input the marked argument&#39;s own source reads through <code>${{ inputs.x }}</code> is data for that run too. Text written in the definition or a workflow step is the author&#39;s and still evaluates. Registering a type with the marker in <code>globalArguments</code> fails.</li>
+<li><strong>Why.</strong> An agent-written payload that mentions a resolvable <code>vault.get</code> used to reach the method as the secret. Swamp then redacted it to <code>***</code> on write, so the stored bytes no longer matched what the method hashed (swamp-club#4596).</li>
+<li>**`--input-</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261111.213316.0-sha.8aa3e08d" rel="noopener">release v20261111.213316.0-sha.8aa3e08d</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8aa3e08d" rel="noopener">8aa3e08d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3755" rel="noopener">#3755</a>𝗔 <a href="https://swamp-club.com/lab/4649" rel="noopener">lab#4649</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261111-200329-0-sha-4be6d907">
+<h2><span class="tier C">C</span>swamp 20261111.200329.0-sha.4be6d907</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-11T20:07:43Z">2026-11-11T20:07:43Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(cli): an invalid log level is refused with a usage error naming its source instead of a raw TypeError (swamp-club#4662) (#3754)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>--log-level</code>, <code>SWAMP_LOG_LEVEL</code> and <code>logLevel</code> in <code>.swamp.yaml</code> were passed straight to LogTape&#39;s <code>parseLogLevel</code>. An unknown value such as <code>bogus</code> or <code>help</code> crashed with <code>TypeError: Invalid log level</code> and a stack trace, in both log and json modes.</p>
+<ul>
+<li><code>parseLogLevelSetting(value, source)</code> wraps <code>parseLogLevel</code> and throws a <code>UserError</code> that names the source and lists the accepted levels:</li>
+</ul>
+<p>  <code>Invalid log level &quot;bogus&quot; for --log-level. Expected one of: trace, debug, info, warning, error, fatal.</code></p>
+<ul>
+<li><code>resolveLogLevel</code> checks the env value and the <code>.swamp.yaml</code> value through that helper, so each error names its own source.</li>
+<li>The level selection moves out of the root global action into <code>selectLogLevel</code>, so it can be unit-tested. Precedence is unchanged (quiet, flag, env, config, then <code>info</code>, with <code>-v</code> raising <code>info</code> to <code>debug</code>). A source that is overridden is never parsed.</li>
+<li>Hook mode (<code>swamp audit record</code>) uses the default level instead of failing, because hook mode must not fail. Before this change the old binary crashed the hook on a bad flag or env value.</li>
+</ul>
+<p>Matching stays case-insensitive, so <code>--log-level DEBUG</code> still works. The option is still declared as <code>&lt;level:string&gt;</code>, so the <code>swamp help</code> JSON schema doesn&#39;t change. A Cliffy <code>EnumType</code> was considered and rejected: it is case-sensitive, it would change the schema,</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261111.200329.0-sha.4be6d907" rel="noopener">release v20261111.200329.0-sha.4be6d907</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4be6d907" rel="noopener">4be6d907</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3754" rel="noopener">#3754</a>𝗔 <a href="https://swamp-club.com/lab/4662" rel="noopener">lab#4662</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261111-194243-0-sha-a72a2318">
 <h2><span class="tier C">C</span>the root-help property accepts help as the --log-level value (swamp-club#4661) (#3753)</h2>
 <p class="lede">`test` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-11-11T19:46:31Z">2026-11-11T19:46:31Z</time></span><span>cli</span><span>test</span></div>
@@ -5318,13 +5402,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261101.202412.0-sha.0500dc35" rel="noopener">release v20261101.202412.0-sha.0500dc35</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0500dc35534060a870a5998e5dddbcd015dfc2e1" rel="noopener">0500dc35</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3528" rel="noopener">#3528</a>𝗔 <a href="https://swamp-club.com/lab/4250" rel="noopener">lab#4250</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>221 items across 1 source(s) in this window:
+<p>225 items across 1 source(s) in this window:
 2 critical, 191 notable, 19 routine,
-9 minor.</p>
-<ul><li><strong>fix</strong> — 141</li><li><strong>feat</strong> — 52</li><li><strong>perf</strong> — 15</li><li><strong>test</strong> — 5</li><li><strong>refactor</strong> — 3</li><li><strong>docs</strong> — 3</li></ul></section>
+13 minor.</p>
+<ul><li><strong>fix</strong> — 141</li><li><strong>feat</strong> — 52</li><li><strong>perf</strong> — 15</li><li><strong>test</strong> — 5</li><li><strong>changes</strong> — 4</li><li><strong>refactor</strong> — 3</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-11T21:03:22.752Z">2026-11-11T21:03:22.752Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-11T22:18:35.264Z">2026-11-11T22:18:35.264Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

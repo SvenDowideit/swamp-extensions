@@ -1,0 +1,888 @@
+/* ==========================================================================
+   BORLAND MODERN BLUE — an Obsidian theme
+   A port of the herdr "borland-modern-blue" palette: deep Borland IDE blue,
+   ice-white text, cyan chrome, amber highlights — the Turbo Pascal / Turbo C
+   look, modernised for reading and writing in Obsidian.
+
+   Palette source: ~/.config/herdr-app/themes/borland-modern-blue.json
+     surface #003078 · canvas #00285f · chrome #004e84 · raised #006c90
+     border  #3f95b8 · text #e8f1fb · muted #b9cfe6 · dim #8ba6c1
+     accent  #5fe0ff · working #ffb84d · blocked #ff8a7a
+     ansi: #001f4d #ff8a7a #6fe89a #ffb84d #8fb0ff #e9a6ff #5fe0ff #cfe0f0
+           #7f9cb8 #ffada0 #9df7bb #ffc04d #a8c4ff #f2bcff #8ff0ff #ffffff
+
+   Dark is the home palette. Light is a "Borland manual" paper counterpart so
+   light mode stays usable. Works with the Style Settings plugin (options below).
+   ========================================================================== */
+
+/* @settings
+name: Borland Modern Blue
+id: borland-modern-blue
+settings:
+    -
+        id: borland-welcome
+        title: Borland Modern Blue
+        description: "The **herdr** `borland-modern-blue` palette — deep IDE blue, ice-white text, cyan chrome and amber highlights. Dark mode is the real thing; light mode is a *Borland manual* paper counterpart."
+        type: info-text
+        markdown: true
+    -
+        id: borland-appearance-head
+        title: Appearance
+        type: heading
+        level: 2
+        collapsed: false
+    -
+        id: borland-accent
+        title: Accent colour
+        description: Drives links, active states and highlights. Default is herdr cyan.
+        type: variable-color
+        format: hex
+        opacity: false
+        default: '#5fe0ff'
+    -
+        id: borland-radius
+        title: Corner radius
+        description: "DOS boxes are square. 0–1px is the authentic IDE look; raise it to soften."
+        type: variable-number-slider
+        format: px
+        default: 1
+        min: 0
+        max: 12
+        step: 1
+    -
+        id: borland-font
+        title: Interface font
+        description: Monospace everywhere is the Borland way. Pick the sans option for a calmer UI with a mono editor.
+        type: class-select
+        allowEmpty: false
+        default: borland-font-mono
+        options:
+            -
+                label: Monospace (Borland IDE)
+                value: borland-font-mono
+            -
+                label: Sans-serif UI, monospace editor
+                value: borland-font-sans
+    -
+        id: borland-effects-head
+        title: Effects
+        type: heading
+        level: 2
+        collapsed: false
+    -
+        id: borland-uppercase
+        title: UPPERCASE IDE labels
+        description: Uppercases tabs, file names, menus and small UI labels, like an old IDE menu bar.
+        type: class-toggle
+        default: false
+    -
+        id: borland-glow
+        title: Phosphor glow
+        description: Soft cyan bloom on headings, links and active tabs.
+        type: class-toggle
+        default: false
+    -
+        id: borland-crt
+        title: CRT scanlines
+        description: Faint horizontal scanlines over the window, for full 1987 authenticity.
+        type: class-toggle
+        default: false
+*/
+
+/* --------------------------------------------------------------------------
+   1. Fonts — local families only, nothing to download
+   -------------------------------------------------------------------------- */
+:root {
+	--borland-font-mono-stack: 'Ubuntu Sans Mono', 'Ubuntu Mono', 'DejaVu Sans Mono',
+		'Noto Sans Mono', 'Liberation Mono', ui-monospace, monospace;
+	--borland-font-sans-stack: 'Noto Sans', 'Ubuntu', 'DejaVu Sans', system-ui, sans-serif;
+
+	--borland-font-ui: var(--borland-font-mono-stack);
+	--borland-font-text: var(--borland-font-mono-stack);
+	--borland-font-display: var(--borland-font-mono-stack);
+	--borland-font-code: var(--borland-font-mono-stack);
+
+	--borland-radius: 1px;
+}
+
+/* font class-selectors (set by Style Settings on <body>) */
+body.borland-font-sans {
+	--borland-font-ui: var(--borland-font-sans-stack);
+	--borland-font-display: var(--borland-font-sans-stack);
+	--borland-font-text: var(--borland-font-sans-stack);
+}
+
+/* --------------------------------------------------------------------------
+   2. DARK palette — Borland IDE blue (the herdr palette, verbatim)
+   -------------------------------------------------------------------------- */
+.theme-dark {
+	--borland-bg: #003078;
+	--borland-bg-deep: #00285f;
+	--borland-chrome: #004e84;
+	--borland-popover: #004e84;
+	--borland-raised: #006c90;
+	--borland-hover: #006c90;
+	--borland-selected: #ffffff17;
+
+	--borland-border: #3f95b8;
+	--borland-border-strong: #5fe0ff;
+
+	--borland-text: #e8f1fb;
+	--borland-text-bright: #ffffff;
+	--borland-muted: #b9cfe6;
+	--borland-dim: #8ba6c1;
+	--borland-faint: #7f9cb8;
+
+	--borland-accent: #5fe0ff;
+	/* the accent used for text/links/fills; kept in step with --borland-accent,
+	   which Style Settings can override on <body> */
+	--borland-accent-2: var(--borland-accent);
+	--borland-accent-fg: #003078;
+
+	--borland-red: #ff8a7a;
+	--borland-green: #6fe89a;
+	--borland-amber: #ffb84d;
+	--borland-blue: #8fb0ff;
+	--borland-magenta: #e9a6ff;
+	--borland-cyan: #5fe0ff;
+	--borland-white: #ffffff;
+	--borland-ansi-black: #001f4d;
+
+	--borland-shadow: 0 10px 30px rgba(0, 12, 32, 0.55);
+	--borland-cover: rgba(0, 32, 72, 0.72);
+}
+
+/* --------------------------------------------------------------------------
+   3. LIGHT palette — "Borland manual" paper
+   -------------------------------------------------------------------------- */
+.theme-light {
+	--borland-bg: #f3f7fc;
+	--borland-bg-deep: #e5edf7;
+	--borland-chrome: #dbe7f4;
+	--borland-popover: #ffffff;
+	--borland-raised: #cfe0f0;
+	--borland-hover: #e2ecf7;
+	--borland-selected: rgba(0, 48, 120, 0.12);
+
+	--borland-border: #a9c1d8;
+	--borland-border-strong: #00568f;
+
+	--borland-text: #10233c;
+	--borland-text-bright: #04121f;
+	--borland-muted: #4a6b8a;
+	--borland-dim: #6c88a3;
+	--borland-faint: #93a9bd;
+
+	--borland-accent: #00568f;
+	/* on paper the (possibly user-chosen) accent is darkened so links stay readable */
+	--borland-accent-2: color-mix(in srgb, var(--borland-accent) 55%, #08203a);
+	--borland-accent-fg: #ffffff;
+
+	--borland-red: #a3301f;
+	--borland-green: #1c6b3c;
+	--borland-amber: #8a5a00;
+	--borland-blue: #1d4f9e;
+	--borland-magenta: #7b2f8f;
+	--borland-cyan: #00677a;
+	--borland-white: #ffffff;
+	--borland-ansi-black: #d7e3ef;
+
+	--borland-shadow: 0 10px 30px rgba(20, 45, 70, 0.18);
+	--borland-cover: rgba(240, 245, 250, 0.72);
+}
+
+/* --------------------------------------------------------------------------
+   4. Obsidian variable mappings
+   -------------------------------------------------------------------------- */
+body {
+	--font-interface-theme: var(--borland-font-ui);
+	--font-text-theme: var(--borland-font-text);
+	--font-monospace-theme: var(--borland-font-code);
+
+	--font-text-size: 15px;
+	--line-height-normal: 1.6;
+
+	/* text */
+	--text-normal: var(--borland-text);
+	--text-bright: var(--borland-text-bright);
+	--text-muted: var(--borland-muted);
+	--text-faint: var(--borland-dim);
+	--text-faintest: var(--borland-faint);
+	--text-on-accent: var(--borland-accent-fg);
+	--text-on-accent-inverted: var(--borland-text);
+	--text-accent: var(--borland-accent-2);
+	--text-accent-hover: var(--borland-amber);
+	--text-selection: color-mix(in srgb, var(--borland-accent) 30%, transparent);
+	--text-highlight-bg: color-mix(in srgb, var(--borland-amber) 32%, transparent);
+	--text-highlight-bg-active: color-mix(in srgb, var(--borland-amber) 55%, transparent);
+	--text-error: var(--borland-red);
+	--text-success: var(--borland-green);
+	--text-warning: var(--borland-amber);
+	--caret-color: var(--borland-accent);
+
+	/* surfaces */
+	--background-primary: var(--borland-bg);
+	--background-primary-alt: var(--borland-bg-deep);
+	--background-secondary: var(--borland-chrome);
+	--background-secondary-alt: var(--borland-popover);
+	--background-modifier-border: var(--borland-border);
+	--background-modifier-border-hover: color-mix(in srgb, var(--borland-accent) 45%, transparent);
+	--background-modifier-border-focus: var(--borland-border-strong);
+	--background-modifier-hover: color-mix(in srgb, var(--borland-accent) 12%, transparent);
+	--background-modifier-active-hover: color-mix(in srgb, var(--borland-accent) 20%, transparent);
+	--background-modifier-form-field: color-mix(in srgb, var(--borland-chrome) 70%, transparent);
+	--background-modifier-form-field-highlighted: var(--borland-raised);
+	--background-modifier-box-shadow: var(--borland-shadow);
+	--background-modifier-success: color-mix(in srgb, var(--borland-green) 24%, transparent);
+	--background-modifier-error: color-mix(in srgb, var(--borland-red) 24%, transparent);
+	--background-modifier-error-hover: color-mix(in srgb, var(--borland-red) 34%, transparent);
+	--background-modifier-cover: var(--borland-cover);
+
+	/* interactive */
+	--interactive-normal: var(--borland-popover);
+	--interactive-hover: var(--borland-raised);
+	--interactive-accent: var(--borland-accent-2);
+	--interactive-accent-hover: color-mix(in srgb, var(--borland-accent-2) 78%, var(--borland-white));
+	--interactive-success: var(--borland-green);
+	--interactive-accent-rgb: 95, 224, 255;
+
+	/* chrome */
+	--divider-color: var(--borland-border);
+	--divider-color-hover: var(--borland-border-strong);
+	--tab-outline-color: var(--borland-border);
+	--prompt-border-color: var(--borland-border-strong);
+	--titlebar-background: var(--borland-chrome);
+	--titlebar-background-focused: var(--borland-chrome);
+	--titlebar-text-color: var(--borland-muted);
+	--titlebar-text-color-focused: var(--borland-text-bright);
+	--status-bar-background: var(--borland-chrome);
+	--status-bar-border-color: var(--borland-border);
+	--status-bar-text-color: var(--borland-muted);
+	--ribbon-background: var(--borland-chrome);
+	--ribbon-background-collapsed: var(--borland-bg-deep);
+	--scrollbar-bg: transparent;
+	--scrollbar-thumb-bg: color-mix(in srgb, var(--borland-accent) 28%, transparent);
+	--scrollbar-active-thumb-bg: color-mix(in srgb, var(--borland-accent) 60%, transparent);
+
+	/* radius — square by default */
+	--radius-s: var(--borland-radius);
+	--radius-m: calc(var(--borland-radius) + 1px);
+	--radius-l: calc(var(--borland-radius) + 2px);
+	--radius-xl: calc(var(--borland-radius) + 3px);
+
+	/* headings — Borland menu colours: amber, cyan, green, blue, magenta */
+	--h1-color: var(--borland-amber);
+	--h2-color: var(--borland-accent);
+	--h3-color: var(--borland-green);
+	--h4-color: var(--borland-blue);
+	--h5-color: var(--borland-magenta);
+	--h6-color: var(--borland-dim);
+	--h1-weight: 700;
+	--h2-weight: 700;
+	--h3-weight: 600;
+	--h4-weight: 600;
+	--h5-weight: 600;
+	--h6-weight: 600;
+	--h1-font: var(--borland-font-display);
+	--h2-font: var(--borland-font-display);
+	--h3-font: var(--borland-font-display);
+	--h4-font: var(--borland-font-display);
+	--h5-font: var(--borland-font-display);
+	--h6-font: var(--borland-font-display);
+	--heading-spacing: 1.5em;
+	--bold-color: var(--borland-text-bright);
+	--italic-color: var(--borland-muted);
+
+	/* links */
+	--link-color: var(--borland-accent-2);
+	--link-color-hover: var(--borland-amber);
+	--link-decoration: none;
+	--link-decoration-hover: underline;
+	--link-external-color: var(--borland-amber);
+	--link-external-color-hover: var(--borland-accent);
+	--link-unresolved-color: var(--borland-red);
+	--link-unresolved-opacity: 0.85;
+
+	/* tags */
+	--tag-color: var(--borland-accent-2);
+	--tag-color-hover: var(--borland-accent-fg);
+	--tag-background: color-mix(in srgb, var(--borland-accent) 14%, transparent);
+	--tag-background-hover: var(--borland-accent-2);
+	--tag-border-color: var(--borland-border);
+	--tag-border-width: 1px;
+	--tag-padding-x: 0.4em;
+	--tag-padding-y: 0.05em;
+	--tag-radius: 0px;
+	--tag-weight: 500;
+
+	/* code — the herdr ANSI set */
+	--code-background: var(--borland-bg-deep);
+	--code-normal: var(--borland-text);
+	--code-comment: var(--borland-dim);
+	--code-function: var(--borland-cyan);
+	--code-important: var(--borland-magenta);
+	--code-keyword: var(--borland-magenta);
+	--code-property: var(--borland-text);
+	--code-punctuation: var(--borland-muted);
+	--code-string: var(--borland-green);
+	--code-tag: var(--borland-amber);
+	--code-value: var(--borland-amber);
+	--code-white-space: pre;
+
+	/* blockquote */
+	--blockquote-border-color: var(--borland-accent-2);
+	--blockquote-border-thickness: 3px;
+	--blockquote-color: var(--borland-muted);
+	--blockquote-background-color: color-mix(in srgb, var(--borland-ansi-black) 35%, transparent);
+	--blockquote-font-style: normal;
+
+	/* checkboxes — amber ticks */
+	--checkbox-border-color: var(--borland-border);
+	--checkbox-border-color-hover: var(--borland-accent);
+	--checkbox-color: var(--borland-amber);
+	--checkbox-color-hover: var(--borland-accent);
+	--checkbox-marker-color: var(--borland-ansi-black);
+	--checklist-done-color: var(--borland-dim);
+	--checklist-done-decoration: line-through;
+
+	/* callouts */
+	--callout-border-width: 0 0 0 3px;
+	--callout-border-opacity: 0.9;
+	--callout-radius: 0px;
+	--callout-title-weight: 700;
+	--callout-padding: 12px 16px;
+	--callout-blend-mode: normal;
+
+	/* embeds / canvas */
+	--embed-border-start: 3px solid var(--borland-accent-2);
+	--embed-background: var(--borland-bg-deep);
+	--canvas-background: var(--borland-bg-deep);
+	--canvas-card-label-color: var(--borland-muted);
+	--canvas-dot-pattern: var(--borland-border);
+
+	/* graph */
+	--graph-line: color-mix(in srgb, var(--borland-accent) 32%, transparent);
+	--graph-node: var(--borland-accent-2);
+	--graph-node-focused: var(--borland-amber);
+	--graph-node-tag: var(--borland-green);
+	--graph-node-attachment: var(--borland-magenta);
+	--graph-node-unresolved: var(--borland-red);
+
+	/* 1.9+ colour tokens, so plugins that read them follow the palette too */
+	--color-base-00: var(--borland-bg);
+	--color-base-05: var(--borland-bg-deep);
+	--color-base-10: var(--borland-chrome);
+	--color-base-20: var(--borland-popover);
+	--color-base-25: var(--borland-raised);
+	--color-base-30: var(--borland-border);
+	--color-base-35: var(--borland-faint);
+	--color-base-40: var(--borland-dim);
+	--color-base-50: var(--borland-muted);
+	--color-base-60: var(--borland-muted);
+	--color-base-70: var(--borland-text);
+	--color-base-100: var(--borland-text-bright);
+	--color-red: var(--borland-red);
+	--color-orange: var(--borland-amber);
+	--color-yellow: var(--borland-amber);
+	--color-green: var(--borland-green);
+	--color-cyan: var(--borland-cyan);
+	--color-blue: var(--borland-blue);
+	--color-purple: var(--borland-magenta);
+	--color-pink: var(--borland-magenta);
+	--color-accent: var(--borland-accent-2);
+	--color-accent-1: var(--borland-accent);
+	--color-accent-2: var(--borland-accent-2);
+}
+
+/* --------------------------------------------------------------------------
+   5. Base chrome
+   -------------------------------------------------------------------------- */
+.titlebar {
+	background-color: var(--borland-chrome);
+	border-bottom: 1px solid var(--borland-border);
+}
+.titlebar-button {
+	color: var(--borland-muted);
+}
+.titlebar-button:hover {
+	background-color: var(--borland-raised);
+	color: var(--borland-text-bright);
+}
+
+.workspace-tab-header-container {
+	background-color: var(--borland-chrome);
+	border-bottom: 1px solid var(--borland-border);
+}
+.workspace-tab-header {
+	background-color: transparent;
+	border-radius: 0;
+	color: var(--borland-muted);
+}
+.workspace-tab-header:hover {
+	background-color: color-mix(in srgb, var(--borland-raised) 60%, transparent);
+}
+.workspace-tab-header.is-active {
+	background-color: var(--borland-bg);
+	box-shadow: inset 0 -2px 0 0 var(--borland-accent-2);
+	color: var(--borland-text-bright);
+}
+.workspace-tab-header.is-active .workspace-tab-header-inner-title {
+	color: var(--borland-accent-2);
+}
+.workspace-tab-header-inner-close-button:hover {
+	background-color: var(--borland-red);
+	color: var(--borland-ansi-black);
+}
+
+.workspace-ribbon {
+	background-color: var(--borland-chrome);
+	border-right: 1px solid var(--borland-border);
+}
+.workspace-ribbon .clickable-icon {
+	color: var(--borland-muted);
+}
+.workspace-ribbon .clickable-icon:hover {
+	color: var(--borland-accent-2);
+	background-color: var(--borland-raised);
+}
+
+.workspace-leaf-resize-handle {
+	background-color: transparent;
+}
+.workspace-leaf-resize-handle:hover {
+	background-color: var(--borland-border-strong);
+}
+
+.nav-files-container,
+.workspace-sidedock-vault-profile,
+.workspace-split.mod-left-split .workspace-tabs,
+.workspace-split.mod-right-split .workspace-tabs {
+	background-color: var(--borland-chrome);
+}
+.nav-file-title,
+.nav-folder-title {
+	color: var(--borland-text);
+	border-radius: 0;
+}
+.nav-file-title:hover,
+.nav-folder-title:hover {
+	background-color: color-mix(in srgb, var(--borland-accent) 12%, transparent);
+}
+.nav-file-title.is-active {
+	background-color: var(--borland-selected);
+	box-shadow: inset 2px 0 0 0 var(--borland-accent-2);
+	color: var(--borland-text-bright);
+}
+.nav-folder-title {
+	color: var(--borland-muted);
+}
+.collapse-icon {
+	color: var(--borland-dim);
+}
+
+.view-header {
+	background-color: var(--borland-bg);
+	border-bottom: 1px solid var(--borland-border);
+}
+.view-header-title {
+	color: var(--borland-text);
+}
+
+.status-bar {
+	background-color: var(--borland-chrome);
+	border-top: 1px solid var(--borland-border);
+	color: var(--borland-muted);
+	font-family: var(--borland-font-code);
+	font-size: 11px;
+	letter-spacing: 0.04em;
+}
+
+/* --------------------------------------------------------------------------
+   6. Buttons, inputs, menus, modals
+   -------------------------------------------------------------------------- */
+button,
+.btn {
+	background-color: var(--borland-popover);
+	border: 1px solid var(--borland-border);
+	border-radius: var(--borland-radius);
+	box-shadow: none;
+	color: var(--borland-text);
+}
+button:hover,
+.btn:hover {
+	background-color: var(--borland-raised);
+	border-color: var(--borland-border-strong);
+	color: var(--borland-text-bright);
+}
+button.mod-cta,
+.btn.mod-cta {
+	background-color: var(--borland-accent-2);
+	border-color: var(--borland-accent-2);
+	color: var(--borland-accent-fg);
+}
+button.mod-cta:hover,
+.btn.mod-cta:hover {
+	background-color: var(--borland-accent);
+}
+
+input[type='text'],
+input[type='search'],
+input[type='email'],
+input[type='password'],
+input[type='number'],
+textarea,
+select,
+.dropdown,
+.search-input-container input {
+	background-color: var(--borland-bg);
+	border: 1px solid var(--borland-border);
+	border-radius: var(--borland-radius);
+	color: var(--borland-text);
+}
+input:focus,
+textarea:focus,
+select:focus,
+.dropdown:focus {
+	border-color: var(--borland-border-strong);
+	box-shadow: 0 0 0 2px color-mix(in srgb, var(--borland-accent) 28%, transparent);
+}
+
+.menu,
+.suggestion-container,
+.prompt,
+.modal {
+	background-color: var(--borland-popover);
+	border: 1px solid var(--borland-border-strong);
+	border-radius: var(--borland-radius);
+	box-shadow: var(--borland-shadow);
+}
+.menu-item:hover,
+.suggestion-item.is-selected,
+.suggestion-item:hover {
+	background-color: var(--borland-raised);
+	color: var(--borland-text-bright);
+}
+.menu-item.is-warning:hover {
+	background-color: var(--borland-red);
+	color: var(--borland-ansi-black);
+}
+.menu-separator {
+	border-top: 1px solid var(--borland-border);
+}
+.prompt-input {
+	background-color: var(--borland-bg);
+	border-top: 1px solid var(--borland-border);
+}
+
+/* settings / plugin browser */
+.setting-item {
+	border-top: 1px solid color-mix(in srgb, var(--borland-border) 60%, transparent);
+}
+.setting-item-name {
+	color: var(--borland-text);
+}
+.setting-item-description {
+	color: var(--borland-muted);
+}
+.vertical-tab-header {
+	background-color: var(--borland-chrome);
+	border-right: 1px solid var(--borland-border);
+}
+.vertical-tab-nav-item.is-active {
+	background-color: var(--borland-selected);
+	color: var(--borland-accent-2);
+}
+
+/* toggle / checkbox */
+.checkbox-container {
+	background-color: var(--borland-ansi-black);
+	border: 1px solid var(--borland-border);
+	border-radius: var(--borland-radius);
+}
+.checkbox-container.is-enabled {
+	background-color: var(--borland-accent-2);
+	border-color: var(--borland-accent-2);
+}
+input[type='checkbox'] {
+	border: 1px solid var(--borland-border);
+	border-radius: 0;
+}
+input[type='checkbox']:checked {
+	background-color: var(--borland-amber);
+	border-color: var(--borland-amber);
+}
+
+::-webkit-scrollbar-thumb {
+	background-color: var(--scrollbar-thumb-bg);
+	border-radius: 0;
+}
+::-webkit-scrollbar-thumb:hover {
+	background-color: var(--scrollbar-active-thumb-bg);
+}
+
+/* --------------------------------------------------------------------------
+   7. Editor & reading view
+   -------------------------------------------------------------------------- */
+.markdown-preview-view,
+.markdown-source-view.mod-cm6 {
+	--file-line-width: 46rem;
+}
+
+.markdown-rendered,
+.markdown-preview-view {
+	color: var(--borland-text);
+}
+
+.markdown-preview-view h1,
+.markdown-preview-view h2,
+.markdown-preview-view h3,
+.markdown-preview-view h4,
+.markdown-preview-view h5,
+.markdown-preview-view h6,
+.HyperMD-header,
+.cm-header {
+	font-family: var(--borland-font-display);
+	letter-spacing: 0.03em;
+}
+
+/* H1 gets the double-line Borland box rule */
+.markdown-preview-view h1 {
+	text-transform: uppercase;
+	letter-spacing: 0.09em;
+	border-bottom: 3px double var(--borland-amber);
+	padding-bottom: 0.18em;
+}
+.markdown-preview-view h2 {
+	border-bottom: 1px solid color-mix(in srgb, var(--borland-accent) 45%, transparent);
+	padding-bottom: 0.12em;
+}
+.markdown-preview-view h3::before,
+.HyperMD-header-3::before,
+.cm-header-3::before {
+	content: '» ';
+	color: var(--borland-dim);
+}
+
+/* inline code + code blocks */
+.markdown-rendered code,
+.cm-s-obsidian span.cm-inline-code {
+	background-color: var(--borland-bg-deep);
+	border: 1px solid var(--borland-border);
+	border-radius: 0;
+	color: var(--borland-amber);
+	font-family: var(--borland-font-code);
+	padding: 0.08em 0.3em;
+}
+.markdown-rendered pre,
+.markdown-source-view.mod-cm6 .cm-line.HyperMD-codeblock {
+	background-color: var(--borland-bg-deep);
+	border: 1px solid var(--borland-border);
+	border-left: 3px solid var(--borland-accent-2);
+	border-radius: 0;
+}
+.markdown-rendered pre {
+	position: relative;
+}
+/* code block corner tag, like an IDE panel label */
+.markdown-rendered pre::after {
+	content: 'CODE';
+	position: absolute;
+	top: 0;
+	right: 0;
+	padding: 1px 6px;
+	background-color: var(--borland-chrome);
+	color: var(--borland-dim);
+	border-left: 1px solid var(--borland-border);
+	border-bottom: 1px solid var(--borland-border);
+	font-family: var(--borland-font-code);
+	font-size: 0.65em;
+	letter-spacing: 0.12em;
+	pointer-events: none;
+}
+
+/* blockquote — indented "compiler message" */
+.markdown-rendered blockquote,
+.HyperMD-quote {
+	font-style: normal;
+}
+.markdown-rendered blockquote {
+	color: var(--borland-muted);
+}
+
+/* rules, tables */
+.markdown-rendered hr {
+	border: none;
+	border-top: 1px dashed var(--borland-border);
+}
+.markdown-rendered table {
+	border-collapse: collapse;
+}
+.markdown-rendered th {
+	background-color: var(--borland-raised);
+	color: var(--borland-text-bright);
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	font-size: 0.92em;
+	border: 1px solid var(--borland-border);
+}
+.markdown-rendered td {
+	border: 1px solid var(--borland-border);
+	color: var(--borland-text);
+}
+.markdown-rendered tr:nth-child(even) td {
+	background-color: color-mix(in srgb, var(--borland-chrome) 35%, transparent);
+}
+
+/* tags rendered as [bracketed] IDE tokens */
+a.tag {
+	font-family: var(--borland-font-code);
+	border-radius: 0;
+}
+a.tag::before {
+	content: '[';
+	opacity: 0.65;
+}
+a.tag::after {
+	content: ']';
+	opacity: 0.65;
+}
+
+/* callouts — per-type colours from the herdr ANSI set */
+.callout {
+	border-radius: 0;
+	background-color: color-mix(in srgb, var(--borland-ansi-black) 28%, transparent);
+}
+.callout-title {
+	font-family: var(--borland-font-display);
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+}
+.callout[data-callout='note'],
+.callout[data-callout='info'] {
+	--callout-color: 95, 224, 255;
+}
+.callout[data-callout='tip'],
+.callout[data-callout='hint'],
+.callout[data-callout='success'],
+.callout[data-callout='check'],
+.callout[data-callout='done'] {
+	--callout-color: 111, 232, 154;
+}
+.callout[data-callout='warning'],
+.callout[data-callout='caution'],
+.callout[data-callout='attention'] {
+	--callout-color: 255, 184, 77;
+}
+.callout[data-callout='danger'],
+.callout[data-callout='error'],
+.callout[data-callout='failure'],
+.callout[data-callout='fail'],
+.callout[data-callout='bug'],
+.callout[data-callout='missing'] {
+	--callout-color: 255, 138, 122;
+}
+.callout[data-callout='question'],
+.callout[data-callout='help'],
+.callout[data-callout='faq'],
+.callout[data-callout='example'],
+.callout[data-callout='quote'],
+.callout[data-callout='cite'],
+.callout[data-callout='abstract'],
+.callout[data-callout='summary'],
+.callout[data-callout='tldr'] {
+	--callout-color: 233, 166, 255;
+}
+.callout[data-callout='todo'] {
+	--callout-color: 143, 176, 255;
+}
+
+/* list markers — amber bullets, cyan numbers */
+.markdown-rendered ul > li::marker,
+.markdown-preview-view ul > li::marker,
+.cm-s-obsidian .cm-formatting-list-ul {
+	color: var(--borland-amber);
+}
+.markdown-rendered ol > li::marker,
+.markdown-preview-view ol > li::marker,
+.cm-s-obsidian .cm-formatting-list-ol {
+	color: var(--borland-accent-2);
+}
+
+/* selection + search hits */
+.cm-s-obsidian .cm-selectionBackground,
+.markdown-preview-view ::selection {
+	background-color: var(--borland-raised);
+}
+.search-result-file-matched-text,
+.cm-s-obsidian .cm-search-match {
+	background-color: color-mix(in srgb, var(--borland-amber) 40%, transparent);
+	color: var(--borland-text-bright);
+}
+
+/* --------------------------------------------------------------------------
+   8. Plugin surfaces that read the palette
+   -------------------------------------------------------------------------- */
+.graph-controls {
+	background-color: var(--borland-popover);
+	border: 1px solid var(--borland-border);
+}
+.canvas-node-content {
+	color: var(--borland-text);
+}
+.canvas-node {
+	border-color: var(--borland-border);
+}
+/* dataview-ish tables and any "code"-ish embeds inherit --code-* above */
+
+/* --------------------------------------------------------------------------
+   9. Style Settings toggles
+   -------------------------------------------------------------------------- */
+
+/* --- UPPERCASE IDE labels --- */
+body.borland-uppercase .workspace-tab-header-inner-title,
+body.borland-uppercase .nav-file-title,
+body.borland-uppercase .nav-folder-title,
+body.borland-uppercase .view-header-title,
+body.borland-uppercase .menu-item,
+body.borland-uppercase .status-bar,
+body.borland-uppercase .setting-item-name {
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+}
+body.borland-uppercase .nav-file-title,
+body.borland-uppercase .nav-folder-title {
+	font-size: 0.84em;
+}
+
+/* --- phosphor glow --- */
+body.borland-glow .markdown-preview-view h1,
+body.borland-glow .markdown-preview-view h2,
+body.borland-glow .HyperMD-header-1,
+body.borland-glow .HyperMD-header-2 {
+	text-shadow: 0 0 8px color-mix(in srgb, var(--borland-accent-2) 55%, transparent);
+}
+body.borland-glow .markdown-preview-view a,
+body.borland-glow .cm-s-obsidian .cm-link,
+body.borland-glow .cm-s-obsidian .cm-url {
+	text-shadow: 0 0 6px color-mix(in srgb, var(--borland-accent-2) 45%, transparent);
+}
+body.borland-glow .workspace-tab-header.is-active .workspace-tab-header-inner-title {
+	text-shadow: 0 0 8px color-mix(in srgb, var(--borland-accent-2) 60%, transparent);
+}
+
+/* --- CRT scanlines --- */
+body.borland-crt::after {
+	content: '';
+	position: fixed;
+	inset: 0;
+	z-index: 9999;
+	pointer-events: none;
+	background: repeating-linear-gradient(
+		0deg,
+		transparent 0,
+		transparent 2px,
+		color-mix(in srgb, var(--borland-ansi-black) 45%, transparent) 2px,
+		color-mix(in srgb, var(--borland-ansi-black) 45%, transparent) 4px
+	);
+	opacity: 0.55;
+}

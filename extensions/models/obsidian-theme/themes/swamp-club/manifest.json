@@ -1,0 +1,8 @@
+{
+	"name": "Swamp Club",
+	"version": "1.0.0",
+	"minAppVersion": "1.5.0",
+	"author": "swamp-club-inspired",
+	"authorUrl": "https://swamp-club.com",
+	"description": "A cyberpunk terminal theme inspired by swamp-club.com — phosphor green, neon cyan and magenta on black, with a light 'paper terminal' counterpart. Includes Style Settings options for glow, scanlines, glitch and fonts."
+}

@@ -1,0 +1,109 @@
+id: 93d03b98-aa28-408d-8ad1-c83dfeb57d50
+name: '@svendowideit/obsidian-theme-upgrade'
+description: |
+  Install the bundled Obsidian themes on a fresh vault, or refresh them after an
+  extension update, without changing an existing selected theme.
+
+  The workflow runs setup first, installs Borland Modern Blue and Swamp Club
+  with the current bundled files, and then lists every installed theme and the
+  active one. On an empty vault it selects the default theme; on a vault that
+  already has a cssTheme it leaves that choice alone. Identical files are
+  skipped; a file whose content changed is backed up once to
+  *.bak-obsidian-theme before it is replaced.
+tags:
+  obsidian: theme
+  install: "true"
+  upgrade: "true"
+inputs:
+  properties:
+    modelName:
+      type: string
+      default: obsidian-theme
+      description: >-
+        @svendowideit/obsidian-theme model instance to drive. Defaults to
+        obsidian-theme; the workflow uses that model's own global arguments
+        except for the vaultPath/vaultName/configDir overrides below.
+    vaultPath:
+      type: string
+      default: ""
+      description: >-
+        Obsidian vault folder containing the config dotfolder. Empty
+        auto-detects the open (or only) vault from Obsidian's registry;
+        otherwise pass an absolute, ~-prefixed or Windows path.
+    vaultName:
+      type: string
+      default: ""
+      description: >-
+        Registered vault folder name to use when vaultPath is empty. Empty
+        selects the open vault, or the only registered one.
+    configDir:
+      type: string
+      default: ".obsidian"
+      description: Vault config dotfolder, relative to vaultPath.
+  required: []
+jobs:
+  - name: upgrade
+    description: Discover, install or refresh both bundled themes, then report the result.
+    steps:
+      - name: setup
+        description: >-
+          Read-only discovery of the vault, themes folder, appearance file,
+          installed themes and active theme.
+        task:
+          type: model_method
+          modelType: '@svendowideit/obsidian-theme'
+          modelName: ${{ inputs.modelName }}
+          methodName: setup
+          inputs:
+            vaultPath: ${{ inputs.vaultPath }}
+            vaultName: ${{ inputs.vaultName }}
+            configDir: ${{ inputs.configDir }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+
+      - name: install-or-refresh
+        description: >-
+          Install both bundled themes on a fresh vault, or refresh them on an
+          existing one. selectDefault selects the default only when no theme is
+          active, so an existing cssTheme is preserved.
+        task:
+          type: model_method
+          modelType: '@svendowideit/obsidian-theme'
+          modelName: ${{ inputs.modelName }}
+          methodName: installBundledThemes
+          inputs:
+            vaultPath: ${{ inputs.vaultPath }}
+            vaultName: ${{ inputs.vaultName }}
+            configDir: ${{ inputs.configDir }}
+            selectDefault: true
+            defaultTheme: ""
+        dependsOn:
+          - step: setup
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+
+      - name: list
+        description: >-
+          Report every installed theme, the bundled availability and the active
+          theme after the refresh.
+        task:
+          type: model_method
+          modelType: '@svendowideit/obsidian-theme'
+          modelName: ${{ inputs.modelName }}
+          methodName: list
+          inputs:
+            vaultPath: ${{ inputs.vaultPath }}
+            vaultName: ${{ inputs.vaultName }}
+            configDir: ${{ inputs.configDir }}
+        dependsOn:
+          - step: install-or-refresh
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+version: 1

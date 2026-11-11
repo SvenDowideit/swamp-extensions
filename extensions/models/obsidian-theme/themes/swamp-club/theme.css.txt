@@ -1,0 +1,713 @@
+/* ==========================================================================
+   SWAMP CLUB — an Obsidian theme inspired by swamp-club.com
+   Dark  : phosphor terminal on black (neon green / cyan / magenta)
+   Light : "paper terminal" (bone/cream with ink-green text)
+   Works with the Style Settings plugin (options below).
+   ========================================================================== */
+
+/* @settings
+name: Swamp Club
+id: swamp-club
+settings:
+    -
+        id: swamp-welcome
+        title: Swamp Club
+        description: "A cyberpunk terminal look inspired by **swamp-club.com**. Phosphor green, neon cyan and magenta on black. The light theme is a readable *paper terminal* counterpart."
+        type: info-text
+        markdown: true
+    -
+        id: swamp-appearance-head
+        title: Appearance
+        type: heading
+        level: 2
+        collapsed: false
+    -
+        id: swamp-accent
+        title: Accent color
+        description: Drives links, active states and highlights. Default is phosphor green.
+        type: variable-color
+        format: hex
+        opacity: false
+        default: '#39ff14'
+    -
+        id: swamp-radius
+        title: Corner radius
+        description: Terminals are sharp. Set to 0 for the full HUD look.
+        type: variable-number-slider
+        format: px
+        default: 4
+        min: 0
+        max: 18
+        step: 1
+    -
+        id: swamp-font
+        title: Interface font
+        description: Fonts used across the whole interface. JetBrains Mono is loaded by the theme.
+        type: class-select
+        allowEmpty: false
+        default: swamp-font-jetbrains
+        options:
+            -
+                label: JetBrains Mono (terminal)
+                value: swamp-font-jetbrains
+            -
+                label: Chakra Petch (swamp-club HUD)
+                value: swamp-font-chakra
+            -
+                label: Orbitron (display)
+                value: swamp-font-orbitron
+    -
+        id: swamp-effects-head
+        title: Effects
+        description: CRT / HUD flourishes. All off by default.
+        type: heading
+        level: 2
+        collapsed: false
+    -
+        id: swamp-glow
+        title: Phosphor glow
+        description: Soft neon bloom on headings, links and active elements.
+        type: class-toggle
+        default: false
+    -
+        id: swamp-scanlines
+        title: CRT scanlines
+        description: Faint horizontal scanlines over the whole window.
+        type: class-toggle
+        default: false
+    -
+        id: swamp-crt-vignette
+        title: CRT vignette
+        description: Darkened rounded edges, like a tube monitor.
+        type: class-toggle
+        default: false
+    -
+        id: swamp-glitch
+        title: Chromatic glitch headings
+        description: Cyan / magenta split on H1 and H2, echoing the SWAMP CLUB wordmark.
+        type: class-toggle
+        default: false
+    -
+        id: swamp-hud
+        title: UPPERCASE HUD labels
+        description: Forces uppercase + letter-spacing on tabs, nav and small UI labels.
+        type: class-toggle
+        default: false
+*/
+
+/* --------------------------------------------------------------------------
+   1. Fonts
+   -------------------------------------------------------------------------- */
+@import url('https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Orbitron:wght@400;500;600;700;800;900&display=swap');
+
+/* --------------------------------------------------------------------------
+   2. Root tokens
+   -------------------------------------------------------------------------- */
+:root {
+	--swamp-font-jetbrains: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+	--swamp-font-chakra: 'Chakra Petch', system-ui, sans-serif;
+	--swamp-font-orbitron: 'Orbitron', system-ui, sans-serif;
+
+	--swamp-font-ui: var(--swamp-font-jetbrains);
+	--swamp-font-display: var(--swamp-font-jetbrains);
+
+	--swamp-radius: 4px;
+}
+
+/* font class-selectors (set by Style Settings on <body>) */
+body.swamp-font-chakra {
+	--swamp-font-ui: var(--swamp-font-chakra);
+	--swamp-font-display: var(--swamp-font-chakra);
+}
+body.swamp-font-orbitron {
+	--swamp-font-ui: var(--swamp-font-orbitron);
+	--swamp-font-display: var(--swamp-font-orbitron);
+}
+
+/* --------------------------------------------------------------------------
+   3. DARK palette — the swamp terminal
+   -------------------------------------------------------------------------- */
+.theme-dark {
+	--swamp-bg: #000000;
+	--swamp-bg-alt: #080a08;
+	--swamp-panel: #0b0f0b;
+	--swamp-panel-alt: #0f150f;
+	--swamp-border: rgba(57, 255, 20, 0.16);
+	--swamp-border-strong: rgba(57, 255, 20, 0.42);
+
+	--swamp-green: #39ff14;
+	--swamp-green-dim: #2bbf14;
+	--swamp-green-soft: #8dff7a;
+	--swamp-cyan: #00ffff;
+	--swamp-pink: #ff00ff;
+	--swamp-yellow: #ffe14d;
+
+	--swamp-text: #c6f7bd;
+	--swamp-text-bright: #eaffea;
+	--swamp-muted: #6f8f6a;
+
+	--swamp-link: #39ff14;
+	--swamp-link-hover: #00ffff;
+
+	--swamp-glow-color: rgba(57, 255, 20, 0.55);
+	--swamp-heading-shadow: 0 0 6px rgba(57, 255, 20, 0.28);
+	--swamp-panel-shadow: inset 0 0 0 1px var(--swamp-border);
+	--swamp-cover: rgba(0, 0, 0, 0.72);
+}
+
+/* --------------------------------------------------------------------------
+   4. LIGHT palette — paper terminal
+   -------------------------------------------------------------------------- */
+.theme-light {
+	--swamp-bg: #f4f8ee;
+	--swamp-bg-alt: #e9f0e0;
+	--swamp-panel: #ffffff;
+	--swamp-panel-alt: #eef4e6;
+	--swamp-border: rgba(24, 92, 20, 0.22);
+	--swamp-border-strong: rgba(24, 92, 20, 0.5);
+
+	--swamp-green: #0f7a1f;
+	--swamp-green-dim: #0b5c17;
+	--swamp-green-soft: #2f9e3f;
+	--swamp-cyan: #00707f;
+	--swamp-pink: #b3009c;
+	--swamp-yellow: #8a5a00;
+
+	--swamp-text: #16240f;
+	--swamp-text-bright: #0a1406;
+	--swamp-muted: #5d6b55;
+
+	--swamp-link: #0f7a1f;
+	--swamp-link-hover: #00707f;
+
+	--swamp-glow-color: rgba(15, 122, 31, 0.35);
+	--swamp-heading-shadow: none;
+	--swamp-panel-shadow: inset 0 0 0 1px var(--swamp-border);
+	--swamp-cover: rgba(40, 45, 35, 0.5);
+}
+
+/* --------------------------------------------------------------------------
+   5. Obsidian variable mappings
+   -------------------------------------------------------------------------- */
+body {
+	--font-interface-theme: var(--swamp-font-ui);
+	--font-text-theme: var(--swamp-font-ui);
+	--font-monospace-theme: var(--swamp-font-jetbrains);
+
+	--font-text-size: 15px;
+
+	/* text */
+	--text-normal: var(--swamp-text);
+	--text-muted: var(--swamp-muted);
+	--text-faint: color-mix(in srgb, var(--swamp-muted) 60%, transparent);
+	--text-on-accent: #000000;
+	--text-on-accent-inverted: var(--swamp-text-bright);
+	--text-accent: var(--swamp-accent, var(--swamp-green));
+	--text-accent-hover: var(--swamp-cyan);
+	--text-selection: color-mix(in srgb, var(--swamp-green) 28%, transparent);
+	--text-highlight-bg: color-mix(in srgb, var(--swamp-green) 32%, transparent);
+	--text-highlight-bg-active: color-mix(in srgb, var(--swamp-cyan) 40%, transparent);
+	--text-error: #ff5f56;
+	--text-success: var(--swamp-green);
+	--text-warning: var(--swamp-yellow);
+	--text-faintest: color-mix(in srgb, var(--swamp-muted) 40%, transparent);
+
+	/* surfaces */
+	--background-primary: var(--swamp-bg);
+	--background-primary-alt: var(--swamp-bg-alt);
+	--background-secondary: var(--swamp-bg-alt);
+	--background-secondary-alt: var(--swamp-panel);
+	--background-modifier-border: var(--swamp-border);
+	--background-modifier-border-hover: color-mix(in srgb, var(--swamp-green) 35%, transparent);
+	--background-modifier-border-focus: var(--swamp-border-strong);
+	--background-modifier-hover: color-mix(in srgb, var(--swamp-green) 9%, transparent);
+	--background-modifier-active-hover: color-mix(in srgb, var(--swamp-green) 16%, transparent);
+	--background-modifier-form-field: color-mix(in srgb, var(--swamp-panel) 88%, transparent);
+	--background-modifier-form-field-highlighted: var(--swamp-panel-alt);
+	--background-modifier-box-shadow: rgba(0, 0, 0, 0.6);
+	--background-modifier-success: color-mix(in srgb, var(--swamp-green) 22%, transparent);
+	--background-modifier-error: rgba(255, 60, 60, 0.22);
+	--background-modifier-error-hover: rgba(255, 60, 60, 0.32);
+	--background-modifier-cover: var(--swamp-cover);
+
+	/* interactive */
+	--interactive-normal: var(--swamp-panel-alt);
+	--interactive-hover: color-mix(in srgb, var(--swamp-green) 14%, var(--swamp-panel-alt));
+	--interactive-accent: var(--swamp-accent, var(--swamp-green));
+	--interactive-accent-hover: var(--swamp-cyan);
+	--interactive-accent-rgb: 57, 255, 20;
+	--interactive-success: var(--swamp-green);
+
+	/* chrome */
+	--divider-color: var(--swamp-border);
+	--divider-color-hover: var(--swamp-border-strong);
+	--tab-outline-color: var(--swamp-border);
+	--prompt-border-color: var(--swamp-border-strong);
+	--titlebar-background: var(--swamp-bg);
+	--titlebar-background-focused: var(--swamp-bg-alt);
+	--titlebar-text-color: var(--swamp-muted);
+	--titlebar-text-color-focused: var(--swamp-green);
+	--status-bar-background: var(--swamp-bg-alt);
+	--status-bar-border-color: var(--swamp-border);
+	--ribbon-background: var(--swamp-bg-alt);
+	--ribbon-background-collapsed: var(--swamp-bg);
+	--scrollbar-bg: transparent;
+	--scrollbar-thumb-bg: color-mix(in srgb, var(--swamp-green) 25%, transparent);
+	--scrollbar-active-thumb-bg: color-mix(in srgb, var(--swamp-green) 55%, transparent);
+
+	/* radius */
+	--radius-s: calc(var(--swamp-radius) * 0.5);
+	--radius-m: var(--swamp-radius);
+	--radius-l: calc(var(--swamp-radius) * 1.5);
+	--radius-xl: calc(var(--swamp-radius) * 2);
+
+	/* headings — rainbow-ish HUD, cyan/pink/green */
+	--h1-color: var(--swamp-green);
+	--h2-color: var(--swamp-cyan);
+	--h3-color: var(--swamp-pink);
+	--h4-color: var(--swamp-green-soft);
+	--h5-color: var(--swamp-yellow);
+	--h6-color: var(--swamp-muted);
+	--h1-weight: 800;
+	--h2-weight: 700;
+	--h3-weight: 700;
+	--h4-weight: 600;
+	--h1-font: var(--swamp-font-display);
+	--h2-font: var(--swamp-font-display);
+	--h3-font: var(--swamp-font-display);
+	--h4-font: var(--swamp-font-display);
+	--h5-font: var(--swamp-font-display);
+	--h6-font: var(--swamp-font-display);
+	--heading-spacing: 1.4em;
+
+	/* links — swamp-club yellow */
+	--link-color: var(--swamp-yellow);
+	--link-color-hover: var(--swamp-cyan);
+	--link-decoration: none;
+	--link-decoration-hover: underline;
+	--link-external-color: var(--swamp-yellow);
+	--link-external-color-hover: var(--swamp-cyan);
+	--link-unresolved-color: var(--swamp-pink);
+	--link-unresolved-opacity: 0.7;
+
+	/* tags — render like [terminal tags] */
+	--tag-color: var(--swamp-green);
+	--tag-color-hover: var(--swamp-bg);
+	--tag-background: color-mix(in srgb, var(--swamp-green) 14%, transparent);
+	--tag-background-hover: var(--swamp-green);
+	--tag-border-color: var(--swamp-border-strong);
+	--tag-border-width: 1px;
+	--tag-padding-x: 0.45em;
+	--tag-padding-y: 0.1em;
+	--tag-radius: 2px;
+	--tag-weight: 500;
+
+	/* code */
+	--code-background: var(--swamp-panel);
+	--code-normal: var(--swamp-green-soft);
+	--code-comment: var(--swamp-muted);
+	--code-function: var(--swamp-cyan);
+	--code-important: var(--swamp-pink);
+	--code-keyword: var(--swamp-pink);
+	--code-property: var(--swamp-green);
+	--code-punctuation: var(--swamp-muted);
+	--code-string: var(--swamp-yellow);
+	--code-tag: var(--swamp-cyan);
+	--code-value: var(--swamp-green-soft);
+
+	/* blockquote */
+	--blockquote-border-color: var(--swamp-green);
+	--blockquote-border-thickness: 2px;
+	--blockquote-color: var(--swamp-text);
+	--blockquote-background-color: color-mix(in srgb, var(--swamp-green) 6%, transparent);
+	--blockquote-font-style: normal;
+
+	/* checkboxes — swamp-club pink */
+	--checkbox-border-color: var(--swamp-pink);
+	--checkbox-border-color-hover: var(--swamp-pink);
+	--checkbox-color: var(--swamp-pink);
+	--checkbox-color-hover: var(--swamp-pink);
+	--checkbox-marker-color: var(--swamp-bg);
+	--checklist-done-color: var(--swamp-muted);
+	--checklist-done-decoration: line-through;
+
+	/* callouts */
+	--callout-border-width: 0 0 0 3px;
+	--callout-border-opacity: 0.9;
+	--callout-radius: 2px;
+	--callout-title-weight: 700;
+	--callout-padding: 12px 16px;
+
+	/* embeds / canvas / graph */
+	--embed-border-start: 2px solid var(--swamp-green);
+	--embed-background: var(--swamp-bg-alt);
+	--canvas-background: var(--swamp-bg-alt);
+	--graph-line: color-mix(in srgb, var(--swamp-green) 30%, transparent);
+	--graph-node: var(--swamp-green);
+	--graph-node-focused: var(--swamp-cyan);
+	--graph-node-tag: var(--swamp-pink);
+	--graph-node-attachment: var(--swamp-yellow);
+
+	/* selection & caret */
+	--caret-color: var(--swamp-green);
+}
+
+/* ==========================================================================
+   6. Base chrome
+   ========================================================================== */
+
+/* A thin phosphor line along the top of the window, echoing the HUD. */
+.titlebar {
+	border-bottom: 1px solid var(--swamp-border);
+}
+.workspace-tab-header-container {
+	border-bottom: 1px solid var(--swamp-border);
+}
+.workspace-ribbon {
+	border-right: 1px solid var(--swamp-border);
+}
+
+/* Tabs */
+.workspace-tab-header {
+	border-radius: var(--radius-s) var(--radius-s) 0 0;
+}
+.workspace-tab-header.is-active {
+	box-shadow: inset 0 -2px 0 0 var(--swamp-green);
+}
+.workspace-tab-header.is-active .workspace-tab-header-inner-title {
+	color: var(--swamp-green);
+}
+.theme-dark .workspace-tab-header.is-active {
+	background-color: color-mix(in srgb, var(--swamp-green) 7%, transparent);
+}
+
+/* Sidebars / panels */
+.nav-files-container,
+.workspace-sidedock-vault-profile {
+	background-color: transparent;
+}
+.workspace-leaf-resize-handle {
+	background-color: transparent;
+}
+.workspace-leaf-resize-handle:hover {
+	background-color: var(--swamp-border-strong);
+}
+
+/* Buttons — HUD outline style */
+button,
+.btn {
+	font-family: var(--swamp-font-ui);
+	letter-spacing: 0.02em;
+	border: 1px solid var(--swamp-border-strong);
+	background-color: color-mix(in srgb, var(--swamp-green) 8%, transparent);
+	color: var(--swamp-text);
+	box-shadow: none;
+}
+button:hover,
+.btn:hover {
+	background-color: color-mix(in srgb, var(--swamp-green) 20%, transparent);
+	border-color: var(--swamp-green);
+	color: var(--swamp-green);
+}
+button.mod-cta,
+.btn.mod-cta {
+	background-color: color-mix(in srgb, var(--swamp-green) 22%, transparent);
+	color: var(--swamp-green);
+}
+button.mod-cta:hover,
+.btn.mod-cta:hover {
+	background-color: color-mix(in srgb, var(--swamp-green) 34%, transparent);
+}
+
+/* Inputs */
+input[type='text'],
+input[type='search'],
+input[type='email'],
+input[type='password'],
+input[type='number'],
+textarea,
+select,
+.dropdown,
+.search-input-container input {
+	background-color: var(--background-modifier-form-field);
+	border: 1px solid var(--swamp-border);
+	border-radius: var(--radius-s);
+}
+input:focus,
+textarea:focus,
+select:focus,
+.dropdown:focus {
+	border-color: var(--swamp-green);
+	box-shadow: 0 0 0 2px color-mix(in srgb, var(--swamp-green) 25%, transparent);
+}
+
+/* Scrollbars */
+::-webkit-scrollbar-thumb {
+	background-color: var(--scrollbar-thumb-bg);
+	border-radius: 0;
+}
+
+/* ==========================================================================
+   7. Editor & reading view
+   ========================================================================== */
+.markdown-preview-view,
+.markdown-source-view.mod-cm6 {
+	--file-line-width: 46rem;
+}
+
+.markdown-preview-view h1,
+.markdown-preview-view h2,
+.markdown-preview-view h3,
+.markdown-preview-view h4,
+.markdown-preview-view h5,
+.markdown-preview-view h6,
+.HyperMD-header {
+	font-family: var(--swamp-font-display);
+	letter-spacing: 0.04em;
+	text-shadow: var(--swamp-heading-shadow);
+}
+.markdown-preview-view h1,
+.HyperMD-header-1 {
+	text-transform: uppercase;
+	letter-spacing: 0.08em;
+}
+
+/* inline code + code blocks */
+.markdown-rendered code,
+.cm-s-obsidian span.cm-inline-code {
+	background-color: var(--code-background);
+	border: 1px solid var(--swamp-border);
+	border-radius: var(--radius-s);
+	padding: 0.1em 0.35em;
+	font-family: var(--swamp-font-jetbrains);
+}
+.markdown-rendered pre,
+.markdown-source-view.mod-cm6 .cm-line.HyperMD-codeblock {
+	border: 1px solid var(--swamp-border);
+	border-left: 3px solid var(--swamp-green);
+	border-radius: var(--radius-s);
+}
+.markdown-rendered pre {
+	background-color: var(--code-background);
+	position: relative;
+}
+/* faux terminal prompt on code blocks */
+.markdown-rendered pre::before {
+	content: '❯';
+	position: absolute;
+	top: 4px;
+	right: 10px;
+	color: color-mix(in srgb, var(--swamp-green) 45%, transparent);
+	font-family: var(--swamp-font-jetbrains);
+	font-size: 0.8em;
+	pointer-events: none;
+}
+
+/* blockquote gets a terminal `>` feel via the border already set */
+.markdown-rendered blockquote {
+	font-style: normal;
+}
+
+/* horizontal rule */
+hr,
+.markdown-rendered hr {
+	border: none;
+	border-top: 1px dashed var(--swamp-border-strong);
+}
+
+/* tables */
+.markdown-rendered th {
+	background-color: color-mix(in srgb, var(--swamp-green) 10%, transparent);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	font-family: var(--swamp-font-display);
+	border-color: var(--swamp-border-strong);
+}
+.markdown-rendered td,
+.markdown-rendered th {
+	border-color: var(--swamp-border);
+}
+
+/* tags — [bracketed] */
+a.tag {
+	font-family: var(--swamp-font-jetbrains);
+}a.tag::before {
+	content: '[';
+	opacity: 0.7;
+}
+a.tag::after {
+	content: ']';
+	opacity: 0.7;
+}
+
+/* callouts */
+.callout {
+	border-radius: var(--radius-s);
+}
+.callout-title {
+	font-family: var(--swamp-font-display);
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+}
+
+/* ==========================================================================
+   8. Small UI touches
+   ========================================================================== */
+.status-bar {
+	border-top: 1px solid var(--swamp-border);
+	font-family: var(--swamp-font-jetbrains);
+	font-size: 11px;
+	letter-spacing: 0.04em;
+}
+.menu-item:hover,
+.suggestion-item.is-selected {
+	background-color: color-mix(in srgb, var(--swamp-green) 16%, transparent);
+}
+.suggestion-item.is-selected {
+	color: var(--swamp-green);
+}
+.modal,
+.prompt {
+	border: 1px solid var(--swamp-border-strong);
+	box-shadow: 0 0 0 1px var(--swamp-border), 0 12px 48px rgba(0, 0, 0, 0.6);
+}
+.graph-controls {
+	border: 1px solid var(--swamp-border);
+}
+/* checkbox */
+input[type='checkbox']:checked {
+	background-color: var(--swamp-pink);
+	border-color: var(--swamp-pink);
+}
+input[type='checkbox'] {
+	border-color: var(--swamp-pink);
+}
+
+/* list markers / bullets — swamp-club pink */
+.markdown-rendered ul > li::marker,
+.markdown-rendered ol > li::marker,
+.markdown-preview-view ul > li::marker,
+.markdown-preview-view ol > li::marker,
+.cm-s-obsidian .HyperMD-list-line .cm-formatting-list,
+.cm-s-obsidian .cm-formatting-list-ul,
+.cm-s-obsidian .cm-formatting-list-ol {
+	color: var(--swamp-pink);
+}
+/* bullet char fallback (some renderers) */
+.markdown-rendered ul > li,
+.markdown-preview-view ul > li {
+	--list-marker-color: var(--swamp-pink);
+}
+/* checkboxes as list items */
+.markdown-rendered .task-list-item-checkbox:not(:checked),
+.markdown-rendered input[type='checkbox']:not(:checked) {
+	border-color: var(--swamp-pink);
+}
+.markdown-rendered .task-list-item-checkbox:checked,
+.markdown-rendered input[type='checkbox']:checked {
+	background-color: var(--swamp-pink);
+	border-color: var(--swamp-pink);
+}
+
+/* ==========================================================================
+   9. Style Settings toggles
+   ========================================================================== */
+
+/* --- Phosphor glow --- */
+body.swamp-glow {
+	--swamp-heading-shadow: 0 0 8px var(--swamp-glow-color), 0 0 22px var(--swamp-glow-color);
+}
+body.swamp-glow .markdown-preview-view a,
+body.swamp-glow .cm-s-obsidian .cm-link,
+body.swamp-glow .cm-s-obsidian .cm-url {
+	text-shadow: 0 0 6px var(--swamp-glow-color);
+}
+body.swamp-glow .workspace-tab-header.is-active .workspace-tab-header-inner-title {
+	text-shadow: 0 0 8px var(--swamp-glow-color);
+}
+body.swamp-glow button.mod-cta:hover {
+	box-shadow: 0 0 14px color-mix(in srgb, var(--swamp-green) 60%, transparent);
+}
+
+/* --- CRT scanlines --- */
+body.swamp-scanlines::after {
+	content: '';
+	position: fixed;
+	inset: 0;
+	z-index: 9999;
+	pointer-events: none;
+	background: repeating-linear-gradient(
+		0deg,
+		transparent 0,
+		transparent 2px,
+		color-mix(in srgb, var(--swamp-green) 6%, transparent) 2px,
+		color-mix(in srgb, var(--swamp-green) 6%, transparent) 4px
+	);
+	opacity: 0.7;
+}
+.theme-light.swamp-scanlines::after {
+	background: repeating-linear-gradient(
+		0deg,
+		transparent 0,
+		transparent 2px,
+		rgba(0, 0, 0, 0.05) 2px,
+		rgba(0, 0, 0, 0.05) 4px
+	);
+}
+
+/* --- CRT vignette --- */
+body.swamp-crt-vignette::before {
+	content: '';
+	position: fixed;
+	inset: 0;
+	z-index: 9998;
+	pointer-events: none;
+	background: radial-gradient(
+		ellipse at center,
+		transparent 55%,
+		rgba(0, 0, 0, 0.35) 100%
+	);
+	box-shadow: inset 0 0 120px rgba(0, 0, 0, 0.6);
+}
+
+/* --- Chromatic glitch headings --- */
+body.swamp-glitch .markdown-preview-view h1,
+body.swamp-glitch .markdown-preview-view h2,
+body.swamp-glitch .HyperMD-header-1,
+body.swamp-glitch .HyperMD-header-2,
+body.swamp-glitch .cm-header-1,
+body.swamp-glitch .cm-header-2 {
+	text-shadow: -1.5px 0 var(--swamp-cyan), 1.5px 0 var(--swamp-pink), var(--swamp-heading-shadow);
+}
+
+/* --- UPPERCASE HUD labels --- */
+body.swamp-hud .workspace-tab-header-inner-title,
+body.swamp-hud .nav-file-title,
+body.swamp-hud .nav-folder-title,
+body.swamp-hud .workspace-ribbon .clickable-icon,
+body.swamp-hud .status-bar,
+body.swamp-hud .menu-item,
+body.swamp-hud .view-header-title,
+body.swamp-hud .setting-item-name {
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+}
+body.swamp-hud .nav-file-title,
+body.swamp-hud .nav-folder-title {
+	font-size: 0.82em;
+}
+
+/* ==========================================================================
+   10. Accent override plumbing
+   The Style Settings `swamp-accent` variable lands on <body>; make sure the
+   key Obsidian accent variables follow it, including in the light theme.
+   ========================================================================== */
+body {
+	--interactive-accent: var(--swamp-accent, var(--swamp-green));
+	--text-accent: var(--swamp-accent, var(--swamp-green));
+	--text-accent-hover: var(--swamp-accent, var(--swamp-green));
+	--color-accent: var(--swamp-accent, var(--swamp-green));
+}
+body.swamp-glow {
+	--swamp-glow-color: color-mix(in srgb, var(--swamp-accent, var(--swamp-green)) 55%, transparent);
+}

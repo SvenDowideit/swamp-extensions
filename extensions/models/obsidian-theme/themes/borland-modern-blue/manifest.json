@@ -1,0 +1,7 @@
+{
+	"name": "Borland Modern Blue",
+	"version": "1.0.0",
+	"minAppVersion": "1.5.0",
+	"author": "sven",
+	"description": "A port of the herdr 'borland-modern-blue' palette — deep Borland IDE blue, ice-white text, cyan chrome, amber highlights. Sharp DOS-IDE corners, monospace by default, with Style Settings options for accent, radius, fonts, uppercase labels, glow and CRT scanlines."
+}

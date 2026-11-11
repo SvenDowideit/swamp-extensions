@@ -1,0 +1,150 @@
+manifestVersion: 1
+name: "@svendowideit/obsidian-theme"
+version: "2026.11.11.1"
+description: >
+  Install, list and select Obsidian CSS themes — with Borland Modern Blue and
+  Swamp Club bundled — without hand-copying folders or editing appearance.json.
+
+  WHAT IT DOES
+
+    Obsidian themes are folders under `.obsidian/themes/<name>` plus a
+    `cssTheme` key in `.obsidian/appearance.json`, but installing one by hand
+    means copying files, getting the folder name exactly right and editing JSON
+    without dropping the vault's other appearance settings. This extension makes
+    that one idempotent command. It ships the two themes used on this machine —
+    Borland Modern Blue and Swamp Club — installs either or both into a vault,
+    selects one by id or display name, and reports what is actually installed and
+    active. With no vault path it reads Obsidian's own per-platform registry and
+    picks the open (or only) vault, so a normal desktop install needs no
+    configuration. Paths use `@std/path`, so Windows drive-letter and UNC vaults
+    work as well as macOS and Linux; the extension backs up any file it
+    overwrites and preserves every other appearance key.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/obsidian-theme
+
+  DEPENDENCIES
+
+    None — the extension is self-contained. It reads Obsidian's vault registry
+    and writes only the theme folders and `appearance.json` with Deno's
+    filesystem, using `@std/path` for both `/` and `\` separators. It starts no
+    service and installs no cron trigger. The vault must have been opened in
+    Obsidian once so `.obsidian` exists and is registered.
+
+  RUN
+
+      # No vaultPath: read Obsidian's per-platform registry and use the open
+      # (or only) vault. This is the normal desktop case.
+      swamp model @svendowideit/obsidian-theme method run install obsidian-theme
+
+      # Or target a specific vault explicitly (absolute, ~, or a Windows path).
+      swamp model @svendowideit/obsidian-theme method run install obsidian-theme \
+        --input vaultPath=/home/me/vault
+
+      # Show every installed theme and which one is active.
+      swamp model @svendowideit/obsidian-theme method run list obsidian-theme \
+        --input vaultPath=/home/me/vault
+
+      # Select the Borland theme by id; its display name also works.
+      swamp model @svendowideit/obsidian-theme method run select obsidian-theme \
+        --input vaultPath=/home/me/vault \
+        --input theme=borland-modern-blue
+
+      # The one entry point: install on a fresh vault, refresh on an existing
+      # one, and select the default only if no theme is chosen yet. Re-running
+      # changes nothing and never overwrites your selection.
+      swamp workflow run @svendowideit/obsidian-theme-upgrade \
+        --input vaultPath=/home/me/vault
+
+  CONFIGURE
+
+    Global arguments: `vaultPath` (default empty = auto-detect), `vaultName`
+    (default empty), `configDir` (default `.obsidian`) and `defaultTheme`
+    (default `borland-modern-blue`). With `vaultPath` empty the extension reads
+    Obsidian's registry — `%APPDATA%\obsidian\obsidian.json` on Windows,
+    `~/Library/Application Support/obsidian/obsidian.json` on macOS, and
+    `$XDG_CONFIG_HOME` or `~/.config/obsidian/obsidian.json` on Linux — and uses
+    the vault marked open, or the only registered vault. Set `vaultName` to pick
+    a registered vault by folder name, or `vaultPath` to bypass the registry.
+    Every method also accepts `vaultPath`, `vaultName` and `configDir` as
+    per-call overrides (empty uses the global), so `--input vaultPath=…` works on
+    a method run. Method arguments: `install` takes `theme` (empty installs
+    every bundled theme) and `force`; `installBundledThemes` takes
+    `selectDefault`, `defaultTheme` and `force`; `select` takes `theme`. A
+    per-call input wins over a global. To make a vault the default for method
+    runs, configure the model once:
+
+        swamp model create @svendowideit/obsidian-theme obsidian-theme \
+          --global-arg vaultPath=/home/me/vault
+
+  SETUP
+
+    `setup` is read-only and safe to run first. It reports how the vault was
+    found (`explicit`, `registry-name`, `registry-default` or `none`), the
+    registry path and every registered vault, whether the config folder, themes
+    folder and appearance file exist, which bundled themes are installed, which
+    theme is active, and any discovery error. It persists what it found as the
+    `config` resource so later runs can reuse it; it never edits the vault. Run
+    it with no arguments to see the detected vault, or point it at one:
+
+        swamp model @svendowideit/obsidian-theme method run setup obsidian-theme
+
+        swamp model @svendowideit/obsidian-theme method run setup obsidian-theme \
+          --input vaultPath=/home/me/vault
+
+  UPGRADE
+
+    One idempotent workflow is both the install and the upgrade: on a fresh
+    vault it installs both themes and selects the default only when no theme is
+    active; on an existing vault it refreshes the bundled files without changing
+    the selected theme. Existing files that differ are backed up once to
+    `*.bak-obsidian-theme` before they are replaced:
+
+        swamp workflow run @svendowideit/obsidian-theme-upgrade \
+          --input vaultPath=/home/me/vault
+
+  WHAT IT INSTALLS
+
+    Two theme folders under `<vaultPath>/<configDir>/themes/` —
+    `Borland Modern Blue/` and `Swamp Club/`, each with `theme.css` and
+    `manifest.json` — plus the `cssTheme` key it sets in
+    `<vaultPath>/<configDir>/appearance.json` when you select a theme. It creates
+    `appearance.json` if absent, keeps every other key, and writes one
+    `*.bak-obsidian-theme` backup beside any file it overwrites. It installs no
+    service, daemon or trigger.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - obsidian_theme.ts
+
+workflows:
+  - obsidian-theme-upgrade.yaml
+
+dependencies: []
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - themes/borland-modern-blue/theme.css.txt
+  - themes/borland-modern-blue/manifest.json
+  - themes/swamp-club/theme.css.txt
+  - themes/swamp-club/manifest.json
+  - obsidian_theme_test.ts
+
+labels:
+  - obsidian
+  - themes
+
+platforms:
+  - linux-x86_64
+  - linux-aarch64
+  - darwin-x86_64
+  - darwin-aarch64
+  - windows-x86_64

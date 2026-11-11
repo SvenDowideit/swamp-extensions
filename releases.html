@@ -4459,6 +4459,26 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261101.180046.0-sha.d1bb1cf2" rel="noopener">release v20261101.180046.0-sha.d1bb1cf2</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d1bb1cf235d5d603e41b675c97a67b0af50fa980" rel="noopener">d1bb1cf2</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3520" rel="noopener">#3520</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3519" rel="noopener">#3519</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4089" rel="noopener">#4089</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3521" rel="noopener">#3521</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3524" rel="noopener">#3524</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/849" rel="noopener">#849</a>𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
+<article class="item" id="release-swamp-club-swamp-v20261111-143631-0-sha-53ea7624">
+<h2><span class="tier B">B</span>a run&#39;s save no longer reads and parses its whole record back to learn the previous status (swamp-club#4638) (#3743)</h2>
+<p class="lede">`perf` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-11T14:41:04Z">2026-11-11T14:41:04Z</time></span><span>workflows</span><span>perf</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>perf(workflows): a run&#39;s save no longer reads and parses its whole record back to learn the previous status (swamp-club#4638) (#3743)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>YamlWorkflowRunRepository.save()</code> read, parsed and decoded a run&#39;s whole record before every write, only to learn the previous status that picks which of <code>WorkflowRunStarted</code> / <code>WorkflowRunCompleted</code> / <code>WorkflowRunFailed</code> to publish. A run saves twice per step and its record grows with each step, so a long run&#39;s parse cost grew with the square of its step count.</p>
+<ul>
+<li>The repository keeps a per-instance <code>WeakMap</code> from each run object to the status its last landed save wrote. That status is captured together with the persisted data, because saves of one run can overlap.</li>
+<li>Only a run object&#39;s first save through the repository reads the record. So a new run, a loaded run and a copy built with <code>fromData</code> still send exactly today&#39;s events, and a damaged record is still reported and repaired on that save.</li>
+<li>A save the fence refuses, or one that throws, records nothing, so the next save falls back to the disk read.</li>
+<li>The status lives in the repository, not on <code>WorkflowRun</code>, so persistence bookkeeping stays out of the aggregate and out of <code>toPersistedData</code> / <code>fromData</code>.</li>
+</ul>
+<p>Accepted trade-off: the &quot;Replacing the unreadable record&quot; warning now fires only on a run object&#39;s first save. A record damaged between two saves of the same live run is still repaired by the next whole-record write, but silently. <code>run doctor</code> still find</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261111.143631.0-sha.53ea7624" rel="noopener">release v20261111.143631.0-sha.53ea7624</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/53ea76241e8393ea309f0a632593ae1b9010a120" rel="noopener">53ea7624</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3743" rel="noopener">#3743</a>𝗔 <a href="https://swamp-club.com/lab/4638" rel="noopener">lab#4638</a></div>
+</article>
 <article class="item" id="release-swamp-club-swamp-v20261111-005036-0-sha-ff3a598c">
 <h2><span class="tier B">B</span>a shell completion callback loads completions and the command it completes, not the full tree (swamp-club#4612) (#3730)</h2>
 <p class="lede">`perf` change · swamp-club/swamp</p>
@@ -4877,7 +4897,77 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261110.191731.0-sha.19a81b5b" rel="noopener">release v20261110.191731.0-sha.19a81b5b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/19a81b5b64973fa95fdb1d673df8c20f039f0546" rel="noopener">19a81b5b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3720" rel="noopener">#3720</a>𝗔 <a href="https://swamp-club.com/lab/4600" rel="noopener">lab#4600</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261109-181821-0-sha-f2aa1743">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261111-162605-0-sha-b137047b">
+<h2><span class="tier C">C</span>swamp 20261111.162605.0-sha.b137047b</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-11T16:29:34Z">2026-11-11T16:29:34Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(serve): swamp serve reload turns scheduling and the timed services on or off and re-arms their intervals at once (swamp-club#4633) (#3746)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p><code>swamp serve reload</code> now applies <code>schedule</code> and <code>max-concurrent-scheduled-runs</code>, turns serve&#39;s timed services on or off, and re-arms their intervals at once (swamp-club#4633, split from #4604, part of #4439).</p>
+<p><strong>Scheduling</strong></p>
+<ul>
+<li>New <code>ScheduledExecutionLifecycle</code> (<code>src/serve/scheduled_execution_lifecycle.ts</code>) owns the one live scheduler. Startup and reload build it through the same factory.</li>
+<li>Turning scheduling <strong>off</strong> drains it: queued runs stay pending for replay, runs in flight finish and stay cancellable, and the drained scheduler stops once they end.</li>
+<li>Turning it <strong>on</strong> builds a new scheduler with the reloaded triggers, then replays this process&#39;s own pending cron runs and catches up, both only where this node leads scheduled fires. A node that turned scheduling on while following does this when it takes the lead.</li>
+<li>A process that has run a scheduler keeps cron runs pending while scheduling is off. A serve booted with scheduling off still discards them, as before.</li>
+<li><code>max-concurrent-scheduled-runs</code> gets a live setter. A raised limit starts queued runs at once; a lowered one stops no run in flight.</li>
+<li>Health, cancel (WebSocket, HTTP and cancel-all), replay, catch-up and the shutdown drain all read the live scheduler.</li>
+</ul>
+<p><strong>Timed services</strong></p>
+<ul>
+<li>Group refresh, server token GC, the continuation sweep and recon</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261111.162605.0-sha.b137047b" rel="noopener">release v20261111.162605.0-sha.b137047b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b137047b" rel="noopener">b137047b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3746" rel="noopener">#3746</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4604" rel="noopener">#4604</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4439" rel="noopener">#4439</a>𝗔 <a href="https://swamp-club.com/lab/4633" rel="noopener">lab#4633</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261111-161908-0-sha-516e63af">
+<h2><span class="tier C">C</span>swamp 20261111.161908.0-sha.516e63af</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-11T16:23:34Z">2026-11-11T16:23:34Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): resuming a run waiting at an approval gate answers 409 awaiting_approval naming the gate, not 500 action_failed, and the action route logs every refusal (swamp-club#4641) (#3745)</li>
+</ul>
+<p><strong>For integrations:</strong> on <code>POST /api/v1/action</code>, a <code>workflow.resume</code> for a run still waiting at an approval gate now answers <code>409 awaiting_approval</code> with the gate to decide, instead of <code>500 action_failed</code>. Releases before this one still answer the 500.</p>
+<p>```json</p>
+<p>409 {&quot;code&quot;:&quot;awaiting_approval&quot;,</p>
+<p>     &quot;message&quot;:&quot;This run is waiting at an approval gate; decide the gate instead of resuming&quot;,</p>
+<p>     &quot;requestId&quot;:&quot;...&quot;,</p>
+<p>     &quot;gate&quot;:{&quot;job&quot;:&quot;main&quot;,&quot;step&quot;:&quot;approve&quot;}}</p>
+<p>```</p>
+<h4 class="body-h">Summary</h4>
+<p>Serve accepted such a resume, and then the execution service refused it inside the run with a plain error. With no refusal tag on it, the action route answered it as a 500, and serve logged nothing.</p>
+<ul>
+<li>Serve now refuses before claiming the run. The check runs after the inputs, ended-link and admission checks, so <code>403 resume_inputs_refused</code> and <code>run_not_resumable</code> still win. The same refusal comes back when it is raised inside the run: a gate reopened in between, serve&#39;s own continuations, or serve without a run registry.</li>
+<li>The <code>gate</code> (<code>job</code>, <code>step</code>) goes to anyone who reaches this reply. That caller has already passed the <code>run</code> check on the workflow, and <code>run</code> streams already show step ids.</li>
+<li>On the WebSocket, the error keeps the code <code>workflow_resume_failed</code> and its message, and adds `resumeRefusal:</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261111.161908.0-sha.516e63af" rel="noopener">release v20261111.161908.0-sha.516e63af</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/516e63af" rel="noopener">516e63af</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3745" rel="noopener">#3745</a>𝗔 <a href="https://swamp-club.com/lab/4641" rel="noopener">lab#4641</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261111-161331-0-sha-6ec2935e">
+<h2><span class="tier C">C</span>swamp 20261111.161331.0-sha.6ec2935e</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-11T16:17:48Z">2026-11-11T16:17:48Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>perf(workflows): a run&#39;s save writes its record with a specialised YAML writer instead of @std/yaml stringify (swamp-club#4640) (#3744)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Every save of a workflow run converted the whole run record to YAML with <code>@std/yaml</code> <code>stringify</code>. A run saves twice per step and its record grows with each step, so a long run&#39;s YAML cost grew with the square of its step count. It was the largest remaining cost after swamp-club#4638.</p>
+<p><code>save()</code> now uses <code>writeRunRecordYaml</code> (<code>src/infrastructure/persistence/run_record_yaml.ts</code>), a block-style writer for the record. The record is already JSON-clean, so the writer skips the general dumper&#39;s style search:</p>
+<ul>
+<li>A string is plain only when it starts with a letter, <code>_</code> or <code>/</code>, uses only <code>[A-Za-z0-9_./@-]</code>, and is not a reserved word in any case. A lowercase canonical UUID is also plain: its 8-4-4-4-12 hex shape matches no number, boolean or timestamp form, and <code>@std/yaml</code> already writes UUIDs plain, so ids keep their current look.</li>
+<li>Every other string is a JSON string literal, which is a valid YAML 1.2 double-quoted scalar. DEL, the C1 controls (including NEL), U+2028, U+2029, U+FEFF, U+FFFE and U+FFFF are re-escaped as <code>\uXXXX</code>, because JSON leaves them raw and YAML forbids them or reads them as line breaks.</li>
+<li>A key longer than YAML&#39;s 1024-character implicit-key limit is written as an explicit key (<code>? key</code> / <code>: value</code>), as <code>@std/yaml</code> stringify does, so strict parsers (libyaml, PyYAML) still read the record. Keys unde</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261111.161331.0-sha.6ec2935e" rel="noopener">release v20261111.161331.0-sha.6ec2935e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6ec2935e" rel="noopener">6ec2935e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3744" rel="noopener">#3744</a>𝗔 <a href="https://swamp-club.com/lab/4640" rel="noopener">lab#4640</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261109-181821-0-sha-f2aa1743">
 <h2><span class="tier C">C</span>allow webhook routes on any path again (reverts swamp-club#4407) (#3692)</h2>
 <p class="lede">`revert` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-11-09T18:22:45Z">2026-11-09T18:22:45Z</time></span><span>revert</span></div>
@@ -5071,13 +5161,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261101.202412.0-sha.0500dc35" rel="noopener">release v20261101.202412.0-sha.0500dc35</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0500dc35534060a870a5998e5dddbcd015dfc2e1" rel="noopener">0500dc35</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3528" rel="noopener">#3528</a>𝗔 <a href="https://swamp-club.com/lab/4250" rel="noopener">lab#4250</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>210 items across 1 source(s) in this window:
-2 critical, 185 notable, 15 routine,
-8 minor.</p>
-<ul><li><strong>fix</strong> — 138</li><li><strong>feat</strong> — 49</li><li><strong>perf</strong> — 11</li><li><strong>test</strong> — 4</li><li><strong>refactor</strong> — 3</li><li><strong>docs</strong> — 3</li></ul></section>
+<p>214 items across 1 source(s) in this window:
+2 critical, 185 notable, 16 routine,
+11 minor.</p>
+<ul><li><strong>fix</strong> — 138</li><li><strong>feat</strong> — 49</li><li><strong>perf</strong> — 12</li><li><strong>test</strong> — 4</li><li><strong>refactor</strong> — 3</li><li><strong>changes</strong> — 3</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-11T16:02:16.099Z">2026-11-11T16:02:16.099Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-11T17:01:53.390Z">2026-11-11T17:01:53.390Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

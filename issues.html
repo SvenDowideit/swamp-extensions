@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4621"><span class="tier A">A</span>Swampify: assess method in @swamp/agent-sessions mines trans</a><a href="#issue-4604"><span class="tier A">A</span>serve: swamp serve reload changes grant mode, grant sources </a><a href="#issue-4630"><span class="tier A">A</span>serve: a reload that closes admission locks the admins out, </a><a href="#issue-4624"><span class="tier A">A</span>Lazy loading L6: opt-in bundled build (compile.ts --bundle)</a><a href="#issue-4629"><span class="tier A">A</span>serve shutdown: /ready reports shutting_down while the webho</a><a href="#issue-4622"><span class="tier A">A</span>Open serve links to every collective on an active trial or p</a><a href="#issue-4626"><span class="tier A">A</span>A serve set up through the normal OAuth path can&#39;t link peop</a><a href="#issue-4612"><span class="tier A">A</span>Lazy loading: route completion callbacks to the target comma</a><a href="#issue-4628"><span class="tier A">A</span>Test broken on main: SqliteReadModel.recover full_recovery_r</a><a href="#issue-4625"><span class="tier A">A</span>Lazy loading L4: load only the invoked subcommand in behavio</a><a href="#issue-4627"><span class="tier A">A</span>Flaky property test: TrustedHosts generator produces xn-- la</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4638"><span class="tier A">A</span>workflow run: every run-record save re-reads and parses the </a><a href="#issue-4621"><span class="tier A">A</span>Swampify: assess method in @swamp/agent-sessions mines trans</a><a href="#issue-4604"><span class="tier A">A</span>serve: swamp serve reload changes grant mode, grant sources </a><a href="#issue-4630"><span class="tier A">A</span>serve: a reload that closes admission locks the admins out, </a><a href="#issue-4624"><span class="tier A">A</span>Lazy loading L6: opt-in bundled build (compile.ts --bundle)</a><a href="#issue-4629"><span class="tier A">A</span>serve shutdown: /ready reports shutting_down while the webho</a><a href="#issue-4622"><span class="tier A">A</span>Open serve links to every collective on an active trial or p</a><a href="#issue-4626"><span class="tier A">A</span>A serve set up through the normal OAuth path can&#39;t link peop</a><a href="#issue-4612"><span class="tier A">A</span>Lazy loading: route completion callbacks to the target comma</a><a href="#issue-4628"><span class="tier A">A</span>Test broken on main: SqliteReadModel.recover full_recovery_r</a><a href="#issue-4625"><span class="tier A">A</span>Lazy loading L4: load only the invoked subcommand in behavio</a></aside><div>
 
 <article class="item" id="issue-4239">
 <h2><span class="tier S">S</span>swamp issue: file bugs, features and security reports against the platform source</h2>
@@ -76,6 +76,14 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-4638">
+<h2><span class="tier A">A</span>workflow run: every run-record save re-reads and parses the whole record just to find the previous status, so cost grows with step count</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-11T14:37:03.915Z">2026-11-11T14:37:03.915Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4638" rel="noopener">lab#4638</a></div>
 </article>
 <article class="item" id="issue-4621">
 <h2><span class="tier A">A</span>Swampify: assess method in @swamp/agent-sessions mines transcripts into a candidate set</h2>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4625" rel="noopener">lab#4625</a></div>
 </article>
-<article class="item" id="issue-4627">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4627">
 <h2><span class="tier A">A</span>Flaky property test: TrustedHosts generator produces xn-- labels that parse correctly rejects</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-10T23:56:47.747Z">2026-11-10T23:56:47.747Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4627" rel="noopener">lab#4627</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4623">
+<article class="item" id="issue-4623">
 <h2><span class="tier A">A</span>serve: pass swamp-club&#39;s links_require_plan refusal to the app, and record links ended by a lapsed plan</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-11-10T23:51:38.150Z">2026-11-10T23:51:38.150Z</time></span></div>
@@ -2421,29 +2429,37 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
-<article class="item" id="issue-4637">
-<h2><span class="tier B">B</span>Lazy loading L7: ship the bundled build (bundled by default, tested on macOS and Windows first)</h2>
+<article class="item" id="issue-4640">
+<h2><span class="tier B">B</span>workflow run: every save converts the whole run record to YAML with @std/yaml, the largest remaining cost of a long run</h2>
 <p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-11-11T14:21:53.348Z">2026-11-11T14:21:53.348Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-11T14:59:13.105Z">2026-11-11T14:59:13.105Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4637" rel="noopener">lab#4637</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4640" rel="noopener">lab#4640</a></div>
 </article>
 <article class="item" id="issue-4639">
 <h2><span class="tier B">B</span>Parallel steps on one model instance leave its lock idle between turns: hand it over in process, with a fairness cap for other processes</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-11-11T14:21:13.602Z">2026-11-11T14:21:13.602Z</time></span></div>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-11T14:58:23.360Z">2026-11-11T14:58:23.360Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4639" rel="noopener">lab#4639</a></div>
 </article>
-<article class="item" id="issue-4638">
-<h2><span class="tier B">B</span>workflow run: every run-record save re-reads and parses the whole record just to find the previous status, so cost grows with step count</h2>
+<article class="item" id="issue-4634">
+<h2><span class="tier B">B</span>Upgrading an extension by name leaves its manifest dependencies at their old versions</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-11T14:57:59.339Z">2026-11-11T14:57:59.339Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4634" rel="noopener">lab#4634</a></div>
+</article>
+<article class="item" id="issue-4637">
+<h2><span class="tier B">B</span>Lazy loading L7: ship the bundled build (bundled by default, tested on macOS and Windows first)</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-11T14:20:24.791Z">2026-11-11T14:20:24.791Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-11T14:38:38.785Z">2026-11-11T14:38:38.785Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4638" rel="noopener">lab#4638</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4637" rel="noopener">lab#4637</a></div>
 </article>
 <article class="item" id="issue-4633">
 <h2><span class="tier B">B</span>serve: swamp serve reload turns scheduling and the timed services on or off and re-arms their intervals at once</h2>
@@ -2540,14 +2556,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4635" rel="noopener">lab#4635</a></div>
-</article>
-<article class="item" id="issue-4634">
-<h2><span class="tier C">C</span>Upgrading an extension by name leaves its manifest dependencies at their old versions</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-11T09:33:07.158Z">2026-11-11T09:33:07.158Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4634" rel="noopener">lab#4634</a></div>
 </article>
 <article class="item" id="issue-4632">
 <h2><span class="tier C">C</span>Find a working-directory Swamp repo even with `SWAMP_SERVE_URL` in the environment</h2>
@@ -3470,13 +3478,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>425 items across 1 source(s) in this window:
-1 critical, 293 notable, 10 routine,
-121 minor.</p>
-<ul><li><strong>issues</strong> — 425</li></ul></section>
+<p>426 items across 1 source(s) in this window:
+1 critical, 294 notable, 11 routine,
+120 minor.</p>
+<ul><li><strong>issues</strong> — 426</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-11T14:26:43.279Z">2026-11-11T14:26:43.279Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-11T15:02:07.788Z">2026-11-11T15:02:07.788Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

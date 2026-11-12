@@ -705,18 +705,46 @@ export function escapeHtml(value: unknown): string {
     .replaceAll("'", "&#39;");
 }
 
-function formatNumber(value: number): string {
-  return new Intl.NumberFormat("en-AU").format(value);
+/**
+ * Render an ISO timestamp as a `<time>` element, localised in the browser.
+ *
+ * The server-rendered fallback is the raw ISO value so the page is readable
+ * without JavaScript; the inline script rewrites it to the viewer's own
+ * timezone and locale on load.
+ */
+export function renderTime(iso: string): string {
+  const value = String(iso ?? "");
+  if (!value) return "";
+  return `<time datetime="${escapeHtml(value)}">${escapeHtml(value)}</time>`;
 }
 
-function formatTime(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return iso || "never";
-  return date.toLocaleString("en-AU", {
-    timeZone: "Australia/Brisbane",
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
+/**
+ * Client script that rewrites every `<time datetime>` to the viewer's local
+ * timezone, using their own locale and a short timezone name. Idempotent.
+ */
+export const LOCAL_TIME_SCRIPT = `
+(function () {
+  function localize(root) {
+    var nodes = (root || document).querySelectorAll("time[datetime]");
+    for (var i = 0; i < nodes.length; i++) {
+      var el = nodes[i];
+      var d = new Date(el.getAttribute("datetime"));
+      if (isNaN(d.getTime())) continue;
+      var text = d.toLocaleString(undefined, {
+        year: "numeric", month: "short", day: "numeric",
+        hour: "2-digit", minute: "2-digit", timeZoneName: "short"
+      });
+      if (el.textContent !== text) el.textContent = text;
+      el.title = d.toLocaleString();
+    }
+  }
+  localize(document);
+  window.addEventListener("pageshow", function () { localize(document); });
+})();
+`;
+
+function formatNumber(value: number): string {
+  return new Intl.NumberFormat("en-AU").format(value);
 }
 
 function statusClass(host: HostResult): string {
@@ -888,7 +916,7 @@ export function buildHtml(summary: Summary, pageUrl = ""): string {
         host.esmCount ? ` · ${formatNumber(host.esmCount)} ESM` : ""
       }</span>
           <span class="muted">checked ${
-        escapeHtml(formatTime(host.checkedAt))
+        host.checkedAt ? renderTime(host.checkedAt) : "never"
       }${host.stale ? " · STALE" : ""}</span>
         </summary>
         ${renderHostDetails(host)}
@@ -952,7 +980,7 @@ footer{margin-top:26px;color:var(--muted);font-size:.82rem}
   <div><h1>${
     escapeHtml(summary.pageTitle)
   }</h1><div class="muted">Debian-family package and security audit · generated ${
-    escapeHtml(formatTime(summary.generatedAt))
+    renderTime(summary.generatedAt)
   } · ${escapeHtml(summary.statusHostname || "local")}</div></div>
   <div><span class="overall ${overall}">${escapeHtml(overallLabel)}</span></div>
 </header>
@@ -1016,7 +1044,7 @@ ${errors}
   <div>Next automatic run: hourly while <code>swamp serve</code> is running. This page refreshes every hour.</div>
   ${pageLink ? `<div>${pageLink}</div>` : ""}
 </footer>
-</main></body></html>`;
+</main><script>${LOCAL_TIME_SCRIPT}</script></body></html>`;
 }
 
 function deriveOutputFile(g: GlobalArgs): string {
@@ -1308,7 +1336,7 @@ function deriveSiteDir(g: GlobalArgs): string {
 
 export const model = {
   type: "@svendowideit/network-status",
-  version: "2026.10.26.1",
+  version: "2026.11.12.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1330,6 +1358,12 @@ export const model = {
         "resolves each host by name so DHCP moves do not pin a stale IP. Also " +
         "makes the probe's os-release read portable so macOS and other " +
         "non-Debian hosts are reported as skipped instead of failing.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.12.1",
+      description:
+        "Render the generated time and each host's checked time as <time> elements and localise them in the viewer's browser timezone and locale instead of the orchestrator's timezone. No schema or argument change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

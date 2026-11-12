@@ -14,6 +14,7 @@ import {
   parseProSecurity,
   parseSections,
   pickSourceCaddy,
+  renderTime,
   statusRouteHostname,
   type Summary,
 } from "./network_status.ts";
@@ -234,6 +235,14 @@ Deno.test("parseHostOutput marks an old result stale", () => {
   assertEquals(host.stale, true);
 });
 
+Deno.test("renderTime wraps an ISO value for browser localisation", () => {
+  assertEquals(
+    renderTime("2026-10-25T00:10:00.000Z"),
+    '<time datetime="2026-10-25T00:10:00.000Z">2026-10-25T00:10:00.000Z</time>',
+  );
+  assertEquals(renderTime(""), "");
+});
+
 Deno.test("escapeHtml escapes every HTML-significant character", () => {
   assertEquals(
     escapeHtml(`<script>"x" & 'y'</script>`),
@@ -303,6 +312,8 @@ Deno.test("buildHtml renders the page, security rows and tasks", () => {
   assert(html.includes("security-row"));
   assert(html.includes("CVE-2025-1234"));
   assert(html.includes("https://status.example.test"));
+  assert(html.includes('<time datetime="2026-10-25T00:10:00.000Z">'));
+  assert(html.includes("time[datetime]"));
 });
 
 Deno.test("buildHtml escapes hostile data", () => {

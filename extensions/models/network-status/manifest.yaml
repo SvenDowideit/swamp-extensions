@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/network-status"
-version: "2026.10.26.1"
+version: "2026.11.12.1"
 description: |
   One hourly HTML status page for a mixed Debian-family fleet: it audits pending
   package updates on every host over SSH, separates security updates from normal

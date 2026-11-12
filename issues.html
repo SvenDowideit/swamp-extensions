@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4683"><span class="tier A">A</span>serve: telemetry for integrations: report hosted integration</a><a href="#issue-4660"><span class="tier A">A</span>serve: shutdown does not wait for or cancel the own-cron rep</a><a href="#issue-4656"><span class="tier A">A</span>serve: a webhook or cron run aborted by shutdown ends cancel</a><a href="#issue-4687"><span class="tier A">A</span>A schedule armed during a DST fall-back hour fires continuou</a><a href="#issue-4684"><span class="tier A">A</span>swamp-club: store the integrations each serve reports, and s</a><a href="#issue-4680"><span class="tier A">A</span>Serve won&#39;t release a worker token&#39;s secret to a dispatched </a><a href="#issue-4501"><span class="tier A">A</span>data.latest(): catch a name that equals its spec name before</a><a href="#issue-4666"><span class="tier A">A</span>Schedule catch-up counts slots before the watermark across a</a><a href="#issue-4682"><span class="tier A">A</span>Workflow guard does not see data written by an earlier step </a><a href="#issue-4502"><span class="tier A">A</span>Rename a behavior type (e.g. move it to another namespace) w</a><a href="#issue-4443"><span class="tier A">A</span>@swamp/video: describe and chapters for a joined video</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4654"><span class="tier A">A</span>swamp extension update writes an upgraded extension&#39;s skills</a><a href="#issue-4673"><span class="tier A">A</span>datastore push: a dropped push after a reported-success run </a><a href="#issue-4636"><span class="tier A">A</span>Docs: swamp serve reload now applies scheduling, the schedul</a><a href="#issue-4570"><span class="tier A">A</span>Docs: manual page for swamp workflow schedule list and pause</a><a href="#issue-4571"><span class="tier A">A</span>Docs: catalogue the audit actions swamp serve records</a><a href="#issue-4572"><span class="tier A">A</span>Docs: document garbageCollection.autoDefinitions and the run</a><a href="#issue-4582"><span class="tier A">A</span>Docs: team members&#39; CLI retries reads refused during a serve</a><a href="#issue-4620"><span class="tier A">A</span>Docs: swamp serve reload now applies most serve.yaml setting</a><a href="#issue-4635"><span class="tier A">A</span>Docs: hot-reload manual page lists which serve settings relo</a><a href="#issue-4691"><span class="tier A">A</span>A dense schedule fires nothing during the repeated hour afte</a><a href="#issue-4683"><span class="tier A">A</span>serve: telemetry for integrations: report hosted integration</a></aside><div>
 
 <article class="item" id="issue-4239">
 <h2><span class="tier S">S</span>swamp issue: file bugs, features and security reports against the platform source</h2>
@@ -77,6 +77,86 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
 </article>
+<article class="item" id="issue-4654">
+<h2><span class="tier A">A</span>swamp extension update writes an upgraded extension&#39;s skills into a skill directory another extension owns</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-12T22:31:34.387Z">2026-11-12T22:31:34.387Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4654" rel="noopener">lab#4654</a></div>
+</article>
+<article class="item" id="issue-4673">
+<h2><span class="tier A">A</span>datastore push: a dropped push after a reported-success run isn&#39;t persisted (run still exits 0); a wedged push holds the datastore lock until the process is killed</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-12T22:25:59.912Z">2026-11-12T22:25:59.912Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4673" rel="noopener">lab#4673</a></div>
+</article>
+<article class="item" id="issue-4636">
+<h2><span class="tier A">A</span>Docs: swamp serve reload now applies scheduling, the scheduled-run limit and timed-service on/off</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-12T22:12:55.545Z">2026-11-12T22:12:55.545Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4636" rel="noopener">lab#4636</a></div>
+</article>
+<article class="item" id="issue-4570">
+<h2><span class="tier A">A</span>Docs: manual page for swamp workflow schedule list and pause</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-12T22:12:55.358Z">2026-11-12T22:12:55.358Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4570" rel="noopener">lab#4570</a></div>
+</article>
+<article class="item" id="issue-4571">
+<h2><span class="tier A">A</span>Docs: catalogue the audit actions swamp serve records</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-12T22:12:55.172Z">2026-11-12T22:12:55.172Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4571" rel="noopener">lab#4571</a></div>
+</article>
+<article class="item" id="issue-4572">
+<h2><span class="tier A">A</span>Docs: document garbageCollection.autoDefinitions and the run gc changes from swamp-club#4299</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-12T22:12:54.976Z">2026-11-12T22:12:54.976Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4572" rel="noopener">lab#4572</a></div>
+</article>
+<article class="item" id="issue-4582">
+<h2><span class="tier A">A</span>Docs: team members&#39; CLI retries reads refused during a serve failover, and the new recovery failure code</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-12T22:12:54.789Z">2026-11-12T22:12:54.789Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4582" rel="noopener">lab#4582</a></div>
+</article>
+<article class="item" id="issue-4620">
+<h2><span class="tier A">A</span>Docs: swamp serve reload now applies most serve.yaml settings without --hot-reload or a restart</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-12T22:12:54.603Z">2026-11-12T22:12:54.603Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4620" rel="noopener">lab#4620</a></div>
+</article>
+<article class="item" id="issue-4635">
+<h2><span class="tier A">A</span>Docs: hot-reload manual page lists which serve settings reload, including grant settings and admin removal</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-12T22:12:54.403Z">2026-11-12T22:12:54.403Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4635" rel="noopener">lab#4635</a></div>
+</article>
+<article class="item" id="issue-4691">
+<h2><span class="tier A">A</span>A dense schedule fires nothing during the repeated hour after a DST fall-back</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-12T22:02:40.216Z">2026-11-12T22:02:40.216Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4691" rel="noopener">lab#4691</a></div>
+</article>
 <article class="item" id="issue-4683">
 <h2><span class="tier A">A</span>serve: telemetry for integrations: report hosted integrations to swamp-club, a client kind on usage events, and events for approvals and run control</h2>
 <p class="lede">Shipped feature</p>
@@ -85,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4683" rel="noopener">lab#4683</a></div>
 </article>
-<article class="item" id="issue-4660">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4660">
 <h2><span class="tier A">A</span>serve: shutdown does not wait for or cancel the own-cron replay that follows a scheduler turn-on</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-12T21:16:12.787Z">2026-11-12T21:16:12.787Z</time></span></div>
@@ -165,7 +245,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4443" rel="noopener">lab#4443</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4494">
+<article class="item" id="issue-4494">
 <h2><span class="tier A">A</span>Studio Board orders stage columns by position within each tracker-status lane, not by process order</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-12T19:28:58.236Z">2026-11-12T19:28:58.236Z</time></span></div>
@@ -2717,109 +2797,29 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
-<article class="item" id="issue-4654">
-<h2><span class="tier B">B</span>swamp extension update writes an upgraded extension&#39;s skills into a skill directory another extension owns</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-12T21:59:06.703Z">2026-11-12T21:59:06.703Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4654" rel="noopener">lab#4654</a></div>
-</article>
 <article class="item" id="issue-4689">
 <h2><span class="tier B">B</span>Supported way to rotate a connected worker&#39;s enrollment token over its own connection</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-12T21:58:10.573Z">2026-11-12T21:58:10.573Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-12T22:43:52.725Z">2026-11-12T22:43:52.725Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4689" rel="noopener">lab#4689</a></div>
 </article>
-<article class="item" id="issue-4679">
-<h2><span class="tier B">B</span>Team mode failover: one member stalls for minutes in most rounds, takeover runs past 60 s, and a serve outage exits slowly with exit 1 (run 7)</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-11-12T21:58:02.944Z">2026-11-12T21:58:02.944Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4679" rel="noopener">lab#4679</a></div>
-</article>
-<article class="item" id="issue-4691">
-<h2><span class="tier B">B</span>A dense schedule fires nothing during the repeated hour after a DST fall-back</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-12T21:57:40.114Z">2026-11-12T21:57:40.114Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4691" rel="noopener">lab#4691</a></div>
-</article>
-<article class="item" id="issue-4673">
-<h2><span class="tier B">B</span>datastore push: a dropped push after a reported-success run isn&#39;t persisted (run still exits 0); a wedged push holds the datastore lock until the process is killed</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-12T21:54:38.484Z">2026-11-12T21:54:38.484Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4673" rel="noopener">lab#4673</a></div>
-</article>
-<article class="item" id="issue-4636">
-<h2><span class="tier B">B</span>Docs: swamp serve reload now applies scheduling, the scheduled-run limit and timed-service on/off</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-12T21:52:32.556Z">2026-11-12T21:52:32.556Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4636" rel="noopener">lab#4636</a></div>
-</article>
-<article class="item" id="issue-4635">
-<h2><span class="tier B">B</span>Docs: hot-reload manual page lists which serve settings reload, including grant settings and admin removal</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-12T21:52:32.372Z">2026-11-12T21:52:32.372Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4635" rel="noopener">lab#4635</a></div>
-</article>
-<article class="item" id="issue-4570">
-<h2><span class="tier B">B</span>Docs: manual page for swamp workflow schedule list and pause</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-12T21:51:37.866Z">2026-11-12T21:51:37.866Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4570" rel="noopener">lab#4570</a></div>
-</article>
-<article class="item" id="issue-4571">
-<h2><span class="tier B">B</span>Docs: catalogue the audit actions swamp serve records</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-12T21:51:37.670Z">2026-11-12T21:51:37.670Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4571" rel="noopener">lab#4571</a></div>
-</article>
-<article class="item" id="issue-4572">
-<h2><span class="tier B">B</span>Docs: document garbageCollection.autoDefinitions and the run gc changes from swamp-club#4299</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-12T21:51:37.462Z">2026-11-12T21:51:37.462Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4572" rel="noopener">lab#4572</a></div>
-</article>
-<article class="item" id="issue-4582">
-<h2><span class="tier B">B</span>Docs: team members&#39; CLI retries reads refused during a serve failover, and the new recovery failure code</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-12T21:51:37.272Z">2026-11-12T21:51:37.272Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4582" rel="noopener">lab#4582</a></div>
-</article>
-<article class="item" id="issue-4620">
-<h2><span class="tier B">B</span>Docs: swamp serve reload now applies most serve.yaml settings without --hot-reload or a restart</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-12T21:51:36.885Z">2026-11-12T21:51:36.885Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4620" rel="noopener">lab#4620</a></div>
-</article>
 <article class="item" id="issue-4693">
 <h2><span class="tier B">B</span>serve: continue an interrupted run automatically when every step the restart cut off is safe to run again</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-11-12T21:49:50.972Z">2026-11-12T21:49:50.972Z</time></span></div>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-12T22:22:06.163Z">2026-11-12T22:22:06.163Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4693" rel="noopener">lab#4693</a></div>
+</article>
+<article class="item" id="issue-4679">
+<h2><span class="tier B">B</span>Team mode failover: one member stalls for minutes in most rounds, takeover runs past 60 s, and a serve outage exits slowly with exit 1 (run 7)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-12T22:12:02.829Z">2026-11-12T22:12:02.829Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4679" rel="noopener">lab#4679</a></div>
 </article>
 <article class="item" id="issue-4634">
 <h2><span class="tier B">B</span>Upgrading an extension by name leaves its manifest dependencies at their old versions</h2>
@@ -2885,7 +2885,23 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4374" rel="noopener">lab#4374</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4696">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4700">
+<h2><span class="tier C">C</span>ABAC support in @swamp/aws-sm</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-12T22:31:58.088Z">2026-11-12T22:31:58.088Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4700" rel="noopener">lab#4700</a></div>
+</article>
+<article class="item" id="issue-4698">
+<h2><span class="tier C">C</span>Docs: automatic continuation of interrupted runs in swamp serve (autoContinue)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-12T22:21:34.486Z">2026-11-12T22:21:34.486Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4698" rel="noopener">lab#4698</a></div>
+</article>
+<article class="item" id="issue-4696">
 <h2><span class="tier C">C</span>Local swamp worker token revoke revokes whichever behavior has the name, including a server access token</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-11-12T21:59:54.744Z">2026-11-12T21:59:54.744Z</time></span></div>
@@ -3870,13 +3886,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>475 items across 1 source(s) in this window:
-1 critical, 330 notable, 21 routine,
-123 minor.</p>
-<ul><li><strong>issues</strong> — 475</li></ul></section>
+<p>477 items across 1 source(s) in this window:
+1 critical, 340 notable, 11 routine,
+125 minor.</p>
+<ul><li><strong>issues</strong> — 477</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-12T22:03:45.837Z">2026-11-12T22:03:45.837Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-12T23:03:45.120Z">2026-11-12T23:03:45.120Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

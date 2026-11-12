@@ -2,6 +2,7 @@ import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 import {
   escapeHtml,
   renderHtmlReport,
+  renderTime,
   report,
   sha256Hex,
   slugify,
@@ -106,6 +107,13 @@ const SUMMARY: Record<string, unknown> = {
   claims: [],
   checkedAt: "2026-10-11T00:00:00.000Z",
 };
+
+Deno.test("renderTime wraps an ISO value for browser localisation", () => {
+  assertEquals(
+    renderTime("2026-10-11T00:00:00.000Z"),
+    '<time datetime="2026-10-11T00:00:00.000Z">2026-10-11T00:00:00.000Z</time>',
+  );
+});
 
 Deno.test("escapeHtml neutralises angle brackets and quotes", () => {
   assertEquals(

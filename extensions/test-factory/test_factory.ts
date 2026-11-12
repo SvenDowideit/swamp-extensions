@@ -1561,7 +1561,7 @@ export async function resolveApiKey(
 /** Model definition for the containerised extension test factory. */
 export const model = {
   type: "@svendowideit/test-factory",
-  version: "2026.11.07.3",
+  version: "2026.11.12.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1694,6 +1694,14 @@ export const model = {
         "already sets net.ipv4.ip_unprivileged_port_start=1024 on the harness " +
         "container so capability tests require a real host-usable capability. " +
         "No runtime or schema change from .2.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.12.1",
+      description:
+        "Render report timestamps as <time> elements and localise them in " +
+        "the viewer's browser timezone and locale. No schema or argument " +
+        "change; existing models upgrade with no changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

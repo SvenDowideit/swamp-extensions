@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/ssh-key-inventory"
-version: "2026.10.24.2"
+version: "2026.11.12.1"
 description: >
   Inventory, assess and safely replace SSH private keys across every host your
   control account can reach, with an HTML report and per-key remediation advice.

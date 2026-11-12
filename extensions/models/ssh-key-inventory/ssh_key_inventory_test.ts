@@ -38,4 +38,8 @@ Deno.test("buildUniqueKeys aggregates fingerprints", () => {
 Deno.test("escapeHtml and renderHtmlReport produce html", () => {
   const html = renderHtmlReport({ generatedAt: "2026-01-01T00:00:00.000Z", totalHosts: 0, reachableHosts: 0, privateKeys: 0, uniqueKeys: 0, hosts: [], keys: [] });
   if (!html.includes("<!doctype html>")) throw new Error("bad html");
+  if (!html.includes('<time datetime="2026-01-01T00:00:00.000Z">')) {
+    throw new Error("generatedAt is not a time element");
+  }
+  if (!html.includes("time[datetime]")) throw new Error("no local time script");
 });

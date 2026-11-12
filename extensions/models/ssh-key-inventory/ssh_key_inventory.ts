@@ -485,6 +485,55 @@ export function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
+/**
+ * Render an ISO timestamp as a `<time>` element, localised in the browser.
+ *
+ * The server-rendered text is the raw ISO value so the page is readable
+ * without JavaScript; the inline LOCAL_TIME_SCRIPT rewrites it to the viewer's
+ * local timezone and locale on load.
+ */
+export function renderTime(
+  iso: string,
+  format: "datetime" | "date" = "datetime",
+): string {
+  const value = String(iso ?? "");
+  if (!value) return "";
+  const attr = format === "date" ? ' data-time-format="date"' : "";
+  const text = format === "date" ? value.slice(0, 10) : value;
+  return `<time datetime="${escapeHtml(value)}"${attr}>${
+    escapeHtml(text)
+  }</time>`;
+}
+
+/**
+ * Client script that rewrites every `<time datetime>` to the viewer's local
+ * timezone, using their own locale and a short timezone name. Idempotent.
+ */
+export const LOCAL_TIME_SCRIPT = `
+(function () {
+  function localize(root) {
+    var nodes = (root || document).querySelectorAll("time[datetime]");
+    for (var i = 0; i < nodes.length; i++) {
+      var el = nodes[i];
+      var d = new Date(el.getAttribute("datetime"));
+      if (isNaN(d.getTime())) continue;
+      var dateOnly = el.getAttribute("data-time-format") === "date";
+      var opts = dateOnly
+        ? { year: "numeric", month: "short", day: "numeric" }
+        : {
+          year: "numeric", month: "short", day: "numeric",
+          hour: "2-digit", minute: "2-digit", timeZoneName: "short"
+        };
+      var text = d.toLocaleString(undefined, opts);
+      if (el.textContent !== text) el.textContent = text;
+      el.title = d.toLocaleString();
+    }
+  }
+  localize(document);
+  window.addEventListener("pageshow", function () { localize(document); });
+})();
+`;
+
 /** renderHtmlReport. */
 export function renderHtmlReport(inv: InventoryOutput): string {
   const rows = inv.keys.map((k) =>
@@ -492,7 +541,7 @@ export function renderHtmlReport(inv: InventoryOutput): string {
       k.bits ?? ""
     }</td><td>${k.encryptedCount}/${k.occurrences}</td><td>${
       k.oldestMtime
-        ? new Date(k.oldestMtime * 1000).toISOString().slice(0, 10)
+        ? renderTime(new Date(k.oldestMtime * 1000).toISOString(), "date")
         : ""
     }</td><td>${escapeHtml(k.systems.join(", "))}</td><td>${
       escapeHtml(k.authorizedSystems.join(", "))
@@ -522,9 +571,7 @@ export function renderHtmlReport(inv: InventoryOutput): string {
 <body>
 <h1>SSH Key Inventory</h1>
 <p>Generated ${
-    escapeHtml(
-      inv.generatedAt,
-    )
+    renderTime(inv.generatedAt)
   } — ${inv.totalHosts} hosts, ${inv.reachableHosts} reachable, ${inv.privateKeys} private key files, ${inv.uniqueKeys} unique keys.</p>
 <div class="summary">
 <div class="card">Hosts<br>
@@ -585,7 +632,7 @@ export function renderHtmlReport(inv: InventoryOutput): string {
           : ""
       }<ul>${k.advice.map((a) => `<li>${escapeHtml(a)}</li>`).join("")}</ul>`
     ).join("")
-  }</body></html>`;
+  }<script>${LOCAL_TIME_SCRIPT}</script></body></html>`;
 }
 
 async function runSsh(
@@ -805,13 +852,19 @@ async function readHostList(
 /** model. */
 export const model = {
   type: "@svendowideit/ssh-key-inventory",
-  version: "2026.10.24.2",
+  version: "2026.11.12.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
       toVersion: "2026.10.24.2",
       description:
         "Add local ~/.ssh inventory (local host appears in hosts and unique keys) and fix resource handle reporting.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.12.1",
+      description:
+        "Render the generated time and oldest key date as <time> elements and localise them in the viewer's browser timezone and locale. No schema or argument change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

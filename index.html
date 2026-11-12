@@ -71,7 +71,7 @@ footer .ver{color:var(--acc)}
 <h2 class="page-title">Documentation changes — This month</h2>
 <div class="cards">
 <div class="card"><div class="n">91</div><div class="l">FILES CHANGED</div></div>
-<div class="card"><div class="n">131</div><div class="l">CHANGES</div></div>
+<div class="card"><div class="n">130</div><div class="l">CHANGES</div></div>
 <div class="card"><div class="n">16</div><div class="l">WITH MANUAL PAGE</div></div>
 </div>
 <p class="lede">Documentation changed in the This month window, newest first. The activity leaderboard is on the
@@ -459,46 +459,6 @@ footer .ver{color:var(--acc)}
 </li></ul>
 </article>
 <article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>6 changes</span><span>updated <time datetime="2026-11-10T23:52:01Z">2026-11-10T23:52:01Z</time></span><span><a href="https://swamp-club.com/manual/reference/datastore-configuration" rel="noopener">published manual</a></span></div>
-<ul class="doc-changes"><li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-11-10T23:52:01Z">2026-11-10T23:52:01Z</time></span>
-<span class="doc-title">a fenced old leader no longer lands or feeds a commit after a takeover and a diverged copy repairs itself, and a member&#39;s recovery rebuilds only the data names it touched (swamp-club#4581) (#3731)</span>
-<span class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261110.234711.0-sha.3432b140" rel="noopener">release v20261110.234711.0-sha.3432b140</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/3432b14028261d1e7d2fbded5d295365db41ed28" rel="noopener">3432b140</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3731" rel="noopener">#3731</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4374" rel="noopener">#4374</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4559" rel="noopener">#4559</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4254" rel="noopener">#4254</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4512" rel="noopener">#4512</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4579" rel="noopener">#4579</a>𝗔 <a href="https://swamp-club.com/lab/4581" rel="noopener">lab#4581</a></span>
-</li>
-<li class="doc-change">
-<span class="tier B">B</span>
-<span class="doc-date"><time datetime="2026-11-10T09:05:08Z">2026-11-10T09:05:08Z</time></span>
-<span class="doc-title">team-mode steps send their lock while their start commits, checkpoints pace from their own run&#39;s flushes, and a run&#39;s final record rides its reports&#39; batch (swamp-club#4574) (#3709)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/543719bf25fca7180a88a460d84ae641322ee053" rel="noopener">543719bf</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3709" rel="noopener">#3709</a>𝗔 <a href="https://swamp-club.com/lab/4574" rel="noopener">lab#4574</a></span>
-</li>
-<li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-11-09T19:12:21Z">2026-11-09T19:12:21Z</time></span>
-<span class="doc-title">large team-mode outputs upload under a size-scaled deadline, serve stores chunks while reading, failing uploads are capped at 3, and a lapse mid-request reports lease_lapsed (swamp-club#4542) (#3694)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4d382f0729ed46c935860316e9fede5a63b39165" rel="noopener">4d382f07</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3694" rel="noopener">#3694</a>𝗔 <a href="https://swamp-club.com/lab/4542" rel="noopener">lab#4542</a></span>
-</li>
-<li class="doc-change">
-<span class="tier B">B</span>
-<span class="doc-date"><time datetime="2026-11-09T12:11:58Z">2026-11-09T12:11:58Z</time></span>
-<span class="doc-title">a team-mode workflow step makes 2 commits and no catch-up of its own, a one-step write takes 2 requests to serve, and a far member&#39;s teardown no longer waits on the feed watch (swamp-club#4525) (#3684)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/395da2342a74e4ed1d1510b6346c281be13e3ac3" rel="noopener">395da234</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3684" rel="noopener">#3684</a>𝗔 <a href="https://swamp-club.com/lab/4525" rel="noopener">lab#4525</a></span>
-</li>
-<li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-11-03T16:07:16Z">2026-11-03T16:07:16Z</time></span>
-<span class="doc-title">a lock waiter no longer freezes swamp on Windows by spawning tasklist on every retry (swamp-club#4337) (#3586)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d30302b89d65393f2d4a71024d958f41487a00ce" rel="noopener">d30302b8</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3586" rel="noopener">#3586</a>𝗔 <a href="https://swamp-club.com/lab/4337" rel="noopener">lab#4337</a></span>
-</li>
-<li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-11-02T07:28:15Z">2026-11-02T07:28:15Z</time></span>
-<span class="doc-title">a team member&#39;s datastore lock, datastore status, extension and run gc commands go through serve, never storage, and --json errors carry inFlight (swamp-club#4281) (#3545)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/37107c15647cbedabf901f49a9747fa3ed051483" rel="noopener">37107c15</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3545" rel="noopener">#3545</a>𝗔 <a href="https://swamp-club.com/lab/4281" rel="noopener">lab#4281</a></span>
-</li></ul>
-</article>
-<article class="item doc-item">
 <h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>4 changes</span><span>updated <time datetime="2026-11-10T22:28:35Z">2026-11-10T22:28:35Z</time></span><span><a href="https://swamp-club.com/manual/explanation/remote-execution" rel="noopener">published manual</a></span></div>
 <ul class="doc-changes"><li class="doc-change">
@@ -570,6 +530,40 @@ footer .ver{color:var(--acc)}
 <span class="doc-date"><time datetime="2026-11-10T12:56:03Z">2026-11-10T12:56:03Z</time></span>
 <span class="doc-title">a sender whose send fails keeps its lock for a linger, so a failing ingest no longer starts a sender per command (swamp-club#4580) (#3710)</span>
 <span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c7f34885b2eb3284354734b6f64323eda2a55df7" rel="noopener">c7f34885</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3710" rel="noopener">#3710</a>𝗔 <a href="https://swamp-club.com/lab/4580" rel="noopener">lab#4580</a></span>
+</li></ul>
+</article>
+<article class="item doc-item">
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>5 changes</span><span>updated <time datetime="2026-11-10T09:05:08Z">2026-11-10T09:05:08Z</time></span><span><a href="https://swamp-club.com/manual/reference/datastore-configuration" rel="noopener">published manual</a></span></div>
+<ul class="doc-changes"><li class="doc-change">
+<span class="tier B">B</span>
+<span class="doc-date"><time datetime="2026-11-10T09:05:08Z">2026-11-10T09:05:08Z</time></span>
+<span class="doc-title">team-mode steps send their lock while their start commits, checkpoints pace from their own run&#39;s flushes, and a run&#39;s final record rides its reports&#39; batch (swamp-club#4574) (#3709)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/543719bf25fca7180a88a460d84ae641322ee053" rel="noopener">543719bf</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3709" rel="noopener">#3709</a>𝗔 <a href="https://swamp-club.com/lab/4574" rel="noopener">lab#4574</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-09T19:12:21Z">2026-11-09T19:12:21Z</time></span>
+<span class="doc-title">large team-mode outputs upload under a size-scaled deadline, serve stores chunks while reading, failing uploads are capped at 3, and a lapse mid-request reports lease_lapsed (swamp-club#4542) (#3694)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4d382f0729ed46c935860316e9fede5a63b39165" rel="noopener">4d382f07</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3694" rel="noopener">#3694</a>𝗔 <a href="https://swamp-club.com/lab/4542" rel="noopener">lab#4542</a></span>
+</li>
+<li class="doc-change">
+<span class="tier B">B</span>
+<span class="doc-date"><time datetime="2026-11-09T12:11:58Z">2026-11-09T12:11:58Z</time></span>
+<span class="doc-title">a team-mode workflow step makes 2 commits and no catch-up of its own, a one-step write takes 2 requests to serve, and a far member&#39;s teardown no longer waits on the feed watch (swamp-club#4525) (#3684)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/395da2342a74e4ed1d1510b6346c281be13e3ac3" rel="noopener">395da234</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3684" rel="noopener">#3684</a>𝗔 <a href="https://swamp-club.com/lab/4525" rel="noopener">lab#4525</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-03T16:07:16Z">2026-11-03T16:07:16Z</time></span>
+<span class="doc-title">a lock waiter no longer freezes swamp on Windows by spawning tasklist on every retry (swamp-club#4337) (#3586)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d30302b89d65393f2d4a71024d958f41487a00ce" rel="noopener">d30302b8</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3586" rel="noopener">#3586</a>𝗔 <a href="https://swamp-club.com/lab/4337" rel="noopener">lab#4337</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-02T07:28:15Z">2026-11-02T07:28:15Z</time></span>
+<span class="doc-title">a team member&#39;s datastore lock, datastore status, extension and run gc commands go through serve, never storage, and --json errors carry inFlight (swamp-club#4281) (#3545)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/37107c15647cbedabf901f49a9747fa3ed051483" rel="noopener">37107c15</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3545" rel="noopener">#3545</a>𝗔 <a href="https://swamp-club.com/lab/4281" rel="noopener">lab#4281</a></span>
 </li></ul>
 </article>
 <article class="item doc-item">
@@ -1228,7 +1222,7 @@ footer .ver{color:var(--acc)}
 </article>
 </main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-12T15:04:14.064Z">2026-11-12T15:04:14.064Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-12T16:04:11.719Z">2026-11-12T16:04:11.719Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

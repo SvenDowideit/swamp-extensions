@@ -181,7 +181,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Validate warning.</strong> <code>swamp workflow validate</code> warns when <code>forEach.in</code> reads <code>data</code>, <code>model</code> or <code>file</code> and its step depends (directly or transitively) on a step in the same job.</li>
 <li><strong>Docs.</strong> Skill reference and forEach guide, and <code>design/primitives/workflows.md</code>: job-start timing, the same-job pitfall and its remedies, guard polarity (truthy skips), the</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/reference.md" rel="noopener">.claude/skills/swamp/references/workflow/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/references/expressions-and-foreach.md" rel="noopener">.claude/skills/swamp/references/workflow/references/expressions-and-foreach.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/references/expressions-and-foreach.md" rel="noopener">.claude/skills/swamp/references/workflow/references/expressions-and-foreach.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261111.234122.0-sha.cd35f58c" rel="noopener">release v20261111.234122.0-sha.cd35f58c</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/cd35f58c57f920ffa79ec6911eab18f2a904a307" rel="noopener">cd35f58c</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3758" rel="noopener">#3758</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261111-214515-0-sha-d7bb6063">
@@ -204,7 +204,7 @@ footer .ver{color:var(--acc)}
 <li><strong>extension list:</strong> entries gain <code>missing</code>, <code>missingFiles</code> and <code>installsOnNextUse</code>. Log mode adds a row marker and a footer pointing to <code>swamp extension install</code>.</li>
 <li><strong>Docs:</strong> <code>design/primitives/extensions.md</code> and the swamp skill&#39;s</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/troubleshooting/reference.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/troubleshooting/references/health-checks.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/references/health-checks.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/extensions.md" rel="noopener">design/primitives/extensions.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/troubleshooting/references/health-checks.md" rel="noopener">.claude/skills/swamp/references/troubleshooting/references/health-checks.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/extensions.md" rel="noopener">design/primitives/extensions.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261111.214515.0-sha.d7bb6063" rel="noopener">release v20261111.214515.0-sha.d7bb6063</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d7bb6063b991ecd9257e7f34df984d10ba0109d8" rel="noopener">d7bb6063</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3757" rel="noopener">#3757</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261111-213902-0-sha-ca406133">
@@ -4714,7 +4714,7 @@ footer .ver{color:var(--acc)}
 <li>Serve&#39;s fencing is untouched: the F43 fence check at the append, the #4559 unconfirmed-leader refusal and lease exclusion.</li>
 </ul>
 <p>This is a partial fix of #4631. The issue&#39;s targets are not met yet; the remaining work (connections, read-model catch-up, commit cost) is tracked in follow-ups. An earlier shared-connection change was dropped from th</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261112.165148.0-sha.cf378c23" rel="noopener">release v20261112.165148.0-sha.cf378c23</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/cf378c23aaab1f88cfd8367e5fd08889997b4eec" rel="noopener">cf378c23</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3741" rel="noopener">#3741</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4559" rel="noopener">#4559</a>𝗔 <a href="https://swamp-club.com/lab/4631" rel="noopener">lab#4631</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261111-194806-0-sha-5e1a67d2">
@@ -5491,7 +5491,7 @@ footer .ver{color:var(--acc)}
 <ul><li><strong>fix</strong> — 146</li><li><strong>feat</strong> — 54</li><li><strong>perf</strong> — 16</li><li><strong>test</strong> — 5</li><li><strong>refactor</strong> — 3</li><li><strong>docs</strong> — 3</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-12T19:01:58.514Z">2026-11-12T19:01:58.514Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-12T20:04:29.586Z">2026-11-12T20:04:29.586Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

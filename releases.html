@@ -5931,7 +5931,75 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261110.191731.0-sha.19a81b5b" rel="noopener">release v20261110.191731.0-sha.19a81b5b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/19a81b5b64973fa95fdb1d673df8c20f039f0546" rel="noopener">19a81b5b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3720" rel="noopener">#3720</a>𝗔 <a href="https://swamp-club.com/lab/4600" rel="noopener">lab#4600</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261111-194243-0-sha-a72a2318">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261114-022954-0-sha-b5fb73d0">
+<h2><span class="tier C">C</span>swamp 20261114.022954.0-sha.b5fb73d0</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-14T02:33:03Z">2026-11-14T02:33:03Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(extensions): print extension versions without a v prefix in log output (swamp-club#4564) (#3796)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Extension versions now print in one spelling. <code>extension list</code>, <code>outdated</code>, <code>update</code>, <code>search</code> and <code>rm</code> printed versions as <code>v2026.01.01.1</code>, while <code>pull</code>, <code>push</code>, <code>info</code>, every JSON payload and the manifest use the bare CalVer form. The log renderers now print the bare form too.</p>
+<ul>
+<li><strong>list</strong>: version and latest columns, the on-disk note and the pinned-version warning. The column widths no longer reserve a character for the prefix.</li>
+<li><strong>outdated / update</strong>: every check row, the result lines, and the <code>Updating …</code> and orphans-pruned progress lines. Those two previously rendered <code>v&quot;2026.01.01.1&quot;</code> because LogTape quotes interpolated strings; they now render <code>&quot;2026.01.01.1&quot;</code>, as <code>pull</code> does.</li>
+<li><strong>search</strong>: the version label, matching the bare <code>rc:</code> / <code>beta:</code> labels beside it.</li>
+<li><strong>rm</strong>: the <code>Removed …</code> line, the confirmation prompt and the debug log.</li>
+<li><code>design/primitives/extensions.md</code> example updated.</li>
+</ul>
+<p>JSON output is unchanged, and a <code>v</code>-prefixed version is still accepted as input, so text copied from older output still parses. Data, report and model versions (integers) and the quality rubric version keep their <code>v</code>.</p>
+<p><strong>Held</strong> until swamp-club/swamp-uat#965 merges: it updates the one UAT assertion on the v-prefixed <code>extension list</code> row, and is substring-compatible with both the old and new output.</p>
+<p>The stale manual examples are tracked in swamp-club#47</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261114.022954.0-sha.b5fb73d0" rel="noopener">release v20261114.022954.0-sha.b5fb73d0</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b5fb73d0" rel="noopener">b5fb73d0</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3796" rel="noopener">#3796</a>𝗔 <a href="https://swamp-club.com/lab/4564" rel="noopener">lab#4564</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261114-021213-0-sha-c43e3a5e">
+<h2><span class="tier C">C</span>swamp 20261114.021213.0-sha.c43e3a5e</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-14T02:16:25Z">2026-11-14T02:16:25Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>test(serve): fitness test that no serve route sits under the /hooks/ webhook route-file prefix (swamp-club#4594) (#3795)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Webhook route files must sit under <code>/hooks/</code> (<code>WEBHOOK_ROUTE_PREFIX</code>), and webhook routes are matched before serve&#39;s own HTTP routes. A serve route added under that prefix would therefore be taken over by any reviewed route file, and serve would log nothing. No serve route lives there today; this adds an architecture fitness test so none is added. There are no production code changes.</p>
+<p><code>integration/serve_webhook_prefix_rules_test.ts</code> has three tests:</p>
+<ul>
+<li><strong>No collisions.</strong> It scans <code>src/cli/commands/serve.ts</code> and all of <code>src/serve/</code> for exact path comparisons, <code>case</code> labels, <code>startsWith</code> prefixes, <code>*PATH</code>/<code>*PREFIX</code>/<code>*ROUTE</code> constants, <code>*Path</code>/<code>*Prefix</code>/<code>*Route</code> properties (such as the device-auth <code>startPath</code>) and the first segment of anchored route regexes. Each is judged against <code>WEBHOOK_ROUTE_PREFIX</code> by kind of match:</li>
+<li>an exact match collides when it falls under the prefix;</li>
+<li>a prefix or regex root collides when either string is a prefix of the other, which catches <code>startsWith(&quot;/&quot;)</code> and <code>/^\/h/</code>.</li>
+</ul>
+<p>  Three exemptions are pinned with <code>assertPinnedSet</code> over <code>countedKeys</code>: the prefix constant itself, and two webhook route validators that call <code>startsWith(&quot;/&quot;)</code> but match no request. A new collision, a stale exemption and a second identical hit all fail.</p>
+<ul>
+<li><strong>Scan health.</strong> It pins one or more known routes per matcher shape,</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261114.021213.0-sha.c43e3a5e" rel="noopener">release v20261114.021213.0-sha.c43e3a5e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c43e3a5e" rel="noopener">c43e3a5e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3795" rel="noopener">#3795</a>𝗔 <a href="https://swamp-club.com/lab/4594" rel="noopener">lab#4594</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261113-232530-0-sha-492fb502">
+<h2><span class="tier C">C</span>design for serve workspaces, a thin host that routes and supervises one serve per workspace (swamp-club#4735) (#3793)</h2>
+<p class="lede">`docs` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-13T23:28:55Z">2026-11-13T23:28:55Z</time></span><span>serve</span><span>docs</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>docs(serve): design for serve workspaces, a thin host that routes and supervises one serve per workspace (swamp-club#4735) (#3793)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Adds <code>design/surfaces/serve-workspaces.md</code>, a plan for hosting several workspaces at one address, and its row in the <code>design/README.md</code> surfaces table. Docs only. Nothing is built by this change.</p>
+<p>The plan in short:</p>
+<ul>
+<li><strong>A hosted workspace is a whole serve.</strong> It is an ordinary <code>swamp serve</code> process for an ordinary repo, reached at <code>&lt;host address&gt;/w/&lt;name&gt;</code>. Authentication, grants, tokens, audit, the scheduler, webhooks, the worker gateway and the datastore API stay per serve, so they are per workspace by construction.</li>
+<li><strong>The host is not a serve.</strong> <code>swamp serve host</code> holds the listener, routes each request and supervises the serves. It has no repo, loads no extension, opens no datastore and authenticates no one, so a failing serve is one child restarting.</li>
+<li><strong>The root workspace is a child like any other.</strong> It answers every path outside <code>/w/</code> and takes the lifecycle requests (create, list, get, suspend, resume, delete), authorized by a new <code>workspace</code> resource kind in grants.</li>
+<li><strong>One sign-in.</strong> A person signs in to the root. Each workspace mints its own token from a single-use code, so the root token never reaches a workspace.</li>
+<li><strong>Execution plan.</strong> The doc ends with eighteen issues, one PR each, in four groups: addresses with a path, the host, lifecycle and sign-in, dashboard.</li>
+</ul>
+<p>The doc also states its limits (one m</p></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/README.md" rel="noopener">design/README.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/serve-workspaces.md" rel="noopener">design/surfaces/serve-workspaces.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261113.232530.0-sha.492fb502" rel="noopener">release v20261113.232530.0-sha.492fb502</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/492fb5023f468e31afab9d4ab66044bfe804f1a8" rel="noopener">492fb502</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3793" rel="noopener">#3793</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261111-194243-0-sha-a72a2318">
 <h2><span class="tier C">C</span>the root-help property accepts help as the --log-level value (swamp-club#4661) (#3753)</h2>
 <p class="lede">`test` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-11-11T19:46:31Z">2026-11-11T19:46:31Z</time></span><span>cli</span><span>test</span></div>
@@ -6152,13 +6220,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261101.202412.0-sha.0500dc35" rel="noopener">release v20261101.202412.0-sha.0500dc35</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0500dc35534060a870a5998e5dddbcd015dfc2e1" rel="noopener">0500dc35</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3528" rel="noopener">#3528</a>𝗔 <a href="https://swamp-club.com/lab/4250" rel="noopener">lab#4250</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>260 items across 1 source(s) in this window:
+<p>263 items across 1 source(s) in this window:
 2 critical, 228 notable, 21 routine,
-9 minor.</p>
-<ul><li><strong>fix</strong> — 166</li><li><strong>feat</strong> — 64</li><li><strong>perf</strong> — 17</li><li><strong>test</strong> — 5</li><li><strong>refactor</strong> — 3</li><li><strong>docs</strong> — 3</li></ul></section>
+12 minor.</p>
+<ul><li><strong>fix</strong> — 166</li><li><strong>feat</strong> — 64</li><li><strong>perf</strong> — 17</li><li><strong>test</strong> — 5</li><li><strong>docs</strong> — 4</li><li><strong>refactor</strong> — 3</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-14T03:04:39.660Z">2026-11-14T03:04:39.660Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-14T04:02:17.052Z">2026-11-14T04:02:17.052Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

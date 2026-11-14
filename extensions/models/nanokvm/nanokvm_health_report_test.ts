@@ -8,7 +8,7 @@
  * @module
  */
 
-import { assertEquals } from "jsr:@std/assert@1";
+import { assertEquals } from "jsr:@std/assert@1.0.19";
 import { report } from "./nanokvm_health_report.ts";
 
 interface FakeHandle {

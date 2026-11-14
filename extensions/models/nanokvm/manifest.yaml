@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/nanokvm"
-version: "2026.10.17.4"
+version: "2026.11.14.1"
 description: >
   Operate a Sipeed NanoKVM from swamp: a health verdict, screenshots, GPIO
   power/reset and virtual media, with the device's health pushed to your
@@ -9,16 +9,17 @@ description: >
   WHAT IT DOES
 
     A NanoKVM is an out-of-band IP-KVM running Sipeed's own server, not PiKVM's
-    kvmd: a small JSON API over a self-signed HTTPS certificate. Two firmware
-    generations disagree on login — older builds take the password in plaintext
-    and return a bearer token, newer builds take the web UI's AES-encrypted
-    password and set a session cookie — and this model speaks both transparently.
-    `health` returns a pass/warn/fail verdict with findings — firmware behind, no
-    HDMI signal, virtual media left mounted, HID misconfigured — and records an
-    unreachable device as a failure rather than throwing, so a scheduled check
-    always leaves evidence. `emit` forwards that verdict to the swamp-managed
-    OTel system (an OTLP log plus gauges), a no-op that says why when no
-    collector is configured.
+    kvmd: a small JSON API over HTTPS, or plain HTTP on a device whose config
+    never enabled TLS. Its firmware generations disagree on login, auth and
+    endpoint names — 1.x takes the password in plaintext and returns a bearer
+    token, 2.x takes the UI's AES-encrypted password and sets a `nano-kvm-token`
+    cookie — and this model speaks every generation, so one definition manages
+    any NanoKVM on your LAN. `health` returns a pass/warn/fail verdict with
+    findings and records an unreachable device as a failure rather than
+    throwing, so a scheduled check always leaves evidence. `cert install` gives
+    the web UI a publicly trusted certificate (and can switch an HTTP-only
+    device to HTTPS), `emit` forwards the verdict to OTel, and `script` runs a
+    repair script through the device's own admin API.
 
   INSTALL
 
@@ -52,17 +53,30 @@ description: >
       # endpoint is configured.
       swamp model @svendowideit/nanokvm method run emit nanokvm
 
+      # Install the Let's Encrypt certificate Caddy issued for the device's
+      # name, restarting its web server and verifying what it serves. Add
+      # --input enableHttps=true when the device only listens on plain HTTP.
+      swamp model @svendowideit/nanokvm method run cert nanokvm \
+        --input action=install --input name=nanokvm.fi.gy
+
       # List every NanoKVM swamp looks after (a repo scan, no network) and emit
       # an A-record list ready for a DNS reconciler.
       swamp model @svendowideit/nanokvm method run devices nanokvm \
         --input zone=fi.gy
+
+      # Inspect or repair a device through its admin script API — the only way
+      # in when the web UI or certificate is wrong. The output is recorded.
+      swamp model @svendowideit/nanokvm method run script nanokvm \
+        --input body='cat /etc/kvm/server.yaml' --input name=swamp-check.sh
 
   CONFIGURE
 
     Global arguments (set at creation with --global-arg key=value; only host has
     no default):
       host                     NanoKVM address, no scheme (e.g. 192.0.2.10)
-      port                     HTTPS port (default 443)
+      port                     web-server port (default 443; 80 when scheme is http)
+      scheme                   transport: https (default) or http for firmware
+                               that serves the UI and API in the clear
       username                 web UI user (default admin)
       vaultName                vault holding the password (default empty)
       passwordRef              vault key for the password (default NANOKVM_PASSWORD)
@@ -81,9 +95,13 @@ description: >
 
     Method arguments: `power` takes action (power|reset), durationMs, apply;
     `msd` takes action (status|mount|umount), file, cdrom, apply; `screenshot`
-    takes timeoutMs and label; `emit` takes health, endpoint and mesh; `devices`
-    takes zone (the DNS suffix for each device's name). `setup` takes the
-    connection overrides it can persist. See the README for the full tables.
+    takes timeoutMs and label; `emit` takes health, endpoint and mesh; `cert`
+    takes action (status|install), name, certDir, crt, key, waitMs, restart,
+    enableHttps and scriptName; `script` takes name, body and timeoutMs;
+    `devices` takes zone (the DNS suffix for each device's name). `setup` takes
+    the connection overrides it can persist (host, port, scheme, username,
+    vaultName, passwordRef, envRef, curlModel, otelModel). See the README for
+    the full tables.
 
   SETUP
 

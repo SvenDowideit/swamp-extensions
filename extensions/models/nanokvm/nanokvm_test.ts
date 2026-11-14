@@ -8,14 +8,16 @@
  * @module
  */
 
-import { assertEquals, assertStrictEquals } from "jsr:@std/assert@1";
+import { assertEquals, assertStrictEquals } from "jsr:@std/assert@1.0.19";
 import { createDecipheriv, createHash } from "node:crypto";
 import {
+  authHeaders,
   baseUrl,
   buildCertInstallerScript,
   buildOtlpLogs,
   buildOtlpMetrics,
   certDaysRemaining,
+  certProbePort,
   classifyHealth,
   deviceFromDefinition,
   dnsNameFor,
@@ -23,6 +25,7 @@ import {
   expandHome,
   extractJpeg,
   type HealthSample,
+  isVirtualMediaImage,
   jpegSize,
   LOGIN_SECRET_KEY,
   loginEncodings,
@@ -112,6 +115,13 @@ Deno.test("baseUrl omits the default port and keeps a custom one", () => {
   assertEquals(baseUrl("kvm.local/", 443), "https://kvm.local");
 });
 
+Deno.test("baseUrl speaks http for firmware with no TLS listener", () => {
+  assertEquals(baseUrl("192.0.2.10", 80, "http"), "http://192.0.2.10");
+  assertEquals(baseUrl("192.0.2.10", 8080, "http"), "http://192.0.2.10:8080");
+  assertEquals(baseUrl("kvm.local/", 80, "http"), "http://kvm.local");
+  assertEquals(baseUrl("192.0.2.10", 80), "https://192.0.2.10:80");
+});
+
 Deno.test("sanitizeLabel matches the curl request record naming", () => {
   assertEquals(sanitizeLabel("otel-logs"), "otel-logs");
   assertEquals(sanitizeLabel("192.0.2.10 power"), "192.0.2.10-power");
@@ -173,6 +183,7 @@ Deno.test("deviceFromDefinition maps only nanokvm defs that have a host", () => 
       name: "nanokvm",
       host: "192.0.2.10",
       port: 8443,
+      scheme: "https",
       dnsName: "nanokvm.fi.gy",
       source: "",
     },
@@ -185,6 +196,15 @@ Deno.test("deviceFromDefinition maps only nanokvm defs that have a host", () => 
       globalArguments: { host: "10.0.0.2" },
     }, "fi.gy")?.port,
     443,
+  );
+  // An HTTP-only device records its scheme so workflows can drive it as-is.
+  assertEquals(
+    deviceFromDefinition({
+      type: "@svendowideit/nanokvm",
+      name: "kvm3",
+      globalArguments: { host: "10.0.0.3", port: 80, scheme: "http" },
+    }, "fi.gy")?.scheme,
+    "http",
   );
   assertStrictEquals(
     deviceFromDefinition({
@@ -258,6 +278,42 @@ Deno.test("buildCertInstallerScript embeds both PEMs and restarts", () => {
       .includes("/etc/init.d/S95nanokvm restart"),
     false,
   );
+});
+
+Deno.test("buildCertInstallerScript can switch the server to HTTPS", () => {
+  const script = buildCertInstallerScript("crt", "key", true, true);
+  assertEquals(script.includes("/etc/kvm/server.yaml.swamp-bak"), true);
+  assertEquals(script.includes("proto: https"), true);
+  // 2.x firmware spells the key `protocol`, so both are handled.
+  assertEquals(script.includes("protocol: https"), true);
+  assertEquals(script.includes("crt: /etc/kvm/server.crt"), true);
+  assertEquals(script.includes("key: /etc/kvm/server.key"), true);
+  // Off by default: a plain install never rewrites the device config.
+  assertEquals(
+    buildCertInstallerScript("crt", "key").includes("server.yaml"),
+    false,
+  );
+});
+
+Deno.test("certProbePort reads TLS on 443 for an HTTP-only API", () => {
+  assertEquals(certProbePort("https", 443), 443);
+  assertEquals(certProbePort("https", 8443), 8443);
+  assertEquals(certProbePort("http", 80), 443);
+});
+
+Deno.test("authHeaders sends the token as both bearer and cookie", () => {
+  assertEquals(authHeaders(""), []);
+  assertEquals(authHeaders("t"), [
+    "Authorization: Bearer t",
+    "Cookie: nano-kvm-token=t",
+  ]);
+});
+
+Deno.test("isVirtualMediaImage rejects the boot device", () => {
+  assertEquals(isVirtualMediaImage("/data/ubuntu.iso"), true);
+  assertEquals(isVirtualMediaImage("debian.IMG"), true);
+  assertEquals(isVirtualMediaImage("/dev/mmcblk0p3"), false);
+  assertEquals(isVirtualMediaImage(""), false);
 });
 
 Deno.test("classifyHealth fails an unreachable device", () => {

@@ -6,14 +6,16 @@ runs Sipeed's own Go server rather than PiKVM's `kvmd`.
 
 ## What it does
 
-The NanoKVM answers a small JSON API over a self-signed HTTPS certificate. Two
-firmware generations disagree on login — older builds take the password in
-plaintext and return a bearer token, newer builds take an AES-encrypted password
-(CryptoJS key `nanokvm-sipeed-2024`, baked into the web UI) and set a session
-cookie — and this extension speaks both transparently. It wraps all of that in
-one typed behavior so you can check a device, capture its screen, press its power
-button, move virtual media, and forward its health into the swamp-managed
-OpenTelemetry system.
+The NanoKVM answers a small JSON API over HTTPS — or over plain HTTP on a
+device whose config never enabled TLS. Firmware generations disagree on login,
+on auth and on endpoint names: 1.x takes the password in plaintext and returns a
+bearer token, 2.x takes an AES-encrypted password (CryptoJS key
+`nanokvm-sipeed-2024`, baked into the web UI) and authenticates with a
+`nano-kvm-token` cookie, and 2.x renamed several read endpoints. This extension
+speaks every generation transparently. It wraps all of that in one typed
+behavior so you can check a device, capture its screen, press its power button,
+move virtual media, install a trusted certificate, run a repair script and
+forward its health into the swamp-managed OpenTelemetry system.
 
 Side effects: it talks to the NanoKVM over the network, talks to the OTLP
 collector when `emit` is configured, writes swamp resources, and (for
@@ -40,7 +42,8 @@ key=value`) or edited later with `swamp model edit`. Only `host` has no default.
 | Argument | Type | Default | Purpose |
 | -------- | ---- | ------- | ------- |
 | `host` | string | *(none)* | NanoKVM address, no scheme (e.g. `192.0.2.10`). |
-| `port` | number | `443` | HTTPS port of the web server. |
+| `port` | number | `443` | Web-server port (80 when `scheme` is `http`). |
+| `scheme` | enum | `https` | `https`, or `http` for firmware that serves the UI and API in the clear (a device whose `/etc/kvm/server.yaml` has `protocol: http`, so no TLS listener starts). |
 | `username` | string | `admin` | Web UI user. NanoKVM ships one `admin` account. |
 | `vaultName` | string | `""` | Vault holding the login password. Empty disables vault lookup. |
 | `passwordRef` | string | `NANOKVM_PASSWORD` | Vault key holding the password. |
@@ -111,7 +114,30 @@ swamp model @svendowideit/nanokvm method run msd nanokvm \
 # Forward the latest health to the swamp-managed OTel collector. A no-op that
 # records why when no contract or endpoint is configured.
 swamp model @svendowideit/nanokvm method run emit nanokvm
+
+# Install the Let's Encrypt certificate Caddy issued for the device's name and
+# verify the device serves it. enableHttps also switches a device that only
+# listens on plain HTTP to HTTPS (backing up /etc/kvm/server.yaml first).
+swamp model @svendowideit/nanokvm method run cert nanokvm \
+  --input action=install --input name=nanokvm.fi.gy --input enableHttps=true
+
+# Run a short repair/inspection script on the device through its admin script
+# API (the only shell-ish access it has). The output lands in swamp data.
+swamp model @svendowideit/nanokvm method run script nanokvm \
+  --input body='cat /etc/kvm/server.yaml' --input name=swamp-check.sh
+
+# After a device starts serving HTTPS, point the model at it (one-time edit) so
+# every later method talks TLS on 443.
+swamp model get nanokvm --json | jq '.globalArguments.port=443 | .globalArguments.scheme="https"' \
+  | swamp model edit nanokvm
 ```
+
+A device that only served plain HTTP can be brought up to HTTPS in one step:
+`cert install` with `enableHttps=true` writes the certificate, sets
+`protocol: https` (or `proto: https` on newer firmware) plus absolute cert paths
+in `/etc/kvm/server.yaml`, restarts the server and verifies the certificate it
+serves on 443. Do that inside an `@figy/nanokvm-cert` run (see
+`@figy/nanokvm-health`) where Caddy has already issued the certificate.
 
 ## Upgrade
 
@@ -140,7 +166,9 @@ Model definitions record the version they were created with; the bundled
 | `msd` | `action` (`status`\|`mount`\|`umount`), `file`?, `cdrom`?, `apply`? | Inspect, mount or detach virtual media. `status` is read-only; changes need `apply`. |
 | `screenshot` | `timeoutMs`?, `label`? | Read the MJPEG stream briefly and store the first complete JPEG frame. |
 | `emit` | `health`?, `endpoint`?, `mesh`? | Push the latest health to OTLP (log + gauges). No-op when unconfigured. |
-| `devices` | `zone`? | List every NanoKVM swamp looks after (repo scan) with each device's DNS name and an A-record list. |
+| `devices` | `zone`? | List every NanoKVM swamp looks after (repo scan) with each device's DNS name, port, scheme and an A-record list. |
+| `cert` | `action` (`status`\|`install`), `name`?, `certDir`?, `crt`?, `key`?, `waitMs`?, `restart`?, `enableHttps`?, `scriptName`? | Read the certificate the device serves, or install a Caddy-issued one through the admin script API and verify it. |
+| `script` | `name`?, `body`, `timeoutMs`? | Upload a small shell script to `/etc/kvm/scripts` and run it as root, recording its output — diagnosis and repair when the API or certificate is broken. |
 
 ### Resources and files
 
@@ -152,7 +180,9 @@ Model definitions record the version they were created with; the bundled
 | `msd` | resource | 30d | A virtual-media mount/unmount/status. |
 | `screenshotMeta` | resource | 7d | Metadata for a captured frame. |
 | `emit` | resource | 30d | One OTLP push, or why it was skipped. |
-| `devices` | resource | 30d | Every NanoKVM discovered in the repo, with DNS names and an A-record list. |
+| `devices` | resource | 30d | Every NanoKVM discovered in the repo, with DNS names, schemes and an A-record list. |
+| `cert` | resource | 30d | The certificate the device serves, or the outcome of installing one. |
+| `script` | resource | 30d | One admin script run: status, message and output. |
 | `screenshot` | file | 7d | The captured JPEG frame. |
 
 ### Reports
@@ -178,26 +208,37 @@ Every request is a `@svendowideit/curl` `request` method call on the
 `/api/vm/hdmi` answers `404` on firmware that has no HDMI-state endpoint
 (recorded as `hdmi_unsupported`, not a failure).
 
-Login is firmware-agnostic. Two generations of NanoKVM disagree:
+Login auth is firmware-agnostic. Three generations disagree:
 
-- **older firmware** takes the password in **plaintext** and returns a
-  **bearer token** in the login response body (no session cookie); and
-- **current firmware** takes the web UI's **AES-encrypted** password and sets a
-  **session cookie**.
+- **1.x firmware** takes the password in **plaintext** and returns a **bearer
+  token** in the login response body (no session cookie);
+- **2.x firmware** takes the web UI's **AES-encrypted** password and expects the
+  returned token as a **`nano-kvm-token` cookie**; and
+- newer builds may also set a session cookie of their own.
 
 `passwordEncoding` (default `auto`) tries plaintext first, then AES; the winner
-is recorded in the `health` resource as `authEncoding`. After login, the session
-cookie stays in the curl instance's jar and, when the device returns a token,
-every subsequent request also carries `Authorization: Bearer <token>` — so both
-generations authenticate. Pin `plain` or `aes` to send exactly one attempt.
+is recorded in the `health` resource as `authEncoding`. Every authenticated
+request then carries both `Authorization: Bearer <token>` and
+`Cookie: nano-kvm-token=<token>` (`authHeaders`), so each device uses the one it
+understands and one code path serves all of them. Pin `plain` or `aes` to send
+exactly one login attempt.
+
+Reads fall back to the 2.x endpoint names when the 1.x one is absent:
+`/api/firmware/version` for `/api/application/version`, `/api/vm/gpio/led` for
+`/api/vm/gpio`, and `/api/storage/images/mounted` for
+`/api/storage/image/mounted`. `/api/vm/hardware`, `/api/vm/hdmi` and
+`/api/hid/mode` answer `404` on firmware without them; that is recorded as a
+missing signal (`hdmi_unsupported`, empty version), not a failure. 2.x reports
+the boot block device from the mounted-image endpoint when nothing is mounted,
+so only an `.img`/`.iso`/`.bin`/`.raw` path counts as mounted media.
 
 ### Discovering devices
 
 `devices` lists every NanoKVM swamp looks after without touching the network. It
 walks the repo for `@svendowideit/nanokvm` model definitions (under `models/`,
 ignoring `.swamp/` scratch instances) and records each one's instance name,
-`host`/`port`, and DNS name — `<name>.<zone>` when `zone` is given, otherwise the
-bare name. It also emits an `aRecords` list in the shape a DNS reconciler wants
+`host`/`port`, transport `scheme`, and DNS name — `<name>.<zone>` when `zone` is
+given, otherwise the bare name. It also emits an `aRecords` list in the shape a DNS reconciler wants
 (`{name, type:"A", value:[host], zone}`), so a site workflow can publish them
 without any CEL mapping. Adding a device is just adding a model definition; the
 next `devices` run picks it up.
@@ -212,14 +253,17 @@ swamp data query 'behavior("nanokvm") && name == "devices"' --select content \
 ### Extending and testing
 
 - Pure logic is exported and unit-tested: `encryptPassword`, `parseEnvelope`,
-  `sessionToken`, `loginEncodings`, `classifyHealth`, `pickEndpoint`,
-  `dnsNameFor`, `deviceFromDefinition`, `buildOtlpLogs`, `buildOtlpMetrics`,
-  `extractJpeg`, `jpegSize`, `baseUrl`, `sanitizeLabel`. Add a health signal by
-  extending `HealthSample`/`classifyHealth`, a new OTLP attribute in
-  `telemetryResource`, a new auth shape in `loginAttempt`/`sessionToken`, and a
-  new discovered field in `deviceFromDefinition`/`discoverNanokvmDevices`.
-- The device I/O is isolated in `curlCall`/`ensureSession`/`getJson`; keep it
-  that way so the rest stays pure.
+  `sessionToken`, `loginEncodings`, `authHeaders`, `classifyHealth`,
+  `pickEndpoint`, `dnsNameFor`, `deviceFromDefinition`, `isVirtualMediaImage`,
+  `certProbePort`, `buildCertInstallerScript`, `buildOtlpLogs`,
+  `buildOtlpMetrics`, `extractJpeg`, `jpegSize`, `baseUrl`, `sanitizeLabel`.
+  Add a health signal by extending `HealthSample`/`classifyHealth`, a new OTLP
+  attribute in `telemetryResource`, a new auth shape in
+  `loginAttempt`/`sessionToken`/`authHeaders`, and a new discovered field in
+  `deviceFromDefinition`/`discoverNanokvmDevices`.
+- The device I/O is isolated in `curlCall`/`ensureSession`/`getJson`, and the
+  admin script path in `uploadAndRunScript` (which `cert install` and `script`
+  share); keep it that way so the rest stays pure.
 - Run the tests with the bundled deno:
 
 ```sh

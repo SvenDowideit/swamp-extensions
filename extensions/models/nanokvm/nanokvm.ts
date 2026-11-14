@@ -21,8 +21,8 @@
 
 import { z } from "npm:zod@4";
 import { createCipheriv, createHash, randomBytes } from "node:crypto";
-import { join } from "jsr:@std/path@1";
-import { parse as parseYaml } from "jsr:@std/yaml@1";
+import { join } from "jsr:@std/path@1.1.6";
+import { parse as parseYaml } from "jsr:@std/yaml@1.3.0";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -32,7 +32,7 @@ import { parse as parseYaml } from "jsr:@std/yaml@1";
 export const MODEL_TYPE = "@svendowideit/nanokvm";
 
 /** The model's own version (must match manifest.yaml `version:`). */
-export const MODEL_VERSION = "2026.10.17.4";
+export const MODEL_VERSION = "2026.11.14.1";
 
 /** The curl behavior this model drives for every HTTP request. */
 export const CURL_TYPE = "@svendowideit/curl";
@@ -43,17 +43,23 @@ export const OTEL_SERVICE_NAME = "nanokvm";
 /** The AES passphrase the NanoKVM web UI uses; the server decrypts with it. */
 export const LOGIN_SECRET_KEY = "nanokvm-sipeed-2024";
 
+/** Cookie name the current NanoKVM firmware authenticates requests with. */
+export const SESSION_COOKIE = "nano-kvm-token";
+
 /** NanoKVM REST paths used by this model. */
 export const PATHS = {
   login: "/api/auth/login",
   info: "/api/vm/info",
   hardware: "/api/vm/hardware",
   gpio: "/api/vm/gpio",
+  gpioLed: "/api/vm/gpio/led",
   hidMode: "/api/hid/mode",
   mountedImage: "/api/storage/image/mounted",
+  imagesMounted: "/api/storage/images/mounted",
   mountImage: "/api/storage/image/mount",
   hdmi: "/api/vm/hdmi",
   version: "/api/application/version",
+  firmwareVersion: "/api/firmware/version",
   mjpeg: "/api/stream/mjpeg",
   scriptUpload: "/api/vm/script/upload",
   scriptRun: "/api/vm/script/run",
@@ -94,7 +100,13 @@ const GlobalArgsSchema = z.object({
       "wherever swamp runs. Do not include a scheme.",
   ),
   port: z.number().int().min(1).max(65535).default(443).describe(
-    "HTTPS port of the NanoKVM web server.",
+    "Port of the NanoKVM web server (443 over `https`, usually 80 over `http`).",
+  ),
+  scheme: z.enum(["https", "http"]).default("https").describe(
+    "Transport for every request. `https` is what every NanoKVM serves once it " +
+      "has a certificate; `http` is for a device that still serves the UI and " +
+      "API in the clear on port 80 (older firmware, or a device whose TLS " +
+      "listener never started because it has no certificate).",
   ),
   username: safeValue("username").default("admin").describe(
     "Web UI user. NanoKVM ships with a single `admin` account.",
@@ -164,7 +176,10 @@ const SetupArgsSchema = z.object({
     "NanoKVM address (persisted for reuse).",
   ),
   port: z.number().int().min(1).max(65535).optional().describe(
-    "HTTPS port (persisted for reuse).",
+    "Web-server port (persisted for reuse).",
+  ),
+  scheme: z.enum(["https", "http"]).optional().describe(
+    "Transport scheme (persisted for reuse).",
   ),
   username: z.string().optional().describe("Web UI user (persisted)."),
   vaultName: z.string().optional().describe("Password vault name (persisted)."),
@@ -272,8 +287,30 @@ const CertArgsSchema = z.object({
     "Restart the NanoKVM web server after writing the files, so it serves the " +
       "new certificate immediately.",
   ),
+  enableHttps: z.boolean().default(false).describe(
+    "Also switch the device's server from plain HTTP to HTTPS " +
+      "(`proto: https` in /etc/kvm/server.yaml, backed up first) before the " +
+      "restart. Needed on firmware that only listens on port 80: writing the " +
+      "certificate alone changes nothing until the server is told to use it. " +
+      "Off by default because a bad certificate would take the web UI away.",
+  ),
   scriptName: safeValue("scriptName").default("swamp-apply-cert.sh").describe(
     "Name of the on-device script used to install the files (must end .sh).",
+  ),
+});
+
+const ScriptArgsSchema = z.object({
+  name: safeValue("name").default("swamp-script.sh").describe(
+    "Filename for the on-device script. It is written under /etc/kvm/scripts " +
+      "and must end in `.sh`.",
+  ),
+  body: z.string().min(1).describe(
+    "The shell script to run on the device. It runs as root, in the " +
+      "foreground, so keep it short and idempotent; its combined stdout and " +
+      "stderr are returned in the `script` record.",
+  ),
+  timeoutMs: z.number().int().positive().default(60000).describe(
+    "How long to wait for the script to finish, in milliseconds.",
   ),
 });
 
@@ -284,6 +321,7 @@ const CertArgsSchema = z.object({
 const ConfigSchema = z.object({
   host: z.string(),
   port: z.number().int(),
+  scheme: z.string().default("https"),
   username: z.string(),
   vaultName: z.string(),
   passwordRef: z.string(),
@@ -365,6 +403,17 @@ const ScreenshotMetaSchema = z.object({
   capturedAt: z.string(),
 });
 
+const ScriptRunSchema = z.object({
+  host: z.string(),
+  name: z.string(),
+  status: z.union([z.number(), z.null()]),
+  ok: z.boolean(),
+  code: z.union([z.number(), z.null()]),
+  message: z.string(),
+  log: z.string(),
+  ranAt: z.string(),
+});
+
 const EmitSchema = z.object({
   host: z.string(),
   skipped: z.boolean(),
@@ -382,6 +431,7 @@ const DeviceEntrySchema = z.object({
   name: z.string(),
   host: z.string(),
   port: z.number().int(),
+  scheme: z.string(),
   dnsName: z.string(),
   source: z.string(),
 });
@@ -524,11 +574,36 @@ export interface HealthVerdict {
 // Pure helpers (exported for unit testing)
 // ---------------------------------------------------------------------------
 
-/** Build the HTTPS base URL for a NanoKVM (no trailing slash). */
-export function baseUrl(host: string, port: number): string {
+/** Build the base URL for a NanoKVM (no trailing slash). */
+export function baseUrl(
+  host: string,
+  port: number,
+  scheme: "https" | "http" = "https",
+): string {
   const trimmed = host.trim().replace(/\/+$/, "");
-  if (port === 443) return `https://${trimmed}`;
-  return `https://${trimmed}:${port}`;
+  const defaultPort = scheme === "http" ? 80 : 443;
+  return port === defaultPort
+    ? `${scheme}://${trimmed}`
+    : `${scheme}://${trimmed}:${port}`;
+}
+
+/**
+ * Auth headers for both NanoKVM firmware families. Older builds issue a bearer
+ * token; current builds (2.x) ignore the header and read a `nano-kvm-token`
+ * cookie instead. Sending both is harmless — each device uses the one it
+ * understands — so one code path serves every firmware generation.
+ */
+export function authHeaders(token: string): string[] {
+  if (!token) return [];
+  return [
+    `Authorization: Bearer ${token}`,
+    `Cookie: ${SESSION_COOKIE}=${token}`,
+  ];
+}
+
+/** Whether a path is a virtual-media image rather than a raw block device. */
+export function isVirtualMediaImage(file: string): boolean {
+  return /\.(img|iso|bin|raw)$/i.test(file.trim());
 }
 
 /**
@@ -831,8 +906,10 @@ export interface DeviceEntry {
   name: string;
   /** The device address from the definition's `host` global argument. */
   host: string;
-  /** The device's HTTPS port. */
+  /** The device's web-server port. */
   port: number;
+  /** Transport scheme from the definition (`https` unless set to `http`). */
+  scheme: string;
   /** `<name>.<zone>`, or the bare `name` when no zone is given. */
   dnsName: string;
   /** The definition file the entry came from. */
@@ -863,7 +940,15 @@ export function deviceFromDefinition(
   const host = typeof g.host === "string" ? g.host.trim() : "";
   if (!host) return null;
   const port = typeof g.port === "number" ? g.port : 443;
-  return { name, host, port, dnsName: dnsNameFor(name, zone), source: "" };
+  const scheme = g.scheme === "http" ? "http" : "https";
+  return {
+    name,
+    host,
+    port,
+    scheme,
+    dnsName: dnsNameFor(name, zone),
+    source: "",
+  };
 }
 
 /**
@@ -990,8 +1075,9 @@ export function buildCertInstallerScript(
   crtPem: string,
   keyPem: string,
   restart = true,
+  enableHttps = false,
 ): string {
-  return [
+  const lines = [
     "#!/bin/sh",
     "cat > /etc/kvm/server.crt <<'SWAMP_CRT_EOF'",
     crtPem.trimEnd(),
@@ -1000,22 +1086,59 @@ export function buildCertInstallerScript(
     keyPem.trimEnd(),
     "SWAMP_KEY_EOF",
     "chmod 600 /etc/kvm/server.key",
-    // Restart the web server so it reloads the certificate. Detached, because
-    // this script runs as a child of the very server it restarts. Newer
-    // firmware ships /etc/init.d/S95nanokvm; older firmware has no init script
-    // and relies on the nanokvm.sh supervisor to respawn NanoKVM-Server, so we
-    // signal it (the supervisor itself uses pgrep; killall is absent there).
-    restart
-      ? "if [ -x /etc/init.d/S95nanokvm ]; then\n" +
-        "  nohup /etc/init.d/S95nanokvm restart >/dev/null 2>&1 &\n" +
-        "else\n" +
-        "  nohup sh -c 'sleep 2; for p in $(pgrep -x NanoKVM-Server); do " +
-        'kill -TERM "$p"; done\' >/dev/null 2>&1 &\n' +
-        "fi"
-      : "true",
-    'echo "swamp-cert-installed"',
-    "",
-  ].join("\n");
+    'echo "swamp-cert: wrote /etc/kvm/server.crt and .key"',
+  ];
+
+  // Firmware that boots with `proto: http` never starts a TLS listener, so a
+  // written certificate changes nothing until the config says to use it. Back
+  // the file up first, then point proto and the cert paths at the files written
+  // above (the defaults are relative, so an absolute path is safer).
+  if (enableHttps) {
+    lines.push(
+      "if [ -f /etc/kvm/server.yaml ]; then",
+      "  cp /etc/kvm/server.yaml /etc/kvm/server.yaml.swamp-bak",
+      // Firmware generations disagree on the key: 2.x writes `protocol: http`,
+      // newer builds write `proto: http`. Set whichever is present.
+      "  if grep -q '^protocol:' /etc/kvm/server.yaml; then",
+      "    sed -i 's/^protocol:.*/protocol: https/' /etc/kvm/server.yaml",
+      "  fi",
+      "  if grep -q '^proto:' /etc/kvm/server.yaml; then",
+      "    sed -i 's/^proto:.*/proto: https/' /etc/kvm/server.yaml",
+      "  fi",
+      "  if ! grep -qE '^(proto|protocol):' /etc/kvm/server.yaml; then",
+      "    printf 'proto: https\\n' >> /etc/kvm/server.yaml",
+      "  fi",
+      "  sed -i 's#^\\([[:space:]]*\\)crt:.*#\\1crt: /etc/kvm/server.crt#' " +
+        "/etc/kvm/server.yaml",
+      "  sed -i 's#^\\([[:space:]]*\\)key:.*#\\1key: /etc/kvm/server.key#' " +
+        "/etc/kvm/server.yaml",
+      "  echo \"swamp-cert: $(grep -m1 -E '^(proto|protocol):' " +
+        '/etc/kvm/server.yaml)"',
+      "else",
+      "  echo 'swamp-cert: no /etc/kvm/server.yaml'",
+      "fi",
+    );
+  }
+
+  // Restart the web server so it reloads the certificate. Detached, because
+  // this script runs as a child of the very server it restarts. Newer firmware
+  // ships /etc/init.d/S95nanokvm; older firmware has no init script and relies
+  // on the nanokvm.sh supervisor to respawn NanoKVM-Server, so we signal it
+  // (the supervisor itself uses pgrep; killall is absent there).
+  if (restart) {
+    lines.push(
+      "if [ -x /etc/init.d/S95nanokvm ]; then",
+      '  echo "swamp-cert: restarting via S95nanokvm"',
+      "  nohup /etc/init.d/S95nanokvm restart >/dev/null 2>&1 &",
+      "else",
+      '  echo "swamp-cert: restarting by signalling NanoKVM-Server"',
+      "  nohup sh -c 'sleep 2; for p in $(pgrep -x NanoKVM-Server); do " +
+        'kill -TERM "$p"; done\' >/dev/null 2>&1 &',
+      "fi",
+    );
+  }
+  lines.push('echo "swamp-cert-installed"', "");
+  return lines.join("\n");
 }
 
 /**
@@ -1414,7 +1537,7 @@ async function loginAttempt(
 > {
   const g = ctx.globalArgs;
   const record = await curlCall(ctx, {
-    url: `${baseUrl(g.host, g.port)}${PATHS.login}`,
+    url: `${baseUrl(g.host, g.port, g.scheme)}${PATHS.login}`,
     method: "POST",
     dataJson: {
       username: g.username,
@@ -1500,12 +1623,24 @@ async function getJson(
 ): Promise<{ record: CurlRecord; envelope: Envelope | null }> {
   const g = ctx.globalArgs;
   const record = await curlCall(ctx, {
-    url: `${baseUrl(g.host, g.port)}${path}`,
+    url: `${baseUrl(g.host, g.port, g.scheme)}${path}`,
     method: "GET",
     label,
-    headers: token ? [`Authorization: Bearer ${token}`] : [],
+    headers: authHeaders(token),
   });
   return { record, envelope: parseEnvelope(record.body) };
+}
+
+/**
+ * The port that serves TLS. It is the API port when the model already speaks
+ * HTTPS, and 443 when it talks plain HTTP — the port a NanoKVM's TLS listener
+ * uses once `proto: https` is enabled.
+ */
+export function certProbePort(
+  scheme: string,
+  port: number,
+): number {
+  return scheme === "http" ? 443 : port;
 }
 
 /** Read the certificate the device currently serves over TLS (via openssl). */
@@ -1515,8 +1650,9 @@ async function readServedCert(
 ): Promise<CertFields & { ok: boolean }> {
   const g = ctx.globalArgs;
   const name = servername || g.host;
+  const tlsPort = certProbePort(g.scheme, g.port);
   const cmd = "openssl s_client -connect " +
-    `'${g.host}:${g.port}' -servername '${name}' -showcerts </dev/null 2>/dev/null` +
+    `'${g.host}:${tlsPort}' -servername '${name}' -showcerts </dev/null 2>/dev/null` +
     " | openssl x509 -noout -subject -issuer -serial -enddate" +
     " -ext subjectAltName 2>/dev/null";
   let text = "";
@@ -1553,70 +1689,110 @@ async function certFileSerial(crtPath: string): Promise<string> {
   }
 }
 
+/** The outcome of running one script through the device's admin script API. */
+export interface ScriptResult {
+  /** Upload succeeded and the run returned HTTP 200 with `code: 0`. */
+  ok: boolean;
+  /** HTTP status of the run request, or null when it never completed. */
+  status: number | null;
+  /** The device's application code from the run response. */
+  code: number | null;
+  /** The device's message from the run response. */
+  message: string;
+  /** The script's combined stdout/stderr, as the device returned it. */
+  log: string;
+  /** Why the upload or run failed; empty when `ok`. */
+  detail: string;
+}
+
 /**
- * Write a certificate onto the device via its admin script API and run it. The
- * device has no cert-upload endpoint, so this is the supported path: upload a
- * small shell script (which writes /etc/kvm/server.crt|.key and restarts the
- * server) and run it in the foreground, returning its log.
+ * Upload a script to the device's admin script API and run it in the
+ * foreground, returning its combined output. This is the only general way to
+ * run anything on a NanoKVM: it has no shell endpoint, only
+ * `/api/vm/script/upload` + `/api/vm/script/run`, which write the file under
+ * /etc/kvm/scripts and execute it as the server's user (root).
+ */
+async function uploadAndRunScript(
+  ctx: MethodContext,
+  scriptName: string,
+  scriptBody: string,
+  timeoutMs = 30000,
+): Promise<ScriptResult> {
+  const g = ctx.globalArgs;
+  const session = await ensureSession(ctx);
+  if (!session.ok) {
+    throw new Error(
+      `Cannot run a script: ${session.message}. The script API needs an admin ` +
+        "login.",
+    );
+  }
+  const headers = authHeaders(session.token);
+  const dir = await Deno.makeTempDir({ prefix: "nanokvm-script-" });
+  const scriptPath = `${dir}/${scriptName}`;
+  try {
+    await Deno.writeTextFile(scriptPath, scriptBody, { mode: 0o700 });
+    const upload = await curlCall(ctx, {
+      url: `${baseUrl(g.host, g.port, g.scheme)}${PATHS.scriptUpload}`,
+      method: "POST",
+      files: { file: scriptPath },
+      headers,
+      label: "script-upload",
+    });
+    const upEnv = parseEnvelope(upload.body);
+    if (upload.status !== 200 || upEnv?.code !== 0) {
+      return {
+        ok: false,
+        status: upload.status,
+        code: upEnv?.code ?? null,
+        message: upEnv?.msg ?? "",
+        log: "",
+        detail: upEnv?.msg || upload.stderr || `upload HTTP ${upload.status}`,
+      };
+    }
+    const run = await curlCall(ctx, {
+      url: `${baseUrl(g.host, g.port, g.scheme)}${PATHS.scriptRun}`,
+      method: "POST",
+      dataJson: { name: scriptName, type: "foreground" },
+      headers,
+      label: "script-run",
+      timeoutMs: Math.max(g.timeoutMs, timeoutMs),
+    });
+    const runEnv = parseEnvelope(run.body);
+    const data = (runEnv?.data ?? {}) as Record<string, unknown>;
+    const log = typeof data.log === "string" ? data.log : "";
+    const ok = run.status === 200 && runEnv?.code === 0;
+    return {
+      ok,
+      status: run.status,
+      code: runEnv?.code ?? null,
+      message: runEnv?.msg ?? "",
+      log,
+      detail: ok ? "" : runEnv?.msg || run.stderr || `run HTTP ${run.status}`,
+    };
+  } finally {
+    await Deno.remove(dir, { recursive: true }).catch(() => {});
+  }
+}
+
+/**
+ * Install a certificate through the script API: write /etc/kvm/server.crt|.key
+ * (and optionally switch the server to HTTPS), restart, and report the script's
+ * outcome. `swamp-cert-installed` in the log marks a completed install.
  */
 async function installCertScript(
   ctx: MethodContext,
   scriptName: string,
   scriptBody: string,
 ): Promise<{ ok: boolean; log: string; detail: string }> {
-  const g = ctx.globalArgs;
-  const session = await ensureSession(ctx);
-  if (!session.ok) {
-    throw new Error(
-      `Cannot install a certificate: ${session.message}. The script API needs ` +
-        "an admin login.",
-    );
-  }
-  const headers = session.token
-    ? [`Authorization: Bearer ${session.token}`]
-    : [];
-  const dir = await Deno.makeTempDir({ prefix: "nanokvm-cert-" });
-  const scriptPath = `${dir}/${scriptName}`;
-  try {
-    await Deno.writeTextFile(scriptPath, scriptBody, { mode: 0o700 });
-    const upload = await curlCall(ctx, {
-      url: `${baseUrl(g.host, g.port)}${PATHS.scriptUpload}`,
-      method: "POST",
-      files: { file: scriptPath },
-      headers,
-      label: "cert-upload",
-    });
-    const upEnv = parseEnvelope(upload.body);
-    if (upload.status !== 200 || upEnv?.code !== 0) {
-      return {
-        ok: false,
-        log: "",
-        detail: upEnv?.msg || upload.stderr || `upload HTTP ${upload.status}`,
-      };
-    }
-    const run = await curlCall(ctx, {
-      url: `${baseUrl(g.host, g.port)}${PATHS.scriptRun}`,
-      method: "POST",
-      dataJson: { name: scriptName, type: "foreground" },
-      headers,
-      label: "cert-run",
-      timeoutMs: Math.max(g.timeoutMs, 30000),
-    });
-    const runEnv = parseEnvelope(run.body);
-    const data = (runEnv?.data ?? {}) as Record<string, unknown>;
-    const log = typeof data.log === "string" ? data.log : "";
-    const ok = run.status === 200 && runEnv?.code === 0 &&
-      log.includes("swamp-cert-installed");
-    return {
-      ok,
-      log,
-      detail: ok
-        ? "installed"
-        : runEnv?.msg || run.stderr || `run HTTP ${run.status}`,
-    };
-  } finally {
-    await Deno.remove(dir, { recursive: true }).catch(() => {});
-  }
+  const result = await uploadAndRunScript(ctx, scriptName, scriptBody);
+  const marked = result.log.includes("swamp-cert-installed");
+  const ok = result.ok && marked;
+  return {
+    ok,
+    log: result.log,
+    detail: ok ? "installed" : result.detail ||
+      (result.ok ? "script finished without the marker" : ""),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -1633,7 +1809,9 @@ async function gatherHealth(
   let reachable = false;
   try {
     const probe = await curlCall(ctx, {
-      url: `${baseUrl(ctx.globalArgs.host, ctx.globalArgs.port)}/`,
+      url: `${
+        baseUrl(ctx.globalArgs.host, ctx.globalArgs.port, ctx.globalArgs.scheme)
+      }/`,
       method: "GET",
       label: "probe",
     });
@@ -1670,9 +1848,10 @@ async function gatherHealth(
     return sample;
   }
 
-  // Current firmware authenticates reads with the session cookie (left in the
-  // curl jar by login); older firmware issues no cookie and returns a token
-  // that must be sent as a bearer header. Send it whenever we have one.
+  // Firmware families disagree on transport, auth and endpoint names, so each
+  // read falls back to the newer spelling when the older one is absent. The
+  // token is sent as both a bearer header (older builds) and the
+  // `nano-kvm-token` cookie (current builds).
   const token = session.token;
   const failures: string[] = [];
   const guard = async (fn: () => Promise<void>) => {
@@ -1698,6 +1877,14 @@ async function gatherHealth(
         version: typeof ip.version === "string" ? ip.version : "",
         type: typeof ip.type === "string" ? ip.type : "",
       }));
+    } else if (typeof data.ip === "string" && data.ip !== "") {
+      // 2.x firmware reports a single address as `ip`.
+      sample.ips = [{
+        name: "",
+        addr: data.ip,
+        version: data.ip.includes(":") ? "v6" : "v4",
+        type: "dhcp",
+      }];
     }
   });
 
@@ -1708,7 +1895,21 @@ async function gatherHealth(
   });
 
   await guard(async () => {
-    const { record, envelope } = await getJson(ctx, PATHS.gpio, "gpio", token);
+    let { record, envelope } = await getJson(
+      ctx,
+      PATHS.gpio,
+      "gpio",
+      token,
+    );
+    if (record.status === 404) {
+      // 2.x firmware moved the LED state to /api/vm/gpio/led.
+      ({ record, envelope } = await getJson(
+        ctx,
+        PATHS.gpioLed,
+        "gpio-led",
+        token,
+      ));
+    }
     if (record.status === 404) return;
     const data = (envelope?.data ?? {}) as Record<string, unknown>;
     if (typeof data.pwr === "boolean") sample.powerLed = data.pwr;
@@ -1716,20 +1917,39 @@ async function gatherHealth(
   });
 
   await guard(async () => {
-    const { envelope } = await getJson(ctx, PATHS.hidMode, "hid-mode", token);
+    const { record, envelope } = await getJson(
+      ctx,
+      PATHS.hidMode,
+      "hid-mode",
+      token,
+    );
+    if (record.status === 404) return;
     const data = (envelope?.data ?? {}) as Record<string, unknown>;
     sample.hidMode = typeof data.mode === "string" ? data.mode : "";
   });
 
   await guard(async () => {
-    const { envelope } = await getJson(
+    let { record, envelope } = await getJson(
       ctx,
       PATHS.mountedImage,
       "mounted-image",
       token,
     );
+    if (record.status === 404) {
+      // 2.x firmware moved the mounted-image read to /api/storage/images.
+      ({ record, envelope } = await getJson(
+        ctx,
+        PATHS.imagesMounted,
+        "mounted-image-v2",
+        token,
+      ));
+    }
+    if (record.status === 404) return;
     const data = (envelope?.data ?? {}) as Record<string, unknown>;
-    sample.mountedImage = typeof data.file === "string" ? data.file : "";
+    const file = typeof data.file === "string" ? data.file : "";
+    // 2.x reports the boot device when nothing is mounted, so only an image
+    // file counts as mounted virtual media.
+    sample.mountedImage = isVirtualMediaImage(file) ? file : "";
   });
 
   await guard(async () => {
@@ -1747,12 +1967,21 @@ async function gatherHealth(
   });
 
   await guard(async () => {
-    const { record, envelope } = await getJson(
+    let { record, envelope } = await getJson(
       ctx,
       PATHS.version,
       "version",
       token,
     );
+    if (record.status === 404) {
+      // 2.x firmware renamed the version endpoint to /api/firmware/version.
+      ({ record, envelope } = await getJson(
+        ctx,
+        PATHS.firmwareVersion,
+        "firmware-version",
+        token,
+      ));
+    }
     if (record.status === 404) return;
     const data = (envelope?.data ?? {}) as Record<string, unknown>;
     sample.appVersion = typeof data.current === "string" ? data.current : "";
@@ -1861,7 +2090,7 @@ async function pushOtlp(
   payload: Record<string, unknown>,
   token: string,
 ): Promise<number | null> {
-  const headers = token ? [`Authorization: Bearer ${token}`] : [];
+  const headers = authHeaders(token);
   const record = await curlCall(ctx, {
     url,
     method: "POST",
@@ -1880,7 +2109,7 @@ async function pushOtlp(
 /** Swamp model definition for operating a Sipeed NanoKVM. */
 export const model = {
   type: "@svendowideit/nanokvm",
-  version: "2026.10.17.4",
+  version: "2026.11.14.1",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -1899,6 +2128,30 @@ export const model = {
         passwordEncoding: typeof old.passwordEncoding === "string"
           ? old.passwordEncoding
           : "auto",
+      }),
+    },
+    {
+      toVersion: "2026.11.14.1",
+      description:
+        "Speaks the 2.x firmware as well as 1.x, so a NanoKVM on either branch " +
+        "is managed the same way. New `scheme` global (`https` default, `http` " +
+        "for a device that still serves the UI and API in the clear — usually " +
+        "because its config says `protocol: http`, so no TLS listener starts). " +
+        "Auth now sends the login token as both the older bearer header and the " +
+        "2.x `nano-kvm-token` cookie, and every read falls back to the 2.x " +
+        "endpoint (`/api/firmware/version`, `/api/vm/gpio/led`, " +
+        "`/api/storage/images/mounted`). The mounted-image read ignores a raw " +
+        "block device, which 2.x reports when nothing is mounted. `devices` " +
+        "records each device's `scheme`. `cert install` gains `enableHttps` " +
+        "(`protocol`/`proto` + cert paths in /etc/kvm/server.yaml, backed up " +
+        "first) so a certificate is actually used by an HTTP-only device, and " +
+        "its verification reads TLS on 443 even while the API is plain HTTP. " +
+        "New `script` method runs a short shell script through the same admin " +
+        "script API and returns its output, for diagnosis and repair. Schema is " +
+        "additive — existing models upgrade with no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => ({
+        ...old,
+        scheme: typeof old.scheme === "string" ? old.scheme : "https",
       }),
     },
   ],
@@ -1955,6 +2208,13 @@ export const model = {
       schema: CertSchema,
       lifetime: "30d" as const,
       garbageCollection: 30,
+    },
+    script: {
+      description:
+        "One admin script run on the device: its status, message and output.",
+      schema: ScriptRunSchema,
+      lifetime: "30d" as const,
+      garbageCollection: 50,
     },
   },
 
@@ -2040,6 +2300,7 @@ export const model = {
         const otelModel = pick(args.otelModel, previous.otelModel, g.otelModel);
         const port = args.port ??
           (typeof previous.port === "number" ? previous.port : g.port);
+        const scheme = pick(args.scheme, previous.scheme, g.scheme);
         const password = await resolvePassword(context);
         const canLogin = host !== "" && password !== "";
         const canEmit = otelModel !== "" || g.otelEndpoint !== "";
@@ -2054,6 +2315,7 @@ export const model = {
         const record = {
           host,
           port,
+          scheme,
           username,
           vaultName,
           passwordRef,
@@ -2175,13 +2437,11 @@ export const model = {
           );
         }
         const record = await curlCall(context, {
-          url: `${baseUrl(g.host, g.port)}${PATHS.gpio}`,
+          url: `${baseUrl(g.host, g.port, g.scheme)}${PATHS.gpio}`,
           method: "POST",
           dataJson: { type: args.action, duration: args.durationMs },
           label: `gpio-${args.action}`,
-          headers: session.token
-            ? [`Authorization: Bearer ${session.token}`]
-            : [],
+          headers: authHeaders(session.token),
         });
         const envelope = parseEnvelope(record.body);
         const ok = record.status === 200 && envelope?.code === 0;
@@ -2273,13 +2533,11 @@ export const model = {
           throw new Error(`Cannot change virtual media: ${session.message}`);
         }
         const record = await curlCall(context, {
-          url: `${baseUrl(g.host, g.port)}${PATHS.mountImage}`,
+          url: `${baseUrl(g.host, g.port, g.scheme)}${PATHS.mountImage}`,
           method: "POST",
           dataJson: { file: mountFile, cdrom: args.cdrom },
           label: `msd-${args.action}`,
-          headers: session.token
-            ? [`Authorization: Bearer ${session.token}`]
-            : [],
+          headers: authHeaders(session.token),
         });
         const envelope = parseEnvelope(record.body);
         const ok = record.status === 200 && envelope?.code === 0;
@@ -2322,12 +2580,10 @@ export const model = {
         let detail = "";
         try {
           const record = await curlCall(context, {
-            url: `${baseUrl(g.host, g.port)}${PATHS.mjpeg}`,
+            url: `${baseUrl(g.host, g.port, g.scheme)}${PATHS.mjpeg}`,
             method: "GET",
             label: "mjpeg",
-            headers: session.token
-              ? [`Authorization: Bearer ${session.token}`]
-              : [],
+            headers: authHeaders(session.token),
             outputFile: rawPath,
             timeoutMs: args.timeoutMs,
             maxBodyBytes: 0,
@@ -2527,6 +2783,60 @@ export const model = {
       },
     },
 
+    script: {
+      description:
+        "Run a small shell script on the device through its admin script API " +
+        "and return its output. The NanoKVM has no shell endpoint, so this is " +
+        "the supported way to inspect or repair one from swamp: the script is " +
+        "uploaded under /etc/kvm/scripts and run in the foreground as root. " +
+        "It is the same mechanism `cert install` uses.",
+      arguments: ScriptArgsSchema,
+      execute: async (
+        args: z.infer<typeof ScriptArgsSchema>,
+        context: MethodContext,
+      ) => {
+        const g = context.globalArgs;
+        if (!g.host) {
+          throw new Error(
+            "No NanoKVM host is configured. Run `setup` with --input host=….",
+          );
+        }
+        if (!args.name.endsWith(".sh")) {
+          throw new Error(
+            "`name` must end in .sh — the device only runs shell scripts.",
+          );
+        }
+        const result = await uploadAndRunScript(
+          context,
+          args.name,
+          args.body,
+          args.timeoutMs,
+        );
+        const handle = await context.writeResource("script", args.name, {
+          host: g.host,
+          name: args.name,
+          status: result.status,
+          ok: result.ok,
+          code: result.code,
+          message: result.message || result.detail,
+          log: result.log,
+          ranAt: new Date().toISOString(),
+        });
+        context.logger?.info(
+          result.ok
+            ? "Ran {name} on {host} ({bytes} bytes of output)"
+            : "Script {name} on {host} failed: {detail}",
+          {
+            name: args.name,
+            host: g.host,
+            bytes: result.log.length,
+            detail: result.detail,
+          },
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+
     devices: {
       description:
         "List every NanoKVM swamp looks after. Scans the repo's model " +
@@ -2696,7 +3006,14 @@ export const model = {
         const result = await installCertScript(
           context,
           args.scriptName,
-          buildCertInstallerScript(crtPem, keyPem, args.restart),
+          buildCertInstallerScript(
+            crtPem,
+            keyPem,
+            args.restart,
+            // Only a device the model still reaches over plain HTTP needs the
+            // config rewritten; an HTTPS device already has `proto: https`.
+            args.enableHttps && g.scheme === "http",
+          ),
         );
 
         // The server just restarted; give it a moment to serve the new cert.
@@ -2720,7 +3037,10 @@ export const model = {
           installed,
           detail: installed
             ? (result.ok ? "installed" : "already served (re-run was a no-op)")
-            : `${result.detail}; served=${served.subject || "none"}`,
+            : `${result.detail}; served=${served.subject || "none"}` +
+              (result.log.trim()
+                ? `; log=${result.log.trim().split("\n").slice(-4).join(" | ")}`
+                : ""),
           checkedAt: new Date().toISOString(),
         };
         const handle = await context.writeResource("cert", "cert", record);

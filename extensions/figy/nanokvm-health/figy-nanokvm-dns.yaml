@@ -9,17 +9,20 @@ description: |
   method (a scan of the model definitions, not the network), so adding a KVM is
   just adding a model definition: the next run publishes it. Each device's
   address becomes an A record named after its model instance (`nanokvm` ->
-  nanokvm.fi.gy), plus an entry for any other @svendowideit/nanokvm instance in
-  the repo.
+  nanokvm.fi.gy, `nanokvm2` -> nanokvm2.fi.gy, and so on for every other
+  @svendowideit/nanokvm instance in the repo), whether the device is served over
+  HTTPS or plain HTTP.
 
   The records live on the @svendowideit/caddy model `nanokvm-caddy`, whose only
   desired state is the discovered records plus the shared settings every model
   sharing one Caddy must agree on (base domain fi.gy, ACME email, the Gandi DNS
   provider via the shared environment file). Because this model shares
   `my-caddy`'s (target, serviceName), the caddy mixin merges the two: this
-  workflow runs `configureTls` (so records have a DNS provider; no TLS subjects,
-  as the KVMs present their own certificates) then `applyDnsRecords`, which
-  reconciles the union of both models' records in one apply.
+  workflow runs `configureTls` (so records have a DNS provider, and every device
+  name is declared as a TLS subject so Caddy issues and renews a certificate for
+  it via DNS-01) then `applyDnsRecords`, which reconciles the union of both
+  models' records in one apply. @figy/nanokvm-cert then installs that
+  certificate onto the device.
 
   `nanokvm-caddy` is a repo model under `models/`, created once with
   `swamp model create` (see the README); a workflow-auto-created model lands in

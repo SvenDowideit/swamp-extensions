@@ -1,23 +1,25 @@
 manifestVersion: 1
 name: "@figy/nanokvm-health"
-version: "2026.10.17.3"
+version: "2026.11.14.1"
 description: >
-  fi.gy's scheduled NanoKVM health: check the out-of-band KVM on my LAN every 15
-  minutes, forward its health to the swamp-managed OpenTelemetry collector, and
-  publish a fleet health report.
+  fi.gy's scheduled NanoKVM pipeline: check every out-of-band KVM swamp looks
+  after every 15 minutes, forward each health verdict to the swamp-managed
+  OpenTelemetry collector, publish a fleet health report, publish each device as
+  a DNS record, and install its Let's Encrypt certificate.
 
   WHAT IT DOES
 
-    The private, site-specific half of NanoKVM monitoring. The portable model
-    that talks to a Sipeed NanoKVM — self-signed TLS, dual-firmware login, and a
-    pass/warn/fail verdict — lives in @svendowideit/nanokvm. One workflow pins it
-    to my device (password in the `nanokvm` vault) and my collector on a 15
-    minute cron, requiring @svendowideit/nanokvm-health-report. A device that is
-    off is not a failure — it is a `fail` verdict, emitted like any other sample,
-    so a flapping device leaves a trail. Two more workflows publish each device
-    as `<name>.fi.gy` (A records via the shared Caddy, which also renews a Let's
-    Encrypt certificate for the name) and install that certificate onto the KVM
-    itself, so the device's web UI serves a publicly trusted certificate.
+    The private, site-specific half of NanoKVM management, for a repo that may
+    hold any number of KVMs. The portable model that talks to a Sipeed NanoKVM
+    lives in @svendowideit/nanokvm; these workflows discover the devices from
+    the repo's model definitions and drive each one. Health and emit run every
+    15 minutes and require @svendowideit/nanokvm-health-report, so one fleet
+    table shows every device; a device that is off is a `fail` verdict, not a
+    workflow failure, so a flapping device leaves a trail. The DNS workflow
+    publishes each device as a name under the zone (A records via the shared
+    Caddy, which also renews a Let's Encrypt certificate for the name), and the
+    certificate workflow installs that certificate onto each KVM — switching an
+    HTTP-only device to HTTPS — so every web UI serves a trusted certificate.
 
   INSTALL
 
@@ -39,8 +41,8 @@ description: >
       # Run it now, once, instead of waiting for the 15-minute trigger.
       swamp workflow run @figy/nanokvm-health
 
-      # Check a different device on the same LAN (any input can be overridden).
-      swamp workflow run @figy/nanokvm-health --input host=10.10.12.231
+      # Check one device only, when you have just added or moved it.
+      swamp workflow run @figy/nanokvm-health --input device=nanokvm2
 
       # Read the fleet health report this run produced.
       swamp report get @svendowideit/nanokvm-health-report \
@@ -51,22 +53,30 @@ description: >
       # moving a device). Caddy then issues and renews the certificate.
       swamp workflow run @figy/nanokvm-dns
 
-      # Install the renewed certificate onto the device (scheduled daily; the
+      # Install the renewed certificate onto every device (scheduled daily; the
       # KVM has no cert-upload API, so it is written via the admin script API).
+      # A device still serving plain HTTP is switched to HTTPS here.
       swamp workflow run @figy/nanokvm-cert
+
+      # Sync just the device you just added.
+      swamp workflow run @figy/nanokvm-cert --input device=nanokvm2
 
   CONFIGURE
 
-    Inputs (all overridable per run; the defaults are my repo): device, host,
-    port, username, vaultName, passwordRef, curlModel, otelModel, otelEndpoint,
-    otelMesh, otelVaultName, otelTokenRef. `host` and `vaultName` are the ones
-    that matter — the address of the KVM and the vault holding its password. The
-    trigger itself is read-only inside an extension; change the schedule from the
-    host with `swamp workflow trigger set @figy/nanokvm-health --schedule "…"`.
+    Devices are not workflow inputs: each workflow runs the model's `devices`
+    scan, so a device's address, port and transport come from its model
+    definition and adding a KVM is adding a definition. The inputs are the
+    shared settings — scanModel (the instance whose scan runs), device (empty =
+    every discovered device, a name = just that one), zone (default fi.gy),
+    username, vaultName and passwordRef (the vault holding the login password),
+    and the otel* inputs for the collector. `@figy/nanokvm-cert` adds certDir
+    (Caddy's certificate store), restart and enableHttps (default true: turn on
+    HTTPS for a device still reached over plain HTTP, ignored otherwise).
     `@figy/nanokvm-dns` takes caddy (the repo caddy model), nanokvmModel (the
-    instance whose `devices` scan runs), zone (default fi.gy) and ttl.
-    `@figy/nanokvm-cert` takes device, host, zone, certDir (Caddy's certificate
-    store) and vaultName/passwordRef. See the README for the full tables.
+    instance whose scan runs), zone and ttl. The trigger is read-only inside an
+    extension; change the schedule from the host with
+    `swamp workflow trigger set @figy/nanokvm-health --schedule "0 * * * *"`.
+    See the README for the full tables.
 
   UPGRADE
 

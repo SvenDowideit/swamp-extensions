@@ -1,22 +1,31 @@
 # @figy/nanokvm-health
 
-fi.gy's site-specific, scheduled NanoKVM health pipeline: check the out-of-band
-KVM on the LAN, forward its health to the swamp-managed OpenTelemetry collector,
-publish a fleet health report, and publish every NanoKVM as a DNS record.
+fi.gy's site-specific, scheduled NanoKVM pipeline: check every out-of-band KVM
+swamp looks after, forward each health verdict to the swamp-managed
+OpenTelemetry collector, publish a fleet health report, publish every NanoKVM as
+a DNS record, and install the Caddy-issued certificate onto each device.
 
 ## What it does
 
 The extension ships three workflows.
 
-**`@figy/nanokvm-health`** runs every 15 minutes (`trigger.schedule`) and:
+All three workflows discover their devices the same way: they run
+`@svendowideit/nanokvm`'s `devices` method, which scans the repo's model
+definitions (not the network). Adding a KVM is adding a `@svendowideit/nanokvm`
+model definition — no workflow edit — and each device is driven with its own
+model's host, port, scheme and curl instance, so an HTTP-only device and an
+HTTPS one run side by side.
 
-1. runs `@svendowideit/nanokvm`'s `health` method against the KVM on the LAN
-   (password read from the `nanokvm` vault), producing a `pass`/`warn`/`fail`
-   verdict with findings;
+**`@figy/nanokvm-health`** runs every 15 minutes (`trigger.schedule`) and, for
+each discovered device:
+
+1. runs `@svendowideit/nanokvm`'s `health` method (password read from the
+   `nanokvm` vault), producing a `pass`/`warn`/`fail` verdict with findings;
 2. runs the model's `emit` method, which posts the latest verdict to the local
    OTLP receiver (`http://127.0.0.1:4318`) as a log record plus gauges
    (`nanokvm.up`, `nanokvm.health`, `nanokvm.response_time`, …);
-3. publishes `@svendowideit/nanokvm-health-report` (workflow scope).
+3. publishes `@svendowideit/nanokvm-health-report` (workflow scope), one fleet
+   table across every device in the run.
 
 A device that is off or unreachable is **not** a workflow failure — it is a
 `fail` verdict, emitted like any other sample, so a flapping device leaves a
@@ -33,14 +42,20 @@ then `applyDnsRecords`, and declares each device name as a TLS subject with
 it via DNS-01 (no reverse-proxy route — the name points at the KVM itself). See
 [The caddy model](#the-caddy-model-nanokvm-caddy).
 
-**`@figy/nanokvm-cert`** installs that certificate **onto the device**, on a
+**`@figy/nanokvm-cert`** installs that certificate **onto each device**, on a
 daily schedule. The NanoKVM has no certificate-upload endpoint, so it drives the
 model's `cert install`, which writes `/etc/kvm/server.crt` and `.key` through the
 device's admin script API and restarts the web server, then verifies the device
 actually serves a certificate carrying the device's name. The certificate is
 RSA — the firmware's own `nanokvm.sh` supervisor runs `openssl rsa -check` and
 would otherwise reject and regenerate a self-signed one — and it is fetched from
-Caddy's store, so the workflow only ever syncs, never issues.
+Caddy's store, so the workflow only ever syncs, never issues. On a device the
+model still reaches over plain HTTP (firmware whose config says
+`protocol: http`), the install also turns HTTPS on: `enableHttps` backs up
+`/etc/kvm/server.yaml`, sets `protocol`/`proto` and the certificate paths, and
+restarts, so the device comes up on 443 with the trusted certificate instead of
+ignoring it. Point the model at `https` on 443 afterwards (one `swamp model edit`)
+so later health runs talk TLS.
 
 Side effects: it drives the device model (network calls to the KVM and the
 collector), the caddy model (one DNS reconcile and one certificate issuance), and
@@ -72,20 +87,28 @@ are the fi.gy values.
 
 | Input | Type | Default | Meaning |
 | ----- | ---- | ------- | ------- |
-| `device` | string | `nanokvm` | Name of the `@svendowideit/nanokvm` model instance to drive. |
-| `host` | string | *this site's KVM* | NanoKVM address (no scheme); the concrete default is the `host` input in `figy-nanokvm-health.yaml`. |
-| `port` | integer | `443` | HTTPS port of the web server. |
+| `scanModel` | string | `nanokvm` | `@svendowideit/nanokvm` instance whose `devices` method scans the repo for the KVMs to drive. Its own address is irrelevant; only the scan runs. |
+| `device` | string | `""` | Optional filter: drive only this model instance (e.g. `nanokvm2`). Empty drives every NanoKVM the repo defines. |
+| `zone` | string | `fi.gy` | DNS zone the device names live under (`nanokvm` -> `nanokvm.fi.gy`). |
 | `username` | string | `admin` | Web UI user. |
 | `vaultName` | string | `nanokvm` | Vault holding the login password. |
 | `passwordRef` | string | `NANOKVM_PASSWORD` | Vault key holding the password. |
-| `curlModel` | string | `nanokvm-curl` | `@svendowideit/curl` instance that carries the session. |
 | `otelModel` | string | `otel` | `@svendowideit/otel-settings` model for the OTLP contract. |
 | `otelEndpoint` | string | `http://127.0.0.1:4318` | OTLP/HTTP base URL (empty = use the contract). |
 | `otelMesh` | string | `tailscale` | Contract mesh to prefer when `otelEndpoint` is empty. |
 | `otelVaultName` | string | `""` | Vault holding the OTLP bearer token (empty = none). |
 | `otelTokenRef` | string | `OTEL_EXPORTER_OTLP_TOKEN` | Vault/env key for the token. |
+| `certDir` | string | `~/.local/share/caddy/certificates` | (`@figy/nanokvm-cert` only) Caddy's certificate store. |
+| `restart` | boolean | `true` | (`@figy/nanokvm-cert` only) Restart the device's web server after writing the files. |
+| `enableHttps` | boolean | `true` | (`@figy/nanokvm-cert` only) Turn HTTPS on for a device still reached over plain HTTP; ignored for an HTTPS device. |
+| `caddy` | string | `nanokvm-caddy` | (`@figy/nanokvm-dns` only) The repo caddy model the A records are reconciled into. |
+| `nanokvmModel` | string | `nanokvm` | (`@figy/nanokvm-dns` only) Instance whose `devices` scan runs — the DNS workflow's name for `scanModel`. |
+| `ttl` | string | `5m` | (`@figy/nanokvm-dns` only) TTL for the published records. |
 
-The schedule is read-only inside an extension. Change it from the host:
+The device's address, port and transport come from its model definition, not
+from a workflow input: `host`/`port`/`scheme` are read by the `devices` scan and
+passed to each iteration, so the definition is the single source of truth. The
+schedule is read-only inside an extension. Change it from the host:
 
 ```sh
 # Read the current trigger, change the cadence, or remove it.
@@ -124,8 +147,8 @@ errors on a contradiction.
 # Run the pipeline once, now, instead of waiting for the trigger.
 swamp workflow run @figy/nanokvm-health
 
-# Check a different device on the same LAN.
-swamp workflow run @figy/nanokvm-health --input host=192.0.2.10
+# Check one device only, instead of every discovered one.
+swamp workflow run @figy/nanokvm-health --input device=nanokvm2
 
 # Read the fleet report the run produced (verdicts, findings, OTLP summary).
 swamp report get @svendowideit/nanokvm-health-report \
@@ -139,9 +162,13 @@ swamp data query 'behavior("nanokvm") && name == "emit"' --select content
 # and renews a Let's Encrypt certificate for each name.
 swamp workflow run @figy/nanokvm-dns
 
-# Install the renewed certificate onto the device (scheduled daily; also run
-# after a firmware update, which can wipe /etc/kvm).
+# Install the renewed certificate onto the devices (scheduled daily; also run
+# after a firmware update, which can wipe /etc/kvm). A device that only served
+# plain HTTP is switched to HTTPS in the same run.
 swamp workflow run @figy/nanokvm-cert
+
+# Re-sync just the device you just added.
+swamp workflow run @figy/nanokvm-cert --input device=nanokvm2
 
 # See what the discovery found (the A records the DNS step reconciled).
 swamp data query 'behavior("nanokvm") && name == "devices"' --select content \
@@ -165,13 +192,18 @@ The device model it drives is upgraded by `@svendowideit/nanokvm`'s own
 
 ### Workflow
 
-`@figy/nanokvm-health` — one job (`health`) with three steps:
+`@figy/nanokvm-health` — one job (`health`) with four steps, three of them
+`forEach` over the discovered device list (so one step instance per device):
 
 | Step | Task | Purpose |
 | ---- | ---- | ------- |
-| `check` | `@svendowideit/nanokvm` `health` | Read-only device check; always writes a `health` record. |
-| `emit` | `@svendowideit/nanokvm` `emit` | Forward the latest verdict to OTLP (no-op if unconfigured). |
-| `assert-checked` | assert | Fails the run only if `check` produced no record at all. |
+| `discover` | `@svendowideit/nanokvm` `devices` | Scan the repo's model definitions; write the `devices` record (name, host, port, scheme, dnsName, A records). |
+| `check-<device>` | `@svendowideit/nanokvm` `health` | Read-only device check; always writes a `health` record. |
+| `emit-<device>` | `@svendowideit/nanokvm` `emit` | Forward that device's latest verdict to OTLP (no-op if unconfigured). Depends on `check-<device>`. |
+| `assert-<device>` | assert | Fails the run only if `check-<device>` produced no record at all. |
+
+The `device` input guards each iteration (`guard:`), so an empty value runs
+every device and a name runs exactly one; guarded steps are skipped, not failed.
 
 `reports.require` names `@svendowideit/nanokvm-health-report`, so every run
 (including a failed one) gets a workflow-scope report at
@@ -186,7 +218,7 @@ The device model it drives is upgraded by `@svendowideit/nanokvm`'s own
 | Step | Task | Purpose |
 | ---- | ---- | ------- |
 | `discover` | `@svendowideit/nanokvm` `devices` | Scan the repo's model definitions for NanoKVM devices; write the `devices` record with an A-record list. |
-| `tls` | `@svendowideit/caddy` `configureTls` | Ensure a DNS provider so records can be written; no TLS subjects. |
+| `tls` | `@svendowideit/caddy` `configureTls` | Ensure a DNS provider so records can be written, and declare every device name as a TLS subject so Caddy issues and renews its certificate. |
 | `dns` | `@svendowideit/caddy` `applyDnsRecords` | Reconcile the discovered A records — merged with the Caddy's peer models' records — into Caddy. |
 | `assert-applied` | assert | Fails the run only if no `dnsConfig` record was written. |
 
@@ -201,13 +233,14 @@ obtains a Let's Encrypt certificate for each via DNS-01.
 
 ### The certificate workflow
 
-`@figy/nanokvm-cert` — one job (`cert`) with two steps, on the daily
-`trigger.schedule`, installing the Caddy-issued certificate onto the device:
+`@figy/nanokvm-cert` — one job (`cert`) with three steps, on the daily
+`trigger.schedule`, installing the Caddy-issued certificate onto each device:
 
 | Step | Task | Purpose |
 | ---- | ---- | ------- |
-| `install` | `@svendowideit/nanokvm` `cert` (`action=install`) | Locate the certificate for `<device>.<zone>` in Caddy's store, write it onto the device via the admin script API, restart the web server and verify it is served. |
-| `assert-installed` | assert | Fails the run if the device does not end up serving a certificate for its name. |
+| `discover` | `@svendowideit/nanokvm` `devices` | Scan the repo's model definitions for the devices to sync. |
+| `install-<device>` | `@svendowideit/nanokvm` `cert` (`action=install`) | Locate the certificate for the device's DNS name in Caddy's store, write it onto the device via the admin script API, restart the web server and verify it is served. |
+| `assert-<device>` | assert | Fails the run if that device does not end up serving a certificate for its name. |
 
 The NanoKVM cannot upload a certificate over its API, so the model writes
 `/etc/kvm/server.crt` and `/etc/kvm/server.key` with a script run through the
@@ -222,13 +255,13 @@ verifies) and re-installs after a firmware update, which can wipe `/etc/kvm`.
 
 ### Structure and how to extend it
 
-The step `globalArgs` bind the generic model to this site's address, vault and
-collector; nothing secret is in the file. To watch a second NanoKVM, add a step
-for another model instance (a different `modelName` and `host`), or run the
-workflow again with `--input host=… --input device=…`. To change the destination
-collector, set `otelEndpoint` (or blank it to follow the `otel-settings`
-contract). The report reads only swamp data, so it is safe to run on this
-schedule.
+The step `globalArgs` bind the generic model to this site's vault and collector;
+nothing secret is in the file. To watch another NanoKVM, add a
+`@svendowideit/nanokvm` model definition under `models/` with its `host`, `port`
+and `scheme` — the next scheduled run discovers and drives it. To change the
+destination collector, set `otelEndpoint` (or blank it to follow the
+`otel-settings` contract). The report reads only swamp data, so it is safe to
+run on this schedule.
 
 On the DNS side, `--input caddy=…` targets a different repo caddy model and
 `--input nanokvmModel=…` picks which instance runs the repo scan (its own

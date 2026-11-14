@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/nanokvm"
-version: "2026.11.14.1"
+version: "2026.11.14.2"
 description: >
   Operate a Sipeed NanoKVM from swamp: a health verdict, screenshots, GPIO
   power/reset and virtual media, with the device's health pushed to your
@@ -64,8 +64,16 @@ description: >
       swamp model @svendowideit/nanokvm method run devices nanokvm \
         --input zone=fi.gy
 
+      # Report the installed and latest firmware. `action=update` is a dry run
+      # unless apply=true; a real install downloads the vendor package, swaps
+      # the application, restarts the device and verifies the new version.
+      swamp model @svendowideit/nanokvm method run firmware nanokvm
+      swamp model @svendowideit/nanokvm method run firmware nanokvm \
+        --input action=update --input apply=true
+
       # Inspect or repair a device through its admin script API — the only way
-      # in when the web UI or certificate is wrong. The output is recorded.
+      # in when the web UI or certificate is wrong. The output is recorded even
+      # when the script exits non-zero (the real status is in `exitCode`).
       swamp model @svendowideit/nanokvm method run script nanokvm \
         --input body='cat /etc/kvm/server.yaml' --input name=swamp-check.sh
 
@@ -97,7 +105,8 @@ description: >
     `msd` takes action (status|mount|umount), file, cdrom, apply; `screenshot`
     takes timeoutMs and label; `emit` takes health, endpoint and mesh; `cert`
     takes action (status|install), name, certDir, crt, key, waitMs, restart,
-    enableHttps and scriptName; `script` takes name, body and timeoutMs;
+    enableHttps and scriptName; `firmware` takes action (status|update), apply,
+    downloadTimeoutMs and verifyMs; `script` takes name, body and timeoutMs;
     `devices` takes zone (the DNS suffix for each device's name). `setup` takes
     the connection overrides it can persist (host, port, scheme, username,
     vaultName, passwordRef, envRef, curlModel, otelModel). See the README for

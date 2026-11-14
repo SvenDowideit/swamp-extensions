@@ -121,6 +121,13 @@ swamp model @svendowideit/nanokvm method run emit nanokvm
 swamp model @svendowideit/nanokvm method run cert nanokvm \
   --input action=install --input name=nanokvm.fi.gy --input enableHttps=true
 
+# Report the firmware the device runs and the latest the vendor offers, then
+# install it: action=update is a dry run unless apply=true. A real install can
+# take minutes; the method waits for the device to report the new version.
+swamp model @svendowideit/nanokvm method run firmware nanokvm
+swamp model @svendowideit/nanokvm method run firmware nanokvm \
+  --input action=update --input apply=true
+
 # Run a short repair/inspection script on the device through its admin script
 # API (the only shell-ish access it has). The output lands in swamp data.
 swamp model @svendowideit/nanokvm method run script nanokvm \
@@ -168,7 +175,8 @@ Model definitions record the version they were created with; the bundled
 | `emit` | `health`?, `endpoint`?, `mesh`? | Push the latest health to OTLP (log + gauges). No-op when unconfigured. |
 | `devices` | `zone`? | List every NanoKVM swamp looks after (repo scan) with each device's DNS name, port, scheme and an A-record list. |
 | `cert` | `action` (`status`\|`install`), `name`?, `certDir`?, `crt`?, `key`?, `waitMs`?, `restart`?, `enableHttps`?, `scriptName`? | Read the certificate the device serves, or install a Caddy-issued one through the admin script API and verify it. |
-| `script` | `name`?, `body`, `timeoutMs`? | Upload a small shell script to `/etc/kvm/scripts` and run it as root, recording its output — diagnosis and repair when the API or certificate is broken. |
+| `firmware` | `action` (`status`\|`update`), `apply`?, `downloadTimeoutMs`?, `verifyMs`? | Report the installed/latest firmware, or install the vendor's latest. `update` is a dry run unless `apply` is true; a real install waits for the restarted device to report the new version before claiming success. |
+| `script` | `name`?, `body`, `timeoutMs`? | Upload a small shell script to `/etc/kvm/scripts` and run it as root, recording its output — diagnosis and repair when the API or certificate is broken. The body runs in a subshell; its real exit status is recorded as `exitCode` and echoed in the log as `swamp-exit: N`, because the device only returns output for a zero exit. |
 
 ### Resources and files
 
@@ -183,6 +191,7 @@ Model definitions record the version they were created with; the bundled
 | `devices` | resource | 30d | Every NanoKVM discovered in the repo, with DNS names, schemes and an A-record list. |
 | `cert` | resource | 30d | The certificate the device serves, or the outcome of installing one. |
 | `script` | resource | 30d | One admin script run: status, message and output. |
+| `firmware` | resource | 90d | One firmware check or install: before/after versions, the device's reply and whether the version actually changed. |
 | `screenshot` | file | 7d | The captured JPEG frame. |
 
 ### Reports
@@ -223,6 +232,27 @@ request then carries both `Authorization: Bearer <token>` and
 understands and one code path serves all of them. Pin `plain` or `aes` to send
 exactly one login attempt.
 
+Firmware updates follow the same split. The method probes
+`/api/application/version` first: a 404 means the 2.0.x `firmware` family
+(`POST /api/firmware/update`); any other answer — 200, or 401 once a restart has
+invalidated the session — means the endpoint exists, so it is the `application`
+family (`POST /api/application/update`, 1.x/Pro and 2.1+), which an update does
+not change. Both endpoints install the vendor's latest build and restart the
+application, so verification re-logs in and re-detects the family after every
+poll and only claims success when the device reports a different version. A
+restart can also cut the update response short; a lost response is therefore
+treated as "maybe installed" and settled by the version, while only a real error
+answer counts as a rejection. The record's `applied` means the device came back
+on a new build.
+
+Upgrading a device whose 2.0.x application reports "update failed" can mean its
+`/tmp` tmpfs (64 MB on some units) cannot hold the unpacked package. The
+vendor's updater is the right path, so give it room rather than copying files by
+hand: bind-mount a directory on the root filesystem over `/tmp/firmware`
+(`mount --bind /update-tmp /tmp/firmware` through the `script` method), run the
+update, then unmount and remove it. Verified on firmware 2.0.4 -> 2.4.3 that
+way.
+
 Reads fall back to the 2.x endpoint names when the 1.x one is absent:
 `/api/firmware/version` for `/api/application/version`, `/api/vm/gpio/led` for
 `/api/vm/gpio`, and `/api/storage/images/mounted` for
@@ -255,7 +285,8 @@ swamp data query 'behavior("nanokvm") && name == "devices"' --select content \
 - Pure logic is exported and unit-tested: `encryptPassword`, `parseEnvelope`,
   `sessionToken`, `loginEncodings`, `authHeaders`, `classifyHealth`,
   `pickEndpoint`, `dnsNameFor`, `deviceFromDefinition`, `isVirtualMediaImage`,
-  `certProbePort`, `buildCertInstallerScript`, `buildOtlpLogs`,
+  `certProbePort`, `buildCertInstallerScript`, `firmwareFamily`,
+  `firmwareVersionPath`, `firmwareUpdatePath`, `wrapScriptBody`, `buildOtlpLogs`,
   `buildOtlpMetrics`, `extractJpeg`, `jpegSize`, `baseUrl`, `sanitizeLabel`.
   Add a health signal by extending `HealthSample`/`classifyHealth`, a new OTLP
   attribute in `telemetryResource`, a new auth shape in

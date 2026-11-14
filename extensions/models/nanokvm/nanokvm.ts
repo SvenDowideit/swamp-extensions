@@ -32,7 +32,7 @@ import { parse as parseYaml } from "jsr:@std/yaml@1.3.0";
 export const MODEL_TYPE = "@svendowideit/nanokvm";
 
 /** The model's own version (must match manifest.yaml `version:`). */
-export const MODEL_VERSION = "2026.11.14.1";
+export const MODEL_VERSION = "2026.11.14.2";
 
 /** The curl behavior this model drives for every HTTP request. */
 export const CURL_TYPE = "@svendowideit/curl";
@@ -59,7 +59,9 @@ export const PATHS = {
   mountImage: "/api/storage/image/mount",
   hdmi: "/api/vm/hdmi",
   version: "/api/application/version",
+  applicationUpdate: "/api/application/update",
   firmwareVersion: "/api/firmware/version",
+  firmwareUpdate: "/api/firmware/update",
   mjpeg: "/api/stream/mjpeg",
   scriptUpload: "/api/vm/script/upload",
   scriptRun: "/api/vm/script/run",
@@ -299,6 +301,31 @@ const CertArgsSchema = z.object({
   ),
 });
 
+const FirmwareArgsSchema = z.object({
+  action: z.enum(["status", "update"]).default("status").describe(
+    "`status` reports the firmware the device runs and the latest the vendor " +
+      "offers; `update` installs that latest firmware (a dry run unless " +
+      "`apply` is true).",
+  ),
+  apply: z.boolean().default(false).describe(
+    "Actually install the firmware. When false (the default) `update` only " +
+      "records what it would do. A real install downloads the vendor package, " +
+      "replaces the application and restarts the device.",
+  ),
+  // Deliberately not named `timeoutMs`: a method argument with the same name
+  // as a global argument is filled from the global (15s here), which silently
+  // cut real downloads short.
+  downloadTimeoutMs: z.number().int().positive().default(600000).describe(
+    "How long the device may take to download and install the package, in " +
+      "milliseconds. The vendor's update call blocks for the whole download, " +
+      "so this is generous by default.",
+  ),
+  verifyMs: z.number().int().positive().default(180000).describe(
+    "How long to keep polling for the new version after the install, in " +
+      "milliseconds — the device restarts and is briefly unreachable.",
+  ),
+});
+
 const ScriptArgsSchema = z.object({
   name: safeValue("name").default("swamp-script.sh").describe(
     "Filename for the on-device script. It is written under /etc/kvm/scripts " +
@@ -409,9 +436,25 @@ const ScriptRunSchema = z.object({
   status: z.union([z.number(), z.null()]),
   ok: z.boolean(),
   code: z.union([z.number(), z.null()]),
+  exitCode: z.number().int(),
   message: z.string(),
   log: z.string(),
   ranAt: z.string(),
+});
+
+const FirmwareSchema = z.object({
+  host: z.string(),
+  action: z.string(),
+  family: z.string(),
+  currentVersion: z.string(),
+  latestVersion: z.string(),
+  applied: z.boolean(),
+  dryRun: z.boolean(),
+  status: z.union([z.number(), z.null()]),
+  message: z.string(),
+  servedVersion: z.string(),
+  changed: z.boolean(),
+  checkedAt: z.string(),
 });
 
 const EmitSchema = z.object({
@@ -1706,6 +1749,26 @@ export interface ScriptResult {
 }
 
 /**
+ * Wrap a caller's script so it always exits 0 while reporting its real status.
+ *
+ * The device returns a script's output only when the script exits 0 (a non-zero
+ * exit yields a bare "run script failed"), and an explicit `exit` in the body
+ * would skip any trailer. Running the body in a subshell and echoing
+ * `swamp-exit: <code>` before forcing 0 keeps the output — which is precisely
+ * what is needed when a script fails.
+ */
+export function wrapScriptBody(body: string): string {
+  return [
+    "(",
+    body.trimEnd(),
+    ")",
+    "swamp_rc=$?",
+    'echo "swamp-exit: $swamp_rc"',
+    "exit 0",
+  ].join("\n");
+}
+
+/**
  * Upload a script to the device's admin script API and run it in the
  * foreground, returning its combined output. This is the only general way to
  * run anything on a NanoKVM: it has no shell endpoint, only
@@ -1793,6 +1856,96 @@ async function installCertScript(
     detail: ok ? "installed" : result.detail ||
       (result.ok ? "script finished without the marker" : ""),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Firmware
+// ---------------------------------------------------------------------------
+
+/** The two NanoKVM application families and the endpoints each one updates through. */
+export type FirmwareFamily = "application" | "firmware";
+
+/**
+ * Pick the firmware family from the HTTP status of `/api/application/version`.
+ * A 404 means the device runs the 2.0.x backend, which renamed the whole
+ * update surface to `/api/firmware/*`. Any other status — including 401 after
+ * an update restarts the app and invalidates the session — means the endpoint
+ * exists, so the device is on the `application` family. A null status (no
+ * response) keeps the caller's previous answer, because a restarting device
+ * must not flip the family under an in-flight update.
+ */
+export function firmwareFamily(
+  applicationVersionStatus: number | null,
+  fallback: FirmwareFamily = "application",
+): FirmwareFamily {
+  if (applicationVersionStatus === null) return fallback;
+  return applicationVersionStatus === 404 ? "firmware" : "application";
+}
+
+/** The endpoint that installs the latest firmware for a family. */
+export function firmwareUpdatePath(family: FirmwareFamily): string {
+  return family === "application"
+    ? PATHS.applicationUpdate
+    : PATHS.firmwareUpdate;
+}
+
+/** The endpoint that reports the installed and latest firmware for a family. */
+export function firmwareVersionPath(family: FirmwareFamily): string {
+  return family === "application" ? PATHS.version : PATHS.firmwareVersion;
+}
+
+/** One read of the device's installed and latest firmware versions. */
+export interface FirmwareState {
+  /** Which update API the device exposes. */
+  family: FirmwareFamily;
+  /** Installed version, or "" when the device could not be read. */
+  current: string;
+  /** Latest version the vendor offers, or "". */
+  latest: string;
+  /** HTTP status of the version request, or null when it never completed. */
+  status: number | null;
+  /** The device's message, or the transport error. */
+  message: string;
+}
+
+/**
+ * Read the firmware versions from the device, detecting which update API it
+ * exposes. Tolerant on purpose: it is also polled while the device restarts, so
+ * an unreachable device returns empty versions rather than throwing.
+ */
+async function readFirmwareState(
+  ctx: MethodContext,
+  token: string,
+  previousFamily: FirmwareFamily = "application",
+): Promise<FirmwareState> {
+  let probeStatus: number | null = null;
+  try {
+    const probe = await getJson(ctx, PATHS.version, "fw-probe", token);
+    probeStatus = probe.record.status;
+  } catch {
+    probeStatus = null;
+  }
+  const family = firmwareFamily(probeStatus, previousFamily);
+  let status = probeStatus;
+  let current = "";
+  let latest = "";
+  let message = "";
+  try {
+    const { record, envelope } = await getJson(
+      ctx,
+      firmwareVersionPath(family),
+      "fw-version",
+      token,
+    );
+    status = record.status;
+    const data = (envelope?.data ?? {}) as Record<string, unknown>;
+    current = typeof data.current === "string" ? data.current : "";
+    latest = typeof data.latest === "string" ? data.latest : "";
+    message = envelope?.msg ?? record.stderr;
+  } catch (err) {
+    message = err instanceof Error ? err.message : String(err);
+  }
+  return { family, current, latest, status, message };
 }
 
 // ---------------------------------------------------------------------------
@@ -2109,7 +2262,7 @@ async function pushOtlp(
 /** Swamp model definition for operating a Sipeed NanoKVM. */
 export const model = {
   type: "@svendowideit/nanokvm",
-  version: "2026.11.14.1",
+  version: "2026.11.14.2",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -2153,6 +2306,19 @@ export const model = {
         ...old,
         scheme: typeof old.scheme === "string" ? old.scheme : "https",
       }),
+    },
+    {
+      toVersion: "2026.11.14.2",
+      description:
+        "Adds a `firmware` method (and `firmware` resource): `status` reports " +
+        "the installed and latest firmware versions from whichever update API " +
+        "the device exposes (`/api/application/*` on 1.x/Pro and 2.1+, " +
+        "`/api/firmware/*` on the 2.0.x backend), and `update` installs the " +
+        "vendor's latest — a dry run unless `apply=true`. A real install waits " +
+        "for the restarted device to report a different version, so success is " +
+        "only claimed once the new version is actually served. No existing " +
+        "argument changed.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
 
@@ -2215,6 +2381,14 @@ export const model = {
       schema: ScriptRunSchema,
       lifetime: "30d" as const,
       garbageCollection: 50,
+    },
+    firmware: {
+      description:
+        "One firmware check or install: the versions, and what the device " +
+        "actually came back running.",
+      schema: FirmwareSchema,
+      lifetime: "90d" as const,
+      garbageCollection: 20,
     },
   },
 
@@ -2806,33 +2980,52 @@ export const model = {
             "`name` must end in .sh — the device only runs shell scripts.",
           );
         }
+        // The device returns the script's output only when the script exits 0.
+        // Append a trailer that reports the real exit status and then forces 0,
+        // so a failing script still yields its output — which is exactly when
+        // diagnosis needs it. The record's `exitCode` carries the real status.
+        const body = wrapScriptBody(args.body);
         const result = await uploadAndRunScript(
           context,
           args.name,
-          args.body,
+          body,
           args.timeoutMs,
         );
+        const marker = result.log.match(/swamp-exit:\s*(\d+)/);
+        const exitCode = marker ? Number(marker[1]) : (result.ok ? 0 : 1);
+        const ok = result.ok && exitCode === 0;
         const handle = await context.writeResource("script", args.name, {
           host: g.host,
           name: args.name,
           status: result.status,
-          ok: result.ok,
+          ok,
           code: result.code,
+          exitCode,
           message: result.message || result.detail,
           log: result.log,
           ranAt: new Date().toISOString(),
         });
         context.logger?.info(
-          result.ok
+          ok
             ? "Ran {name} on {host} ({bytes} bytes of output)"
-            : "Script {name} on {host} failed: {detail}",
+            : "Script {name} on {host} exited {code}: {detail}",
           {
             name: args.name,
             host: g.host,
             bytes: result.log.length,
+            code: exitCode,
             detail: result.detail,
           },
         );
+        if (!ok) {
+          throw new Error(
+            `Script ${args.name} on ${g.host} exited ${exitCode}` +
+              (result.detail ? `: ${result.detail}` : "") +
+              (result.log.trim()
+                ? `\n${result.log.trim().split("\n").slice(-15).join("\n")}`
+                : ""),
+          );
+        }
         return { dataHandles: [handle] };
       },
     },
@@ -3059,6 +3252,210 @@ export const model = {
         if (!installed) {
           throw new Error(
             `Installing ${args.name} on ${g.host} did not verify: ${record.detail}`,
+          );
+        }
+        return { dataHandles: [handle] };
+      },
+    },
+
+    firmware: {
+      description:
+        "Report the firmware the device runs and the latest the vendor offers, " +
+        "or install that latest firmware. `update` is a dry run unless " +
+        "`apply` is true; when it installs, it waits for the device to come " +
+        "back and records the version it actually reports — the vendor's " +
+        "update call returns before the restart, so success is only claimed " +
+        "after the new version is seen.",
+      arguments: FirmwareArgsSchema,
+      execute: async (
+        args: z.infer<typeof FirmwareArgsSchema>,
+        context: MethodContext,
+      ) => {
+        const g = context.globalArgs;
+        if (!g.host) {
+          throw new Error(
+            "No NanoKVM host is configured. Run `setup` with --input host=….",
+          );
+        }
+        const session = await ensureSession(context);
+        if (!session.ok) {
+          throw new Error(
+            `Cannot read firmware state: ${session.message}`,
+          );
+        }
+        const before = await readFirmwareState(context, session.token);
+        const write = async (
+          record: {
+            applied: boolean;
+            dryRun: boolean;
+            status: number | null;
+            message: string;
+            servedVersion: string;
+            changed: boolean;
+          },
+        ) => {
+          const handle = await context.writeResource("firmware", "firmware", {
+            host: g.host,
+            action: args.action,
+            family: before.family,
+            currentVersion: before.current,
+            latestVersion: before.latest,
+            applied: record.applied,
+            dryRun: record.dryRun,
+            status: record.status,
+            message: record.message,
+            servedVersion: record.servedVersion,
+            changed: record.changed,
+            checkedAt: new Date().toISOString(),
+          });
+          return handle;
+        };
+
+        if (args.action === "status") {
+          const handle = await write({
+            applied: false,
+            dryRun: false,
+            status: before.status,
+            message: before.message,
+            servedVersion: before.current,
+            changed: false,
+          });
+          context.logger?.info(
+            "Firmware on {host}: {current} installed, {latest} available",
+            {
+              host: g.host,
+              current: before.current || "unknown",
+              latest: before.latest || "unknown",
+            },
+          );
+          return { dataHandles: [handle] };
+        }
+
+        if (
+          before.current !== "" && before.latest !== "" &&
+          before.current === before.latest
+        ) {
+          const handle = await write({
+            applied: false,
+            dryRun: false,
+            status: before.status,
+            message: "already current",
+            servedVersion: before.current,
+            changed: false,
+          });
+          context.logger?.info(
+            "Firmware on {host} is already current at {version}; nothing to do",
+            { host: g.host, version: before.current },
+          );
+          return { dataHandles: [handle] };
+        }
+
+        if (!args.apply) {
+          const handle = await write({
+            applied: false,
+            dryRun: true,
+            status: before.status,
+            message:
+              `would install ${before.latest || "the latest firmware"} over ` +
+              `${before.current || "the installed firmware"}; re-run with ` +
+              "apply=true to install it",
+            servedVersion: before.current,
+            changed: false,
+          });
+          context.logger?.info(
+            "Dry run: an update would install {latest} over {current} on {host}",
+            {
+              host: g.host,
+              current: before.current || "unknown",
+              latest: before.latest || "unknown",
+            },
+          );
+          return { dataHandles: [handle] };
+        }
+
+        // The vendor's update call blocks for the whole download, then answers
+        // before restarting the application, so a real install needs a long
+        // request timeout and a separate wait for the device to come back.
+        const update = await curlCall(context, {
+          url: `${baseUrl(g.host, g.port, g.scheme)}` +
+            firmwareUpdatePath(before.family),
+          method: "POST",
+          headers: authHeaders(session.token),
+          label: "firmware-update",
+          timeoutMs: Math.max(g.timeoutMs, args.downloadTimeoutMs),
+          maxBodyBytes: 65536,
+        });
+        const updateEnvelope = parseEnvelope(update.body);
+        const accepted = update.status === 200 &&
+          updateEnvelope?.code === 0;
+        // A vendor update restarts the application, and on some builds the
+        // restart cuts the response short, so "no response" is not a rejection —
+        // it has to be settled by looking at the version the device comes back
+        // with. Only an actual error answer proves the update was refused.
+        const responseLost = update.status === null;
+        const updateMessage = accepted
+          ? (updateEnvelope?.msg || "update accepted")
+          : responseLost
+          ? (update.stderr || "no response")
+          : (updateEnvelope?.msg || update.stderr ||
+            `update HTTP ${update.status}`);
+
+        // Wait for the restarted application to report a different version.
+        // The update swaps the application and restarts it, which invalidates
+        // the session and may move the device to the other API family, so every
+        // poll logs in again and re-detects the family.
+        const deadline = Date.now() + args.verifyMs;
+        let after = before.current;
+        while ((accepted || responseLost) && Date.now() < deadline) {
+          await new Promise((r) => setTimeout(r, 10000));
+          const fresh = await ensureSession(context);
+          if (!fresh.ok) continue;
+          const state = await readFirmwareState(
+            context,
+            fresh.token,
+            before.family,
+          );
+          if (state.current !== "" && state.current !== before.current) {
+            after = state.current;
+            break;
+          }
+        }
+        const changed = after !== before.current;
+        const handle = await write({
+          applied: changed,
+          dryRun: false,
+          status: update.status,
+          message: changed
+            ? `installed; the device now reports ${after}` +
+              (accepted ? "" : " (the update response was lost to the restart)")
+            : accepted
+            ? `update accepted, but the device still reports ${after}`
+            : updateMessage,
+          servedVersion: after,
+          changed,
+        });
+        context.logger?.info(
+          changed
+            ? "Firmware update on {host}: {before} -> {after}"
+            : "Firmware update on {host} did not change the reported version " +
+              "({detail})",
+          {
+            host: g.host,
+            before: before.current,
+            after,
+            detail: updateMessage,
+          },
+        );
+        if (!accepted && !responseLost) {
+          throw new Error(
+            `Firmware update on ${g.host} was rejected: ${updateMessage}`,
+          );
+        }
+        if (!changed) {
+          throw new Error(
+            `Firmware update on ${g.host} did not verify: the device still ` +
+              `reports ${after || "no version"} after ${args.verifyMs}ms ` +
+              `(expected ${before.latest || "a newer version"}).`,
           );
         }
         return { dataHandles: [handle] };

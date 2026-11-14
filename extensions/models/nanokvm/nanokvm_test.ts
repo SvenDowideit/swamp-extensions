@@ -24,6 +24,9 @@ import {
   encryptPassword,
   expandHome,
   extractJpeg,
+  firmwareFamily,
+  firmwareUpdatePath,
+  firmwareVersionPath,
   type HealthSample,
   isVirtualMediaImage,
   jpegSize,
@@ -35,6 +38,7 @@ import {
   sanitizeLabel,
   sessionToken,
   telemetryResource,
+  wrapScriptBody,
 } from "./nanokvm.ts";
 
 function baseSample(overrides: Partial<HealthSample> = {}): HealthSample {
@@ -314,6 +318,28 @@ Deno.test("isVirtualMediaImage rejects the boot device", () => {
   assertEquals(isVirtualMediaImage("debian.IMG"), true);
   assertEquals(isVirtualMediaImage("/dev/mmcblk0p3"), false);
   assertEquals(isVirtualMediaImage(""), false);
+});
+
+Deno.test("firmwareFamily picks the API from the application probe", () => {
+  assertEquals(firmwareFamily(200), "application");
+  // 401/403 means the route exists (it answered before auth), so 2.1+/Pro.
+  assertEquals(firmwareFamily(401), "application");
+  assertEquals(firmwareFamily(500), "application");
+  assertEquals(firmwareFamily(404), "firmware");
+  // No response (a restarting device) keeps the family already detected.
+  assertEquals(firmwareFamily(null), "application");
+  assertEquals(firmwareFamily(null, "firmware"), "firmware");
+  assertEquals(firmwareVersionPath("application"), "/api/application/version");
+  assertEquals(firmwareVersionPath("firmware"), "/api/firmware/version");
+  assertEquals(firmwareUpdatePath("application"), "/api/application/update");
+  assertEquals(firmwareUpdatePath("firmware"), "/api/firmware/update");
+});
+
+Deno.test("wrapScriptBody keeps output and the real exit code", () => {
+  const wrapped = wrapScriptBody("echo hi\nexit 7");
+  assertEquals(wrapped.startsWith("(\necho hi\nexit 7\n)"), true);
+  assertEquals(wrapped.includes('echo "swamp-exit: $swamp_rc"'), true);
+  assertEquals(wrapped.endsWith("exit 0"), true);
 });
 
 Deno.test("classifyHealth fails an unreachable device", () => {

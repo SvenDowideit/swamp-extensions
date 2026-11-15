@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4755"><span class="tier A">A</span>Swampify: compare counts model steps, fixes and the latest r</a><a href="#issue-4756"><span class="tier A">A</span>Swampify: comparison v3 records the latest run, build sessio</a><a href="#issue-4754"><span class="tier A">A</span>swamp start: Codex can run swamp inside its sandbox, and a 4</a><a href="#issue-4751"><span class="tier A">A</span>Swampify: start offers windows up to all history, you choose</a><a href="#issue-4753"><span class="tier A">A</span>swamp start: finds more Linux terminals (Ptyxis and others),</a><a href="#issue-4752"><span class="tier A">A</span>Swampify: a probe users run and share privately so we can ad</a><a href="#issue-4742"><span class="tier A">A</span>agent-sessions assess: fails on transcripts over ~512 MB and</a><a href="#issue-4741"><span class="tier A">A</span>workflow resume ignores globalArgs of direct type execution </a><a href="#issue-4603"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-4703"><span class="tier A">A</span>serve: automatic continuation follow-ups (scheduler rebuild </a><a href="#issue-4693"><span class="tier A">A</span>serve: continue an interrupted run automatically when every </a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4750"><span class="tier A">A</span>agent-sessions assess: a Claude Code session reachable at tw</a><a href="#issue-4755"><span class="tier A">A</span>Swampify: compare counts model steps, fixes and the latest r</a><a href="#issue-4756"><span class="tier A">A</span>Swampify: comparison v3 records the latest run, build sessio</a><a href="#issue-4754"><span class="tier A">A</span>swamp start: Codex can run swamp inside its sandbox, and a 4</a><a href="#issue-4751"><span class="tier A">A</span>Swampify: start offers windows up to all history, you choose</a><a href="#issue-4753"><span class="tier A">A</span>swamp start: finds more Linux terminals (Ptyxis and others),</a><a href="#issue-4752"><span class="tier A">A</span>Swampify: a probe users run and share privately so we can ad</a><a href="#issue-4742"><span class="tier A">A</span>agent-sessions assess: fails on transcripts over ~512 MB and</a><a href="#issue-4741"><span class="tier A">A</span>workflow resume ignores globalArgs of direct type execution </a><a href="#issue-4603"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-4703"><span class="tier A">A</span>serve: automatic continuation follow-ups (scheduler rebuild </a></aside><div>
 
 <article class="item" id="issue-4239">
 <h2><span class="tier S">S</span>swamp issue: file bugs, features and security reports against the platform source</h2>
@@ -76,6 +76,14 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-4750">
+<h2><span class="tier A">A</span>agent-sessions assess: a Claude Code session reachable at two paths is counted twice</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-15T17:26:08.368Z">2026-11-15T17:26:08.368Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4750" rel="noopener">lab#4750</a></div>
 </article>
 <article class="item" id="issue-4755">
 <h2><span class="tier A">A</span>Swampify: compare counts model steps, fixes and the latest run, and the skill records built only for output the user accepts</h2>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4703" rel="noopener">lab#4703</a></div>
 </article>
-<article class="item" id="issue-4693">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4693">
 <h2><span class="tier A">A</span>serve: continue an interrupted run automatically when every step the restart cut off is safe to run again</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-11-14T10:40:41.759Z">2026-11-14T10:40:41.759Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4693" rel="noopener">lab#4693</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4564">
+<article class="item" id="issue-4564">
 <h2><span class="tier A">A</span>Extension versions: print one spelling in log output (drop the v prefix in list, outdated, update, search)</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-11-14T02:30:05.388Z">2026-11-14T02:30:05.388Z</time></span></div>
@@ -3117,13 +3125,37 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
-<article class="item" id="issue-4750">
-<h2><span class="tier B">B</span>agent-sessions assess: a Claude Code session reachable at two paths is counted twice</h2>
+<article class="item" id="issue-4743">
+<h2><span class="tier B">B</span>@swamp/cfgmgmt apt: installing on a fresh machine fails until a separate refresh</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-15T16:52:01.993Z">2026-11-15T16:52:01.993Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-15T18:02:53.983Z">2026-11-15T18:02:53.983Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4750" rel="noopener">lab#4750</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4743" rel="noopener">lab#4743</a></div>
+</article>
+<article class="item" id="issue-4745">
+<h2><span class="tier B">B</span>@swamp/cfgmgmt user and group names are not validated</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-15T18:02:53.586Z">2026-11-15T18:02:53.586Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4745" rel="noopener">lab#4745</a></div>
+</article>
+<article class="item" id="issue-4772">
+<h2><span class="tier B">B</span>@swamp/cfgmgmt systemd: a unit cannot be removed (no ensure: absent)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-15T18:02:53.226Z">2026-11-15T18:02:53.226Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4772" rel="noopener">lab#4772</a></div>
+</article>
+<article class="item" id="issue-4765">
+<h2><span class="tier B">B</span>validate: spurious ambiguous-exit warnings for evidence absent in this stage/cycle, and for complementary cel comparisons</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-15T17:59:55.360Z">2026-11-15T17:59:55.360Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4765" rel="noopener">lab#4765</a></div>
 </article>
 <article class="item" id="issue-4679">
 <h2><span class="tier B">B</span>Team mode failover: one member stalls for minutes in most rounds, takeover runs past 60 s, and a serve outage exits slowly with exit 1 (run 7)</h2>
@@ -3229,14 +3261,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4773" rel="noopener">lab#4773</a></div>
 </article>
-<article class="item" id="issue-4772">
-<h2><span class="tier C">C</span>@swamp/cfgmgmt systemd: a unit cannot be removed (no ensure: absent)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-15T12:44:28.602Z">2026-11-15T12:44:28.602Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4772" rel="noopener">lab#4772</a></div>
-</article>
 <article class="item" id="issue-4769">
 <h2><span class="tier C">C</span>A step that depends on an empty forEach starts before that forEach&#39;s own dependencies have finished</h2>
 <p class="lede">Open issue</p>
@@ -3268,14 +3292,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4749" rel="noopener">lab#4749</a></div>
-</article>
-<article class="item" id="issue-4765">
-<h2><span class="tier C">C</span>validate: spurious ambiguous-exit warnings for evidence absent in this stage/cycle, and for complementary cel comparisons</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-15T06:04:23.400Z">2026-11-15T06:04:23.400Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4765" rel="noopener">lab#4765</a></div>
 </article>
 <article class="item" id="issue-4764">
 <h2><span class="tier C">C</span>@swamp/ssh: a model that calls a fleet can&#39;t tell how that fleet checks host keys</h2>
@@ -3348,22 +3364,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4747" rel="noopener">lab#4747</a></div>
-</article>
-<article class="item" id="issue-4745">
-<h2><span class="tier C">C</span>@swamp/cfgmgmt user and group names are not validated</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-14T11:11:10.790Z">2026-11-14T11:11:10.790Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4745" rel="noopener">lab#4745</a></div>
-</article>
-<article class="item" id="issue-4743">
-<h2><span class="tier C">C</span>@swamp/cfgmgmt apt: installing on a fresh machine fails until a separate refresh</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-14T11:08:46.503Z">2026-11-14T11:08:46.503Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4743" rel="noopener">lab#4743</a></div>
 </article>
 <article class="item" id="issue-4575">
 <h2><span class="tier C">C</span>software-factory: a work item whose slug extends another&#39;s reads the other&#39;s records</h2>
@@ -4359,12 +4359,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>536 items across 1 source(s) in this window:
-1 critical, 380 notable, 11 routine,
-144 minor.</p>
+1 critical, 381 notable, 14 routine,
+140 minor.</p>
 <ul><li><strong>issues</strong> — 536</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-15T17:04:52.406Z">2026-11-15T17:04:52.406Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-15T18:07:07.232Z">2026-11-15T18:07:07.232Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

@@ -246,6 +246,9 @@ func menuLine(idChar string, attr Attr, badge string, cols []string, width int) 
 	return strings.TrimRight(head+b.String(), " ")
 }
 
+// itoa is a tiny helper so the shell can build status strings without fmt.
+func itoa(n int) string { return strconv.Itoa(n) }
+
 // idChar maps a row index to nn's article id: a-z then 0-9.
 func idChar(i int) string {
 	switch {

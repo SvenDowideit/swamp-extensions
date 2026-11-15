@@ -153,6 +153,13 @@ func run(o runOpts) error {
 	loader := &nn.Loader{API: client}
 	model := nn.New(cfg, cfgSource, loader, store, swamp.ShortRepoName(repoDir), serveLabel(serve))
 
+	// nn.sequence: the order your attention moves through the groups.
+	order, ignored, seqErr := nn.LoadSequence(nn.DefaultSequencePath(repoDir))
+	if seqErr != nil {
+		return seqErr
+	}
+	model.SetSequence(order, ignored)
+
 	if o.check {
 		return runCheck(ctx, model, loader, cfg)
 	}

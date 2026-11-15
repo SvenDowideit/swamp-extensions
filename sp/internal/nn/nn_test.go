@@ -379,7 +379,7 @@ func TestShellSelectAndRead(t *testing.T) {
 	}
 }
 
-func TestShellResumesPosition(t *testing.T) {
+func TestShellResumesPositionAcrossProcesses(t *testing.T) {
 	cfg := &Config{Defaults: Defaults{PageSize: 2}, Groups: []GroupSpec{{
 		ID: "g", Kind: "data", Model: "m", Resource: "r", Path: "items",
 		IDField: "id", Format: "text", Menu: []string{"title"},
@@ -391,19 +391,49 @@ func TestShellResumesPosition(t *testing.T) {
 	api := &fakeAPI{data: map[string]map[string]any{
 		"m/r": {"content": map[string]any{"items": rows}},
 	}}
-	m := newTestModel(t, cfg, api)
+	statePath := filepath.Join(t.TempDir(), "state.json")
+
+	// First session: page down, select a row, then quit.
+	storeA, err := OpenStore(statePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m := New(cfg, "test", &Loader{API: api}, storeA, "repo", "serve :0")
+	m.width, m.height = 100, 24
 	g := m.groups[0]
 	if err := m.loader.Load(context.Background(), g); err != nil {
 		t.Fatal(err)
 	}
 	m.enterGroup(g)
 	m.handleKey(key("pgdown")) // page 2 of 3
-	m.savePosition()
+	m.handleKey(key("a"))      // select the first row on this page
+	m.Shutdown()
 
-	m2 := newTestModel(t, cfg, api)
-	m2.store = m.store
-	m2.enterGroup(g)
+	// Second session: a fresh store read from disk, same config.
+	storeB, err := OpenStore(statePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m2 := New(cfg, "test", &Loader{API: api}, storeB, "repo", "serve :0")
+	m2.width, m2.height = 100, 24
+	g2 := m2.groups[0]
+	if err := m2.loader.Load(context.Background(), g2); err != nil {
+		t.Fatal(err)
+	}
+	if m2.mode != modeMenu || m2.cur == nil || m2.cur.ID() != "g" {
+		t.Fatalf("expected to resume in group g, mode=%v cur=%v", m2.mode, m2.cur)
+	}
+	m2.page, m2.cursor = m2.store.Position("g")
 	if m2.page != 1 {
 		t.Fatalf("expected to resume on page 2, got page %d", m2.page)
+	}
+	selected := 0
+	for _, it := range g2.Items {
+		if m2.store.EffectiveAttr(it) == AttrSelected {
+			selected++
+		}
+	}
+	if selected != 1 {
+		t.Fatalf("expected the selection to survive the restart, got %d", selected)
 	}
 }

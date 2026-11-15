@@ -88,6 +88,15 @@ func New(cfg *Config, cfgSource string, loader *Loader, store *Store, repo, serv
 	return m
 }
 
+// SetSequence reorders the top-level group list (and drops ignored groups).
+// Groups the sequence does not mention are kept.
+func (m *Model) SetSequence(order, ignored []string) {
+	if len(order) == 0 && len(ignored) == 0 {
+		return
+	}
+	m.groups = ApplySequence(m.groups, order, ignored)
+}
+
 // SetStartGroup makes the shell open a group instead of the overview.
 func (m *Model) SetStartGroup(id string) {
 	if g, ok := m.byID[id]; ok {
@@ -111,6 +120,9 @@ func (m *Model) Init() tea.Cmd {
 	if m.cur != nil {
 		m.page, m.cursor = m.store.Position(m.cur.ID())
 		m.store.SetLastGroup(m.cur.ID())
+		if m.page > 0 {
+			m.status = "resumed " + m.cur.Title() + " at page " + itoa(m.page+1)
+		}
 	}
 	cmds := make([]tea.Cmd, 0, len(m.groups))
 	for _, g := range m.groups {

@@ -9,6 +9,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/svendowideit/swamp-project/sp/internal/swamp"
 )
 
 // mode is the shell's current level. nn had exactly two (selection, reading);
@@ -19,7 +20,24 @@ const (
 	modeOverview mode = iota
 	modeMenu
 	modePager
+	modeForm
+	modeLive
 )
+
+// RunAPI is the streaming half of the serve client: starting and cancelling
+// runs. swamp.Client satisfies it.
+type RunAPI interface {
+	StartRun(ctx context.Context, reqType string, payload any) (*swamp.RunHandle, error)
+}
+
+// runStartedMsg hands a live run handle to the shell.
+type runStartedMsg struct{ handle *swamp.RunHandle }
+
+// runEventMsg delivers one streamed event.
+type runEventMsg struct{ ev swamp.Event }
+
+// runDoneMsg signals the terminal frame of a run.
+type runDoneMsg struct{ err error }
 
 // groupsMsg delivers the top-level group set (from config) at startup.
 type groupsMsg struct{ groups []*Group }
@@ -55,6 +73,10 @@ type Model struct {
 
 	width, height int
 	pager         *pagerState
+	form          *formState
+	live          *liveState
+	runAPI        RunAPI
+	runHandle     *swamp.RunHandle
 	quit          bool
 	loading       map[string]bool
 }
@@ -87,6 +109,9 @@ func New(cfg *Config, cfgSource string, loader *Loader, store *Store, repo, serv
 	}
 	return m
 }
+
+// SetRunAPI supplies the streaming client used by the run form.
+func (m *Model) SetRunAPI(api RunAPI) { m.runAPI = api }
 
 // SetSequence reorders the top-level group list (and drops ignored groups).
 // Groups the sequence does not mention are kept.
@@ -162,10 +187,44 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case runStartedMsg:
+		m.runHandle = msg.handle
+		if m.live == nil {
+			m.live = newLive("")
+		}
+		return m, waitForRunEvent(msg.handle)
+
+	case runEventMsg:
+		if m.live != nil {
+			m.live.appendEvent(msg.ev)
+		}
+		return m, waitForRunEvent(m.runHandle)
+
+	case runDoneMsg:
+		m.runHandle = nil
+		if m.live != nil {
+			m.live.finish(msg.err)
+		}
+		return m, nil
+
 	case tea.KeyPressMsg:
 		return m.handleKey(msg)
 	}
 	return m, nil
+}
+
+// waitForRunEvent reads exactly one event; the shell re-issues it after each.
+func waitForRunEvent(h *swamp.RunHandle) tea.Cmd {
+	if h == nil {
+		return nil
+	}
+	return func() tea.Msg {
+		ev, ok := <-h.Events
+		if !ok {
+			return runDoneMsg{err: <-h.Errc}
+		}
+		return runEventMsg{ev: ev}
+	}
 }
 
 // recount recomputes unread/total per group.
@@ -219,6 +278,10 @@ func (m *Model) handleKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m.handleMenuKey(key)
 	case modePager:
 		return m.handlePagerKey(key)
+	case modeForm:
+		return m.handleFormKey(key)
+	case modeLive:
+		return m.handleLiveKey(key)
 	}
 	return m, nil
 }
@@ -400,6 +463,13 @@ func (m *Model) enterGroup(g *Group) (tea.Model, tea.Cmd) {
 	if g == nil {
 		return m, nil
 	}
+	// Register the group's real sub-sources so a pushed Child id resolves even
+	// when the group arrived without going through a load message.
+	for _, child := range g.Children {
+		if _, ok := m.byID[child.ID()]; !ok {
+			m.byID[child.ID()] = child
+		}
+	}
 	m.cur = g
 	m.mode = modeMenu
 	m.page, m.cursor = m.store.Position(g.ID())
@@ -475,6 +545,16 @@ func (m *Model) continueGroup() (tea.Model, tea.Cmd) {
 	if len(selected) > 0 {
 		m.openPager(selected)
 		return m, nil
+	}
+	// A row that opens something (a runnable's history, a run form) is
+	// activated rather than turned past: that is what the row is for.
+	if it := m.cursorItem(); it != nil {
+		if it.Child != "" {
+			return m.pushGroup(it.Child)
+		}
+		if it.Format == "form" {
+			return m.openForm(it)
+		}
 	}
 	if m.page+1 < m.pageCount() {
 		m.page++
@@ -697,6 +777,10 @@ func (m *Model) render() string {
 		body = m.renderMenu()
 	case modePager:
 		body = m.renderPager()
+	case modeForm:
+		body = m.renderForm()
+	case modeLive:
+		body = m.renderLive()
 	}
 
 	h := m.height - 2
@@ -719,6 +803,16 @@ func (m *Model) renderHeader() string {
 	case modeOverview:
 		mid = styleTitle.Render("overview")
 		right = fmt.Sprintf("%d groups", len(m.groups))
+	case modeForm:
+		if m.form != nil {
+			mid = styleTitle.Render("run " + m.form.workflow)
+			right = m.form.editHint()
+		}
+	case modeLive:
+		if m.live != nil {
+			mid = styleTitle.Render("run " + m.live.workflow)
+			right = m.live.status
+		}
 	case modeMenu, modePager:
 		if m.cur != nil {
 			title := m.cur.Title()
@@ -872,6 +966,10 @@ func (m *Model) renderFooter() string {
 		keys = "a-z select  . toggle  space continue  N/P group  / filter  Y overview  = up  Q quit"
 	case modePager:
 		keys = "space page/next  b back  j/k scroll  = menu  N next group  Q quit"
+	case modeForm:
+		keys = m.form.footerKeys()
+	case modeLive:
+		keys = m.live.footerKeys()
 	}
 	if m.mode == modeMenu && m.cur != nil && m.cur.Spec.Kind == "runhistory" {
 		keys = "a-z select  space continue  + run form  = up  Y overview  Q quit"

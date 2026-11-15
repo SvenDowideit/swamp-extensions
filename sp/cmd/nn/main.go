@@ -159,9 +159,10 @@ func run(o runOpts) error {
 		return seqErr
 	}
 	model.SetSequence(order, ignored)
+	model.SetRunAPI(client)
 
 	if o.check {
-		return runCheck(ctx, model, loader, cfg)
+		return runCheck(ctx, model, loader, cfg, o.group)
 	}
 	if o.group != "" {
 		model.SetStartGroup(o.group)
@@ -176,7 +177,7 @@ func run(o runOpts) error {
 
 // runCheck loads every group once and prints one line each. This is nncheck:
 // it answers "is my config right and did the sources load?" without a TUI.
-func runCheck(ctx context.Context, model *nn.Model, loader *nn.Loader, cfg *nn.Config) error {
+func runCheck(ctx context.Context, model *nn.Model, loader *nn.Loader, cfg *nn.Config, only string) error {
 	failed := 0
 	for _, g := range cfg.Groups {
 		group := &nn.Group{Spec: g}
@@ -193,6 +194,33 @@ func runCheck(ctx context.Context, model *nn.Model, loader *nn.Loader, cfg *nn.C
 			}
 		}
 		fmt.Printf("%-24s %4d items  %4d dated\n", group.ID(), len(group.Items), newItems)
+	}
+	// With --group, also load that group and its children: this is how you check
+	// a runnable's history and input schema without opening the TUI.
+	if only != "" {
+		for _, g := range cfg.Groups {
+			group := &nn.Group{Spec: g}
+			if err := loader.Load(ctx, group); err != nil {
+				continue
+			}
+			for _, child := range group.Children {
+				if child.ID() != only {
+					continue
+				}
+				if err := loader.Load(ctx, child); err != nil {
+					failed++
+					fmt.Printf("%-24s err   %v\n", child.ID(), err)
+					continue
+				}
+				fmt.Printf("%-24s %4d items\n", child.ID(), len(child.Items))
+				for i, it := range child.Items {
+					if i > 3 {
+						break
+					}
+					fmt.Printf("    %s  %v\n", it.ID, it.Cols)
+				}
+			}
+		}
 	}
 	if failed > 0 {
 		return fmt.Errorf("%d group(s) failed", failed)

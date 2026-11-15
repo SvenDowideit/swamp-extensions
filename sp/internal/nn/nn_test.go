@@ -2,12 +2,14 @@ package nn
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/svendowideit/swamp-project/sp/internal/swamp"
 )
 
 // --- helpers ---------------------------------------------------------------
@@ -38,9 +40,11 @@ func key(s string) tea.KeyPressMsg {
 
 // fakeAPI serves canned swamp payloads.
 type fakeAPI struct {
-	data      map[string]map[string]any // "model/resource" -> payload
-	workflows []map[string]any
-	models    []map[string]any
+	data         map[string]map[string]any // "model/resource" -> payload
+	workflows    []map[string]any
+	models       []map[string]any
+	runs         map[string][]swamp.WorkflowRunEntry
+	workflowDefs map[string]map[string]any
 }
 
 func (f *fakeAPI) GetData(_ context.Context, model, name string, _ int) (map[string]any, error) {
@@ -53,6 +57,18 @@ func (f *fakeAPI) SearchWorkflows(_ context.Context, _ string) (map[string]any, 
 
 func (f *fakeAPI) SearchModels(_ context.Context, _ string) (map[string]any, error) {
 	return map[string]any{"results": toAny(f.models)}, nil
+}
+
+func (f *fakeAPI) SearchWorkflowRuns(_ context.Context, workflow string, _ int) ([]swamp.WorkflowRunEntry, error) {
+	return f.runs[workflow], nil
+}
+
+func (f *fakeAPI) GetWorkflow(_ context.Context, name string) (map[string]any, error) {
+	w, ok := f.workflowDefs[name]
+	if !ok {
+		return nil, errors.New("no such workflow: " + name)
+	}
+	return w, nil
 }
 
 func toAny(in []map[string]any) []any {
@@ -435,5 +451,210 @@ func TestShellResumesPositionAcrossProcesses(t *testing.T) {
 	}
 	if selected != 1 {
 		t.Fatalf("expected the selection to survive the restart, got %d", selected)
+	}
+}
+
+// --- runs, forms, live -----------------------------------------------------
+
+func TestRunHistoryPutsTheFormFirst(t *testing.T) {
+	cfg := &Config{Defaults: Defaults{PageSize: 10}, Groups: []GroupSpec{{
+		ID: "runs", Kind: "runs", Collection: "workflows",
+		IDField: "name", Format: "runnable", Menu: []string{"name"},
+	}}}
+	api := &fakeAPI{
+		workflows: []map[string]any{{"name": "sweep", "description": "daily sweep"}},
+		workflowDefs: map[string]map[string]any{"sweep": {"inputs": map[string]any{
+			"required": []any{"cidr"},
+			"properties": map[string]any{
+				"cidr":  map[string]any{"type": "string", "description": "CIDR to scan"},
+				"ports": map[string]any{"type": "array", "default": []any{22, 443}},
+			},
+		}}},
+		runs: map[string][]swamp.WorkflowRunEntry{"sweep": {{
+			RunID: "run-1", WorkflowName: "sweep", Status: "failed",
+			StartedAt: "2026-11-15T03:00:00Z", DurationMS: 72000,
+			FailedStep: "probe", FailureReason: "probe timeout on 10.10.12.30",
+			StepsCompleted: 1, StepsTotal: 2,
+		}}},
+	}
+	m := newTestModel(t, cfg, api)
+	g := m.groups[0]
+	if err := m.loader.Load(context.Background(), g); err != nil {
+		t.Fatal(err)
+	}
+	if len(g.Children) != 1 {
+		t.Fatalf("expected one child group per runnable, got %d", len(g.Children))
+	}
+	child := g.Children[0]
+	if err := m.loader.Load(context.Background(), child); err != nil {
+		t.Fatal(err)
+	}
+	if len(child.Items) != 2 {
+		t.Fatalf("expected '+ run' plus one run, got %d", len(child.Items))
+	}
+	if child.Items[0].ID != "+" || child.Items[0].Format != "form" {
+		t.Fatalf("first item must be the run form: %+v", child.Items[0])
+	}
+	if child.Items[1].Status != "failed" || child.Items[1].Body == "" {
+		t.Fatalf("failed run should carry its reason: %+v", child.Items[1])
+	}
+}
+
+func TestFormFieldsComeFromTheSchema(t *testing.T) {
+	schema := map[string]any{
+		"required": []any{"cidr"},
+		"properties": map[string]any{
+			"cidr":    map[string]any{"type": "string", "description": "CIDR to scan"},
+			"ports":   map[string]any{"type": "array", "default": []any{22, 80}},
+			"probeMs": map[string]any{"type": "integer", "default": 3000.0, "minimum": 1.0, "maximum": 60000.0},
+			"fp":      map[string]any{"type": "boolean", "default": true},
+			"mode":    map[string]any{"type": "string", "enum": []any{"fast", "full"}},
+		},
+	}
+	fields := inputFields(schema)
+	if len(fields) != 5 {
+		t.Fatalf("expected 5 fields, got %d", len(fields))
+	}
+	if !fields[0].Required || fields[0].Name != "cidr" {
+		t.Fatalf("required fields come first: %+v", fields[0])
+	}
+	byName := map[string]*Field{}
+	for _, f := range fields {
+		byName[f.Name] = f
+	}
+	if byName["fp"].IsBool() != true || byName["fp"].Bool != true {
+		t.Fatalf("boolean default: %+v", byName["fp"])
+	}
+	if byName["probeMs"].Text != "3000" {
+		t.Fatalf("integer default: %q", byName["probeMs"].Text)
+	}
+	if len(byName["mode"].Enum) != 2 {
+		t.Fatalf("enum not captured: %+v", byName["mode"].Enum)
+	}
+}
+
+func TestFormSubmitValidates(t *testing.T) {
+	schema := map[string]any{
+		"required": []any{"cidr", "probeMs"},
+		"properties": map[string]any{
+			"cidr":    map[string]any{"type": "string"},
+			"probeMs": map[string]any{"type": "integer", "minimum": 1.0, "maximum": 60000.0},
+			"mode":    map[string]any{"type": "string", "enum": []any{"fast", "full"}},
+		},
+	}
+	f := newForm("sweep", schema, nil)
+	if _, err := f.submitValues(); err == nil {
+		t.Fatal("missing required fields must fail validation")
+	}
+	byName := map[string]*Field{}
+	for _, fld := range f.fields {
+		byName[fld.Name] = fld
+	}
+	byName["cidr"].Text = "10.0.0.0/24"
+	byName["probeMs"].Text = "99999"
+	if _, err := f.submitValues(); err == nil {
+		t.Fatal("out-of-range integer must fail validation")
+	}
+	byName["probeMs"].Text = "1500"
+	byName["mode"].Text = "nonsense"
+	if _, err := f.submitValues(); err == nil {
+		t.Fatal("value outside the enum must fail validation")
+	}
+	byName["mode"].Text = "fast"
+	got, err := f.submitValues()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got["cidr"] != "10.0.0.0/24" || got["mode"] != "fast" {
+		t.Fatalf("unexpected inputs: %v", got)
+	}
+	if _, ok := got["probeMs"].(int64); !ok {
+		t.Fatalf("integer should stay an integer: %T", got["probeMs"])
+	}
+}
+
+func TestFormRestorePrefillsFromLastRun(t *testing.T) {
+	schema := map[string]any{"properties": map[string]any{
+		"cidr": map[string]any{"type": "string"},
+		"fp":   map[string]any{"type": "boolean"},
+	}}
+	f := newForm("sweep", schema, map[string]any{"cidr": "10.1.0.0/16", "fp": false})
+	if f.fields[0].Text != "10.1.0.0/16" || f.fields[1].Bool != false {
+		t.Fatalf("prefill failed: %+v", f.fields)
+	}
+}
+
+// fakeRuns implements RunAPI with a preloaded event stream.
+type fakeRuns struct{ handle *swamp.RunHandle }
+
+func (f *fakeRuns) StartRun(context.Context, string, any) (*swamp.RunHandle, error) {
+	return f.handle, nil
+}
+
+func TestShellRunsAWorkflowFromTheForm(t *testing.T) {
+	cfg := &Config{Defaults: Defaults{PageSize: 10}, Groups: []GroupSpec{{
+		ID: "runs", Kind: "runs", Collection: "workflows",
+		IDField: "name", Format: "runnable", Menu: []string{"name"},
+	}}}
+	api := &fakeAPI{
+		workflows: []map[string]any{{"name": "sweep"}},
+		workflowDefs: map[string]map[string]any{"sweep": {"inputs": map[string]any{
+			"properties": map[string]any{
+				"cidr": map[string]any{"type": "string", "default": "10.0.0.0/24"},
+			},
+		}}},
+		runs: map[string][]swamp.WorkflowRunEntry{},
+	}
+
+	events := make(chan swamp.Event, 8)
+	errc := make(chan error, 1)
+	errc <- nil
+	handle := &swamp.RunHandle{Events: events, Errc: errc}
+
+	m := newTestModel(t, cfg, api)
+	m.SetRunAPI(&fakeRuns{handle: handle})
+	g := m.groups[0]
+	if err := m.loader.Load(context.Background(), g); err != nil {
+		t.Fatal(err)
+	}
+	m.enterGroup(g)
+
+	// space on a runnable pushes its history (the loader adds the child).
+	if _, _ = m.handleKey(key("space")); m.cur == nil || m.cur.ID() != "runs/sweep" {
+		t.Fatalf("space on a runnable should push its history, cur=%v", m.cur)
+	}
+	child := m.cur
+	if !child.Loaded {
+		if err := m.loader.Load(context.Background(), child); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// space on "+ run" opens the generated form.
+	if _, _ = m.handleKey(key("space")); m.mode != modeForm {
+		t.Fatalf("space on '+ run' should open the form, mode=%v", m.mode)
+	}
+	if !strings.Contains(m.render(), "cidr") {
+		t.Fatalf("form should show the schema fields:\n%s", m.render())
+	}
+
+	// ctrl+s starts the run and switches to the live view.
+	cmd := m.startRun("sweep", map[string]any{"cidr": "10.0.0.0/24"})
+	if cmd == nil || m.mode != modeLive {
+		t.Fatalf("expected a live view after starting, mode=%v", m.mode)
+	}
+	if got := m.store.LastInputs("sweep")["cidr"]; got != nil && got != "10.0.0.0/24" {
+		t.Fatalf("inputs not remembered: %v", got)
+	}
+	// Deliver the start message and one event, then the terminal frame.
+	m.Update(runStartedMsg{handle: handle})
+	events <- swamp.Event{Kind: "step_started", Raw: map[string]any{"stepId": "probe"}}
+	m.Update(runEventMsg{ev: swamp.Event{Kind: "step_started", Raw: map[string]any{"stepId": "probe"}}})
+	if !strings.Contains(m.render(), "probe") {
+		t.Fatalf("live view should show the step:\n%s", m.render())
+	}
+	m.Update(runDoneMsg{err: nil})
+	if m.live == nil || !m.live.done {
+		t.Fatal("live view should be done after the terminal frame")
 	}
 }

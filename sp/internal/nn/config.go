@@ -74,6 +74,12 @@ func DefaultConfig() *Config {
 				Menu: []string{"tier", "os", "deviceClass", "name"},
 			},
 			{
+				ID: "runs:workflows", Title: "runs:workflows", Kind: "runs",
+				Collection: "workflows",
+				IDField:    "name", Format: "runnable",
+				Menu: []string{"name", "description"},
+			},
+			{
 				ID: "objects:workflows", Title: "objects:workflows", Kind: "objects",
 				Collection: "workflows",
 				IDField:    "name", Format: "object",

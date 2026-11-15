@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+
+	"github.com/svendowideit/swamp-project/sp/internal/swamp"
 )
 
 // API is the slice of the swamp serve client the loaders need. swamp.Client
@@ -13,6 +15,8 @@ type API interface {
 	GetData(ctx context.Context, model, name string, version int) (map[string]any, error)
 	SearchWorkflows(ctx context.Context, query string) (map[string]any, error)
 	SearchModels(ctx context.Context, query string) (map[string]any, error)
+	SearchWorkflowRuns(ctx context.Context, workflow string, limit int) ([]swamp.WorkflowRunEntry, error)
+	GetWorkflow(ctx context.Context, name string) (map[string]any, error)
 }
 
 // Loader resolves group specs into items through the serve client. It holds no
@@ -30,6 +34,10 @@ func (l *Loader) Load(ctx context.Context, g *Group) error {
 		err = l.loadData(ctx, g)
 	case "objects":
 		err = l.loadObjects(ctx, g)
+	case "runs":
+		err = l.loadRuns(ctx, g)
+	case "runhistory":
+		err = l.loadRunHistory(ctx, g)
 	default:
 		err = fmt.Errorf("unknown group kind %q", g.Spec.Kind)
 	}
@@ -41,6 +49,7 @@ func (l *Loader) Load(ctx context.Context, g *Group) error {
 	g.Loaded = true
 	g.Total = len(g.Items)
 	sortItems(g.Items, parseSort(g.Spec.Sort))
+	pinFirst(g.Items)
 	return nil
 }
 

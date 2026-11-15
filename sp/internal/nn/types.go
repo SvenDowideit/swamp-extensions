@@ -65,6 +65,9 @@ type Item struct {
 	Child string
 	// Status is the one-word run status, when the item is a run.
 	Status string
+	// Pinned items stay at the top of the menu regardless of sort order (the
+	// synthetic "+ run" row).
+	Pinned bool
 	// Raw is the source record, kept for item UIs that need more than Body.
 	Raw map[string]any
 }

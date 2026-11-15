@@ -174,6 +174,23 @@ func sortItems(items []*Item, specs []sortSpec) {
 	})
 }
 
+// pinFirst moves pinned items to the front, preserving their relative order.
+func pinFirst(items []*Item) {
+	if len(items) < 2 {
+		return
+	}
+	pinned := make([]*Item, 0, len(items))
+	rest := make([]*Item, 0, len(items))
+	for _, it := range items {
+		if it.Pinned {
+			pinned = append(pinned, it)
+		} else {
+			rest = append(rest, it)
+		}
+	}
+	copy(items, append(pinned, rest...))
+}
+
 // itemField returns the comparable value of a field for sorting. Timestamps are
 // normalised (see sortTime) so both time.Times and plain strings compare.
 func itemField(it *Item, field string) string {

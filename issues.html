@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4785"><span class="tier A">A</span>Flaky: replication test &#39;an owned sidecar whose owner&#39;s pid </a><a href="#issue-4786"><span class="tier A">A</span>Test flake: v3 replication &#39;an owned sidecar whose owner&#39;s p</a><a href="#issue-4787"><span class="tier A">A</span>Test flake: fan-out rollout &#39;maxFailures 25% over 8 lanes ha</a><a href="#issue-4749"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-4740"><span class="tier A">A</span>Flaky: command_routes_rules_test&#39;s completion-callback test </a><a href="#issue-4783"><span class="tier A">A</span>Team mode item-4 design note: a copy follows serve&#39;s compact</a><a href="#issue-4738"><span class="tier A">A</span>Flaky: datastore_v3_replica_verify_test times out waiting fo</a><a href="#issue-4780"><span class="tier A">A</span>Test teardown killSidecars throws EPERM when the Litestream </a><a href="#issue-4781"><span class="tier A">A</span>ServeLock test &#39;a renewed fenced lease keeps its fence and f</a><a href="#issue-4702"><span class="tier A">A</span>Team mode: a member&#39;s or serve&#39;s copy is never slow to becom</a><a href="#issue-4679"><span class="tier A">A</span>Team mode failover: one member stalls for minutes in most ro</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4769"><span class="tier A">A</span>A step that depends on an empty forEach starts before that f</a><a href="#issue-4785"><span class="tier A">A</span>Flaky: replication test &#39;an owned sidecar whose owner&#39;s pid </a><a href="#issue-4786"><span class="tier A">A</span>Test flake: v3 replication &#39;an owned sidecar whose owner&#39;s p</a><a href="#issue-4787"><span class="tier A">A</span>Test flake: fan-out rollout &#39;maxFailures 25% over 8 lanes ha</a><a href="#issue-4749"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-4740"><span class="tier A">A</span>Flaky: command_routes_rules_test&#39;s completion-callback test </a><a href="#issue-4783"><span class="tier A">A</span>Team mode item-4 design note: a copy follows serve&#39;s compact</a><a href="#issue-4738"><span class="tier A">A</span>Flaky: datastore_v3_replica_verify_test times out waiting fo</a><a href="#issue-4780"><span class="tier A">A</span>Test teardown killSidecars throws EPERM when the Litestream </a><a href="#issue-4781"><span class="tier A">A</span>ServeLock test &#39;a renewed fenced lease keeps its fence and f</a><a href="#issue-4702"><span class="tier A">A</span>Team mode: a member&#39;s or serve&#39;s copy is never slow to becom</a></aside><div>
 
 <article class="item" id="issue-4239">
 <h2><span class="tier S">S</span>swamp issue: file bugs, features and security reports against the platform source</h2>
@@ -76,6 +76,14 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-4769">
+<h2><span class="tier A">A</span>A step that depends on an empty forEach starts before that forEach&#39;s own dependencies have finished</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-16T12:32:56.315Z">2026-11-16T12:32:56.315Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4769" rel="noopener">lab#4769</a></div>
 </article>
 <article class="item" id="issue-4785">
 <h2><span class="tier A">A</span>Flaky: replication test &#39;an owned sidecar whose owner&#39;s pid names another process stops&#39; reads a presence record the sidecar already removed</h2>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4702" rel="noopener">lab#4702</a></div>
 </article>
-<article class="item" id="issue-4679">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4679">
 <h2><span class="tier A">A</span>Team mode failover: one member stalls for minutes in most rounds, takeover runs past 60 s, and a serve outage exits slowly with exit 1 (run 7)</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-16T03:52:10.367Z">2026-11-16T03:52:10.367Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4679" rel="noopener">lab#4679</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4777">
+<article class="item" id="issue-4777">
 <h2><span class="tier A">A</span>serve auto-continuation follow-ups: stale claim comment, cancelled continuation audited as failure, failed recover leaves its claim</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-16T03:06:13.515Z">2026-11-16T03:06:13.515Z</time></span></div>
@@ -3319,16 +3327,16 @@ footer .ver{color:var(--acc)}
 </article>
 <article class="item" id="issue-4790">
 <h2><span class="tier B">B</span>Test flake: auto-continue &#39;a run aborted for its maximum duration records the cancel before the abort&#39; sometimes finds no cancel reason</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-11-16T12:00:05.582Z">2026-11-16T12:00:05.582Z</time></span></div>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-16T12:50:44.739Z">2026-11-16T12:50:44.739Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4790" rel="noopener">lab#4790</a></div>
 </article>
 <article class="item" id="issue-4789">
 <h2><span class="tier B">B</span>Test flake: LitestreamReplicator.quiesce &#39;refuses a sidecar it cannot verify&#39; sometimes refuses for a busy sidecar instead</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-11-16T12:00:05.353Z">2026-11-16T12:00:05.353Z</time></span></div>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-16T12:50:32.641Z">2026-11-16T12:50:32.641Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4789" rel="noopener">lab#4789</a></div>
@@ -3336,18 +3344,10 @@ footer .ver{color:var(--acc)}
 <article class="item" id="issue-4788">
 <h2><span class="tier B">B</span>v2 S3/GCS: a mutating run that can&#39;t confirm its model lock at push exits 1 but keeps its data, and the next sync publishes it to every clone</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-16T11:59:12.262Z">2026-11-16T11:59:12.262Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-16T12:31:35.131Z">2026-11-16T12:31:35.131Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4788" rel="noopener">lab#4788</a></div>
-</article>
-<article class="item" id="issue-4769">
-<h2><span class="tier B">B</span>A step that depends on an empty forEach starts before that forEach&#39;s own dependencies have finished</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-16T11:55:53.018Z">2026-11-16T11:55:53.018Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4769" rel="noopener">lab#4769</a></div>
 </article>
 <article class="item" id="issue-4782">
 <h2><span class="tier B">B</span>Team mode slice 2: cold-read catch-up writing, catch-up before the lock, reclaiming a dead predecessor&#39;s lease, a failed lock-time catch-up goes offline, batched offline flush, and serve boot&#39;s running-runs scan</h2>
@@ -3421,7 +3421,15 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4374" rel="noopener">lab#4374</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4791">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4758">
+<h2><span class="tier C">C</span>Let a revoked worker token&#39;s name be reused (or delete revoked token records)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-16T12:11:55.276Z">2026-11-16T12:11:55.276Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4758" rel="noopener">lab#4758</a></div>
+</article>
+<article class="item" id="issue-4791">
 <h2><span class="tier C">C</span>@swamp/cfgmgmt: there is no way to require pinned host keys; a model without `nodeHostKeys` trusts the first key it sees</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-11-16T11:35:35.260Z">2026-11-16T11:35:35.260Z</time></span></div>
@@ -3492,14 +3500,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4759" rel="noopener">lab#4759</a></div>
-</article>
-<article class="item" id="issue-4758">
-<h2><span class="tier C">C</span>Let a revoked worker token&#39;s name be reused (or delete revoked token records)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-14T20:22:37.731Z">2026-11-14T20:22:37.731Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4758" rel="noopener">lab#4758</a></div>
 </article>
 <article class="item" id="issue-4757">
 <h2><span class="tier C">C</span>swamp serve: an admin &quot;restart&quot; that ends the serve and lets its in-flight runs be continued</h2>
@@ -4479,12 +4479,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>551 items across 1 source(s) in this window:
-1 critical, 405 notable, 13 routine,
+1 critical, 406 notable, 12 routine,
 132 minor.</p>
 <ul><li><strong>issues</strong> — 551</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-16T12:05:39.206Z">2026-11-16T12:05:39.206Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-16T13:02:35.874Z">2026-11-16T13:02:35.874Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

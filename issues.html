@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4698"><span class="tier A">A</span>Docs: automatic continuation of interrupted runs in swamp se</a><a href="#issue-4779"><span class="tier A">A</span>@swamp/cfgmgmt firewall: pre-check edge cases (firewalld und</a><a href="#issue-4747"><span class="tier A">A</span>@swamp/ssh: `timeoutSec` is not honoured when ControlMaster </a><a href="#issue-4764"><span class="tier A">A</span>@swamp/ssh: a model that calls a fleet can&#39;t tell how that f</a><a href="#issue-4768"><span class="tier A">A</span>@swamp/ssh: a model that calls a fleet can&#39;t tell whether tw</a><a href="#issue-4603"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-4773"><span class="tier A">A</span>@swamp/cfgmgmt systemd: a failed enable or start does not fa</a><a href="#issue-4774"><span class="tier A">A</span>@swamp/cfgmgmt firewall: removing the rule that lets the run</a><a href="#issue-4776"><span class="tier A">A</span>@swamp/cfgmgmt firewall: no syntax check of a rule before it</a><a href="#issue-4745"><span class="tier A">A</span>@swamp/cfgmgmt user and group names are not validated</a><a href="#issue-4743"><span class="tier A">A</span>@swamp/cfgmgmt apt: installing on a fresh machine fails unti</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4765"><span class="tier A">A</span>validate: spurious ambiguous-exit warnings for evidence abse</a><a href="#issue-4698"><span class="tier A">A</span>Docs: automatic continuation of interrupted runs in swamp se</a><a href="#issue-4779"><span class="tier A">A</span>@swamp/cfgmgmt firewall: pre-check edge cases (firewalld und</a><a href="#issue-4747"><span class="tier A">A</span>@swamp/ssh: `timeoutSec` is not honoured when ControlMaster </a><a href="#issue-4764"><span class="tier A">A</span>@swamp/ssh: a model that calls a fleet can&#39;t tell how that f</a><a href="#issue-4768"><span class="tier A">A</span>@swamp/ssh: a model that calls a fleet can&#39;t tell whether tw</a><a href="#issue-4603"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-4773"><span class="tier A">A</span>@swamp/cfgmgmt systemd: a failed enable or start does not fa</a><a href="#issue-4774"><span class="tier A">A</span>@swamp/cfgmgmt firewall: removing the rule that lets the run</a><a href="#issue-4776"><span class="tier A">A</span>@swamp/cfgmgmt firewall: no syntax check of a rule before it</a><a href="#issue-4745"><span class="tier A">A</span>@swamp/cfgmgmt user and group names are not validated</a></aside><div>
 
 <article class="item" id="issue-4239">
 <h2><span class="tier S">S</span>swamp issue: file bugs, features and security reports against the platform source</h2>
@@ -76,6 +76,14 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-4765">
+<h2><span class="tier A">A</span>validate: spurious ambiguous-exit warnings for evidence absent in this stage/cycle, and for complementary cel comparisons</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-16T00:04:50.920Z">2026-11-16T00:04:50.920Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4765" rel="noopener">lab#4765</a></div>
 </article>
 <article class="item" id="issue-4698">
 <h2><span class="tier A">A</span>Docs: automatic continuation of interrupted runs in swamp serve (autoContinue)</h2>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4745" rel="noopener">lab#4745</a></div>
 </article>
-<article class="item" id="issue-4743">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4743">
 <h2><span class="tier A">A</span>@swamp/cfgmgmt apt: installing on a fresh machine fails until a separate refresh</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-15T19:34:42.523Z">2026-11-15T19:34:42.523Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4743" rel="noopener">lab#4743</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4772">
+<article class="item" id="issue-4772">
 <h2><span class="tier A">A</span>@swamp/cfgmgmt systemd: a unit cannot be removed (no ensure: absent)</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-11-15T19:34:42.287Z">2026-11-15T19:34:42.287Z</time></span></div>
@@ -3213,14 +3221,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
-<article class="item" id="issue-4765">
-<h2><span class="tier B">B</span>validate: spurious ambiguous-exit warnings for evidence absent in this stage/cycle, and for complementary cel comparisons</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-16T00:01:15.287Z">2026-11-16T00:01:15.287Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4765" rel="noopener">lab#4765</a></div>
-</article>
 <article class="item" id="issue-4777">
 <h2><span class="tier B">B</span>serve auto-continuation follow-ups: stale claim comment, cancelled continuation audited as failure, failed recover leaves its claim</h2>
 <p class="lede">Issue in_progress</p>
@@ -4399,12 +4399,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>541 items across 1 source(s) in this window:
-1 critical, 392 notable, 11 routine,
+1 critical, 393 notable, 10 routine,
 137 minor.</p>
 <ul><li><strong>issues</strong> — 541</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-16T00:05:40.899Z">2026-11-16T00:05:40.899Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-16T01:04:05.443Z">2026-11-16T01:04:05.443Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

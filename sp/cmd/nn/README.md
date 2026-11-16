@@ -30,10 +30,14 @@ Overview (`Y`): `j/k` move · `space`/`enter` open a group · `R` reload all ·
 `Q` quit.
 
 Menu: `a-z 0-9` select the row with that id · `.` toggle and advance ·
-`j/k` move · `space` continue (mark this page seen, then read selections, then
-next page, then next group) · `return` continue without marking · `N`/`P`
-next/previous group · `/` filter · `Y` overview · `=` up · `R` reload ·
-`Q` quit.
+`j/k` move · `%` **peek** at the row under the cursor (a body pane under the
+menu; `%`/`space`/`esc` closes it, `j/k` scrolls it, and it marks nothing) ·
+`space` continue (mark this page seen, then read selections, then next page,
+then next group) · `return` continue without marking · `N`/`P` next/previous
+group · `/` filter · `Y` overview · `=` up · `R` reload · `Q` quit.
+
+To read something: `%` to look, or mark it and press `space`. That two-step is
+deliberate — it is how `nn` made triage cheap.
 
 Reader: `space` page then next item · `b` back · `j/k` scroll · `=` menu ·
 `N` next group · `Q` quit.

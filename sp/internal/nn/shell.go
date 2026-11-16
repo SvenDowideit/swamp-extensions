@@ -75,6 +75,7 @@ type Model struct {
 	pager         *pagerState
 	form          *formState
 	live          *liveState
+	preview       *previewState
 	runAPI        RunAPI
 	runHandle     *swamp.RunHandle
 	quit          bool
@@ -320,6 +321,33 @@ func (m *Model) handleOverviewKey(key string) (tea.Model, tea.Cmd) {
 func (m *Model) handleMenuKey(key string) (tea.Model, tea.Cmd) {
 	visible := m.visibleItems()
 
+	// A peek is frozen on the row it opened on. Scrolling keys move inside it;
+	// any other key closes it and then means what it always means.
+	if m.preview != nil {
+		h := m.previewRows()
+		switch key {
+		case "%", "esc", "=", "space", "return":
+			m.preview = nil
+			if key == "=" {
+				m.store.SetPosition(m.cur.ID(), m.page, m.cursor)
+			}
+			return m, nil
+		case "down", "j":
+			m.preview.scroll(1, h)
+			return m, nil
+		case "up", "k":
+			m.preview.scroll(-1, h)
+			return m, nil
+		case "pgdown":
+			m.preview.scroll(h, h)
+			return m, nil
+		case "pgup":
+			m.preview.scroll(-h, h)
+			return m, nil
+		}
+		m.preview = nil
+	}
+
 	switch key {
 	case "q", "Q":
 		m.leaveGroup()
@@ -343,6 +371,11 @@ func (m *Model) handleMenuKey(key string) (tea.Model, tea.Cmd) {
 		return m.nextGroup(1)
 	case "P":
 		return m.nextGroup(-1)
+	case "%":
+		if it := m.cursorItem(); it != nil {
+			m.preview = newPreview(it, m.bodyWidth())
+		}
+		return m, nil
 	case "/":
 		m.filtering = true
 		m.filter = ""
@@ -668,6 +701,39 @@ func (m *Model) pageCount() int {
 	return (n + size - 1) / size
 }
 
+// previewRows is how many rows the peek pane gets: a third of the body, but
+// never fewer than 4 and never more than half.
+func (m *Model) previewRows() int {
+	h := m.bodyHeight()
+	n := h / 3
+	if n < 4 {
+		n = 4
+	}
+	if n > h/2 {
+		n = h / 2
+	}
+	if n < 2 {
+		n = 2
+	}
+	return n
+}
+
+// previewLines is how many lines the peek adds to the body (rule + title + rows).
+func (m *Model) previewLines() []string {
+	if m.preview == nil {
+		return nil
+	}
+	return m.preview.render(m.bodyWidth(), m.previewRows())
+}
+
+// repeat returns s repeated n times.
+func repeat(s string, n int) string {
+	if n <= 0 {
+		return ""
+	}
+	return strings.Repeat(s, n)
+}
+
 // pageStart is the index of the first item on the current page.
 func (m *Model) pageStart() int { return m.page * m.pageSize() }
 
@@ -906,12 +972,33 @@ func (m *Model) renderMenu() []string {
 		return []string{styleDim.Render("no group selected")}
 	}
 	items := m.pageItems()
-	out := make([]string, 0, m.pageSize())
+	rows := m.pageSize()
+	if m.preview != nil {
+		rows -= m.previewRows() + 2
+	}
+	if rows < 1 {
+		rows = 1
+	}
+	// Keep the cursor inside the window when the peek shrinks the menu.
+	start := 0
+	if m.cursor >= rows {
+		start = m.cursor - rows + 1
+	}
+	if start > len(items) {
+		start = len(items)
+	}
+	end := start + rows
+	if end > len(items) {
+		end = len(items)
+	}
+
+	out := make([]string, 0, rows+len(m.previewLines())+3)
 	// A fixed two-cell gutter keeps rows aligned whether or not the cursor is
 	// on them; nn highlighted the current row rather than marking it.
 	const gutter = "  "
 	lineWidth := m.width - len(gutter)
-	for i, it := range items {
+	for i := start; i < end; i++ {
+		it := items[i]
 		attr := m.store.EffectiveAttr(it)
 		line := menuLine(idChar(i), attr, it.Badge, it.Cols, lineWidth)
 		prefix := gutter
@@ -929,6 +1016,18 @@ func (m *Model) renderMenu() []string {
 			line = styleSeen.Render(prefix + line)
 		}
 		out = append(out, fit(line, m.width))
+	}
+	if end < len(items) && len(out) > 0 {
+		out = append(out, styleDim.Render("  … "+itoa(len(items)-end)+" more on this page"))
+	}
+	// Reserve the rest of the page so the peek sits at the bottom.
+	for len(out) < rows && len(items) > 0 {
+		out = append(out, "")
+	}
+	if m.preview != nil {
+		out = append(out, styleRule.Render(repeat("─", m.width)))
+		out = append(out, m.preview.title(m.width))
+		out = append(out, m.preview.render(m.bodyWidth(), m.previewRows())...)
 	}
 	if len(out) == 0 {
 		if m.cur.Err != "" {
@@ -953,28 +1052,69 @@ func (m *Model) renderPager() []string {
 	return m.pager.render(m.bodyWidth(), m.bodyHeight())
 }
 
-// renderFooter is the contextual key bar.
+// hint is one key/description pair in the footer.
+type hint struct{ key, desc string }
+
+// footerHints is the contextual key bar, per mode. Keys are rendered in the
+// brightest colour the palette has: the whole point of the bar is that you can
+// find the key without reading the sentence.
+func (m *Model) footerHints() []hint {
+	switch m.mode {
+	case modeOverview:
+		return []hint{{"j/k", "move"}, {"space", "open group"}, {"R", "reload"}, {"Q", "quit"}}
+	case modeMenu:
+		if m.preview != nil {
+			return []hint{{"%", "close"}, {"j/k", "scroll"}, {"space", "close"}, {"Q", "quit"}}
+		}
+		return []hint{
+			{"a-z0-9", "select"}, {"%", "peek"}, {"space", "continue"},
+			{"N/P", "group"}, {"/", "filter"}, {"=", "up"}, {"Y", "overview"}, {"Q", "quit"},
+		}
+	case modePager:
+		return []hint{{"space", "page/next"}, {"b", "back"}, {"j/k", "scroll"}, {"=", "menu"}, {"N", "group"}, {"Q", "quit"}}
+	case modeForm:
+		if m.form != nil && len(m.form.fields) == 0 {
+			return []hint{{"ctrl+s", "run"}, {"=", "cancel"}}
+		}
+		return []hint{
+			{"tab", "field"}, {"space", "toggle"}, {"enter", "edit"},
+			{"ctrl+r", "last run"}, {"ctrl+s", "run"}, {"=", "cancel"},
+		}
+	case modeLive:
+		if m.live != nil && m.live.done {
+			return []hint{{"space", "history"}, {"=", "menu"}, {"Q", "quit"}}
+		}
+		return []hint{{"q", "detach"}, {"x", "cancel"}, {"j/k", "scroll"}, {"=", "menu"}, {"Q", "quit"}}
+	}
+	return nil
+}
+
+// renderFooter draws the key bar, dropping hints that do not fit.
 func (m *Model) renderFooter() string {
 	if m.status != "" {
 		return fit(styleDim.Render(m.status), m.width)
 	}
-	var keys string
-	switch m.mode {
-	case modeOverview:
-		keys = "j/k move  space enter  R reload  Q quit"
-	case modeMenu:
-		keys = "a-z select  . toggle  space continue  N/P group  / filter  Y overview  = up  Q quit"
-	case modePager:
-		keys = "space page/next  b back  j/k scroll  = menu  N next group  Q quit"
-	case modeForm:
-		keys = m.form.footerKeys()
-	case modeLive:
-		keys = m.live.footerKeys()
+	var b strings.Builder
+	used := 0
+	for i, h := range m.footerHints() {
+		key := styleKeyHint.Render(h.key)
+		desc := styleFooter.Render(h.desc)
+		seg := key + " " + desc
+		w := ansi.StringWidth(seg)
+		sep := 0
+		if i > 0 {
+			sep = 3
+		}
+		if used+sep+w > m.width {
+			break
+		}
+		if i > 0 {
+			b.WriteString(styleRule.Render(" · "))
+		}
+		b.WriteString(seg)
+		used += sep + w
 	}
-	if m.mode == modeMenu && m.cur != nil && m.cur.Spec.Kind == "runhistory" {
-		keys = "a-z select  space continue  + run form  = up  Y overview  Q quit"
-	}
-	return fit(styleFooter.Render(keys), m.width)
+	return b.String()
 }
 
 // helpFor is the one-line help for a mode (the plan's `?` safety net).
@@ -983,7 +1123,7 @@ func helpFor(md mode) string {
 	case modeOverview:
 		return "overview: j/k move, space/enter open a group, R reload all, Q quit"
 	case modeMenu:
-		return "menu: a-z/0-9 select, . toggle+advance, space continue (page, read, next group), return continue-no-mark, N/P group, / filter, Y overview, = up, Q quit"
+		return "menu: a-z/0-9 select, . toggle+advance, % peek at the row under the cursor, space continue (page, read, next group), return continue-no-mark, N/P group, / filter, Y overview, = up, Q quit"
 	case modePager:
 		return "read: space page then next item, b back, j/k scroll, = menu, N next group, Q quit"
 	}

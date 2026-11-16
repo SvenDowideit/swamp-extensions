@@ -374,14 +374,6 @@ func (f *formState) requiredCount() int {
 	return n
 }
 
-// footerKeys is the key bar for the form.
-func (f *formState) footerKeys() string {
-	if len(f.fields) == 0 {
-		return "ctrl+s run  = cancel"
-	}
-	return "tab/↑↓ field  space toggle  enter edit  ctrl+r last run  ctrl+s run  = cancel"
-}
-
 // editHint explains the empty-field case in the status line.
 func (f *formState) editHint() string {
 	if len(f.fields) == 0 {

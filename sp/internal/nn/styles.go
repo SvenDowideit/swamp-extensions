@@ -34,5 +34,9 @@ var (
 
 	styleCursor = lipgloss.NewStyle().Bold(true).Foreground(colAccent)
 	styleFooter = lipgloss.NewStyle().Foreground(colMuted)
-	styleRule   = lipgloss.NewStyle().Foreground(colBorder)
+
+	// styleKeyHint is the footer's key token: the thing you look for, so it gets
+	// the brightest colour in the palette rather than the dimmest.
+	styleKeyHint = lipgloss.NewStyle().Bold(true).Foreground(colGreen)
+	styleRule    = lipgloss.NewStyle().Foreground(colBorder)
 )

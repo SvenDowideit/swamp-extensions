@@ -130,14 +130,6 @@ func (l *liveState) render(width, height int) []string {
 	return out
 }
 
-// footerKeys is the key bar for a live run.
-func (l *liveState) footerKeys() string {
-	if l.done {
-		return "space/enter back to history  = back to menu  Q quit"
-	}
-	return "q detach (leaves it running)  x cancel  j/k scroll  = menu  Q quit"
-}
-
 // header is the one-line run status.
 func (l *liveState) header(width int) string {
 	badge := styleOrangeS.Render("▶ running")

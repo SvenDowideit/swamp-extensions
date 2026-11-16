@@ -658,3 +658,64 @@ func TestShellRunsAWorkflowFromTheForm(t *testing.T) {
 		t.Fatal("live view should be done after the terminal frame")
 	}
 }
+
+// --- peek (%) --------------------------------------------------------------
+
+func TestPeekShowsBodyAndMarksNothing(t *testing.T) {
+	cfg := &Config{Defaults: Defaults{PageSize: 10}, Groups: []GroupSpec{{
+		ID: "news", Kind: "data", Model: "m", Resource: "r", Path: "articles",
+		IDField: "id", Format: "text", Menu: []string{"title"}, Body: "body",
+	}}}
+	api := &fakeAPI{data: map[string]map[string]any{"m/r": {"content": map[string]any{"articles": []any{
+		map[string]any{"id": "1", "title": "First", "body": "the body of the first item"},
+		map[string]any{"id": "2", "title": "Second", "body": "second body"},
+	}}}}}
+	m := newTestModel(t, cfg, api)
+	g := m.groups[0]
+	if err := m.loader.Load(context.Background(), g); err != nil {
+		t.Fatal(err)
+	}
+	m.enterGroup(g)
+
+	if _, _ = m.handleKey(key("%")); m.preview == nil {
+		t.Fatal("% should open a peek on the row under the cursor")
+	}
+	view := m.render()
+	if !strings.Contains(view, "the body of the first item") {
+		t.Fatalf("peek should show the row's body:\n%s", view)
+	}
+	if !strings.Contains(view, "preview") {
+		t.Fatalf("peek should label itself:\n%s", view)
+	}
+	// A peek is not reading: nothing is marked.
+	for _, it := range g.Items {
+		if got := m.store.EffectiveAttr(it); got != AttrUnread {
+			t.Fatalf("peeking must not mark %s (%q)", it.ID, got)
+		}
+	}
+	// The menu is still there above the peek.
+	if !strings.Contains(view, "Second") {
+		t.Fatalf("peek must not replace the menu:\n%s", view)
+	}
+	// % closes it.
+	m.handleKey(key("%"))
+	if m.preview != nil {
+		t.Fatal("% should close the peek")
+	}
+	// esc closes it too.
+	m.handleKey(key("%"))
+	m.handleKey(key("esc"))
+	if m.preview != nil {
+		t.Fatal("esc should close the peek")
+	}
+}
+
+func TestFooterPutsKeysFirst(t *testing.T) {
+	m := &Model{width: 120, height: 20, mode: modeMenu}
+	bar := m.renderFooter()
+	for _, want := range []string{"a-z0-9", "select", "%", "peek", "space", "continue"} {
+		if !strings.Contains(bar, want) {
+			t.Fatalf("footer missing %q: %q", want, bar)
+		}
+	}
+}

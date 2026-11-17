@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4826"><span class="tier A">A</span>workflow evaluate: guard on a forEach step is over-resolved </a><a href="#issue-4838"><span class="tier A">A</span>Load serve&#39;s subcommands lazily through a serve route table</a><a href="#issue-4808"><span class="tier A">A</span>Swampify page doesn&#39;t show new candidates or the offer while</a><a href="#issue-4805"><span class="tier A">A</span>The serve host supervisor: start, watch and stop one serve p</a><a href="#issue-4820"><span class="tier A">A</span>data query --select crashes in log mode when a list projecti</a><a href="#issue-4759"><span class="tier A">A</span>Structured data query content renders as an unreadable table</a><a href="#issue-4804"><span class="tier A">A</span>The workspace router: forward /w/&lt;name&gt;/ to that workspace&#39;s</a><a href="#issue-4802"><span class="tier A">A</span>serve shutdown: a nested child run cut off by shutdown ends </a><a href="#issue-4807"><span class="tier A">A</span>Swampify: guide the last mile from built to everyday use (an</a><a href="#issue-4784"><span class="tier A">A</span>Team mode: a member&#39;s copy follows serve&#39;s compaction by ins</a><a href="#issue-4762"><span class="tier A">A</span>serve: a run left RUNNING after a restart is never seen as s</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4811"><span class="tier A">A</span>serve: a team serve restarts one host at a time with no fail</a><a href="#issue-4334"><span class="tier A">A</span>cfgmgmt firewall (ufw): an input for rule position (insert b</a><a href="#issue-4826"><span class="tier A">A</span>workflow evaluate: guard on a forEach step is over-resolved </a><a href="#issue-4838"><span class="tier A">A</span>Load serve&#39;s subcommands lazily through a serve route table</a><a href="#issue-4808"><span class="tier A">A</span>Swampify page doesn&#39;t show new candidates or the offer while</a><a href="#issue-4805"><span class="tier A">A</span>The serve host supervisor: start, watch and stop one serve p</a><a href="#issue-4820"><span class="tier A">A</span>data query --select crashes in log mode when a list projecti</a><a href="#issue-4759"><span class="tier A">A</span>Structured data query content renders as an unreadable table</a><a href="#issue-4804"><span class="tier A">A</span>The workspace router: forward /w/&lt;name&gt;/ to that workspace&#39;s</a><a href="#issue-4802"><span class="tier A">A</span>serve shutdown: a nested child run cut off by shutdown ends </a><a href="#issue-4807"><span class="tier A">A</span>Swampify: guide the last mile from built to everyday use (an</a></aside><div>
 
 <article class="item" id="issue-4239">
 <h2><span class="tier S">S</span>swamp issue: file bugs, features and security reports against the platform source</h2>
@@ -76,6 +76,22 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-4811">
+<h2><span class="tier A">A</span>serve: a team serve restarts one host at a time with no failed requests and no lost runs</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-17T17:41:51.642Z">2026-11-17T17:41:51.642Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4811" rel="noopener">lab#4811</a></div>
+</article>
+<article class="item" id="issue-4334">
+<h2><span class="tier A">A</span>cfgmgmt firewall (ufw): an input for rule position (insert before/after)</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-17T17:35:15.099Z">2026-11-17T17:35:15.099Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4334" rel="noopener">lab#4334</a></div>
 </article>
 <article class="item" id="issue-4826">
 <h2><span class="tier A">A</span>workflow evaluate: guard on a forEach step is over-resolved to a boolean and fails schema validation</h2>
@@ -149,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4807" rel="noopener">lab#4807</a></div>
 </article>
-<article class="item" id="issue-4784">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4784">
 <h2><span class="tier A">A</span>Team mode: a member&#39;s copy follows serve&#39;s compaction by installing serve&#39;s base per partition (small partitions whole, hot ones by difference), so copies stay bounded without a local rebuild</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-11-16T21:00:10.415Z">2026-11-16T21:00:10.415Z</time></span></div>
@@ -165,7 +181,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4762" rel="noopener">lab#4762</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4732">
+<article class="item" id="issue-4732">
 <h2><span class="tier A">A</span>Lab issues page: toolbar overflows and clips controls when list pane narrows</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-16T20:31:54.690Z">2026-11-16T20:31:54.690Z</time></span></div>
@@ -3549,42 +3565,18 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
-<article class="item" id="issue-4835">
-<h2><span class="tier B">B</span>swamp serve host: one listener that runs a serve per workspace folder</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-11-17T16:59:30.479Z">2026-11-17T16:59:30.479Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4835" rel="noopener">lab#4835</a></div>
-</article>
-<article class="item" id="issue-4811">
-<h2><span class="tier B">B</span>serve: a team serve restarts one host at a time with no failed requests and no lost runs</h2>
+<article class="item" id="issue-4793">
+<h2><span class="tier B">B</span>Scheduled flaky-test detection is failing</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-17T16:53:18.402Z">2026-11-17T16:53:18.402Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-17T17:51:20.398Z">2026-11-17T17:51:20.398Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4811" rel="noopener">lab#4811</a></div>
-</article>
-<article class="item" id="issue-4334">
-<h2><span class="tier B">B</span>cfgmgmt firewall (ufw): an input for rule position (insert before/after)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-17T16:46:01.795Z">2026-11-17T16:46:01.795Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4334" rel="noopener">lab#4334</a></div>
-</article>
-<article class="item" id="issue-4824">
-<h2><span class="tier B">B</span>Team mode: faster takeover, piece 1: a shorter writer-lease TTL (then the follower&#39;s physical copy)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-17T16:45:15.329Z">2026-11-17T16:45:15.329Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4824" rel="noopener">lab#4824</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4793" rel="noopener">lab#4793</a></div>
 </article>
 <article class="item" id="issue-4822">
 <h2><span class="tier B">B</span>Test flake: team forwarding &#39;a leader that left two forwards in a row unanswered is refused at once&#39; sometimes forwards and fails instead of refusing</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-17T16:42:42.695Z">2026-11-17T16:42:42.695Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-17T17:50:31.967Z">2026-11-17T17:50:31.967Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4822" rel="noopener">lab#4822</a></div>
@@ -3592,7 +3584,7 @@ footer .ver{color:var(--acc)}
 <article class="item" id="issue-4806">
 <h2><span class="tier B">B</span>Flaky under load: team forwarding test &#39;a leader that left two forwards in a row unanswered is refused at once&#39; gets a may-have-run reply</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-17T16:42:42.461Z">2026-11-17T16:42:42.461Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-17T17:50:31.757Z">2026-11-17T17:50:31.757Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4806" rel="noopener">lab#4806</a></div>
@@ -3600,15 +3592,23 @@ footer .ver{color:var(--acc)}
 <article class="item" id="issue-4819">
 <h2><span class="tier B">B</span>Flaky under load: workflow report race, team-mode read-lock and recovery chunk-read integration tests</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-17T16:42:42.215Z">2026-11-17T16:42:42.215Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-17T17:50:31.515Z">2026-11-17T17:50:31.515Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4819" rel="noopener">lab#4819</a></div>
 </article>
+<article class="item" id="issue-4816">
+<h2><span class="tier B">B</span>Tests no longer depend on Deno&#39;s npm resolver, whose TaskQueue can lose a wakeup</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-17T17:50:31.052Z">2026-11-17T17:50:31.052Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4816" rel="noopener">lab#4816</a></div>
+</article>
 <article class="item" id="issue-4815">
 <h2><span class="tier B">B</span>test: the scheduled flaky-test job skips the Litestream sidecar tests</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-17T16:42:26.742Z">2026-11-17T16:42:26.742Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-17T17:50:30.818Z">2026-11-17T17:50:30.818Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4815" rel="noopener">lab#4815</a></div>
@@ -3616,7 +3616,7 @@ footer .ver{color:var(--acc)}
 <article class="item" id="issue-4814">
 <h2><span class="tier B">B</span>Process-wide module state in the v3 datastore forces tests to isolate actors in Workers</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-17T16:42:26.520Z">2026-11-17T16:42:26.520Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-17T17:50:30.581Z">2026-11-17T17:50:30.581Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4814" rel="noopener">lab#4814</a></div>
@@ -3624,7 +3624,7 @@ footer .ver{color:var(--acc)}
 <article class="item" id="issue-4813">
 <h2><span class="tier B">B</span>test: three &#39;crash&#39; tests check SQLite rollback, not crash recovery</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-17T16:42:26.053Z">2026-11-17T16:42:26.053Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-17T17:50:30.350Z">2026-11-17T17:50:30.350Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4813" rel="noopener">lab#4813</a></div>
@@ -3632,26 +3632,26 @@ footer .ver{color:var(--acc)}
 <article class="item" id="issue-4812">
 <h2><span class="tier B">B</span>test: test Workers that only isolate a writer lease or one command can run in the test&#39;s isolate</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-17T16:42:25.807Z">2026-11-17T16:42:25.807Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-17T17:50:30.107Z">2026-11-17T17:50:30.107Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4812" rel="noopener">lab#4812</a></div>
 </article>
-<article class="item" id="issue-4793">
-<h2><span class="tier B">B</span>Scheduled flaky-test detection is failing</h2>
+<article class="item" id="issue-4835">
+<h2><span class="tier B">B</span>swamp serve host: one listener that runs a serve per workspace folder</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-17T16:42:25.340Z">2026-11-17T16:42:25.340Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-17T17:44:21.234Z">2026-11-17T17:44:21.234Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4793" rel="noopener">lab#4793</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4835" rel="noopener">lab#4835</a></div>
 </article>
-<article class="item" id="issue-4816">
-<h2><span class="tier B">B</span>Tests no longer depend on Deno&#39;s npm resolver, whose TaskQueue can lose a wakeup</h2>
+<article class="item" id="issue-4824">
+<h2><span class="tier B">B</span>Team mode: faster takeover, piece 1: a shorter writer-lease TTL (then the follower&#39;s physical copy)</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-17T16:42:16.375Z">2026-11-17T16:42:16.375Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-17T17:16:21.591Z">2026-11-17T17:16:21.591Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4816" rel="noopener">lab#4816</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4824" rel="noopener">lab#4824</a></div>
 </article>
 <article class="item" id="issue-4817">
 <h2><span class="tier B">B</span>A follower that forwards a v3 datastore chunk upload to its leader may get 411, because the forward drops Content-Length</h2>
@@ -3733,7 +3733,31 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4374" rel="noopener">lab#4374</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4839">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4842">
+<h2><span class="tier C">C</span>cve extensions: data names can still collide or be refused on Windows (trailing dots, reserved device names, case)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-17T17:34:14.290Z">2026-11-17T17:34:14.290Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4842" rel="noopener">lab#4842</a></div>
+</article>
+<article class="item" id="issue-4841">
+<h2><span class="tier C">C</span>Test flake: v3 replication &#39;an owned sidecar whose owner&#39;s pid names another process stops&#39; fails with no control socket under load</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-17T17:04:45.040Z">2026-11-17T17:04:45.040Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4841" rel="noopener">lab#4841</a></div>
+</article>
+<article class="item" id="issue-4840">
+<h2><span class="tier C">C</span>cfgmgmt firewall (iptables): rule placement with before, after and first</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-17T17:04:02.718Z">2026-11-17T17:04:02.718Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4840" rel="noopener">lab#4840</a></div>
+</article>
+<article class="item" id="issue-4839">
 <h2><span class="tier C">C</span>serve: a leader&#39;s serve_not_leader raised after a run start executed carries no inFlight, so clients may start it again</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-11-17T16:04:46.357Z">2026-11-17T16:04:46.357Z</time></span></div>
@@ -4782,13 +4806,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>589 items across 1 source(s) in this window:
-1 critical, 434 notable, 23 routine,
-131 minor.</p>
-<ul><li><strong>issues</strong> — 589</li></ul></section>
+<p>592 items across 1 source(s) in this window:
+1 critical, 436 notable, 21 routine,
+134 minor.</p>
+<ul><li><strong>issues</strong> — 592</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-17T17:04:11.833Z">2026-11-17T17:04:11.833Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-17T18:10:44.156Z">2026-11-17T18:10:44.156Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

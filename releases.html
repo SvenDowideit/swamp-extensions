@@ -172,7 +172,7 @@ footer .ver{color:var(--acc)}
 <li>forwards child stderr to the host log, capping line length.</li>
 <li>A new fitness rule keeps process APIs inside the adapter, and the spawn site is listed</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/serve-workspaces.md" rel="noopener">design/surfaces/serve-workspaces.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261117.001416.0-sha.11cfa822" rel="noopener">release v20261117.001416.0-sha.11cfa822</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/11cfa82261ad8b4bfac3ab15ee0e6d05c0d932da" rel="noopener">11cfa822</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3830" rel="noopener">#3830</a>𝗔 <a href="https://swamp-club.com/lab/4805" rel="noopener">lab#4805</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261117-000858-0-sha-7379e036">
@@ -276,7 +276,7 @@ footer .ver{color:var(--acc)}
 <li>A run resumed long after it first started is now read by id. Before, the scan filtered on the record&#39;s first start, so such a run ended <code>cancelled</code> and a second restart turned a recoverable nested run into a failed one.</li>
 </ul>
 <p>The parent then continues the existing way. Auto-continuation continues a child whose cut-off steps are guarded, and continues the parent once the child settles (<code>nested_run_unsettled</code> is r</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261116.213102.0-sha.020a3c03" rel="noopener">release v20261116.213102.0-sha.020a3c03</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/020a3c03635c06172262ae7580ac8be29bca4447" rel="noopener">020a3c03</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3827" rel="noopener">#3827</a>𝗔 <a href="https://swamp-club.com/lab/4802" rel="noopener">lab#4802</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261116-205837-0-sha-dce51ecf">
@@ -345,7 +345,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Continue in the next process.</strong> The next process continues the run through the existing #4693 claim and launch, under the same run id, once the parking process has gone. A <code>parked/&lt;runId&gt;</code> marker lets a process that booted first, in a rolling restart, find runs parked after its boot. Parent and child runs park together. Fan-out jobs keep their frozen plan. A park doesn&#39;t count toward the continuation repeat cap. <code>autoContinue: false</code> keeps the run parked for an operator.</li>
 <li><strong>Attached clients.</strong> A <code>--server</code> client reattaches. The new process answers <code>run.elsewhere</code> until the continuation registers, and keeps an ended</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/serve/guide.md" rel="noopener">.claude/skills/swamp/references/serve/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/reference.md" rel="noopener">.claude/skills/swamp/references/workflow/reference.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/serve/guide.md" rel="noopener">.claude/skills/swamp/references/serve/guide.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261116.192420.0-sha.169fcd00" rel="noopener">release v20261116.192420.0-sha.169fcd00</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/169fcd00e50ab09d82ba8c64cb6461157a680aa3" rel="noopener">169fcd00</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3819" rel="noopener">#3819</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4439" rel="noopener">#4439</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4693" rel="noopener">#4693</a>𝗔 <a href="https://swamp-club.com/lab/4737" rel="noopener">lab#4737</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261116-183427-0-sha-05e4c56d">
@@ -4245,7 +4245,7 @@ footer .ver{color:var(--acc)}
 <li><strong>One build path</strong> — <code>tools/swamp-eval/build.sh</code> (also <code>deno task build-eval-tool</code>) compiles with exactly the Go pinned in <code>.tool-versions</code> via <code>GOTOOLCHAIN</code>, runs gofmt, vet and the unit tests, and writes a reproducible <code>.bin/swamp-eval</code> stamped with its source tree. Local runs, verify-skills and the weekly matrix all use it. Rebuilds take ~0.1s from Go&#39;s cache.</li>
 <li><strong>Verification</strong> — verify-skills runs <code>eval-tool-build</code>, then <code>skill-trigger-eval</code> on that binary; both steps are guarded on skill paths, <code>tools/swamp-eval/**</code> and <code>.tool-versions</code>, and the commands live in the pi</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/SKILL.md" rel="noopener">.claude/skills/swamp/SKILL.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/CLAUDE.md" rel="noopener">CLAUDE.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/contributing/skills-pipeline.md" rel="noopener">contributing/skills-pipeline.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/CLAUDE.md" rel="noopener">CLAUDE.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/contributing/skills-pipeline.md" rel="noopener">contributing/skills-pipeline.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261104.221219.0-sha.84896761" rel="noopener">release v20261104.221219.0-sha.84896761</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8489676115833b59969d3bbb2ebdbd1f6ddd39b6" rel="noopener">84896761</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3614" rel="noopener">#3614</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261104-220411-0-sha-1089d62b">
@@ -6830,7 +6830,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Execution plan.</strong> The doc ends with eighteen issues, one PR each, in four groups: addresses with a path, the host, lifecycle and sign-in, dashboard.</li>
 </ul>
 <p>The doc also states its limits (one m</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/README.md" rel="noopener">design/README.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261113.232530.0-sha.492fb502" rel="noopener">release v20261113.232530.0-sha.492fb502</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/492fb5023f468e31afab9d4ab66044bfe804f1a8" rel="noopener">492fb502</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3793" rel="noopener">#3793</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261111-194243-0-sha-a72a2318">
@@ -7060,7 +7060,7 @@ footer .ver{color:var(--acc)}
 <ul><li><strong>fix</strong> — 187</li><li><strong>feat</strong> — 73</li><li><strong>perf</strong> — 19</li><li><strong>docs</strong> — 7</li><li><strong>test</strong> — 7</li><li><strong>refactor</strong> — 3</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-17T21:03:54.571Z">2026-11-17T21:03:54.571Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-17T22:22:32.947Z">2026-11-17T22:22:32.947Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

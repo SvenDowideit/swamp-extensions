@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4835"><span class="tier A">A</span>swamp serve host: one listener that runs a serve per workspa</a><a href="#issue-4819"><span class="tier A">A</span>Flaky under load: workflow report race, team-mode read-lock </a><a href="#issue-4822"><span class="tier A">A</span>Test flake: team forwarding &#39;a leader that left two forwards</a><a href="#issue-4806"><span class="tier A">A</span>Flaky under load: team forwarding test &#39;a leader that left t</a><a href="#issue-4816"><span class="tier A">A</span>Tests no longer depend on Deno&#39;s npm resolver, whose TaskQue</a><a href="#issue-4815"><span class="tier A">A</span>test: the scheduled flaky-test job skips the Litestream side</a><a href="#issue-4814"><span class="tier A">A</span>Process-wide module state in the v3 datastore forces tests t</a><a href="#issue-4813"><span class="tier A">A</span>test: three &#39;crash&#39; tests check SQLite rollback, not crash r</a><a href="#issue-4812"><span class="tier A">A</span>test: test Workers that only isolate a writer lease or one c</a><a href="#issue-4793"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4828"><span class="tier A">A</span>workflow approve: add --resume to continue the run once all </a><a href="#issue-4846"><span class="tier A">A</span>Flaky test: webhook held delivery to a starting leader count</a><a href="#issue-4835"><span class="tier A">A</span>swamp serve host: one listener that runs a serve per workspa</a><a href="#issue-4819"><span class="tier A">A</span>Flaky under load: workflow report race, team-mode read-lock </a><a href="#issue-4822"><span class="tier A">A</span>Test flake: team forwarding &#39;a leader that left two forwards</a><a href="#issue-4806"><span class="tier A">A</span>Flaky under load: team forwarding test &#39;a leader that left t</a><a href="#issue-4816"><span class="tier A">A</span>Tests no longer depend on Deno&#39;s npm resolver, whose TaskQue</a><a href="#issue-4815"><span class="tier A">A</span>test: the scheduled flaky-test job skips the Litestream side</a><a href="#issue-4814"><span class="tier A">A</span>Process-wide module state in the v3 datastore forces tests t</a><a href="#issue-4813"><span class="tier A">A</span>test: three &#39;crash&#39; tests check SQLite rollback, not crash r</a></aside><div>
 
 <article class="item" id="issue-4845">
 <h2><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-stream builds rated check-vendor instead of vulnerable</h2>
@@ -84,6 +84,22 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-4828">
+<h2><span class="tier A">A</span>workflow approve: add --resume to continue the run once all gates are decided</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-17T21:51:28.441Z">2026-11-17T21:51:28.441Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4828" rel="noopener">lab#4828</a></div>
+</article>
+<article class="item" id="issue-4846">
+<h2><span class="tier A">A</span>Flaky test: webhook held delivery to a starting leader counts a third forward under load</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-17T21:27:56.100Z">2026-11-17T21:27:56.100Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4846" rel="noopener">lab#4846</a></div>
 </article>
 <article class="item" id="issue-4835">
 <h2><span class="tier A">A</span>swamp serve host: one listener that runs a serve per workspace folder</h2>
@@ -149,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4813" rel="noopener">lab#4813</a></div>
 </article>
-<article class="item" id="issue-4812">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4812">
 <h2><span class="tier A">A</span>test: test Workers that only isolate a writer lease or one command can run in the test&#39;s isolate</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-17T20:23:32.605Z">2026-11-17T20:23:32.605Z</time></span></div>
@@ -165,7 +181,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4793" rel="noopener">lab#4793</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4817">
+<article class="item" id="issue-4817">
 <h2><span class="tier A">A</span>A follower that forwards a v3 datastore chunk upload to its leader may get 411, because the forward drops Content-Length</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-17T19:31:18.694Z">2026-11-17T19:31:18.694Z</time></span></div>
@@ -3661,37 +3677,21 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
-<article class="item" id="issue-4837">
-<h2><span class="tier B">B</span>The serve host passes an OAuth client from host.yaml to its children</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-11-17T21:01:28.308Z">2026-11-17T21:01:28.308Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4837" rel="noopener">lab#4837</a></div>
-</article>
-<article class="item" id="issue-4846">
-<h2><span class="tier B">B</span>Flaky test: webhook held delivery to a starting leader counts a third forward under load</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-11-17T21:01:04.691Z">2026-11-17T21:01:04.691Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4846" rel="noopener">lab#4846</a></div>
-</article>
 <article class="item" id="issue-4836">
 <h2><span class="tier B">B</span>Wanted and status files: suspend, resume and delete a hosted workspace</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-17T20:57:36.232Z">2026-11-17T20:57:36.232Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-17T22:15:13.639Z">2026-11-17T22:15:13.639Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4836" rel="noopener">lab#4836</a></div>
 </article>
-<article class="item" id="issue-4828">
-<h2><span class="tier B">B</span>workflow approve: add --resume to continue the run once all gates are decided</h2>
+<article class="item" id="issue-4837">
+<h2><span class="tier B">B</span>The serve host passes an OAuth client from host.yaml to its children</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-17T20:54:53.601Z">2026-11-17T20:54:53.601Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-17T21:41:20.860Z">2026-11-17T21:41:20.860Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4828" rel="noopener">lab#4828</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4837" rel="noopener">lab#4837</a></div>
 </article>
 <article class="item" id="issue-4830">
 <h2><span class="tier B">B</span>client: an HTTP action refused as serve_not_leader with inFlight is retried and can run twice</h2>
@@ -3789,7 +3789,15 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4374" rel="noopener">lab#4374</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4844">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4847">
+<h2><span class="tier C">C</span>Docs: document swamp workflow approve --resume in the manual</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-17T21:10:36.102Z">2026-11-17T21:10:36.102Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4847" rel="noopener">lab#4847</a></div>
+</article>
+<article class="item" id="issue-4844">
 <h2><span class="tier C">C</span>cve/dirtyfrag: data names use the raw host or container label, with no sanitising or clash check</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-11-17T19:45:16.485Z">2026-11-17T19:45:16.485Z</time></span></div>
@@ -4838,13 +4846,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>596 items across 1 source(s) in this window:
-2 critical, 447 notable, 16 routine,
-131 minor.</p>
-<ul><li><strong>issues</strong> — 596</li></ul></section>
+<p>597 items across 1 source(s) in this window:
+2 critical, 449 notable, 14 routine,
+132 minor.</p>
+<ul><li><strong>issues</strong> — 597</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-17T21:03:54.571Z">2026-11-17T21:03:54.571Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-17T22:22:32.947Z">2026-11-17T22:22:32.947Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

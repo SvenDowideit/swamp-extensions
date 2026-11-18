@@ -7221,7 +7221,55 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261110.191731.0-sha.19a81b5b" rel="noopener">release v20261110.191731.0-sha.19a81b5b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/19a81b5b64973fa95fdb1d673df8c20f039f0546" rel="noopener">19a81b5b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3720" rel="noopener">#3720</a>𝗔 <a href="https://swamp-club.com/lab/4600" rel="noopener">lab#4600</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261118-220918-0-sha-89ae86e5">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261118-223849-0-sha-c2530f0f">
+<h2><span class="tier C">C</span>swamp 20261118.223849.0-sha.c2530f0f</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-18T22:43:25Z">2026-11-18T22:43:25Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): a protocol 5 worker runs a shell step whose run splices a vault secret, instead of serve refusing it as shell_data_placement_refused (swamp-club#4887) (#3868)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#4887. During the protocol 5 deprecation window, serve refused every command/shell step that splices a <code>vault.get</code> into <code>run</code> when it was placed on a protocol 5 worker. The refusal (<code>shell_data_placement_refused</code>) happened before dispatch. The same step runs locally and on protocol 6 and 7 workers.</p>
+<p><strong>Cause.</strong> <code>DispatchService.#frameFor</code> placed a protocol 5 step on its sentinel form, which passed. It then placed the step again on the legacy frame&#39;s resolved arguments. <code>dataSplicePlacer</code> compares data-bearing text with the text the provenance was recorded on. A resolved secret never matches its sentinel, so that second placement always threw.</p>
+<p><strong>Fix.</strong></p>
+<ul>
+<li>The step is placed once, on the sentinel form, still before any vault read.</li>
+<li>That placement is carried onto the legacy frame:</li>
+<li>changed keys go over copies of the resolved global and method arguments, with their sentinels resolved through a new <code>LegacyStepDelivery.resolveSecrets</code> (the loaded bag&#39;s <code>resolveDeep</code>);</li>
+<li>they also go over <code>unresolvedMethodArgs</code> as sentinel text.</li>
+<li>The cached legacy delivery is never written into, since a re-dispatch to a worker of another platform reuses it.</li>
+<li>Carrying onto <code>unresolvedMethodArgs</code>, which a worker given a secret bag actually runs, also keeps the generated env whe</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261118.223849.0-sha.c2530f0f" rel="noopener">release v20261118.223849.0-sha.c2530f0f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c2530f0f" rel="noopener">c2530f0f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3868" rel="noopener">#3868</a>𝗔 <a href="https://swamp-club.com/lab/4887" rel="noopener">lab#4887</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261118-222536-0-sha-a378dd71">
+<h2><span class="tier C">C</span>swamp 20261118.222536.0-sha.a378dd71</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-18T22:29:55Z">2026-11-18T22:29:55Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): a shutdown that throws exits at once instead of leaving serve up forever (swamp-club#4889) (#3867)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#4889.</p>
+<p>If a step in <code>shutdown()</code> (<code>src/cli/commands/serve.ts</code>) threw before the listener was told to close, the serve action waited on <code>server?.finished</code> forever. Every trigger reused the same failed run, so serve kept its port and <code>/ready</code> kept answering 503 <code>shutting_down</code>. A throw after the listener timer started did the opposite: the action swallowed the error and returned normally. The CLI then ran its success teardown and compacted while v3 maintenance, replication and retention GC might still be running.</p>
+<p><strong>Changes</strong></p>
+<ul>
+<li><strong><code>ServeShutdownRun</code></strong> (<code>src/serve/serve_shutdown_run.ts</code>) owns the single shutdown run that every trigger shares. If an error escapes it:</li>
+<li>the v3 writer markers are kept;</li>
+<li><code>{&quot;status&quot;:&quot;shutdown_failed&quot;,&quot;error&quot;:…}</code> is emitted in <code>--json</code> mode and the error is logged;</li>
+<li>the process exits at once with the exit code already set (75 after a lost lead), or 1.</li>
+</ul>
+<p>  That leaves the state a killed serve leaves, which recovery already handles. Both CLI teardowns are skipped on purpose: either one would compact while runs or background passes may still be writing.</p>
+<ul>
+<li><strong><code>runShutdownStep</code></strong> (<code>src/serve/shutdown_stages.ts</code>) wraps the synchronous steps that ran outside <code>ShutdownStages</code>. It logs a failure and the next step still runs. It is never awaited, so <code>serve_shutdown_stages_rules_test.ts</code> passes unc</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261118.222536.0-sha.a378dd71" rel="noopener">release v20261118.222536.0-sha.a378dd71</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a378dd71" rel="noopener">a378dd71</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3867" rel="noopener">#3867</a>𝗔 <a href="https://swamp-club.com/lab/4889" rel="noopener">lab#4889</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261118-220918-0-sha-89ae86e5">
 <h2><span class="tier C">C</span>swamp 20261118.220918.0-sha.89ae86e5</h2>
 <p class="lede">Change (untyped) · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-11-18T22:14:33Z">2026-11-18T22:14:33Z</time></span></div>
@@ -7971,13 +8019,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261101.202412.0-sha.0500dc35" rel="noopener">release v20261101.202412.0-sha.0500dc35</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0500dc35534060a870a5998e5dddbcd015dfc2e1" rel="noopener">0500dc35</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3528" rel="noopener">#3528</a>𝗔 <a href="https://swamp-club.com/lab/4250" rel="noopener">lab#4250</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>330 items across 1 source(s) in this window:
+<p>332 items across 1 source(s) in this window:
 2 critical, 278 notable, 23 routine,
-27 minor.</p>
-<ul><li><strong>fix</strong> — 194</li><li><strong>feat</strong> — 86</li><li><strong>perf</strong> — 19</li><li><strong>changes</strong> — 10</li><li><strong>docs</strong> — 8</li><li><strong>test</strong> — 8</li></ul></section>
+29 minor.</p>
+<ul><li><strong>fix</strong> — 194</li><li><strong>feat</strong> — 86</li><li><strong>perf</strong> — 19</li><li><strong>changes</strong> — 12</li><li><strong>docs</strong> — 8</li><li><strong>test</strong> — 8</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-18T22:24:36.141Z">2026-11-18T22:24:36.141Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-18T23:03:51.102Z">2026-11-18T23:03:51.102Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

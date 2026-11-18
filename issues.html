@@ -67,8 +67,16 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4824"><span class="tier A">A</span>Team mode: faster takeover, piece 1: a shorter writer-lease </a><a href="#issue-4836"><span class="tier A">A</span>Wanted and status files: suspend, resume and delete a hosted</a><a href="#issue-4837"><span class="tier A">A</span>The serve host passes an OAuth client from host.yaml to its </a><a href="#issue-4828"><span class="tier A">A</span>workflow approve: add --resume to continue the run once all </a><a href="#issue-4846"><span class="tier A">A</span>Flaky test: webhook held delivery to a starting leader count</a><a href="#issue-4835"><span class="tier A">A</span>swamp serve host: one listener that runs a serve per workspa</a><a href="#issue-4819"><span class="tier A">A</span>Flaky under load: workflow report race, team-mode read-lock </a><a href="#issue-4822"><span class="tier A">A</span>Test flake: team forwarding &#39;a leader that left two forwards</a><a href="#issue-4806"><span class="tier A">A</span>Flaky under load: team forwarding test &#39;a leader that left t</a><a href="#issue-4816"><span class="tier A">A</span>Tests no longer depend on Deno&#39;s npm resolver, whose TaskQue</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4830"><span class="tier A">A</span>client: an HTTP action refused as serve_not_leader with inFl</a><a href="#issue-4824"><span class="tier A">A</span>Team mode: faster takeover, piece 1: a shorter writer-lease </a><a href="#issue-4836"><span class="tier A">A</span>Wanted and status files: suspend, resume and delete a hosted</a><a href="#issue-4837"><span class="tier A">A</span>The serve host passes an OAuth client from host.yaml to its </a><a href="#issue-4828"><span class="tier A">A</span>workflow approve: add --resume to continue the run once all </a><a href="#issue-4846"><span class="tier A">A</span>Flaky test: webhook held delivery to a starting leader count</a><a href="#issue-4835"><span class="tier A">A</span>swamp serve host: one listener that runs a serve per workspa</a><a href="#issue-4819"><span class="tier A">A</span>Flaky under load: workflow report race, team-mode read-lock </a><a href="#issue-4822"><span class="tier A">A</span>Test flake: team forwarding &#39;a leader that left two forwards</a></aside><div>
 
+<article class="item" id="issue-4852">
+<h2><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4Shell)</h2>
+<p class="lede">Security-related change</p>
+<div class="meta"><span><time datetime="2026-11-18T02:56:19.222Z">2026-11-18T02:56:19.222Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4852" rel="noopener">lab#4852</a></div>
+</article>
 <article class="item" id="issue-4845">
 <h2><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-stream builds rated check-vendor instead of vulnerable</h2>
 <p class="lede">Security-related change</p>
@@ -84,6 +92,14 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-4830">
+<h2><span class="tier A">A</span>client: an HTTP action refused as serve_not_leader with inFlight is retried and can run twice</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-18T02:55:59.607Z">2026-11-18T02:55:59.607Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4830" rel="noopener">lab#4830</a></div>
 </article>
 <article class="item" id="issue-4824">
 <h2><span class="tier A">A</span>Team mode: faster takeover, piece 1: a shorter writer-lease TTL (then the follower&#39;s physical copy)</h2>
@@ -149,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4822" rel="noopener">lab#4822</a></div>
 </article>
-<article class="item" id="issue-4806">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4806">
 <h2><span class="tier A">A</span>Flaky under load: team forwarding test &#39;a leader that left two forwards in a row unanswered is refused at once&#39; gets a may-have-run reply</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-17T20:23:33.743Z">2026-11-17T20:23:33.743Z</time></span></div>
@@ -165,7 +181,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4816" rel="noopener">lab#4816</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4815">
+<article class="item" id="issue-4815">
 <h2><span class="tier A">A</span>test: the scheduled flaky-test job skips the Litestream sidecar tests</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-17T20:23:33.285Z">2026-11-17T20:23:33.285Z</time></span></div>
@@ -3701,6 +3717,30 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
+<article class="item" id="issue-4766">
+<h2><span class="tier B">B</span>sub workflow placement on workers breaks some of my extensions my</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-18T02:58:20.997Z">2026-11-18T02:58:20.997Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4766" rel="noopener">lab#4766</a></div>
+</article>
+<article class="item" id="issue-4854">
+<h2><span class="tier B">B</span>Team mode: a member&#39;s v3 copy keeps growing under steady load even with follow-serve&#39;s-compaction (about 16 MB/h, no plateau)</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-18T02:56:16.990Z">2026-11-18T02:56:16.990Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4854" rel="noopener">lab#4854</a></div>
+</article>
+<article class="item" id="issue-4818">
+<h2><span class="tier B">B</span>Swampify: a Preview badge on the swamp start card, and the opt-in env var goes</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-18T02:38:56.594Z">2026-11-18T02:38:56.594Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4818" rel="noopener">lab#4818</a></div>
+</article>
 <article class="item" id="issue-4848">
 <h2><span class="tier B">B</span>Workspace services: create, list, get, suspend, resume and delete a hosted workspace</h2>
 <p class="lede">Issue in_progress</p>
@@ -3709,14 +3749,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4848" rel="noopener">lab#4848</a></div>
 </article>
-<article class="item" id="issue-4830">
-<h2><span class="tier B">B</span>client: an HTTP action refused as serve_not_leader with inFlight is retried and can run twice</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-11-17T20:29:19.163Z">2026-11-17T20:29:19.163Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4830" rel="noopener">lab#4830</a></div>
-</article>
 <article class="item" id="issue-4842">
 <h2><span class="tier B">B</span>cve extensions: data names can still collide or be refused on Windows (trailing dots, reserved device names, case)</h2>
 <p class="lede">Issue triaged</p>
@@ -3724,14 +3756,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4842" rel="noopener">lab#4842</a></div>
-</article>
-<article class="item" id="issue-4818">
-<h2><span class="tier B">B</span>Swampify: a Preview badge on the swamp start card, and the opt-in env var goes</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-11-17T13:39:00.387Z">2026-11-17T13:39:00.387Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4818" rel="noopener">lab#4818</a></div>
 </article>
 <article class="item" id="issue-4778">
 <h2><span class="tier B">B</span>Registry: an extension earns &quot;verified repository&quot; and an A scorecard while its source is not in that repository</h2>
@@ -3797,7 +3821,23 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4374" rel="noopener">lab#4374</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4850">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4855">
+<h2><span class="tier C">C</span>Docs: nested workflows inherit their caller&#39;s placement (swamp-club#4766)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-18T02:57:41.463Z">2026-11-18T02:57:41.463Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4855" rel="noopener">lab#4855</a></div>
+</article>
+<article class="item" id="issue-4853">
+<h2><span class="tier C">C</span>serve: a follower that does not name its leader tells an inFlight serve_not_leader caller to try again</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-18T02:42:38.652Z">2026-11-18T02:42:38.652Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4853" rel="noopener">lab#4853</a></div>
+</article>
+<article class="item" id="issue-4850">
 <h2><span class="tier C">C</span>swamp serve workspace commands: create, list, get, suspend, resume and rm</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-11-17T23:59:17.007Z">2026-11-17T23:59:17.007Z</time></span></div>
@@ -4878,13 +4918,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>601 items across 1 source(s) in this window:
-2 critical, 452 notable, 12 routine,
-135 minor.</p>
-<ul><li><strong>issues</strong> — 601</li></ul></section>
+<p>606 items across 1 source(s) in this window:
+3 critical, 453 notable, 13 routine,
+137 minor.</p>
+<ul><li><strong>issues</strong> — 606</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-18T02:03:32.976Z">2026-11-18T02:03:32.976Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-18T03:05:56.798Z">2026-11-18T03:05:56.798Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

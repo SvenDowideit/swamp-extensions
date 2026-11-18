@@ -7221,7 +7221,194 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261110.191731.0-sha.19a81b5b" rel="noopener">release v20261110.191731.0-sha.19a81b5b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/19a81b5b64973fa95fdb1d673df8c20f039f0546" rel="noopener">19a81b5b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3720" rel="noopener">#3720</a>𝗔 <a href="https://swamp-club.com/lab/4600" rel="noopener">lab#4600</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261118-201538-0-sha-67a843db">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261118-220918-0-sha-89ae86e5">
+<h2><span class="tier C">C</span>swamp 20261118.220918.0-sha.89ae86e5</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-18T22:14:33Z">2026-11-18T22:14:33Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): a method&#39;s console output and serve&#39;s --json lines survive a host that stopped reading (swamp-club#4885) (#3866)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#4885.</p>
+<p>The hang reported in #4885 was triggered by the <code>stopping</code> line going to stderr through the console guard. swamp-club#4884 (#3862) removed that trigger. This PR adds the hardening the issue asks for: when the host holding a <code>--json</code> serve&#39;s pipes dies, nothing serve or a method writes can fail a run or stop shutdown partway.</p>
+<p><strong>Console guard</strong> (<code>src/domain/models/console_guard.ts</code>)</p>
+<ul>
+<li>Before: in JSON mode, a method&#39;s captured console line was mirrored to stderr with a raw <code>Deno.stderr.writeSync</code>. That throws <code>BrokenPipe</code> once the host is gone, so a method that printed after the host was SIGKILLed failed, and a run that would have drained failed with it.</li>
+<li>Now: the guard catches <code>Deno.errors.BrokenPipe</code> and drops that write. The line is already in the method&#39;s logs, and any other write error still throws.</li>
+<li>The worker&#39;s exec-dispatch uses the same guard, so it gets the same tolerance.</li>
+</ul>
+<p><strong><code>writeServeJsonLine</code></strong> (<code>src/cli/commands/serve_json_line.ts</code>)</p>
+<ul>
+<li>It drops a line when stdout is a broken pipe, so no <code>--json</code> status line can stop shutdown before the drain and exit.</li>
+<li>Deno&#39;s <code>console.log</code> doesn&#39;t throw on EPIPE today. This makes that guarantee explicit and tested.</li>
+</ul>
+<p><strong>Docs:</strong> <code>design/primitives/serve.md</code> describes both.</p>
+<p>The branch history includes a shutdown failsafe (<code>ShutdownRun</code>) that was added</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261118.220918.0-sha.89ae86e5" rel="noopener">release v20261118.220918.0-sha.89ae86e5</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/89ae86e5" rel="noopener">89ae86e5</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3866" rel="noopener">#3866</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3862" rel="noopener">#3862</a>𝗔 <a href="https://swamp-club.com/lab/4885" rel="noopener">lab#4885</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261118-214256-0-sha-0a7303c4">
+<h2><span class="tier C">C</span>swamp 20261118.214256.0-sha.0a7303c4</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-18T21:47:17Z">2026-11-18T21:47:17Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): serve --json counts scheduled and webhook run outcomes in /api/v1/health metrics (swamp-club#4886) (#3865)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#4886.</p>
+<p>With <code>--json</code>, <code>swamp serve</code> never counted scheduled or webhook run outcomes in the <code>/api/v1/health</code> run metrics. Completions and failures stayed at 0 while log mode counted the same runs. Both trigger event handlers in <code>serve.ts</code> called <code>runMetricsTracker.record</code> only inside their log-mode branch. This has been the case since run metrics were introduced, so it is not a regression.</p>
+<p><strong>Changes</strong></p>
+<ul>
+<li><code>src/serve/trigger_run_metrics.ts</code> (new): <code>recordScheduledRunOutcome</code> and <code>recordWebhookRunOutcome</code> map terminal trigger events to run outcomes. A completed run records its duration since start, or 0 when the run is untracked. A failed run records 0. Durations are exactly what log mode recorded before. These functions sit beside <code>auditScheduledEvent</code> and <code>auditWebhookEvent</code>.</li>
+<li><code>src/cli/commands/serve.ts</code>: both handlers call them right after the audit call and before the output branch. The old record calls are removed from the log cases.</li>
+<li>The <code>RunMetricsTracker</code> is now built before <code>onScheduledEvent</code>. The scheduler emits events (for example <code>schedule_registered</code>) synchronously during <code>turnOn</code> at boot. Now that the handler reads the tracker on every event, the old later <code>const</code> would have thrown a TDZ <code>ReferenceError</code> at boot whenever a scheduled workflow existed.</li>
+</ul>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>Unit tests (`src/serve/trigger</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261118.214256.0-sha.0a7303c4" rel="noopener">release v20261118.214256.0-sha.0a7303c4</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0a7303c4" rel="noopener">0a7303c4</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3865" rel="noopener">#3865</a>𝗔 <a href="https://swamp-club.com/lab/4886" rel="noopener">lab#4886</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261118-213125-0-sha-baa5d963">
+<h2><span class="tier C">C</span>swamp 20261118.213125.0-sha.baa5d963</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-18T21:35:22Z">2026-11-18T21:35:22Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(http): whoami retries a 503, 502, 504, timeout or dropped connection, so one blip no longer fails push&#39;s registry checks (swamp-club#4881) (#3859)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Lab #4881 (from the swamp-club 503 investigation, #4869).</p>
+<p><code>SwampClubClient.whoami</code> went through <code>fetchWithRateLimitRetry</code>, which retries only 429. A single 503 or 15s timeout from swamp-club therefore made <code>swamp extension push</code>&#39;s registry checks <code>not-run</code>. A dry run reported <code>Registry check &quot;authentication&quot; could not run: registry did not answer: Whoami request failed (HTTP 503)</code>, and a real push refused. That&#39;s what failed swamp-uat on 2026-11-18. The server-side cause is fixed in swamp-club #1535, but the client should absorb a brief blip.</p>
+<ul>
+<li><strong><code>whoami</code> goes through <code>fetchWithTransientRetry</code></strong>, as registry reads (<code>ExtensionApiClient</code>) already do:</li>
+<li>it retries 502, 503, 504, timeouts and dropped connections for GET;</li>
+<li>same ceiling, backoff and budget;</li>
+<li>a 429 keeps its capped <code>Retry-After</code> waits.</li>
+<li><strong>Behaviour is otherwise kept:</strong></li>
+<li>a 401 is an answer and is not retried;</li>
+<li>the final errors keep today&#39;s messages, plus <code>after N attempts over T</code> when it retried;</li>
+<li>a caller&#39;s deadline (e.g. the 10s one in <code>cli/mod.ts</code>) still bounds the total.</li>
+<li><strong>Unchanged:</strong> the auth gate&#39;s <code>verifyIdentity</code> stays a single attempt, so every command stays fast when swamp-club is unreachable. All writes stay single-attempt, including <code>confirm</code>, and so do swamp-club&#39;s other requests.</li>
+<li><code>retriedSuffix</code> m</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261118.213125.0-sha.baa5d963" rel="noopener">release v20261118.213125.0-sha.baa5d963</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/baa5d963" rel="noopener">baa5d963</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3859" rel="noopener">#3859</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4869" rel="noopener">#4869</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/1535" rel="noopener">#1535</a>𝗔 <a href="https://swamp-club.com/lab/4881" rel="noopener">lab#4881</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261118-212549-0-sha-01b2c5a7">
+<h2><span class="tier C">C</span>swamp 20261118.212549.0-sha.01b2c5a7</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-18T21:30:39Z">2026-11-18T21:30:39Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): a SIGTERM during a cancelled run&#39;s cleanup no longer skips its cleanup jobs and later cleanup steps (swamp-club#4883) (#3863)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>When a user cancelled a run and serve then got SIGTERM while that run&#39;s cleanup was still going, serve skipped the run&#39;s <code>condition: failed</code> cleanup job. The run still ended <code>cancelled</code> as if its cleanup had finished, and nothing was logged. This is a regression from the planned-restart handover (swamp-club#4737).</p>
+<p>The cleanup options in <code>WorkflowExecutionService</code> copied the run&#39;s options, so they kept the handover. Once SIGTERM fired it, <code>markStarted</code> refused to start the cleanup job, and the step-level handover checks kept later cleanup steps pending, because the cleanup-grace signal had not fired. A cancelled run ends <code>cancelled</code> and never parks, so the three places that build cleanup options now set <code>handover: undefined</code>:</p>
+<ul>
+<li>cleanup jobs (<code>enterJobLevel</code>)</li>
+<li>cleanup steps inside a job</li>
+<li>a fan-out job&#39;s cleanup steps</li>
+</ul>
+<p>The cleanup now runs as it does on a cancel with no shutdown, within the drain&#39;s cleanup-grace wait. A run interrupted by the shutdown never builds cleanup options, so it still runs no cleanup.</p>
+<p><code>design/primitives/serve.md</code> now says the handover doesn&#39;t hold a cancelled run&#39;s cleanup.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>Five new tests in <code>src/domain/workflows/execution_service_test.ts</code>, next to the existing handover tests. All five fail without the fix and pass with it:</li>
+<li>a failed-gated cleanup job runs</li>
+</ul>
+<p>  -</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261118.212549.0-sha.01b2c5a7" rel="noopener">release v20261118.212549.0-sha.01b2c5a7</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/01b2c5a7" rel="noopener">01b2c5a7</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3863" rel="noopener">#3863</a>𝗔 <a href="https://swamp-club.com/lab/4883" rel="noopener">lab#4883</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261118-211231-0-sha-8408c7bf">
+<h2><span class="tier C">C</span>swamp 20261118.211231.0-sha.8408c7bf</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-18T21:17:40Z">2026-11-18T21:17:40Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): serve --json writes its lifecycle and event lines to stdout while a run is in flight (swamp-club#4884) (#3862)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#4884.</p>
+<p>While a model method runs inside <code>swamp serve</code>, the console guard replaces the global console. In JSON mode it sends every line it catches to stderr and records the line in that method&#39;s logs. Serve printed its <code>--json</code> lines with <code>console.log</code>, so any line written while a run was in flight left stdout:</p>
+<ul>
+<li><code>{&quot;status&quot;:&quot;stopping&quot;}</code> during a shutdown drain (the reported case)</li>
+<li>the other mid-run lifecycle lines: <code>shutdown_stage_timed_out</code>, <code>aborting</code>, <code>interrupted</code>, <code>cancelled</code>, <code>interrupt_push_failed</code> and <code>stopped</code></li>
+<li>webhook and schedule events written during another run. For example, with two overlapping webhook runs, the second run&#39;s <code>webhook_received</code> and <code>webhook_queued</code> went to stderr.</li>
+<li><code>listening</code>, if a run is already going when serve starts listening. The serve host reads that line from stdout.</li>
+</ul>
+<p><strong>Changes</strong></p>
+<ul>
+<li><code>writeServeJsonLine</code> (<code>src/cli/commands/serve_json_line.ts</code>) writes through <code>unguardedConsole</code>. The workflow and method-run renderers already use it for the same reason. It also masks the secrets of any run active at that moment.</li>
+<li>All 15 <code>console.log</code> calls in <code>serve.ts</code> use it. Line shapes are unchanged.</li>
+<li>A new architecture rule (<code>integration/serve_json_output_rules_test.ts</code>) fails on any global console call in <code>serve.ts</code> or in production files under <code>src/serve</code>.</li>
+<li>`design/primitives/</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261118.211231.0-sha.8408c7bf" rel="noopener">release v20261118.211231.0-sha.8408c7bf</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8408c7bf" rel="noopener">8408c7bf</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3862" rel="noopener">#3862</a>𝗔 <a href="https://swamp-club.com/lab/4884" rel="noopener">lab#4884</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261118-210556-0-sha-cd77cb45">
+<h2><span class="tier C">C</span>swamp 20261118.210556.0-sha.cd77cb45</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-18T21:11:02Z">2026-11-18T21:11:02Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>perf(extension-scoring): the import scan walks only the statements that can hold a nested import, and one scan can feed both the Markdown imports and the written specifiers (swamp-club#4874) (#3861)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Lab: swamp-club#4874. The extension-scoring import scan ran a full Babel parse and walked every node of each code module, once in <code>markdownImports</code> and again in <code>writtenSpecifiers</code>. On <code>@swamp/aws/ec2@2026.11.18.1</code> (253 code files, 142M chars, mostly esbuild bundles) the registry&#39;s scan took 14.3s. Results do not change: every import site is the same.</p>
+<ul>
+<li><strong>Pruned walk.</strong> <code>importedSpecifiersAt</code> reads each top-level statement at its top. It walks below a statement only when the statement&#39;s text holds an <code>import</code> or <code>export</code> keyword other than its own leading one (new <code>source/import_scan.ts</code>, package-internal). A match against an ASCII identifier character (<code>__export</code>, <code>exports</code>, <code>importKeyPair</code>) is part of a longer name and is skipped. This is sound because every node the scan reports holds that keyword text. Babel refuses an escaped keyword and an identifier directly after a number outside error recovery, and <code>importedSpecifiersAt</code> never parses a bundle. <code>importedSpecifiersIn(program)</code> keeps the full walk.</li>
+<li><strong>One scan, two readers.</strong> <code>markdownImportsFromSites</code> (<code>./secret-docs</code>) and <code>writtenSpecifiersFromSites</code> (<code>./dependency-audit</code>) take one <code>importedSpecifiersAt</code> result. <code>markdownImports</code> and <code>writtenSpecifiers</code> remain, as wrappers that return th</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261118.210556.0-sha.cd77cb45" rel="noopener">release v20261118.210556.0-sha.cd77cb45</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/cd77cb45" rel="noopener">cd77cb45</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3861" rel="noopener">#3861</a>𝗔 <a href="https://swamp-club.com/lab/4874" rel="noopener">lab#4874</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261118-205950-0-sha-dd760fc1">
+<h2><span class="tier C">C</span>swamp 20261118.205950.0-sha.dd760fc1</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-18T21:04:34Z">2026-11-18T21:04:34Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(serve): a root token becomes a workspace token through a single-use sign-in code (swamp-club#4876) (#3860)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#4876, item 14 of the execution plan in</p>
+<p><code>design/surfaces/serve-workspaces.md</code>. A person signs in once, to a host&#39;s</p>
+<p>root, and gets a token in any workspace without signing in there.</p>
+<p><strong>The exchange</strong></p>
+<p>1. <code>workspace.sign-in</code> on the root issues a single-use code bound to one</p>
+<p>   workspace. It expires within a minute.</p>
+<p>2. The client posts the code to the workspace at <code>POST /auth/exchange</code>.</p>
+<p>   <code>/auth/info</code> says <code>exchange: true</code> when the workspace offers it.</p>
+<p>3. The workspace redeems the code at the root</p>
+<p>   (<code>POST /auth/sign-in-code/redeem</code>) with its own name. The root answers once</p>
+<p>   with the principal, username, login email, collectives, groups and the</p>
+<p>   root token&#39;s expiry.</p>
+<p>4. The workspace applies its own admission lists and mints its own</p>
+<p>   <code>direct:cli</code> token, never outliving the root token.</p>
+<p>The root token is only ever sent to the root; a test asserts on everything</p>
+<p>the workspace received.</p>
+<p><strong>Decisions the issue asked for</strong></p>
+<ul>
+<li><strong>Who gets a code:</strong> people only. Integration and delegation callers are</li>
+</ul>
+<p>  refused (a workspace token would not carry their ceiling), and so are</p>
+<p>  workers (a worker&#39;s root credential must not reach every workspace).</p>
+<ul>
+<li><strong>Where codes live:</strong> in memory in the root process the host started,</li>
+</ul>
+<p>  keyed by hash. Only that process holds the workspaces folder, and the</p>
+<p>  root&#39;s address routes to it. The redeem</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261118.205950.0-sha.dd760fc1" rel="noopener">release v20261118.205950.0-sha.dd760fc1</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/dd760fc1" rel="noopener">dd760fc1</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3860" rel="noopener">#3860</a>𝗔 <a href="https://swamp-club.com/lab/4876" rel="noopener">lab#4876</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261118-201538-0-sha-67a843db">
 <h2><span class="tier C">C</span>swamp 20261118.201538.0-sha.67a843db</h2>
 <p class="lede">Change (untyped) · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-11-18T20:19:13Z">2026-11-18T20:19:13Z</time></span></div>
@@ -7784,13 +7971,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261101.202412.0-sha.0500dc35" rel="noopener">release v20261101.202412.0-sha.0500dc35</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0500dc35534060a870a5998e5dddbcd015dfc2e1" rel="noopener">0500dc35</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3528" rel="noopener">#3528</a>𝗔 <a href="https://swamp-club.com/lab/4250" rel="noopener">lab#4250</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>323 items across 1 source(s) in this window:
+<p>330 items across 1 source(s) in this window:
 2 critical, 278 notable, 23 routine,
-20 minor.</p>
-<ul><li><strong>fix</strong> — 194</li><li><strong>feat</strong> — 86</li><li><strong>perf</strong> — 19</li><li><strong>docs</strong> — 8</li><li><strong>test</strong> — 8</li><li><strong>refactor</strong> — 3</li></ul></section>
+27 minor.</p>
+<ul><li><strong>fix</strong> — 194</li><li><strong>feat</strong> — 86</li><li><strong>perf</strong> — 19</li><li><strong>changes</strong> — 10</li><li><strong>docs</strong> — 8</li><li><strong>test</strong> — 8</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-18T21:02:18.607Z">2026-11-18T21:02:18.607Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-18T22:24:36.141Z">2026-11-18T22:24:36.141Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

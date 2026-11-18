@@ -136,7 +136,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Only the predecessor qualifies.</strong> <code>deliverablePredecessor</code> (token model) limits delivery to workers on the record&#39;s live predecessor mint. An older mint may be one a revoke and re-mint replaced, so a worker on it is cut off rather than handed the new secret. Two out-of-band rotations inside one pass still retire workers on the original mint (documented).</li>
 <li><strong>Immediate delivery for serve&#39;s own writes.</strong> A workflow step publishes a new <code>ModelDataWritten</code> domain</li>
 </ul></div>
-
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/references/remote-execution.md" rel="noopener">.claude/skills/swamp/references/workflow/references/remote-execution.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261118.173900.0-sha.4327ffc4" rel="noopener">release v20261118.173900.0-sha.4327ffc4</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4327ffc410e3fae39f60788dc96e4c8fd2f7f594" rel="noopener">4327ffc4</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3853" rel="noopener">#3853</a>𝗔 <a href="https://swamp-club.com/lab/4864" rel="noopener">lab#4864</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261118-172426-0-sha-7b7818fd">
@@ -177,7 +177,7 @@ footer .ver{color:var(--acc)}
 </ul>
 <p>The rule lives in the domain as <code>serveWantedOfRecord</code> beside the existing <code>active</code>/<code>running</code> mapping in <code>src/domain/serve/hosted_workspace.ts</code>; the reconciler (<code>src/serve/host/workspace_reconciler.ts</code>) applies it.</p>
 <h4 class="body-h">Decisio</h4></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/serve-workspaces.md" rel="noopener">design/surfaces/serve-workspaces.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261118.165546.0-sha.ec12883e" rel="noopener">release v20261118.165546.0-sha.ec12883e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ec12883eecf1806aaab8be513265f0f4e0b9821c" rel="noopener">ec12883e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3851" rel="noopener">#3851</a>𝗔 <a href="https://swamp-club.com/lab/4867" rel="noopener">lab#4867</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261118-151801-0-sha-b5378b11">
@@ -288,7 +288,7 @@ footer .ver{color:var(--acc)}
 <li>A child step whose workflow, job or own fields set <code>target</code>, <code>labels</code> or <code>platform</code> is placed only by them and drops the inherited pin; <code>labels: {}</code> keeps it on the orchestrator.</li>
 <li>The inherited placement is stored on the child run, so a child resumed on its own (e.g. after a gate) goes back to the same place. Run output names</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/reference.md" rel="noopener">.claude/skills/swamp/references/workflow/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/references/nested-workflows.md" rel="noopener">.claude/skills/swamp/references/workflow/references/nested-workflows.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/references/remote-execution.md" rel="noopener">.claude/skills/swamp/references/workflow/references/remote-execution.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/reference.md" rel="noopener">.claude/skills/swamp/references/workflow/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/references/nested-workflows.md" rel="noopener">.claude/skills/swamp/references/workflow/references/nested-workflows.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261118.131151.0-sha.d4f2f74b" rel="noopener">release v20261118.131151.0-sha.d4f2f74b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d4f2f74bf96384697b2bbe635dfdfe3c6a0e74df" rel="noopener">d4f2f74b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3846" rel="noopener">#3846</a>𝗔 <a href="https://swamp-club.com/lab/4766" rel="noopener">lab#4766</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261118-130630-0-sha-f85bf529">
@@ -526,7 +526,7 @@ footer .ver{color:var(--acc)}
 <li>The test task now runs with <code>--node-modules-dir=manual</code> against a <code>node_modules</code> installed by the new <code>test-deps</code> task (<code>deno install --frozen</code>), so test Workers never take that lock: 186 resolver entries before, 0 after.</li>
 <li><code>test-shards</code>, <code>flaky-tests.yml</code> and `windo</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/AGENTS.md" rel="noopener">AGENTS.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261117.202050.0-sha.740b2600" rel="noopener">release v20261117.202050.0-sha.740b2600</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/740b26001387957a6bb4574502e5782c38eb4dc8" rel="noopener">740b2600</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3834" rel="noopener">#3834</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4815" rel="noopener">#4815</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4813" rel="noopener">#4813</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4812" rel="noopener">#4812</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4814" rel="noopener">#4814</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4816" rel="noopener">#4816</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4819" rel="noopener">#4819</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4822" rel="noopener">#4822</a>𝗔 <a href="https://swamp-club.com/lab/4793" rel="noopener">lab#4793</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261117-174154-0-sha-2712a0af">
@@ -1718,7 +1718,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Integrations reported to swamp-club.</strong> Registration and heartbeat carry <code>integrations: [{ id, state, createdAt, revokedAt? }]</code>, the whole list each time, left out until the integration directory has read every record. A change to the list sends one extra heartbeat, so a revoke arrives before the next hour; hourly and extra beats go out one at a time, so an older list never lands after a newer one. A swamp-club that doesn&#39;t know the field ignores it, so either side can ship first (swamp-club#4684 stores it).</li>
 <li><strong><code>client</code> on serve&#39;s usage events.</strong> <code>client</code> holds the kind (`integr</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/operations.md" rel="noopener">design/operations.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261112.215509.0-sha.8226207a" rel="noopener">release v20261112.215509.0-sha.8226207a</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8226207a9ee43509681e451bc43d1e12be9e44da" rel="noopener">8226207a</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3771" rel="noopener">#3771</a>𝗔 <a href="https://swamp-club.com/lab/4683" rel="noopener">lab#4683</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261112-211816-0-sha-e498de29">
@@ -7587,7 +7587,7 @@ footer .ver{color:var(--acc)}
 <ul><li><strong>fix</strong> — 194</li><li><strong>feat</strong> — 84</li><li><strong>perf</strong> — 19</li><li><strong>docs</strong> — 8</li><li><strong>test</strong> — 8</li><li><strong>refactor</strong> — 3</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-18T19:02:47.605Z">2026-11-18T19:02:47.605Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-18T20:05:58.857Z">2026-11-18T20:05:58.857Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

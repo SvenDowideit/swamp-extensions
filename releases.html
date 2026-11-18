@@ -6936,7 +6936,238 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261110.191731.0-sha.19a81b5b" rel="noopener">release v20261110.191731.0-sha.19a81b5b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/19a81b5b64973fa95fdb1d673df8c20f039f0546" rel="noopener">19a81b5b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3720" rel="noopener">#3720</a>𝗔 <a href="https://swamp-club.com/lab/4600" rel="noopener">lab#4600</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261117-192856-0-sha-222172b4">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261118-173900-0-sha-4327ffc4">
+<h2><span class="tier C">C</span>swamp 20261118.173900.0-sha.4327ffc4</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-18T17:44:12Z">2026-11-18T17:44:12Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(worker): serve delivers enrollment-token rotations made outside the gateway, and scheduled rotations never lapse (swamp-club#4861) (#3853)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Calling the <code>rotate</code> method of the built-in <code>swamp/enrollment-token</code> type from a workflow step or schedule on serve rotated the record and vault but delivered nothing. Connected workers kept the old secret, serve cut them off when it lapsed (or about 30 s after a second rotation), and they stopped for good on reconnect with <code>token does not match</code>. Only <code>swamp worker token rotate --server</code> delivered. Reproduced live before the fix; verified live after it.</p>
+<ul>
+<li><strong>Delivery for out-of-band rotations.</strong> <code>WorkerTokenRevalidationService</code> now hands the current secret to connected workers before it judges them, through a new <code>WorkerGateway.deliverCurrentMint</code> that reuses <code>rotateToken</code>&#39;s delivery and re-stamp phases (the <code>--server</code> path is unchanged). This covers workflow steps, schedules, the local CLI and HA peers, as a local revoke is already enforced.</li>
+<li><strong>Only the predecessor qualifies.</strong> <code>deliverablePredecessor</code> (token model) limits delivery to workers on the record&#39;s live predecessor mint. An older mint may be one a revoke and re-mint replaced, so a worker on it is cut off rather than handed the new secret. Two out-of-band rotations inside one pass still retire workers on the original mint (documented).</li>
+<li><strong>Immediate delivery for serve&#39;s own writes.</strong> A workflow step publishes a new <code>ModelDataWritten</code> domain</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261118.173900.0-sha.4327ffc4" rel="noopener">release v20261118.173900.0-sha.4327ffc4</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4327ffc4" rel="noopener">4327ffc4</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3853" rel="noopener">#3853</a>𝗔 <a href="https://swamp-club.com/lab/4864" rel="noopener">lab#4864</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261118-172426-0-sha-7b7818fd">
+<h2><span class="tier C">C</span>swamp 20261118.172426.0-sha.7b7818fd</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-18T17:29:37Z">2026-11-18T17:29:37Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): enrollment-token methods run in serve are ordered on the gateway&#39;s token tail (swamp-club#4864) (#3852)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>A workflow step or model method run in serve that called <code>rotate</code>, <code>revoke</code>, <code>rebind</code> or <code>prune_bindings</code> on a <code>swamp/enrollment-token</code> behavior wrote the token record outside <code>WorkerGateway</code>&#39;s transition tail. The datastore has no compare-and-swap, so a concurrent redeem could write the old mint back over a rotation. A live reproduction lost 9 of 50 rotations, and each lost one left an orphaned vault key and a predecessor whose key had already been deleted.</p>
+<ul>
+<li><strong>Ordering port</strong> (<code>src/domain/models/worker/enrollment_token_write_ordering.ts</code>): <code>DefaultMethodExecutionService.#execute</code> runs every enrollment-token method body through an ordering that serve sets to the gateway. The CLI and workers register none, so runs there are unchanged. A run cancelled while it waits for its turn never runs.</li>
+<li><strong>Gateway</strong> (<code>src/serve/worker_gateway.ts</code>):</li>
+<li><code>orderTokenMethodRun</code> runs the method on the token tail and commits the run&#39;s open unit of work inside the turn, in a <code>finally</code>. On a v3 datastore, a <code>latest</code> write has no version check, so an earlier run&#39;s end commit could otherwise replace a later turn&#39;s commit, such as an enrollment.</li>
+<li>A refused or failed commit is logged, and the run&#39;s end commit tries again.</li>
+<li><code>serializeTokenWrite</code> is re-entrant only from inside a transition that is still running, so the gateway&#39;s own redeem, rotate,</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261118.172426.0-sha.7b7818fd" rel="noopener">release v20261118.172426.0-sha.7b7818fd</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7b7818fd" rel="noopener">7b7818fd</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3852" rel="noopener">#3852</a>𝗔 <a href="https://swamp-club.com/lab/4864" rel="noopener">lab#4864</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261118-165546-0-sha-ec12883e">
+<h2><span class="tier C">C</span>swamp 20261118.165546.0-sha.ec12883e</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-18T16:59:24Z">2026-11-18T16:59:24Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(serve): the serve host starts a workspace only when its wanted file says active (swamp-club#4867) (#3851)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Item 20 of the execution plan in <code>design/surfaces/serve-workspaces.md</code>: <strong>default off</strong>. The serve host never starts a workspace&#39;s serve on its own; it starts one only when the workspace&#39;s wanted file says <code>active</code>.</p>
+<ul>
+<li><strong>A folder with no wanted file is listed and not started.</strong> It is added to the supervisor as <code>suspended</code>, gets a status file saying <code>state: stopped</code>, <code>wanted: suspended</code>, and its address answers 503 stopped. The host logs one line per such workspace, naming the wanted file to write.</li>
+<li><strong>A wanted file that cannot be read, with none read before, starts nothing.</strong> The reason is logged and written to the status file, as before.</li>
+<li><strong>A running workspace is stopped only by <code>suspended</code> or <code>deleted</code>.</strong> While its folder is there, an absent or unreadable wanted file keeps the last state the host read whole: replacing the file by removing and recreating it never stops a running workspace, and removing a suspended workspace&#39;s file never starts it. Once the folder is gone too, that state is forgotten, so a folder added back by hand with no wanted file is not started.</li>
+<li><strong>The root still starts with the host.</strong></li>
+</ul>
+<p>The rule lives in the domain as <code>serveWantedOfRecord</code> beside the existing <code>active</code>/<code>running</code> mapping in <code>src/domain/serve/hosted_workspace.ts</code>; the reconciler (<code>src/serve/host/workspace_reconciler.ts</code>) applies it.</p>
+<h4 class="body-h">Decisio</h4></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261118.165546.0-sha.ec12883e" rel="noopener">release v20261118.165546.0-sha.ec12883e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/ec12883e" rel="noopener">ec12883e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3851" rel="noopener">#3851</a>𝗔 <a href="https://swamp-club.com/lab/4867" rel="noopener">lab#4867</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261118-151801-0-sha-b5378b11">
+<h2><span class="tier C">C</span>swamp 20261118.151801.0-sha.b5378b11</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-18T15:22:37Z">2026-11-18T15:22:37Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(serve): workspace services create, list, get, suspend, resume and delete a hosted workspace (swamp-club#4848) (#3850)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#4848, item 10 of the execution plan in</p>
+<p><code>design/surfaces/serve-workspaces.md</code>.</p>
+<p>Adds six libswamp services in <code>src/libswamp/hosted_workspace/</code>, exported</p>
+<p>from <code>mod.ts</code>, built on the <code>HostedWorkspace</code> aggregate and its file</p>
+<p>repository. Nothing calls them yet; item 11 wires them into the root&#39;s</p>
+<p>requests. Without <code>swamp serve host</code>, nothing changes.</p>
+<ul>
+<li><strong>create</strong></li>
+<li>Refuses an invalid name, and a name already held by a folder, a link</li>
+</ul>
+<p>    or a wanted file.</p>
+<ul>
+<li>Sets the repo up in a hidden <code>.&lt;name&gt;.creating-&lt;uuid&gt;</code> folder, writes</li>
+</ul>
+<p>    the wanted file as <code>suspended</code>, then renames the folder into place, so</p>
+<p>    no scan lists a workspace before it is whole and a new workspace has</p>
+<p>    no serve until a resume (item 10 as main now describes it).</p>
+<ul>
+<li>The new <code>serve.yaml</code> copies the root&#39;s auth mode, OAuth provider and</li>
+</ul>
+<p>    admission lists, and makes the caller its one admin.</p>
+<ul>
+<li>The wanted file records the caller&#39;s principal as creator. A failed</li>
+</ul>
+<p>    create removes everything it wrote.</p>
+<ul>
+<li><strong>list / get</strong>: names, addresses, wanted and observed state, restarts.</li>
+</ul>
+<p>  The host&#39;s status reason is described by state (backing off, failed, a</p>
+<p>  removal being retried, another problem) and never repeated, because it</p>
+<p>  can hold host paths and a workspace serve&#39;s own stderr. The reason</p>
+<p>  itself stays in the host&#39;s status file.</p>
+<ul>
+<li>**suspend</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261118.151801.0-sha.b5378b11" rel="noopener">release v20261118.151801.0-sha.b5378b11</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b5378b11" rel="noopener">b5378b11</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3850" rel="noopener">#3850</a>𝗔 <a href="https://swamp-club.com/lab/4848" rel="noopener">lab#4848</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261118-145856-0-sha-253ee3d1">
+<h2><span class="tier C">C</span>swamp 20261118.145856.0-sha.253ee3d1</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-18T15:03:44Z">2026-11-18T15:03:44Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): a follower that names no leader no longer tells an inFlight serve_not_leader caller to try again (swamp-club#4853) (#3849)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#4853.</p>
+<p>A follower forwarding an unauthenticated data-plane request (<code>/data</code>,</p>
+<p><code>/bundle</code>) names no leader in its refusals. When that forward failed after</p>
+<p>reaching the leader, <code>notLeaderResponse</code> (<code>src/serve/leader_link.ts</code>) still</p>
+<p>marked the reply <code>inFlight</code>, but replaced the message with &quot;This serve node</p>
+<p>does not lead the datastore; try again&quot;, inviting a blind retry of a request</p>
+<p>that may already have run.</p>
+<ul>
+<li>An <code>inFlight</code> refusal with <code>nameLeader: false</code> now says the request may</li>
+</ul>
+<p>  already have run and to check its outcome before retrying. The text is</p>
+<p>  fixed and still names no leader, so the unauthenticated reply echoes</p>
+<p>  nothing from the error.</p>
+<ul>
+<li>A refusal without <code>inFlight</code> keeps &quot;try again&quot;; the named-leader path is</li>
+</ul>
+<p>  unchanged.</p>
+<p>swamp&#39;s own clients already build their message from the <code>inFlight</code> flag,</p>
+<p>so this corrects the raw reply body for other readers (third-party clients,</p>
+<p>curl, logs). No protocol or client change.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li><code>notLeaderResponse</code>: an unnamed <code>inFlight</code> refusal carries <code>inFlight</code>, no</li>
+</ul>
+<p>  leader, and the may-already-have-run text, never &quot;try again&quot;; one without</p>
+<p>  <code>inFlight</code> keeps &quot;try again&quot;. Fails on main.</p>
+<ul>
+<li><code>verify-build</code> (41,160 tests passed), <code>verify-reviews</code> (all reviews pass)</li>
+</ul>
+<p>  and <code>verify-skills</code> passed on cee23e104; attestation posted.</p>
+<p>🤖 Generated with [Claude</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261118.145856.0-sha.253ee3d1" rel="noopener">release v20261118.145856.0-sha.253ee3d1</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/253ee3d1" rel="noopener">253ee3d1</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3849" rel="noopener">#3849</a>𝗔 <a href="https://swamp-club.com/lab/4853" rel="noopener">lab#4853</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261118-144357-0-sha-cab6baf2">
+<h2><span class="tier C">C</span>swamp 20261118.144357.0-sha.cab6baf2</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-18T14:48:10Z">2026-11-18T14:48:10Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>docs(serve): the serve workspaces design starts no serve on its own, and the host recognizes registered workspaces (swamp-club#4851) (#3848)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>A change to <code>design/surfaces/serve-workspaces.md</code>. Docs only.</p>
+<p><strong>Default off.</strong> The host never starts a serve for a workspace on its own. It starts one only when the workspace&#39;s wanted file says <code>active</code>, which a resume writes. A folder found in <code>workspaces/</code>, a registry entry and a new workspace are all listed and stopped. <code>workspace.create</code> writes the wanted file as <code>suspended</code> before it renames the folder into place. The root is the one exception and starts with the host.</p>
+<p><strong>Registered workspaces.</strong> The host reads the workspace registry of the user it runs as, the list <code>swamp workspace import</code> and <code>swamp workspace create</code> add to. Every workspace in it is listed, has a status file and has no serve. Once resumed it is served where it is, at <code>/w/&lt;name&gt;</code>, with its own datastore, vaults and <code>serve.yaml</code>.</p>
+<ul>
+<li>The host never writes the registry, and reads a missing registry file as empty.</li>
+<li>A name belongs to whichever the host took on first, the folder in <code>workspaces/</code> or the registered workspace.</li>
+<li>A wanted file with no status file and no folder is a create that has not finished, so an import under that name does not take it.</li>
+<li>A registered workspace that leaves the registry is stopped and its wanted and status files are removed.</li>
+<li>Only the root&#39;s admins may suspend or resume a registered workspace. A grant</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261118.144357.0-sha.cab6baf2" rel="noopener">release v20261118.144357.0-sha.cab6baf2</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/cab6baf2" rel="noopener">cab6baf2</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3848" rel="noopener">#3848</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261118-131151-0-sha-d4f2f74b">
+<h2><span class="tier C">C</span>swamp 20261118.131151.0-sha.d4f2f74b</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-18T13:16:10Z">2026-11-18T13:16:10Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>feat(workflows): a nested workflow runs where the step that calls it runs, with its worker pin, unless the step says placement: own or the child places itself (swamp-club#4766) (#3846)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>A nested workflow step used to start its child with only the child&#39;s own placement, so on <code>swamp serve</code> with workers a placed parent&#39;s unplaced child ran on the orchestrator instead of the parent&#39;s worker. Extensions written on a single host (one swamp, or serve without workers) behaved differently once workers were added. Fixes swamp-club#4766, and swamp-club#2465 and swamp-club#3578 with it.</p>
+<p>Now a child runs where the step that calls it would run:</p>
+<ul>
+<li>The calling step&#39;s merged placement (workflow, job, step) is resolved in the caller&#39;s context and handed to the child with the caller&#39;s affinity key, so the child lands on the caller&#39;s pinned worker, not just a matching one. Grandchildren inherit the same way.</li>
+<li><code>target</code>, <code>labels</code> or <code>platform</code> on a <code>workflow</code> step place that call&#39;s child.</li>
+<li><code>placement: own</code> on a <code>workflow</code> step hands nothing down (today&#39;s behaviour). It is refused on other steps and beside <code>target</code>/<code>labels</code>/<code>platform</code>.</li>
+<li>A child step whose workflow, job or own fields set <code>target</code>, <code>labels</code> or <code>platform</code> is placed only by them and drops the inherited pin; <code>labels: {}</code> keeps it on the orchestrator.</li>
+<li>The inherited placement is stored on the child run, so a child resumed on its own (e.g. after a gate) goes back to the same place. Run output names</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261118.131151.0-sha.d4f2f74b" rel="noopener">release v20261118.131151.0-sha.d4f2f74b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d4f2f74b" rel="noopener">d4f2f74b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3846" rel="noopener">#3846</a>𝗔 <a href="https://swamp-club.com/lab/4766" rel="noopener">lab#4766</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261118-130630-0-sha-f85bf529">
+<h2><span class="tier C">C</span>swamp 20261118.130630.0-sha.f85bf529</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-18T13:10:40Z">2026-11-18T13:10:40Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): a not-leader reply marked inFlight exits 1 instead of the safe-to-retry 75 (swamp-club#4839) (#3847)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#4839.</p>
+<p>A team follower whose forward fails after it reached the leader answers</p>
+<p><code>serve_not_leader</code> with <code>inFlight: true</code>: the request may already have run.</p>
+<p>Over <code>--server</code> the CLI got that as a reply error and <code>exitCodeForError</code></p>
+<p>exited 75 (temporary, safe to retry) for every <code>serve_not_leader</code>, so a</p>
+<p>script or CI job that retries on 75 could send a workflow signal, vault</p>
+<p>edit or datastore lock twice.</p>
+<ul>
+<li><strong>CLI exit code.</strong> A reply error with <code>serve_not_leader</code> and</li>
+</ul>
+<p>  <code>details.inFlight</code> now exits 1 (outcome unknown). A refusal without</p>
+<p>  <code>inFlight</code> keeps 75. Serve&#39;s own <code>ServeNotLeaderError</code> keeps its existing</p>
+<p>  rule through may-land; its pinned test is unchanged.</p>
+<ul>
+<li><strong>Leader side, defence in depth.</strong> <code>replicationErrorForClient</code> takes an</li>
+</ul>
+<p>  <code>afterStart</code> option. With it, a not-leader error becomes the new</p>
+<p>  <code>ServeNotLeaderError.afterStart</code> form: <code>inFlight</code>, with a message that this</p>
+<p>  node lost the lead while handling the request. <code>confirmRequest</code> and</p>
+<p>  <code>confirmRunReplicated</code> (attached method runs, <code>workflow.resume</code>, detached</p>
+<p>  runs) pass it, and the reply carries <code>details: { inFlight: true }</code>. The</p>
+<p>  datastore API&#39;s before-effect refusals do not, so they stay retryable.</p>
+<p>  Lease loss on a leader surfaces as <code>writer_fenced</code> today, so this guards a</p>
+<p>  path nothing takes yet.</p>
+<ul>
+<li><strong>HTTP actions.</strong> An <code>inFlight</code> not-leader frame is</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261118.130630.0-sha.f85bf529" rel="noopener">release v20261118.130630.0-sha.f85bf529</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/f85bf529" rel="noopener">f85bf529</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3847" rel="noopener">#3847</a>𝗔 <a href="https://swamp-club.com/lab/4839" rel="noopener">lab#4839</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261117-192856-0-sha-222172b4">
 <h2><span class="tier C">C</span>a chunk uploaded to a team follower is stored by the leader, guarding the Content-Length the forward keeps (swamp-club#4817) (#3836)</h2>
 <p class="lede">`test` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-11-17T19:33:56Z">2026-11-17T19:33:56Z</time></span><span>serve</span><span>test</span></div>
@@ -7350,13 +7581,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261101.202412.0-sha.0500dc35" rel="noopener">release v20261101.202412.0-sha.0500dc35</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0500dc35534060a870a5998e5dddbcd015dfc2e1" rel="noopener">0500dc35</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3528" rel="noopener">#3528</a>𝗔 <a href="https://swamp-club.com/lab/4250" rel="noopener">lab#4250</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>310 items across 1 source(s) in this window:
+<p>318 items across 1 source(s) in this window:
 2 critical, 269 notable, 23 routine,
-16 minor.</p>
-<ul><li><strong>fix</strong> — 190</li><li><strong>feat</strong> — 81</li><li><strong>perf</strong> — 19</li><li><strong>test</strong> — 8</li><li><strong>docs</strong> — 7</li><li><strong>refactor</strong> — 3</li></ul></section>
+24 minor.</p>
+<ul><li><strong>fix</strong> — 190</li><li><strong>feat</strong> — 81</li><li><strong>perf</strong> — 19</li><li><strong>changes</strong> — 8</li><li><strong>test</strong> — 8</li><li><strong>docs</strong> — 7</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-18T17:05:36.090Z">2026-11-18T17:05:36.090Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-18T18:01:52.865Z">2026-11-18T18:01:52.865Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

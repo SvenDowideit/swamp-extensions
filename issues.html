@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4895"><span class="tier A">A</span>swamp behavior list re-scans the extension model-definition </a><a href="#issue-4887"><span class="tier A">A</span>serve refuses shell steps that splice vault.get into run on </a><a href="#issue-4889"><span class="tier A">A</span>serve hangs forever if its shutdown throws before the listen</a><a href="#issue-4885"><span class="tier A">A</span>serve --json --exit-on-stdin-close never exits when its host</a><a href="#issue-4888"><span class="tier A">A</span>Scorecard scanCode: scan each code module once with the exte</a><a href="#issue-4886"><span class="tier A">A</span>serve --json never counts webhook (and likely scheduled) run</a><a href="#issue-4880"><span class="tier A">A</span>workspace.list on a host root refuses non-admin callers sign</a><a href="#issue-4883"><span class="tier A">A</span>serve SIGTERM skips the failed-gated cleanup job of a run th</a><a href="#issue-4884"><span class="tier A">A</span>serve --json writes {&quot;status&quot;:&quot;stopping&quot;} to stderr instead </a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4902"><span class="tier A">A</span>workflow validate and workflow run re-scan models/ once per </a><a href="#issue-4903"><span class="tier A">A</span>behavior validate re-scans models/ once per distinct express</a><a href="#issue-4900"><span class="tier A">A</span>Docs: team serve rolling restart runbook, leader takeover ti</a><a href="#issue-4829"><span class="tier A">A</span>Docs: how to rotate swamp serve&#39;s TLS certificate (rolling r</a><a href="#issue-4794"><span class="tier A">A</span>Docs: a planned swamp serve restart hands in-flight runs ove</a><a href="#issue-4577"><span class="tier A">A</span>Docs: swamp serve restart behaviour from #4566 (/health drai</a><a href="#issue-4897"><span class="tier A">A</span>Admins aren&#39;t pinged when a profile showcase is submitted fo</a><a href="#issue-4895"><span class="tier A">A</span>swamp behavior list re-scans the extension model-definition </a><a href="#issue-4887"><span class="tier A">A</span>serve refuses shell steps that splice vault.get into run on </a></aside><div>
 
 <article class="item" id="issue-4852">
 <h2><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4Shell)</h2>
@@ -93,6 +93,62 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
 </article>
+<article class="item" id="issue-4902">
+<h2><span class="tier A">A</span>workflow validate and workflow run re-scan models/ once per distinct step behavior (O(steps x definition files) file opens)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-19T18:25:39.439Z">2026-11-19T18:25:39.439Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4902" rel="noopener">lab#4902</a></div>
+</article>
+<article class="item" id="issue-4903">
+<h2><span class="tier A">A</span>behavior validate re-scans models/ once per distinct expression model reference (O(references x definition files) file opens)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-19T18:25:39.310Z">2026-11-19T18:25:39.310Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4903" rel="noopener">lab#4903</a></div>
+</article>
+<article class="item" id="issue-4900">
+<h2><span class="tier A">A</span>Docs: team serve rolling restart runbook, leader takeover time, and how clients treat an inFlight refusal (#4811, #4824, #4830, #4839, #4853)</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-19T18:06:34.910Z">2026-11-19T18:06:34.910Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4900" rel="noopener">lab#4900</a></div>
+</article>
+<article class="item" id="issue-4829">
+<h2><span class="tier A">A</span>Docs: how to rotate swamp serve&#39;s TLS certificate (rolling restart on Linux, or TLS at a proxy)</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-19T18:06:34.721Z">2026-11-19T18:06:34.721Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4829" rel="noopener">lab#4829</a></div>
+</article>
+<article class="item" id="issue-4794">
+<h2><span class="tier A">A</span>Docs: a planned swamp serve restart hands in-flight runs over instead of interrupting them</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-19T18:06:34.510Z">2026-11-19T18:06:34.510Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4794" rel="noopener">lab#4794</a></div>
+</article>
+<article class="item" id="issue-4577">
+<h2><span class="tier A">A</span>Docs: swamp serve restart behaviour from #4566 (/health draining body, --reuse-port, --shutdown-listener-grace, startup not_ready refusals)</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-19T18:06:34.093Z">2026-11-19T18:06:34.093Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4577" rel="noopener">lab#4577</a></div>
+</article>
+<article class="item" id="issue-4897">
+<h2><span class="tier A">A</span>Admins aren&#39;t pinged when a profile showcase is submitted for approval</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-19T18:05:00.249Z">2026-11-19T18:05:00.249Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4897" rel="noopener">lab#4897</a></div>
+</article>
 <article class="item" id="issue-4895">
 <h2><span class="tier A">A</span>swamp behavior list re-scans the extension model-definition tree once per distinct type (O(types x extension-definition-files) file opens)</h2>
 <p class="lede">Shipped bug fix</p>
@@ -109,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4887" rel="noopener">lab#4887</a></div>
 </article>
-<article class="item" id="issue-4889">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4889">
 <h2><span class="tier A">A</span>serve hangs forever if its shutdown throws before the listener closes</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-18T22:26:46.761Z">2026-11-18T22:26:46.761Z</time></span></div>
@@ -165,7 +221,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4884" rel="noopener">lab#4884</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4874">
+<article class="item" id="issue-4874">
 <h2><span class="tier A">A</span>extension-scoring: markdownImports parses every code file with Babel uncapped, and writtenSpecifiers parses them again</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-18T21:04:54.743Z">2026-11-18T21:04:54.743Z</time></span></div>
@@ -3925,21 +3981,37 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
-<article class="item" id="issue-4897">
-<h2><span class="tier B">B</span>Admins aren&#39;t pinged when a profile showcase is submitted for approval</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-19T18:04:41.616Z">2026-11-19T18:04:41.616Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4897" rel="noopener">lab#4897</a></div>
-</article>
 <article class="item" id="issue-4907">
 <h2><span class="tier B">B</span>stagecraft: writes print a short status by default; full output on request</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-19T18:02:19.475Z">2026-11-19T18:02:19.475Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-19T18:56:22.571Z">2026-11-19T18:56:22.571Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4907" rel="noopener">lab#4907</a></div>
+</article>
+<article class="item" id="issue-4877">
+<h2><span class="tier B">B</span>The CLI signs in to a hosted workspace through the root, after one login to the host</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-19T18:54:57.299Z">2026-11-19T18:54:57.299Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4877" rel="noopener">lab#4877</a></div>
+</article>
+<article class="item" id="issue-4911">
+<h2><span class="tier B">B</span>workflow validate and run re-walk models/ once per distinct behavior name in nested workflows (follow-up to #4903)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-19T18:54:40.245Z">2026-11-19T18:54:40.245Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4911" rel="noopener">lab#4911</a></div>
+</article>
+<article class="item" id="issue-4892">
+<h2><span class="tier B">B</span>Workflow pre-validation refuses a method argument supplied as a global argument when the definition authors a methods.&lt;method&gt;.arguments block</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-19T18:47:23.034Z">2026-11-19T18:47:23.034Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4892" rel="noopener">lab#4892</a></div>
 </article>
 <article class="item" id="issue-4898">
 <h2><span class="tier B">B</span>Team mode: a far member&#39;s large-output save takes about 2.5x v2, all in the single-connection upload to serve</h2>
@@ -3948,62 +4020,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4898" rel="noopener">lab#4898</a></div>
-</article>
-<article class="item" id="issue-4902">
-<h2><span class="tier B">B</span>workflow validate and workflow run re-scan models/ once per distinct step behavior (O(steps x definition files) file opens)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-19T17:46:53.864Z">2026-11-19T17:46:53.864Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4902" rel="noopener">lab#4902</a></div>
-</article>
-<article class="item" id="issue-4903">
-<h2><span class="tier B">B</span>behavior validate re-scans models/ once per distinct expression model reference (O(references x definition files) file opens)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-19T17:46:53.688Z">2026-11-19T17:46:53.688Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4903" rel="noopener">lab#4903</a></div>
-</article>
-<article class="item" id="issue-4900">
-<h2><span class="tier B">B</span>Docs: team serve rolling restart runbook, leader takeover time, and how clients treat an inFlight refusal (#4811, #4824, #4830, #4839, #4853)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-19T17:46:14.234Z">2026-11-19T17:46:14.234Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4900" rel="noopener">lab#4900</a></div>
-</article>
-<article class="item" id="issue-4829">
-<h2><span class="tier B">B</span>Docs: how to rotate swamp serve&#39;s TLS certificate (rolling restart on Linux, or TLS at a proxy)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-19T17:46:14.033Z">2026-11-19T17:46:14.033Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4829" rel="noopener">lab#4829</a></div>
-</article>
-<article class="item" id="issue-4794">
-<h2><span class="tier B">B</span>Docs: a planned swamp serve restart hands in-flight runs over instead of interrupting them</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-19T17:46:13.843Z">2026-11-19T17:46:13.843Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4794" rel="noopener">lab#4794</a></div>
-</article>
-<article class="item" id="issue-4577">
-<h2><span class="tier B">B</span>Docs: swamp serve restart behaviour from #4566 (/health draining body, --reuse-port, --shutdown-listener-grace, startup not_ready refusals)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-19T17:46:13.630Z">2026-11-19T17:46:13.630Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4577" rel="noopener">lab#4577</a></div>
-</article>
-<article class="item" id="issue-4877">
-<h2><span class="tier B">B</span>The CLI signs in to a hosted workspace through the root, after one login to the host</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-19T16:44:58.357Z">2026-11-19T16:44:58.357Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4877" rel="noopener">lab#4877</a></div>
 </article>
 <article class="item" id="issue-4842">
 <h2><span class="tier B">B</span>cve extensions: data names can still collide or be refused on Windows (trailing dots, reserved device names, case)</h2>
@@ -4069,7 +4085,31 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4374" rel="noopener">lab#4374</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4908">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4914">
+<h2><span class="tier C">C</span>The dashboard switcher lists a serve host&#39;s workspaces, read from workspace.list on the root</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-19T18:56:21.174Z">2026-11-19T18:56:21.174Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4914" rel="noopener">lab#4914</a></div>
+</article>
+<article class="item" id="issue-4913">
+<h2><span class="tier C">C</span>Dashboard sign-in under a workspace segment: under a serve host the page signs in to the workspace&#39;s serve</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-19T18:54:13.584Z">2026-11-19T18:54:13.584Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4913" rel="noopener">lab#4913</a></div>
+</article>
+<article class="item" id="issue-4912">
+<h2><span class="tier C">C</span>A dashboard session cookie per path: a serve with a path in its address names and scopes its cookie for that path</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-19T18:50:11.717Z">2026-11-19T18:50:11.717Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4912" rel="noopener">lab#4912</a></div>
+</article>
+<article class="item" id="issue-4908">
 <h2><span class="tier C">C</span>Admin panel can grant a Personal License to a collective</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-11-19T17:58:21.343Z">2026-11-19T17:58:21.343Z</time></span></div>
@@ -4132,14 +4172,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4893" rel="noopener">lab#4893</a></div>
-</article>
-<article class="item" id="issue-4892">
-<h2><span class="tier C">C</span>Workflow pre-validation refuses a method argument supplied as a global argument when the definition authors a methods.&lt;method&gt;.arguments block</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-18T23:11:49.041Z">2026-11-18T23:11:49.041Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4892" rel="noopener">lab#4892</a></div>
 </article>
 <article class="item" id="issue-4881">
 <h2><span class="tier C">C</span>CLI: idempotent swamp-club requests don&#39;t retry a 503, 502, 504 or timeout, so one blip fails the push registry checks</h2>
@@ -5278,13 +5310,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>651 items across 1 source(s) in this window:
-3 critical, 479 notable, 18 routine,
-151 minor.</p>
-<ul><li><strong>issues</strong> — 651</li></ul></section>
+<p>655 items across 1 source(s) in this window:
+3 critical, 486 notable, 13 routine,
+153 minor.</p>
+<ul><li><strong>issues</strong> — 655</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-19T18:06:38.280Z">2026-11-19T18:06:38.280Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-19T19:03:24.972Z">2026-11-19T19:03:24.972Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

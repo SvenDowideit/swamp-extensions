@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4898"><span class="tier A">A</span>Team mode: a far member&#39;s large-output save takes about 2.5x</a><a href="#issue-4917"><span class="tier A">A</span>Docs: the serve workspaces design keeps one list of workspac</a><a href="#issue-4841"><span class="tier A">A</span>Test flake: v3 replication &#39;an owned sidecar whose owner&#39;s p</a><a href="#issue-4856"><span class="tier A">A</span>Flaky test: serve host &#39;a delete interrupted before or durin</a><a href="#issue-4858"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-4907"><span class="tier A">A</span>stagecraft: writes print a short status by default; full out</a><a href="#issue-4892"><span class="tier A">A</span>Workflow pre-validation refuses a method argument supplied a</a><a href="#issue-4915"><span class="tier A">A</span>Flaky test: hosted workspace lock test loses its own lock un</a><a href="#issue-4877"><span class="tier A">A</span>The CLI signs in to a hosted workspace through the root, aft</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4918"><span class="tier A">A</span>A serve host registers the workspaces it runs in the workspa</a><a href="#issue-4916"><span class="tier A">A</span>stagecraft: publish to the bound tracker after each write, a</a><a href="#issue-4898"><span class="tier A">A</span>Team mode: a far member&#39;s large-output save takes about 2.5x</a><a href="#issue-4917"><span class="tier A">A</span>Docs: the serve workspaces design keeps one list of workspac</a><a href="#issue-4841"><span class="tier A">A</span>Test flake: v3 replication &#39;an owned sidecar whose owner&#39;s p</a><a href="#issue-4856"><span class="tier A">A</span>Flaky test: serve host &#39;a delete interrupted before or durin</a><a href="#issue-4858"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-4907"><span class="tier A">A</span>stagecraft: writes print a short status by default; full out</a><a href="#issue-4892"><span class="tier A">A</span>Workflow pre-validation refuses a method argument supplied a</a></aside><div>
 
 <article class="item" id="issue-4852">
 <h2><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4Shell)</h2>
@@ -92,6 +92,22 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-4918">
+<h2><span class="tier A">A</span>A serve host registers the workspaces it runs in the workspace registry, where they are</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-19T23:40:32.561Z">2026-11-19T23:40:32.561Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4918" rel="noopener">lab#4918</a></div>
+</article>
+<article class="item" id="issue-4916">
+<h2><span class="tier A">A</span>stagecraft: publish to the bound tracker after each write, and infer workItem</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-19T23:04:23.970Z">2026-11-19T23:04:23.970Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4916" rel="noopener">lab#4916</a></div>
 </article>
 <article class="item" id="issue-4898">
 <h2><span class="tier A">A</span>Team mode: a far member&#39;s large-output save takes about 2.5x v2, all in the single-connection upload to serve</h2>
@@ -149,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4892" rel="noopener">lab#4892</a></div>
 </article>
-<article class="item" id="issue-4915">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4915">
 <h2><span class="tier A">A</span>Flaky test: hosted workspace lock test loses its own lock under load</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-19T20:01:04.716Z">2026-11-19T20:01:04.716Z</time></span></div>
@@ -165,7 +181,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4877" rel="noopener">lab#4877</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4911">
+<article class="item" id="issue-4911">
 <h2><span class="tier A">A</span>workflow validate and run re-walk models/ once per distinct behavior name in nested workflows (follow-up to #4903)</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-19T19:47:47.356Z">2026-11-19T19:47:47.356Z</time></span></div>
@@ -4061,21 +4077,61 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
-<article class="item" id="issue-4916">
-<h2><span class="tier B">B</span>stagecraft: publish to the bound tracker after each write, and infer workItem</h2>
+<article class="item" id="issue-4467">
+<h2><span class="tier B">B</span>swamp data get and data versions report Behavior not found for data whose behavior definition was deleted</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-19T22:58:44.952Z">2026-11-19T22:58:44.952Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-19T23:59:34.516Z">2026-11-19T23:59:34.516Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4916" rel="noopener">lab#4916</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4467" rel="noopener">lab#4467</a></div>
 </article>
-<article class="item" id="issue-4918">
-<h2><span class="tier B">B</span>A serve host registers the workspaces it runs in the workspace registry, where they are</h2>
+<article class="item" id="issue-4922">
+<h2><span class="tier B">B</span>stagecraft: an empty, never-started instance takes a work item&#39;s key, so claim falls back to &lt;key&gt;-&lt;tracker&gt;</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-19T22:47:09.318Z">2026-11-19T22:47:09.318Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-19T23:58:52.811Z">2026-11-19T23:58:52.811Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4918" rel="noopener">lab#4918</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4922" rel="noopener">lab#4922</a></div>
+</article>
+<article class="item" id="issue-4840">
+<h2><span class="tier B">B</span>cfgmgmt firewall (iptables): rule placement with before, after and first</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-19T23:57:16.537Z">2026-11-19T23:57:16.537Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4840" rel="noopener">lab#4840</a></div>
+</article>
+<article class="item" id="issue-4923">
+<h2><span class="tier B">B</span>@swamp/cfgmgmt firewall: placing a deny with first or before can lock out the run&#39;s own SSH session</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-19T23:55:18.865Z">2026-11-19T23:55:18.865Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4923" rel="noopener">lab#4923</a></div>
+</article>
+<article class="item" id="issue-4919">
+<h2><span class="tier B">B</span>The serve host takes its workspaces from the workspace registry, with no change to what it serves</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-19T23:51:25.400Z">2026-11-19T23:51:25.400Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4919" rel="noopener">lab#4919</a></div>
+</article>
+<article class="item" id="issue-4359">
+<h2><span class="tier B">B</span>Work-item commands run from the wrong repo report the work item as not started</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-19T23:39:59.948Z">2026-11-19T23:39:59.948Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4359" rel="noopener">lab#4359</a></div>
+</article>
+<article class="item" id="issue-4873">
+<h2><span class="tier B">B</span>@swamp/cfgmgmt: SSH ControlMaster sockets and pins ignore TMPDIR (hard-coded /tmp)</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-19T23:28:34.437Z">2026-11-19T23:28:34.437Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4873" rel="noopener">lab#4873</a></div>
 </article>
 <article class="item" id="issue-4899">
 <h2><span class="tier B">B</span>Team mode: a serve booting with a cold page cache takes 109-122 s to become ready on a real-size datastore (reads about 1 GB)</h2>
@@ -4149,7 +4205,15 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4374" rel="noopener">lab#4374</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4920">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4924">
+<h2><span class="tier C">C</span>Tailnet: developer machines can reach each other&#39;s tailscale serve by default</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-20T00:03:13.358Z">2026-11-20T00:03:13.358Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4924" rel="noopener">lab#4924</a></div>
+</article>
+<article class="item" id="issue-4920">
 <h2><span class="tier C">C</span>swamp serve host runs without a host folder: host.yaml in the config dir and its state in the data dir</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-11-19T21:07:12.011Z">2026-11-19T21:07:12.011Z</time></span></div>
@@ -4172,14 +4236,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4921" rel="noopener">lab#4921</a></div>
-</article>
-<article class="item" id="issue-4919">
-<h2><span class="tier C">C</span>The serve host takes its workspaces from the workspace registry, with no change to what it serves</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-19T21:06:38.886Z">2026-11-19T21:06:38.886Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4919" rel="noopener">lab#4919</a></div>
 </article>
 <article class="item" id="issue-4914">
 <h2><span class="tier C">C</span>The dashboard switcher lists a serve host&#39;s workspaces, read from workspace.list on the root</h2>
@@ -4301,14 +4357,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4871" rel="noopener">lab#4871</a></div>
 </article>
-<article class="item" id="issue-4873">
-<h2><span class="tier C">C</span>@swamp/cfgmgmt: SSH ControlMaster sockets and pins ignore TMPDIR (hard-coded /tmp)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-18T17:18:34.734Z">2026-11-18T17:18:34.734Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4873" rel="noopener">lab#4873</a></div>
-</article>
 <article class="item" id="issue-4868">
 <h2><span class="tier C">C</span>Step-lease and pending-dispatch methods run from a workflow step in serve bypass the dispatch tail&#39;s per-record ordering</h2>
 <p class="lede">Open issue</p>
@@ -4364,14 +4412,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4843" rel="noopener">lab#4843</a></div>
-</article>
-<article class="item" id="issue-4840">
-<h2><span class="tier C">C</span>cfgmgmt firewall (iptables): rule placement with before, after and first</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-17T17:04:02.718Z">2026-11-17T17:04:02.718Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4840" rel="noopener">lab#4840</a></div>
 </article>
 <article class="item" id="issue-4825">
 <h2><span class="tier C">C</span>S3 and GCS datastores: copy replica files into a new Litestream lineage (the replicaPaths copy method)</h2>
@@ -4997,14 +5037,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4353" rel="noopener">lab#4353</a></div>
 </article>
-<article class="item" id="issue-4467">
-<h2><span class="tier C">C</span>swamp data get and data versions report Behavior not found for data whose behavior definition was deleted</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-05T23:42:15.798Z">2026-11-05T23:42:15.798Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4467" rel="noopener">lab#4467</a></div>
-</article>
 <article class="item" id="issue-4466">
 <h2><span class="tier C">C</span>Workflow-scoped data get reports the behavior id as modelName once the behavior definition is deleted</h2>
 <p class="lede">Open issue</p>
@@ -5189,14 +5221,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4367" rel="noopener">lab#4367</a></div>
 </article>
-<article class="item" id="issue-4359">
-<h2><span class="tier C">C</span>Work-item commands run from the wrong repo report the work item as not started</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-03T18:55:56.216Z">2026-11-03T18:55:56.216Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4359" rel="noopener">lab#4359</a></div>
-</article>
 <article class="item" id="issue-4131">
 <h2><span class="tier C">C</span>Skill/docs: document registry listing limits, static-extraction rules, and splitting large APIs by domain</h2>
 <p class="lede">Open issue</p>
@@ -5366,13 +5390,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>662 items across 1 source(s) in this window:
-3 critical, 496 notable, 11 routine,
-152 minor.</p>
-<ul><li><strong>issues</strong> — 662</li></ul></section>
+<p>665 items across 1 source(s) in this window:
+3 critical, 498 notable, 16 routine,
+148 minor.</p>
+<ul><li><strong>issues</strong> — 665</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-19T23:02:29.340Z">2026-11-19T23:02:29.340Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-20T00:05:22.109Z">2026-11-20T00:05:22.109Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

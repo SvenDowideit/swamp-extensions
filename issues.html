@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4941"><span class="tier A">A</span>Oversized resources are accepted silently at write time, the</a><a href="#issue-4952"><span class="tier A">A</span>DataQueryService.refreshTypes test fails: its interleaving r</a><a href="#issue-4949"><span class="tier A">A</span>stagecraft: a dispatch&#39;s product write records its usage, us</a><a href="#issue-4865"><span class="tier A">A</span>Registered workspaces: a workspace registered anywhere on th</a><a href="#issue-4953"><span class="tier A">A</span>Test flake: v3 replication &#39;an owned sidecar whose owner&#39;s p</a><a href="#issue-4938"><span class="tier A">A</span>stagecraft studio: Inspect shows each stage as a field explo</a><a href="#issue-4935"><span class="tier A">A</span>Extension push: a registry 5xx reads as the user&#39;s fault and</a><a href="#issue-4940"><span class="tier A">A</span>`swamp data query --json` fails with &quot;Invalid string length&quot;</a><a href="#issue-4653"><span class="tier A">A</span>stagecraft: dispatch prompts read injected products by lates</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4920"><span class="tier A">A</span>swamp serve host runs without a host folder: host.yaml in th</a><a href="#issue-4956"><span class="tier A">A</span>stagecraft: a read of what the current stage expects (prompt</a><a href="#issue-4960"><span class="tier A">A</span>Flaky test: serve host registry &#39;a repo imported while the h</a><a href="#issue-4961"><span class="tier A">A</span>Flaky test: startLoadedWorker &#39;a Worker that loads at once s</a><a href="#issue-4923"><span class="tier A">A</span>@swamp/cfgmgmt firewall: placing a deny with first or before</a><a href="#issue-4873"><span class="tier A">A</span>@swamp/cfgmgmt: SSH ControlMaster sockets and pins ignore TM</a><a href="#issue-4840"><span class="tier A">A</span>cfgmgmt firewall (iptables): rule placement with before, aft</a><a href="#issue-4937"><span class="tier A">A</span>stagecraft: factory definitions can take prompts and skills </a><a href="#issue-4955"><span class="tier A">A</span>A v3 write command waits the full sidecar start deadline aft</a></aside><div>
 
 <article class="item" id="issue-4852">
 <h2><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4Shell)</h2>
@@ -93,7 +93,79 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
 </article>
-<article class="item" id="issue-4941">
+<article class="item" id="issue-4920">
+<h2><span class="tier A">A</span>swamp serve host runs without a host folder: host.yaml in the config dir and its state in the data dir</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-20T19:57:43.393Z">2026-11-20T19:57:43.393Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4920" rel="noopener">lab#4920</a></div>
+</article>
+<article class="item" id="issue-4956">
+<h2><span class="tier A">A</span>stagecraft: a read of what the current stage expects (prompt, products and their fields, gates)</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-20T19:43:09.982Z">2026-11-20T19:43:09.982Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4956" rel="noopener">lab#4956</a></div>
+</article>
+<article class="item" id="issue-4960">
+<h2><span class="tier A">A</span>Flaky test: serve host registry &#39;a repo imported while the host runs is listed stopped...&#39; reads no status file after the workspace already answers stopped</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-20T19:27:29.714Z">2026-11-20T19:27:29.714Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4960" rel="noopener">lab#4960</a></div>
+</article>
+<article class="item" id="issue-4961">
+<h2><span class="tier A">A</span>Flaky test: startLoadedWorker &#39;a Worker that loads at once starts once and answers&#39; times out loading its fixture under load</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-20T19:27:28.982Z">2026-11-20T19:27:28.982Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4961" rel="noopener">lab#4961</a></div>
+</article>
+<article class="item" id="issue-4923">
+<h2><span class="tier A">A</span>@swamp/cfgmgmt firewall: placing a deny with first or before can lock out the run&#39;s own SSH session</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-20T19:25:13.870Z">2026-11-20T19:25:13.870Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4923" rel="noopener">lab#4923</a></div>
+</article>
+<article class="item" id="issue-4873">
+<h2><span class="tier A">A</span>@swamp/cfgmgmt: SSH ControlMaster sockets and pins ignore TMPDIR (hard-coded /tmp)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-20T19:25:13.627Z">2026-11-20T19:25:13.627Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4873" rel="noopener">lab#4873</a></div>
+</article>
+<article class="item" id="issue-4840">
+<h2><span class="tier A">A</span>cfgmgmt firewall (iptables): rule placement with before, after and first</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-20T19:25:13.160Z">2026-11-20T19:25:13.160Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4840" rel="noopener">lab#4840</a></div>
+</article>
+<article class="item" id="issue-4937">
+<h2><span class="tier A">A</span>stagecraft: factory definitions can take prompts and skills from repo files</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-20T19:16:49.960Z">2026-11-20T19:16:49.960Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4937" rel="noopener">lab#4937</a></div>
+</article>
+<article class="item" id="issue-4955">
+<h2><span class="tier A">A</span>A v3 write command waits the full sidecar start deadline after the supervisor it launched has already exited</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-20T19:13:17.092Z">2026-11-20T19:13:17.092Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4955" rel="noopener">lab#4955</a></div>
+</article>
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4941">
 <h2><span class="tier A">A</span>Oversized resources are accepted silently at write time, then crash later runs with a V8 out-of-memory and no diagnosis</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-20T19:01:20.706Z">2026-11-20T19:01:20.706Z</time></span></div>
@@ -165,7 +237,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4653" rel="noopener">lab#4653</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4659">
+<article class="item" id="issue-4659">
 <h2><span class="tier A">A</span>stagecraft DESIGN.md: say the stored-as-received check catches only a redacted secret, and --literal-inputs is what stops evaluation</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-20T16:28:59.711Z">2026-11-20T16:28:59.711Z</time></span></div>
@@ -4221,69 +4293,29 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
-<article class="item" id="issue-4955">
-<h2><span class="tier B">B</span>A v3 write command waits the full sidecar start deadline after the supervisor it launched has already exited</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-20T19:00:36.917Z">2026-11-20T19:00:36.917Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4955" rel="noopener">lab#4955</a></div>
-</article>
-<article class="item" id="issue-4956">
-<h2><span class="tier B">B</span>stagecraft: a read of what the current stage expects (prompt, products and their fields, gates)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-20T19:00:00.360Z">2026-11-20T19:00:00.360Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4956" rel="noopener">lab#4956</a></div>
-</article>
-<article class="item" id="issue-4937">
-<h2><span class="tier B">B</span>stagecraft: factory definitions can take prompts and skills from repo files</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-20T18:57:07.096Z">2026-11-20T18:57:07.096Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4937" rel="noopener">lab#4937</a></div>
-</article>
-<article class="item" id="issue-4920">
-<h2><span class="tier B">B</span>swamp serve host runs without a host folder: host.yaml in the config dir and its state in the data dir</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-20T18:54:26.042Z">2026-11-20T18:54:26.042Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4920" rel="noopener">lab#4920</a></div>
-</article>
 <article class="item" id="issue-4939">
 <h2><span class="tier B">B</span>stagecraft studio: a repository can define a theme (colours, fonts, corner rounding) for its studio</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-20T18:43:03.589Z">2026-11-20T18:43:03.589Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-20T20:00:25.034Z">2026-11-20T20:00:25.034Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4939" rel="noopener">lab#4939</a></div>
 </article>
-<article class="item" id="issue-4923">
-<h2><span class="tier B">B</span>@swamp/cfgmgmt firewall: placing a deny with first or before can lock out the run&#39;s own SSH session</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-20T16:57:12.573Z">2026-11-20T16:57:12.573Z</time></span></div>
+<article class="item" id="issue-4921">
+<h2><span class="tier B">B</span>A serve host with no host folder creates workspaces in the workspace location</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-20T19:59:22.950Z">2026-11-20T19:59:22.950Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4923" rel="noopener">lab#4923</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4921" rel="noopener">lab#4921</a></div>
 </article>
-<article class="item" id="issue-4873">
-<h2><span class="tier B">B</span>@swamp/cfgmgmt: SSH ControlMaster sockets and pins ignore TMPDIR (hard-coded /tmp)</h2>
+<article class="item" id="issue-4942">
+<h2><span class="tier B">B</span>Bounded-memory access to large resources from behaviors: partial reads and streaming writes</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-20T16:57:12.351Z">2026-11-20T16:57:12.351Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-20T19:58:09.655Z">2026-11-20T19:58:09.655Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4873" rel="noopener">lab#4873</a></div>
-</article>
-<article class="item" id="issue-4840">
-<h2><span class="tier B">B</span>cfgmgmt firewall (iptables): rule placement with before, after and first</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-20T16:57:11.891Z">2026-11-20T16:57:11.891Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4840" rel="noopener">lab#4840</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4942" rel="noopener">lab#4942</a></div>
 </article>
 <article class="item" id="issue-4899">
 <h2><span class="tier B">B</span>Team mode: a serve booting with a cold page cache takes 109-122 s to become ready on a real-size datastore (reads about 1 GB)</h2>
@@ -4357,21 +4389,61 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4374" rel="noopener">lab#4374</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4957">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4930">
+<h2><span class="tier C">C</span>Scheduled flaky-test detection is failing</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-20T19:48:36.808Z">2026-11-20T19:48:36.808Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4930" rel="noopener">lab#4930</a></div>
+</article>
+<article class="item" id="issue-4965">
+<h2><span class="tier C">C</span>Streaming resource writes from workers through the serve data plane</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-20T19:35:39.680Z">2026-11-20T19:35:39.680Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4965" rel="noopener">lab#4965</a></div>
+</article>
+<article class="item" id="issue-4964">
+<h2><span class="tier C">C</span>Streaming resource writes from behaviors with no single-string size ceiling</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-20T19:35:29.368Z">2026-11-20T19:35:29.368Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4964" rel="noopener">lab#4964</a></div>
+</article>
+<article class="item" id="issue-4963">
+<h2><span class="tier C">C</span>data query --select reads only the content paths the expression needs</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-20T19:35:00.281Z">2026-11-20T19:35:00.281Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4963" rel="noopener">lab#4963</a></div>
+</article>
+<article class="item" id="issue-4962">
+<h2><span class="tier C">C</span>Workflow steps parse every written resource in full, and past the V8 string limit their outputs are silently empty</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-20T19:34:45.746Z">2026-11-20T19:34:45.746Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4962" rel="noopener">lab#4962</a></div>
+</article>
+<article class="item" id="issue-4959">
+<h2><span class="tier C">C</span>Docs: resourceSize limits in .swamp.yaml and data query --sort size</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-20T19:08:25.556Z">2026-11-20T19:08:25.556Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4959" rel="noopener">lab#4959</a></div>
+</article>
+<article class="item" id="issue-4957">
 <h2><span class="tier C">C</span>data query --select content and foreign-content hydration load oversized items without the resource load guard</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-11-20T18:35:23.867Z">2026-11-20T18:35:23.867Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4957" rel="noopener">lab#4957</a></div>
-</article>
-<article class="item" id="issue-4959">
-<h2><span class="tier C">C</span>Docs: resourceSize limits in .swamp.yaml and data query --sort size</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-20T18:34:47.459Z">2026-11-20T18:34:47.459Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4959" rel="noopener">lab#4959</a></div>
 </article>
 <article class="item" id="issue-4958">
 <h2><span class="tier C">C</span>CEL model.&lt;name&gt;.resource loads every latest resource of the behavior, not just the one referenced</h2>
@@ -4453,22 +4525,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4943" rel="noopener">lab#4943</a></div>
 </article>
-<article class="item" id="issue-4942">
-<h2><span class="tier C">C</span>Bounded-memory access to large resources from behaviors: partial reads and streaming writes</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-20T15:12:31.739Z">2026-11-20T15:12:31.739Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4942" rel="noopener">lab#4942</a></div>
-</article>
-<article class="item" id="issue-4930">
-<h2><span class="tier C">C</span>Scheduled flaky-test detection is failing</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-20T13:48:57.335Z">2026-11-20T13:48:57.335Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4930" rel="noopener">lab#4930</a></div>
-</article>
 <article class="item" id="issue-4928">
 <h2><span class="tier C">C</span>Registry: accept, check, score and list swamp apps in published extensions</h2>
 <p class="lede">Open issue</p>
@@ -4484,14 +4540,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4927" rel="noopener">lab#4927</a></div>
-</article>
-<article class="item" id="issue-4921">
-<h2><span class="tier C">C</span>A serve host with no host folder creates workspaces in the workspace location</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-19T21:06:43.603Z">2026-11-19T21:06:43.603Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4921" rel="noopener">lab#4921</a></div>
 </article>
 <article class="item" id="issue-4914">
 <h2><span class="tier C">C</span>The dashboard switcher lists a serve host&#39;s workspaces, read from workspace.list on the root</h2>
@@ -5630,13 +5678,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>695 items across 1 source(s) in this window:
-3 critical, 516 notable, 17 routine,
-159 minor.</p>
-<ul><li><strong>issues</strong> — 695</li></ul></section>
+<p>701 items across 1 source(s) in this window:
+3 critical, 525 notable, 12 routine,
+161 minor.</p>
+<ul><li><strong>issues</strong> — 701</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-20T19:03:42.783Z">2026-11-20T19:03:42.783Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-20T20:06:13.962Z">2026-11-20T20:06:13.962Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

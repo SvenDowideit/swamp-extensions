@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4921"><span class="tier A">A</span>A serve host with no host folder creates workspaces in the w</a><a href="#issue-4301"><span class="tier A">A</span>serve resolves realpath for thousands of files under .swamp/</a><a href="#issue-4939"><span class="tier A">A</span>stagecraft studio: a repository can define a theme (colours,</a><a href="#issue-4920"><span class="tier A">A</span>swamp serve host runs without a host folder: host.yaml in th</a><a href="#issue-4956"><span class="tier A">A</span>stagecraft: a read of what the current stage expects (prompt</a><a href="#issue-4960"><span class="tier A">A</span>Flaky test: serve host registry &#39;a repo imported while the h</a><a href="#issue-4961"><span class="tier A">A</span>Flaky test: startLoadedWorker &#39;a Worker that loads at once s</a><a href="#issue-4923"><span class="tier A">A</span>@swamp/cfgmgmt firewall: placing a deny with first or before</a><a href="#issue-4873"><span class="tier A">A</span>@swamp/cfgmgmt: SSH ControlMaster sockets and pins ignore TM</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4974"><span class="tier A">A</span>Hosted workspace create answers host_error, not already_exis</a><a href="#issue-4967"><span class="tier A">A</span>A host-created workspace&#39;s wanted file records the repo it w</a><a href="#issue-4973"><span class="tier A">A</span>serve HTTP action follower test flakes: one person&#39;s rate li</a><a href="#issue-4971"><span class="tier A">A</span>The first swamp serve host run creates host.yaml in the conf</a><a href="#issue-4921"><span class="tier A">A</span>A serve host with no host folder creates workspaces in the w</a><a href="#issue-4301"><span class="tier A">A</span>serve resolves realpath for thousands of files under .swamp/</a><a href="#issue-4939"><span class="tier A">A</span>stagecraft studio: a repository can define a theme (colours,</a><a href="#issue-4920"><span class="tier A">A</span>swamp serve host runs without a host folder: host.yaml in th</a><a href="#issue-4956"><span class="tier A">A</span>stagecraft: a read of what the current stage expects (prompt</a></aside><div>
 
 <article class="item" id="issue-4852">
 <h2><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4Shell)</h2>
@@ -92,6 +92,38 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-4974">
+<h2><span class="tier A">A</span>Hosted workspace create answers host_error, not already_exists, when a plain file holds the name in the workspace location</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-20T22:48:42.745Z">2026-11-20T22:48:42.745Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4974" rel="noopener">lab#4974</a></div>
+</article>
+<article class="item" id="issue-4967">
+<h2><span class="tier A">A</span>A host-created workspace&#39;s wanted file records the repo it was made for, so a new repo at the same path is never the host&#39;s own</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-20T22:34:31.111Z">2026-11-20T22:34:31.111Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4967" rel="noopener">lab#4967</a></div>
+</article>
+<article class="item" id="issue-4973">
+<h2><span class="tier A">A</span>serve HTTP action follower test flakes: one person&#39;s rate limit through a follower can fail with &#39;the caller reached the limit&#39;</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-20T22:22:15.155Z">2026-11-20T22:22:15.155Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4973" rel="noopener">lab#4973</a></div>
+</article>
+<article class="item" id="issue-4971">
+<h2><span class="tier A">A</span>The first swamp serve host run creates host.yaml in the config dir with reasonable defaults instead of exiting</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-20T22:18:50.989Z">2026-11-20T22:18:50.989Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4971" rel="noopener">lab#4971</a></div>
 </article>
 <article class="item" id="issue-4921">
 <h2><span class="tier A">A</span>A serve host with no host folder creates workspaces in the workspace location</h2>
@@ -133,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4956" rel="noopener">lab#4956</a></div>
 </article>
-<article class="item" id="issue-4960">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4960">
 <h2><span class="tier A">A</span>Flaky test: serve host registry &#39;a repo imported while the host runs is listed stopped...&#39; reads no status file after the workspace already answers stopped</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-20T19:27:29.714Z">2026-11-20T19:27:29.714Z</time></span></div>
@@ -165,7 +197,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4873" rel="noopener">lab#4873</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4840">
+<article class="item" id="issue-4840">
 <h2><span class="tier A">A</span>cfgmgmt firewall (iptables): rule placement with before, after and first</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-11-20T19:25:13.160Z">2026-11-20T19:25:13.160Z</time></span></div>
@@ -4317,34 +4349,18 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
-<article class="item" id="issue-4973">
-<h2><span class="tier B">B</span>serve HTTP action follower test flakes: one person&#39;s rate limit through a follower can fail with &#39;the caller reached the limit&#39;</h2>
+<article class="item" id="issue-4970">
+<h2><span class="tier B">B</span>Remove the serve host&#39;s host folder layout and --host-dir: the host always reads host.yaml from the config dir and serves the registry&#39;s workspaces</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-20T22:01:22.320Z">2026-11-20T22:01:22.320Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-20T22:59:49.150Z">2026-11-20T22:59:49.150Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4973" rel="noopener">lab#4973</a></div>
-</article>
-<article class="item" id="issue-4971">
-<h2><span class="tier B">B</span>The first swamp serve host run creates host.yaml in the config dir with reasonable defaults instead of exiting</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-20T22:00:30.607Z">2026-11-20T22:00:30.607Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4971" rel="noopener">lab#4971</a></div>
-</article>
-<article class="item" id="issue-4967">
-<h2><span class="tier B">B</span>A host-created workspace&#39;s wanted file records the repo it was made for, so a new repo at the same path is never the host&#39;s own</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-20T21:58:18.766Z">2026-11-20T21:58:18.766Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4967" rel="noopener">lab#4967</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4970" rel="noopener">lab#4970</a></div>
 </article>
 <article class="item" id="issue-4958">
 <h2><span class="tier B">B</span>CEL model.&lt;name&gt;.resource loads every latest resource of the behavior, not just the one referenced</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-20T21:52:31.615Z">2026-11-20T21:52:31.615Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-20T22:48:00.257Z">2026-11-20T22:48:00.257Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4958" rel="noopener">lab#4958</a></div>
@@ -4352,18 +4368,18 @@ footer .ver{color:var(--acc)}
 <article class="item" id="issue-4951">
 <h2><span class="tier B">B</span>swamp workspace import silently takes a serve host&#39;s workspace offline when its folder or name is in the host&#39;s workspaces folder</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-20T21:47:17.013Z">2026-11-20T21:47:17.013Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-20T22:45:50.860Z">2026-11-20T22:45:50.860Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4951" rel="noopener">lab#4951</a></div>
 </article>
-<article class="item" id="issue-4970">
-<h2><span class="tier B">B</span>Remove the serve host&#39;s host folder layout and --host-dir: the host always reads host.yaml from the config dir and serves the registry&#39;s workspaces</h2>
+<article class="item" id="issue-4942">
+<h2><span class="tier B">B</span>Bounded-memory access to large resources from behaviors: partial reads and streaming writes</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-20T21:47:16.834Z">2026-11-20T21:47:16.834Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-20T22:37:44.747Z">2026-11-20T22:37:44.747Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4970" rel="noopener">lab#4970</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4942" rel="noopener">lab#4942</a></div>
 </article>
 <article class="item" id="issue-4968">
 <h2><span class="tier B">B</span>stagecraft studio: the default look passes axe and WCAG AA for graphics (journal tick contrast, graph tree ARIA, panel keyboard scroll)</h2>
@@ -4388,14 +4404,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4966" rel="noopener">lab#4966</a></div>
-</article>
-<article class="item" id="issue-4942">
-<h2><span class="tier B">B</span>Bounded-memory access to large resources from behaviors: partial reads and streaming writes</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-20T20:39:38.244Z">2026-11-20T20:39:38.244Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4942" rel="noopener">lab#4942</a></div>
 </article>
 <article class="item" id="issue-4899">
 <h2><span class="tier B">B</span>Team mode: a serve booting with a cold page cache takes 109-122 s to become ready on a real-size datastore (reads about 1 GB)</h2>
@@ -4469,21 +4477,29 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4374" rel="noopener">lab#4374</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4972">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4969">
+<h2><span class="tier C">C</span>ensureReadSet downloads every text resource of a referenced model, not just the instances an expression reads</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-20T22:33:09.544Z">2026-11-20T22:33:09.544Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4969" rel="noopener">lab#4969</a></div>
+</article>
+<article class="item" id="issue-4975">
+<h2><span class="tier C">C</span>A serve host with no root in host.yaml makes its root an ordinary workspace, registered like any other, with serve&#39;s default auth</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-20T22:29:05.582Z">2026-11-20T22:29:05.582Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4975" rel="noopener">lab#4975</a></div>
+</article>
+<article class="item" id="issue-4972">
 <h2><span class="tier C">C</span>Forms submit natively before their island hydrates, reloading the page and wiping what was typed</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-11-20T21:40:37.000Z">2026-11-20T21:40:37.000Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4972" rel="noopener">lab#4972</a></div>
-</article>
-<article class="item" id="issue-4969">
-<h2><span class="tier C">C</span>ensureReadSet downloads every text resource of a referenced model, not just the instances an expression reads</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-20T20:31:23.519Z">2026-11-20T20:31:23.519Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4969" rel="noopener">lab#4969</a></div>
 </article>
 <article class="item" id="issue-4930">
 <h2><span class="tier C">C</span>Scheduled flaky-test detection is failing</h2>
@@ -5742,13 +5758,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>709 items across 1 source(s) in this window:
-3 critical, 528 notable, 19 routine,
-159 minor.</p>
-<ul><li><strong>issues</strong> — 709</li></ul></section>
+<p>711 items across 1 source(s) in this window:
+3 critical, 532 notable, 16 routine,
+160 minor.</p>
+<ul><li><strong>issues</strong> — 711</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-20T22:03:58.422Z">2026-11-20T22:03:58.422Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-20T23:03:22.332Z">2026-11-20T23:03:22.332Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

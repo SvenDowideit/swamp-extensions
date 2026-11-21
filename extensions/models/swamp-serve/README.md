@@ -238,8 +238,8 @@ and one workflow. Methods:
 | Method | Arguments | Purpose |
 | ------ | --------- | ------- |
 | `resolve` | none | Read the Caddy model and derive `swamp.<host FQDN>` / `dashboard.<host FQDN>` from its own A record; writes `topology`. When `caddyModelName` is empty, auto-selects the only installed Caddy, or errors with the exact choice commands. No side effects. |
-| `installBinary` | `version`, `force` | Install swamp when absent (pinned `installVersion`), else report; never overwrites an existing binary unless `force`. |
-| `updateBinary` | none | Run `swamp update`, then restart the service so it execs the new build. |
+| `installBinary` | `version`, `force` | Install swamp when absent (pinned `installVersion`) **at `swampBinPath`**, else report that file's version; never overwrites an existing binary unless `force`. The installer is given `-d <dir of swampBinPath>`, so it cannot fall back to `~/.swamp/bin` and its sudo link. |
+| `updateBinary` | none | Run `swamp update` **as `swampBinPath`** and restart the service so it execs the new build. Refuses when that file is missing rather than updating whatever `swamp` is on PATH. |
 | `configure` | none | Merge the model's options into `.swamp/serve.yaml` (preserving keys it does not own, notably `webhooks` and `triggers`) and validate it with `swamp serve check-config`. |
 | `ensureService` | `restart` | Render the unit (command + OTLP environment) and create/restart it via `@svendowideit/systemd-service`. Degrades to a `hardening`-less `createService` on a systemd-service older than 2026.10.26.1. |
 | `ensureTelemetry` | `endpoint` | Read the settings contract, apply the OTLP environment, restart. Same older-dependency fallback as `ensureService`. |

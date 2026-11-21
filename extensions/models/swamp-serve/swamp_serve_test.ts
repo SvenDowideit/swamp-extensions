@@ -14,6 +14,7 @@ import {
   expandHome,
   extractVersion,
   hostnamesFor,
+  installCommand,
   isUnsupportedHardeningError,
   mergeServeConfig,
   model,
@@ -27,10 +28,12 @@ import {
   renderUnit,
   renderUnitEnvironment,
   resolveCaddyFromContext,
+  runSwamp,
   scalarToYaml,
   shellQuote,
   splitList,
   STACKS_SUPPORTED,
+  swampVersion,
   systemdDefinitionName,
   telemetryEnvDescription,
 } from "./swamp_serve.ts";
@@ -873,4 +876,63 @@ Deno.test("the model exposes a resource for every method", () => {
   ) {
     assertEquals(methods.includes(m), true, `missing method ${m}`);
   }
+});
+
+// ---------------------------------------------------------------------------
+// The binary methods must act on swampBinPath, not on whatever "swamp" is on PATH
+// ---------------------------------------------------------------------------
+
+Deno.test("runSwamp targets the binary it is given", async () => {
+  const seen: string[] = [];
+  await runSwamp(["--version"], "/opt/swamp/bin/swamp", (cmd, args) => {
+    seen.push(`${cmd} ${args.join(" ")}`);
+    return Promise.resolve({ stdout: "swamp 1", stderr: "", code: 0 });
+  });
+  assertEquals(seen, ["/opt/swamp/bin/swamp --version"]);
+});
+
+Deno.test("runSwamp defaults to PATH's swamp", async () => {
+  const seen: string[] = [];
+  await runSwamp(["update", "--json"], undefined, (cmd, args) => {
+    seen.push(`${cmd} ${args.join(" ")}`);
+    return Promise.resolve({ stdout: "", stderr: "", code: 0 });
+  });
+  assertEquals(seen, ["swamp update --json"]);
+});
+
+Deno.test("swampVersion reads the bare version from a specific binary", async () => {
+  const version = await swampVersion("/opt/swamp/bin/swamp", (cmd) => {
+    assertEquals(cmd, "/opt/swamp/bin/swamp");
+    return Promise.resolve({
+      stdout: "swamp 20260101.000000.0-sha.deadbeef\n",
+      stderr: "",
+      code: 0,
+    });
+  });
+  assertEquals(version, "20260101.000000.0-sha.deadbeef");
+});
+
+Deno.test("swampVersion is empty when the binary will not run", async () => {
+  const version = await swampVersion(
+    "/missing/swamp",
+    () => Promise.resolve({ stdout: "", stderr: "no such file", code: 127 }),
+  );
+  assertEquals(version, "");
+});
+
+Deno.test("installCommand pins the destination so the installer cannot fall back", () => {
+  const cmd = installCommand("/home/sven/.local/bin/swamp", "");
+  // install.sh skips the sudo symlink only for destinations outside ~/.swamp/bin,
+  // so the managed directory has to be explicit.
+  assertEquals(cmd.includes("-d /home/sven/.local/bin"), true);
+  assertEquals(cmd.includes("~/.swamp/bin"), false);
+  assertEquals(cmd.includes("-V"), false);
+});
+
+Deno.test("installCommand passes the requested version through", () => {
+  const cmd = installCommand(
+    "/home/sven/.local/bin/swamp",
+    "20260101.000000.0-sha.deadbeef",
+  );
+  assertEquals(cmd.includes("-V 20260101.000000.0-sha.deadbeef"), true);
 });

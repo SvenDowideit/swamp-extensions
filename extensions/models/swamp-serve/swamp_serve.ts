@@ -1383,9 +1383,55 @@ export const runCommand: CommandRunner = async (
 /** Run the swamp CLI binary via the default runner. */
 export function runSwamp(
   args: string[],
+  binary: string = "swamp",
   run: CommandRunner = runCommand,
 ): Promise<{ stdout: string; stderr: string; code: number }> {
-  return run("swamp", args);
+  return run(binary, args);
+}
+
+/** True when the path exists (any file type). */
+export async function pathExists(path: string): Promise<boolean> {
+  try {
+    await Deno.stat(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** `swamp 20260101.000000.0-sha.abc` (or a bare version) to the bare version. */
+export function bareVersion(text: string): string {
+  const line =
+    text.trim().split("\n").map((s) => s.trim()).filter(Boolean).pop() ??
+      "";
+  return line.replace(/^swamp\s+/, "").trim();
+}
+
+/** The version reported by a specific swamp binary ("" when it cannot run). */
+export async function swampVersion(
+  binary: string,
+  run: CommandRunner = runCommand,
+): Promise<string> {
+  return await runSwamp(["--version"], binary, run)
+    .then((r) => r.code === 0 ? bareVersion(r.stdout) : "")
+    .catch(() => "");
+}
+
+/**
+ * The installer command for one binary path. The destination is passed
+ * explicitly (`-d`): left to itself, install.sh picks `~/.<bin>/bin` when
+ * `~/.local/bin` is not on PATH — the usual case under a non-interactive ssh
+ * session — and then tries `sudo ln` into /usr/local/bin, which fails without a
+ * terminal after the binary is already written somewhere else. Pinning `-d` to
+ * the directory of `swampBinPath` keeps the install where the unit will exec it.
+ */
+export function installCommand(binPath: string, version: string): string {
+  const dir = binPath.includes("/")
+    ? binPath.slice(0, binPath.lastIndexOf("/")) || "/"
+    : ".";
+  const args = ["-d", shellQuote(dir)];
+  if (version) args.push("-V", shellQuote(version));
+  return `curl -fsSL ${INSTALL_SH_URL} | sh -s -- ${args.join(" ")}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -1606,7 +1652,7 @@ export function configPathFor(g: ServeGlobals): string {
 /** The swamp model definition for `@svendowideit/swamp-serve`. */
 export const model = {
   type: "@svendowideit/swamp-serve",
-  version: "2026.11.08.2",
+  version: "2026.11.09.1",
   globalArguments: GlobalArgsSchema,
   checks: {
     "valid-config": {
@@ -1739,6 +1785,22 @@ export const model = {
         "serviceHardening control.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.09.1",
+      description:
+        "installBinary and updateBinary now act on `swampBinPath` — the file the " +
+        "systemd unit executes — instead of whatever `swamp` is first on PATH, " +
+        "and they report that file's version. On a host with more than one swamp " +
+        "build (a curl install on PATH plus the serve binary) they previously " +
+        "updated and reported the wrong one while the unit kept exec'ing the " +
+        "other. installBinary also passes `-d <dir of swampBinPath>` to the " +
+        "installer: left to itself install.sh falls back to `~/.swamp/bin` when " +
+        "`~/.local/bin` is not on PATH (always, under a non-interactive ssh) and " +
+        "then tries `sudo ln` into /usr/local/bin, which fails without a terminal " +
+        "after writing the binary elsewhere. updateBinary now refuses when " +
+        "swampBinPath is missing instead of updating a different binary.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     topology: {
@@ -1852,26 +1914,14 @@ export const model = {
         const binPath = expandHome(g.swampBinPath);
         const version = args.version ?? g.installVersion;
 
-        let present = false;
-        try {
-          await Deno.stat(binPath);
-          present = true;
-        } catch {
-          present = false;
-        }
-
-        const current = await runSwamp(["--version"]).then((r) =>
-          r.code === 0 ? r.stdout.trim() : ""
-        ).catch(() => "");
+        const present = await pathExists(binPath);
+        const current = present ? await swampVersion(binPath) : "";
 
         let installed = current;
         if (!present || args.force) {
-          const installArgs = version
-            ? ["-s", "--", "-V", version]
-            : ["-s", "--"];
           const out = await runCommand("sh", [
             "-c",
-            `curl -fsSL ${INSTALL_SH_URL} | sh ${installArgs.join(" ")}`,
+            installCommand(binPath, version),
           ]);
           if (out.code !== 0) {
             throw new Error(
@@ -1880,7 +1930,13 @@ export const model = {
               }`,
             );
           }
-          installed = (await runSwamp(["--version"])).stdout.trim();
+          installed = await swampVersion(binPath);
+          if (!installed) {
+            throw new Error(
+              `the installer ran but ${binPath} did not answer --version: ` +
+                `check that the download completed and that the path is executable`,
+            );
+          }
         }
 
         context.logger?.info(
@@ -1909,9 +1965,17 @@ export const model = {
         context: ResourceContext,
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const g = context.globalArgs;
-        const check = await runSwamp(["update", "--check", "--json"]);
-        const before = extractVersion(check.stdout);
-        const out = await runSwamp(["update", "--json"]);
+        const binPath = expandHome(g.swampBinPath);
+        if (!(await pathExists(binPath))) {
+          throw new Error(
+            `no swamp binary at ${binPath}: run installBinary first, or point ` +
+              `swampBinPath at the binary the service executes`,
+          );
+        }
+        const check = await runSwamp(["update", "--check", "--json"], binPath);
+        const before = extractVersion(check.stdout) ||
+          await swampVersion(binPath);
+        const out = await runSwamp(["update", "--json"], binPath);
         if (out.code !== 0) {
           throw new Error(
             `swamp update failed (exit ${out.code}): ${
@@ -1919,7 +1983,7 @@ export const model = {
             }`,
           );
         }
-        const after = (await runSwamp(["--version"])).stdout.trim();
+        const after = await swampVersion(binPath);
 
         // Restart so the running service picks up the replaced binary.
         let restarted = true;
@@ -1946,7 +2010,7 @@ export const model = {
           },
         );
         const handle = await context.writeResource("binary", "binary", {
-          path: expandHome(g.swampBinPath),
+          path: binPath,
           present: true,
           version: after,
           updated: before !== after,
@@ -2313,7 +2377,7 @@ export const model = {
           `${name}.service`,
         ]);
         const enabled = enabledOut.stdout.trim() === "enabled";
-        const version = (await runSwamp(["--version"])).stdout.trim();
+        const version = await swampVersion(expandHome(g.swampBinPath));
 
         let facts: CaddyFacts | null = null;
         try {

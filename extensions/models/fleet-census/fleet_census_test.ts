@@ -8,6 +8,7 @@
 
 import { assert, assertEquals } from "jsr:@std/assert@1";
 import {
+  applyProbeResults,
   buildFleet,
   buildFreshness,
   buildHost,
@@ -27,6 +28,8 @@ import {
   parseNixStorePath,
   parseScan,
   parseSemver,
+  probeCandidates,
+  renderProbeScript,
   renderScanScript,
   resolveTargets,
   SWAMP_CATALOG,
@@ -1390,4 +1393,113 @@ Deno.test("deriveSite returns null when the CLI gives nothing", async () => {
     await deriveSite(() => Promise.resolve({ code: 1, stdout: "" }), "host-a"),
     null,
   );
+});
+
+// ---------------------------------------------------------------------------
+// Version probes must run on the host that owns the binary
+// ---------------------------------------------------------------------------
+
+/** A software item shaped like the scanner's, with only the fields probes touch. */
+function probeItem(over: Record<string, unknown> = {}) {
+  return {
+    id: "/home/sven/.local/bin/swamp",
+    name: "swamp",
+    identity: { kind: "github", name: "swamp-club/swamp" },
+    version: "",
+    versionSource: "unknown",
+    manager: "none",
+    provenance: "hand-installed",
+    installPath: "/home/sven/.local/bin/swamp",
+    realPath: "/home/sven/.local/bin/swamp",
+    sizeBytes: 1,
+    mtime: "",
+    sha256: "",
+    owner: { class: "manageable", extension: "", command: "", confidence: 0 },
+    evidence: [],
+    flags: ["unknown-version"],
+    bundledWith: "",
+    ...over,
+  };
+}
+
+Deno.test("probeCandidates owes a probe only for a versionless catalogue product", () => {
+  const versioned = probeItem({ version: "1.0.0", versionSource: "cli" });
+  const relative = probeItem({ installPath: "swamp", id: "swamp" });
+  const unknown = probeItem({
+    name: "mystery",
+    identity: { kind: "name", name: "mystery" },
+    installPath: "/opt/mystery",
+    id: "/opt/mystery",
+  });
+  const candidates = probeCandidates([
+    probeItem() as never,
+    versioned as never,
+    relative as never,
+    unknown as never,
+  ]);
+  assertEquals(candidates.length, 1);
+  assertEquals(candidates[0].path, "/home/sven/.local/bin/swamp");
+  assertEquals(candidates[0].args, ["--version"]);
+});
+
+Deno.test("renderProbeScript runs the probe on the host and cannot drift to another path", () => {
+  const script = renderProbeScript(probeCandidates([probeItem() as never]));
+  // the probe must name the host's own path, and the argv is the catalogue's
+  assertEquals(
+    script.includes("'/home/sven/.local/bin/swamp' '--version'"),
+    true,
+  );
+  assertEquals(script.startsWith("#!/bin/sh"), true);
+  // one line per candidate, so a silent binary cannot merge two results
+  assertEquals(script.includes("printf '\\n'"), true);
+});
+
+Deno.test("renderProbeScript is empty when nothing is owed", () => {
+  assertEquals(renderProbeScript([]), "");
+});
+
+Deno.test("applyProbeResults takes the version the host reported", () => {
+  const item = probeItem();
+  const candidates = probeCandidates([item as never]);
+  const out = applyProbeResults(
+    [item] as never,
+    candidates,
+    [
+      "probe\t/home/sven/.local/bin/swamp\tswamp 20261121.085447.0-sha.e52c839b",
+    ].join("\n"),
+  );
+  assertEquals(
+    (out[0] as { version: string }).version,
+    "20261121.085447.0-sha.e52c839b",
+  );
+  assertEquals((out[0] as { versionSource: string }).versionSource, "cli");
+  assertEquals(
+    (out[0] as { flags: string[] }).flags.includes("unknown-version"),
+    false,
+  );
+});
+
+Deno.test("applyProbeResults leaves the version unknown when the host said nothing", () => {
+  const item = probeItem();
+  const candidates = probeCandidates([item as never]);
+  const out = applyProbeResults(
+    [item] as never,
+    candidates,
+    "probe\t/home/sven/.local/bin/swamp\t",
+  );
+  assertEquals((out[0] as { version: string }).version, "");
+  assertEquals((out[0] as { versionSource: string }).versionSource, "unknown");
+});
+
+Deno.test("applyProbeResults ignores a report for a different path", () => {
+  const item = probeItem();
+  const candidates = probeCandidates([item as never]);
+  const out = applyProbeResults(
+    [item] as never,
+    candidates,
+    [
+      "probe\t/opt/elsewhere/swamp\tswamp 20260101.000000.0-sha.deadbeef",
+    ].join("\n"),
+  );
+  assertEquals((out[0] as { version: string }).version, "");
 });

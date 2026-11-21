@@ -64,7 +64,7 @@ Global arguments (`swamp model create … --global-arg k=v`, or `swamp model edi
 | argument | default | meaning |
 |---|---|---|
 | `scanTimeoutSec` | `180` | wall-clock budget; the scanner is killed and the result is marked `truncated` |
-| `execProbe` | `false` | run the **catalogue's own fixed version probes** (e.g. `swamp --version`, `caddy version`) for binaries that carry no version. Never probes discovered data; each probe is a fixed argv in `owners_catalog.ts` |
+| `execProbe` | `false` | run the **catalogue's own fixed version probes** (e.g. `swamp --version`, `caddy version`) for binaries that carry no version — **on the host that owns the binary**, over the same ssh transport as the scan. Never probes discovered data; each probe is a fixed argv in `owners_catalog.ts`. Probing on the orchestrator would read a same-named local file and report the wrong machine's version, so that is never done |
 | `hashMaxBytes` | `33554432` | hash files up to this size for `sha256`; bigger files record an empty hash |
 | `maxItems` | `400` | cap on itemised unowned PATH executables |
 | `extraDirs` | `[]` | extra directories to scan beyond PATH and the known user dirs |

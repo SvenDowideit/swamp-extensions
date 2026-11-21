@@ -1986,6 +1986,103 @@ export async function resolveTargets(
   return out.filter((t) => t.candidates.length > 0);
 }
 
+/** One catalogue probe still owed to a host, with the item it belongs to. */
+export interface ProbeCandidate {
+  item: SoftwareItem;
+  path: string;
+  args: string[];
+  pattern: string;
+}
+
+/**
+ * The catalogue probes a host's items still need: only for a product the
+ * catalogue knows, only when it carries no version yet, and only for an absolute
+ * path. Never derived from discovered data — the argv comes from the catalogue.
+ */
+export function probeCandidates(items: SoftwareItem[]): ProbeCandidate[] {
+  const out: ProbeCandidate[] = [];
+  for (const item of items) {
+    if (item.version !== "") continue;
+    if (!item.installPath.startsWith("/")) continue;
+    const probe = catalogEntryFor(item.name, item.identity.name)?.versionProbe;
+    if (!probe) continue;
+    out.push({
+      item,
+      path: item.installPath,
+      args: probe.args,
+      pattern: probe.pattern,
+    });
+  }
+  return out;
+}
+
+/** Quote one word for POSIX sh. */
+export function shQuoteWord(value: string): string {
+  return `'${value.replace(/'/g, `'\\''`)}'`;
+}
+
+/**
+ * A probe script for the HOST being scanned. Probes have to run where the binary
+ * is: running `<remote path> --version` on the orchestrator reads whatever sits
+ * at that path locally, which is how a host's version used to be reported as the
+ * orchestrator's.
+ */
+export function renderProbeScript(candidates: ProbeCandidate[]): string {
+  if (candidates.length === 0) return "";
+  const lines = [
+    "#!/bin/sh",
+    "# fleet-census version probes — run on THIS host, catalogue-owned argv only",
+    "set -u",
+  ];
+  for (const c of candidates) {
+    const argv = [c.path, ...c.args].map(shQuoteWord).join(" ");
+    // one line per candidate, even when the binary prints nothing
+    lines.push(
+      `printf 'probe\\t%s\\t' ${shQuoteWord(c.path)}`,
+      `( ${argv} 2>/dev/null | head -n 1 ) || true`,
+      `printf '\\n'`,
+    );
+  }
+  return `${lines.join("\n")}\n`;
+}
+
+/**
+ * Apply `probe<TAB>path<TAB>output` lines that came back from a host to that
+ * host's items. An unparsable or missing probe leaves the version unknown, which
+ * is honest.
+ */
+export function applyProbeResults(
+  items: SoftwareItem[],
+  candidates: ProbeCandidate[],
+  stdout: string,
+): SoftwareItem[] {
+  const byPath = new Map<string, string>();
+  for (const line of stdout.split("\n")) {
+    if (!line.startsWith("probe\t")) continue;
+    const parts = line.split("\t");
+    if (parts.length < 2) continue;
+    byPath.set(parts[1], parts[2] ?? "");
+  }
+  for (const candidate of candidates) {
+    const raw = byPath.get(candidate.path);
+    if (raw === undefined) continue;
+    const m = raw.match(new RegExp(candidate.pattern));
+    if (!m) continue;
+    candidate.item.version = m[1].replace(/^v/, "");
+    candidate.item.versionSource = "cli";
+    candidate.item.flags = candidate.item.flags.filter((f) =>
+      f !== "unknown-version"
+    );
+    candidate.item.evidence.push({
+      signal: "version-probe",
+      detail: `${candidate.path} ${candidate.args.join(" ")} -> ${
+        m[1].trim()
+      } (catalogue-owned probe, run on the host)`,
+    });
+  }
+  return items;
+}
+
 /**
  * Fill in versions for binaries that carry none, using ONLY the catalogue's own
  * fixed `versionProbe` (never a probe derived from discovered data), and only
@@ -2071,7 +2168,7 @@ interface MethodContext {
 /** A model that censuses the software this host's OS package manager does not own. */
 export const model = {
   type: "@svendowideit/fleet-census",
-  version: "2026.11.21.3",
+  version: "2026.11.21.5",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -2109,6 +2206,30 @@ export const model = {
         "census.<this host>.<zone>, and refuses to publish at all rather than fall " +
         "back to a placeholder domain. reportHostname/reportBaseDomain defaults " +
         "are empty (derive), not example.com.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.21.4",
+      description:
+        "The sweep workflow carries its own six-hourly trigger again (0 */6 * * *), " +
+        "with no site values: reportHostname/reportBaseDomain default to empty and " +
+        "publish derives them from the installed caddy models. No model behaviour " +
+        "changed; this entry keeps the package and model versions in step.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.21.5",
+      description:
+        "Catalogue version probes now run ON THE HOST being scanned, over the " +
+        "same ssh transport as the scan, instead of on the orchestrator. The old " +
+        "code executed each host's discovered install path locally, so " +
+        "`/home/<user>/.local/bin/swamp --version` on the orchestrator answered " +
+        "for every remote host: a host's swamp version was reported as the " +
+        "orchestrator's (all six hosts showed the same version), and a host that " +
+        "had upgraded still looked old because its own file was never read. " +
+        "Only a catalogue-owned argv is sent, only for an absolute path of a " +
+        "product the catalogue knows, only when execProbe is enabled, and a " +
+        "probe that fails still leaves the version unknown. Additive otherwise.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -2284,7 +2405,31 @@ export const model = {
               uid: Deno.env.get("UID") ?? "",
             });
             if (g.execProbe) {
-              items = await applyVersionProbes(items, localExec());
+              // Probes run on the host that owns the binary. Doing this here
+              // would read this machine's own binary at the remote path and
+              // report the orchestrator's version as the host's.
+              const candidates = probeCandidates(items);
+              const probeScript = renderProbeScript(candidates);
+              if (probeScript !== "") {
+                const probeDest = args.sshUser ? `${args.sshUser}@${via}` : via;
+                const probed = await runRemoteScan(
+                  probeScript,
+                  probeDest,
+                  args.timeoutSec * 1000,
+                );
+                if (probed.code === 0) {
+                  items = applyProbeResults(items, candidates, probed.stdout);
+                } else {
+                  ctx.logger?.warn?.(
+                    "version probes on {host} failed (exit {code}): {error}",
+                    {
+                      host: target.label,
+                      code: probed.code,
+                      error: probed.stderr.trim().slice(0, 200),
+                    },
+                  );
+                }
+              }
             }
             const host = countItems(
               buildHost(records, {

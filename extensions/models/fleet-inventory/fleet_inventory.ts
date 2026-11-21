@@ -86,6 +86,26 @@ const CorrelateArgsSchema = z.object({
   ),
 });
 
+const NetworkArgsSchema = z.object({
+  domains: z.array(z.string()).default([]).describe(
+    'Domains to look a host up in, e.g. ["home.org.au"]. For each host the ' +
+      "model resolves <host>.<domain> and records whether it reaches an address " +
+      "the host reports. Add every domain you use; nothing is hardcoded.",
+  ),
+  discoverDomains: z.boolean().default(true).describe(
+    "Also treat every installed @svendowideit/caddy model's baseDomain as a " +
+      "swamp-managed domain (fi.gy, and any future zone swamp serves), so the " +
+      "index distinguishes swamp DNS from domains swamp does not own.",
+  ),
+  resolveDns: z.boolean().default(true).describe(
+    "Resolve each host's names on the controller (getent) and flag names that " +
+      "do not reach any address the host reports. Costs one lookup per name.",
+  ),
+  dnsTimeoutMs: z.number().int().positive().default(3000).describe(
+    "Per-name DNS timeout.",
+  ),
+});
+
 const ReportArgsSchema = z.object({});
 
 const EnrichArgsSchema = z.object({
@@ -124,6 +144,21 @@ type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
  * `ProbedHostSchema` below) so a raw snapshot never carries fields it cannot
  * fill (which is why `probe` used to show empty deviceClass/vendor/reporting).
  */
+const InterfaceSchema = z.object({
+  /** Interface name as the host reports it (eno4, wlp0s20f3, tailscale0, br-…). */
+  name: z.string(),
+  /** MAC address, or "" for interfaces without one (tailscale, tun). */
+  mac: z.string().default(""),
+  /** Whether the kernel exposes /sys/class/net/<if>/device (a real NIC). */
+  physical: z.boolean().default(false),
+  /** ethernet | wifi | vpn | bridge | virtual | loopback | unknown. */
+  kind: z.string().default("unknown"),
+  /** IPv4 configuration method the host reports (manual/auto/disabled/unknown). */
+  method: z.string().default(""),
+  /** Every address on this interface, CIDR form. */
+  addresses: z.array(z.string()).default([]),
+});
+
 const InventoryHostSchema = z.object({
   /** Primary display name (a hostname when known, else an address). */
   name: z.string(),
@@ -139,6 +174,16 @@ const InventoryHostSchema = z.object({
   addresses: z.array(z.string()).default([]),
   /** All MACs seen for this host (weak aliases). */
   macs: z.array(z.string()).default([]),
+  /** Interfaces this host reported, physical and software-defined. */
+  interfaces: z.array(InterfaceSchema).default([]),
+  /** Address -> static | dhcp | unknown, as the host configures it. */
+  addressKinds: z.record(z.string(), z.string()).default({}),
+  /** DNS search domains the host got from DHCP / its resolver (e.g. home.org.au). */
+  searchDomains: z.array(z.string()).default([]),
+  /** Which candidate (address or name) actually answered the probe, if probed. */
+  reachedVia: z.string().default(""),
+  /** Stored addresses the host itself did not report (stale inventory data). */
+  addressDrift: z.array(z.string()).default([]),
   source: z.string(),
   tier: z.string(),
   os: z.string(),
@@ -181,6 +226,11 @@ const ProbedHostSchema = InventoryHostSchema.pick({
   machineId: true,
   hostnames: true,
   addresses: true,
+  macs: true,
+  interfaces: true,
+  addressKinds: true,
+  searchDomains: true,
+  reachedVia: true,
   source: true,
   tier: true,
   os: true,
@@ -221,6 +271,80 @@ const InventoryOutputSchema = z.object({
   correlatedAt: z.string(),
 });
 
+const NetworkMacSchema = z.object({
+  mac: z.string(),
+  hosts: z.array(z.string()).default([]),
+  interfaces: z.array(z.string()).default([]),
+  firstSeen: z.string().default(""),
+  lastSeen: z.string().default(""),
+  /** True when this MAC has been seen on more than one host (USB NIC, dock). */
+  moved: z.boolean().default(false),
+});
+
+const NetworkAddressSchema = z.object({
+  address: z.string(),
+  host: z.string(),
+  interface: z.string().default(""),
+  /** static | dhcp | dhcp-pinned | dhcp-dynamic | unknown */
+  kind: z.string().default("unknown"),
+  firstSeen: z.string().default(""),
+  lastSeen: z.string().default(""),
+});
+
+const NetworkDnsNameSchema = z.object({
+  /** The domain, or "" for the host's bare name. */
+  domain: z.string().default(""),
+  name: z.string(),
+  swampManaged: z.boolean().default(false),
+  addresses: z.array(z.string()).default([]),
+  /** Whether any resolved address is one the host itself reports. */
+  matchesHost: z.boolean().default(false),
+});
+
+const NetworkHostSchema = z.object({
+  host: z.string(),
+  addresses: z.array(z.string()).default([]),
+  addressDrift: z.array(z.string()).default([]),
+  physicalNics: z.number().default(0),
+  softwareInterfaces: z.number().default(0),
+  dnsNames: z.array(z.string()).default([]),
+  dnsAddresses: z.array(z.string()).default([]),
+  dnsMismatch: z.boolean().default(false),
+  /** One entry per domain (and the bare name) this host was looked up in. */
+  dns: z.array(NetworkDnsNameSchema).default([]),
+});
+
+const NetworkOutputSchema = z.object({
+  hosts: z.array(NetworkHostSchema),
+  domains: z.array(z.object({
+    domain: z.string(),
+    swampManaged: z.boolean().default(false),
+    /** swamp | dhcp | configured */
+    source: z.string().default(""),
+  })).default([]),
+  macs: z.array(NetworkMacSchema),
+  addresses: z.array(NetworkAddressSchema),
+  dnsMismatches: z.array(z.object({
+    host: z.string(),
+    name: z.string(),
+    resolved: z.array(z.string()).default([]),
+    reported: z.array(z.string()).default([]),
+  })).default([]),
+  byKind: z.record(z.string(), z.number()).default({}),
+  summary: z.object({
+    hosts: z.number(),
+    physicalNics: z.number(),
+    softwareInterfaces: z.number(),
+    macs: z.number(),
+    movedMacs: z.number(),
+    dnsMismatches: z.number(),
+    hostsWithDrift: z.number(),
+    hostsWithNoDns: z.number().default(0),
+    staleNames: z.number().default(0),
+  }),
+  generatedAt: z.string(),
+});
+
 const ReportOutputSchema = z.object({
   total: z.number(),
   reporting: z.number(),
@@ -232,6 +356,21 @@ const ReportOutputSchema = z.object({
   byClass: z.record(z.string(), z.number()).default({}),
   /** Explained commands to view the gathered data (also printed by the report). */
   nextCommands: z.string().default(""),
+  /** Network index summary (from the `network` method, when it has run). */
+  physicalNics: z.number().default(0),
+  macs: z.number().default(0),
+  movedMacs: z.number().default(0),
+  dnsMismatches: z.number().default(0),
+  hostsWithDrift: z.number().default(0),
+  byAddressKind: z.record(z.string(), z.number()).default({}),
+  /** Domains the inventory looked hosts up in. */
+  domains: z.array(z.object({
+    domain: z.string(),
+    swampManaged: z.boolean().default(false),
+    source: z.string().default(""),
+  })).default([]),
+  hostsWithNoDns: z.number().default(0),
+  staleNames: z.number().default(0),
   generatedAt: z.string(),
 });
 
@@ -255,6 +394,16 @@ export interface InventoryHost {
   addresses: string[];
   /** All MACs seen for this host (weak aliases). */
   macs: string[];
+  /** Interfaces this host reported, physical and software-defined. */
+  interfaces: Array<z.infer<typeof InterfaceSchema>>;
+  /** Address -> static | dhcp | unknown, as the host configures it. */
+  addressKinds: Record<string, string>;
+  /** DNS search domains the host got from DHCP / its resolver. */
+  searchDomains: string[];
+  /** Which candidate (address or name) answered the probe, when probed. */
+  reachedVia: string;
+  /** Stored addresses the host itself did not report (stale inventory data). */
+  addressDrift: string[];
   /** Where the host was seen (nmap/mdns/manual/scan). */
   source: string;
   /** Device tier (T0–T4). */
@@ -305,6 +454,14 @@ export interface HostInput {
   notes: string;
   /** Whether SSH probing already succeeded for this host (preserved on merge). */
   probed?: boolean;
+  /** Interfaces reported by an SSH probe (physical and software-defined). */
+  interfaces?: Array<z.infer<typeof InterfaceSchema>>;
+  /** DNS search domains reported by the host. */
+  searchDomains?: string[];
+  /** Which candidate (address or name) actually answered the probe. */
+  reachedVia?: string;
+  /** Address -> static | dhcp | unknown. */
+  addressKinds?: Record<string, string>;
   /** When this host was last seen/answered (preserved per host on merge). */
   lastSeen?: string;
 }
@@ -425,6 +582,52 @@ function isStrong(h: HostInput): boolean {
  * hosts that transiently share a MAC (a roaming dock) or an IP (a reused DHCP
  * lease) are NOT glued together.
  */
+/** Union interfaces by name, keeping the richest observation of each. */
+export function mergeInterfaces(
+  all: Array<z.infer<typeof InterfaceSchema>>,
+): Array<z.infer<typeof InterfaceSchema>> {
+  const byName = new Map<string, z.infer<typeof InterfaceSchema>>();
+  for (const i of all) {
+    const prev = byName.get(i.name);
+    if (!prev) {
+      byName.set(i.name, { ...i, addresses: [...new Set(i.addresses)] });
+      continue;
+    }
+    byName.set(i.name, {
+      name: i.name,
+      mac: i.mac || prev.mac,
+      physical: prev.physical || i.physical,
+      // the later observation is the current truth; only fall back when it is
+      // less informative than what we already had
+      kind: i.kind !== "unknown" ? i.kind : prev.kind,
+      method: i.method && i.method !== "unknown" ? i.method : prev.method,
+      addresses: [...new Set([...prev.addresses, ...i.addresses])],
+    });
+  }
+  return [...byName.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Address -> kind map derived from the host's own interface configuration. */
+export function addressKindsOf(
+  interfaces: Array<z.infer<typeof InterfaceSchema>>,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const i of interfaces) {
+    const kind = addressKindFor(i.method);
+    for (const a of i.addresses) {
+      const addr = a.split("/")[0];
+      // loopback and IPv6 link-local never identify a host across the fleet
+      if (
+        addr.startsWith("127.") || addr === "::1" || addr.startsWith("fe80:")
+      ) {
+        continue;
+      }
+      out[addr] = kind;
+    }
+  }
+  return out;
+}
+
 export function mergeHosts(
   hosts: HostInput[],
   timestamp: string,
@@ -506,7 +709,19 @@ export function mergeHosts(
       machineId,
       hostnames: names,
       addresses,
-      macs,
+      macs: uniq([
+        ...macs,
+        ...hs.flatMap((h) => h.interfaces ?? []).map((i) => i.mac),
+      ]),
+      interfaces: mergeInterfaces(hs.flatMap((h) => h.interfaces ?? [])),
+      addressKinds: Object.assign(
+        {},
+        ...hs.map((h) => h.addressKinds ?? {}),
+        addressKindsOf(hs.flatMap((h) => h.interfaces ?? [])),
+      ),
+      addressDrift: [],
+      searchDomains: uniq(hs.flatMap((h) => h.searchDomains ?? [])),
+      reachedVia: pick(hs.map((h) => h.reachedVia ?? "")),
       source: sources.join("+"),
       tier: pick(hs.map((h) => h.tier)),
       os: pick(hs.map((h) => h.os)),
@@ -553,31 +768,136 @@ export function inferTier(
  */
 export function parseProbeFacts(output: string): {
   hostname: string;
+  fqdn: string;
   machineId: string;
   os: string;
   docker: boolean;
   isContainer: boolean;
   memTotalMiB?: number;
   immutable: boolean;
+  defaultRoute: string;
+  searchDomains: string[];
+  interfaces: Array<z.infer<typeof InterfaceSchema>>;
 } {
-  const map = new Map<string, string>();
+  // Repeated keys are lists (`iface=`/`addrline=`), so the map keeps every value
+  // and the scalar accessors take the first.
+  const map = new Map<string, string[]>();
   for (const line of output.split("\n")) {
     const eq = line.indexOf("=");
     if (eq <= 0) continue;
-    map.set(line.slice(0, eq).trim(), line.slice(eq + 1).trim());
+    const key = line.slice(0, eq).trim();
+    const value = line.slice(eq + 1).trim();
+    const list = map.get(key) ?? [];
+    list.push(value);
+    map.set(key, list);
   }
-  const mem = map.get("mem_total_mib");
+  const one = (k: string): string => map.get(k)?.[0] ?? "";
+
+  // iface=<name>|<mac>|<physical 0/1>|<kind>|<method>|<lease 0/1>
+  // addrline=<name>|<cidr>|<dynamic 0/1>
+  const dynamicByNameHint = new Map<string, boolean>();
+  const searchDomains = new Set<string>();
+  const byName = new Map<string, z.infer<typeof InterfaceSchema>>();
+  const defaultRoute = one("default_route");
+  const defaultRouteProto = one("default_route_proto").toLowerCase();
+  for (const line of map.get("iface") ?? []) {
+    const [name, mac, physical, kind, method, lease, dom] = line.split("|");
+    if (!name) continue;
+    if (lease === "1") dynamicByNameHint.set(name, true);
+    if (dom) {
+      for (const d of dom.split(/[\s,]+/)) {
+        if (d.includes(".")) searchDomains.add(d.trim().toLowerCase());
+      }
+    }
+    byName.set(name, {
+      name,
+      mac: mac && mac !== "-" ? mac.toLowerCase() : "",
+      physical: physical === "1",
+      kind: kind || "unknown",
+      method: method || "",
+      addresses: [],
+    });
+  }
+  const dynamicByName = new Map<string, boolean>(dynamicByNameHint);
+  for (const line of map.get("addrline") ?? []) {
+    const [name, cidr, dynamic] = line.split("|");
+    if (!name || !cidr) continue;
+    const iface = byName.get(name) ??
+      {
+        name,
+        mac: "",
+        physical: false,
+        kind: "unknown",
+        method: "",
+        addresses: [],
+      };
+    iface.addresses.push(cidr);
+    byName.set(name, iface);
+    if (dynamic === "1") dynamicByName.set(name, true);
+    else if (!dynamicByName.has(name)) dynamicByName.set(name, false);
+  }
+  // The kernel marks a DHCP-assigned address `dynamic`; that is a better signal
+  // than an optional nmcli. Only fill `method` when nmcli said nothing useful.
+  for (const name of byName.keys()) {
+    if (!dynamicByName.has(name)) dynamicByName.set(name, false);
+  }
+  if (defaultRoute && defaultRouteProto === "dhcp") {
+    dynamicByName.set(defaultRoute, true);
+  }
+  for (const [name, dyn] of dynamicByName) {
+    const iface = byName.get(name);
+    if (!iface) continue;
+    if (iface.method === "" || iface.method === "unknown") {
+      iface.method = dyn ? "auto" : iface.addresses.length > 0 ? "manual" : "";
+    }
+  }
+
+  for (const d of one("search_domain").split(/[\s,]+/)) {
+    if (d.includes(".")) searchDomains.add(d.trim().toLowerCase());
+  }
+
+  const mem = one("mem_total_mib");
   return {
-    hostname: map.get("hostname") ?? "",
-    machineId: map.get("machine_id") ?? "",
-    os: map.get("os") ?? "",
-    docker: map.get("docker") === "1" || map.get("docker") === "true",
-    isContainer: map.get("container") === "1" ||
-      map.get("container") === "true",
+    hostname: one("hostname"),
+    fqdn: one("fqdn"),
+    machineId: one("machine_id"),
+    os: one("os"),
+    docker: one("docker") === "1" || one("docker") === "true",
+    isContainer: one("container") === "1" || one("container") === "true",
     memTotalMiB: mem ? Number.parseInt(mem, 10) : undefined,
-    immutable: map.get("immutable") === "1" ||
-      map.get("immutable") === "true",
+    immutable: one("immutable") === "1" || one("immutable") === "true",
+    defaultRoute: one("default_route"),
+    searchDomains: [...searchDomains],
+    interfaces: [...byName.values()],
   };
+}
+
+/** Classify an interface from the facts a host reports (used when a host omits `kind`). */
+export function interfaceKind(
+  name: string,
+  physical: boolean,
+  wireless: boolean,
+): string {
+  if (name === "lo") return "loopback";
+  if (/^(tailscale|wg|netbird|zt|tun|tap)/.test(name)) return "vpn";
+  if (/^(docker|br-|veth|virbr|podman|cni|cali|flannel)/.test(name)) {
+    return "bridge";
+  }
+  if (wireless) return "wifi";
+  if (physical) return "ethernet";
+  return "virtual";
+}
+
+/** Address kind from the host's IPv4 configuration method. */
+export function addressKindFor(method: string): string {
+  const m = method.trim().toLowerCase();
+  if (m === "" || m === "unknown") return "unknown";
+  if (m.startsWith("manual") || m === "static") return "static";
+  if (m.startsWith("auto") || m.startsWith("dhcp")) return "dhcp";
+  if (m.startsWith("disabled") || m === "link-local" || m === "shared") {
+    return "unknown";
+  }
+  return "unknown";
 }
 
 /**
@@ -593,8 +913,30 @@ export function correlate(
   return hosts.map((h) => {
     const isReporting = reporting.has(h.name.toLowerCase()) ||
       reporting.has(h.address.toLowerCase());
+    // The host is the source of truth for its own addresses. Anything the
+    // inventory still believes that the host did not report is drift — which is
+    // how a stale record (a fixed IP that moved, a NIC that went away) is found.
+    const reported = new Set(
+      (h.interfaces ?? []).flatMap((i) =>
+        i.addresses.map((a) => a.split("/")[0])
+      ),
+    );
+    const addressDrift = reported.size === 0
+      ? []
+      : [...new Set((h.addresses ?? []).filter((a) => a && !reported.has(a)))];
     return {
       ...h,
+      addresses: [
+        ...new Set([
+          ...(h.addresses ?? []),
+          ...[...reported],
+        ]),
+      ].filter(Boolean),
+      addressKinds: {
+        ...addressKindsOf(h.interfaces ?? []),
+        ...(h.addressKinds ?? {}),
+      },
+      addressDrift,
       reporting: isReporting,
       silent: !isReporting,
       lastSeen: timestamp,
@@ -684,7 +1026,594 @@ export function renderProbeCommand(): string {
     "esac",
     'echo "docker=$(command -v docker >/dev/null 2>&1 && echo 1 || echo 0)"',
     'echo "container=$([ -f /.dockerenv ] && echo 1 || echo 0)"',
+    // The DNS search domain is usually DHCP-supplied: it names the zone the
+    // router registers hosts in (home.org.au), which is exactly the domain a
+    // fleet wants to look hosts up in. Read it from the resolver, not config.
+    "echo \"search_domain=$(sed -n 's/^search[[:space:]]*//p' /etc/resolv.conf 2>/dev/null | head -1)\"",
+    // Network truth: every interface with its MAC, whether the kernel knows a
+    // real device behind it, its kind, and how IPv4 is configured; plus every
+    // address, so the inventory can tell static from DHCP and detect a MAC that
+    // moves between hosts (USB NIC, docking station).
+    'echo "fqdn=$(hostname -f 2>/dev/null || uname -n)"',
+    "def=$(ip route show default 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i==\"dev\"){print $(i+1); exit}}')",
+    'echo "default_route=$def"',
+    "defproto=$(ip route show default 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i==\"proto\"){print $(i+1); exit}}')",
+    'echo "default_route_proto=$defproto"',
+    "if command -v ip >/dev/null 2>&1; then",
+    '  ip -o addr show 2>/dev/null | awk \'{for(i=1;i<=NF;i++) if($i=="inet"||$i=="inet6") printf "addrline=%s|%s\\n", $2, $(i+1)}\'',
+    "  ip -o link show 2>/dev/null | awk -F': ' '{print $2}' | cut -d@ -f1 | while read -r ifc; do",
+    '    [ -n "$ifc" ] || continue',
+    '    mac=$(ip -o link show dev "$ifc" 2>/dev/null | awk \'{for(i=1;i<=NF;i++) if($i=="link/ether"||$i=="link/loopback"){print $(i+1);exit}}\')',
+    '    phys=0; [ -e "/sys/class/net/$ifc/device" ] && phys=1',
+    '    wireless=0; [ -d "/sys/class/net/$ifc/wireless" ] && wireless=1',
+    "    kind=unknown",
+    '    case "$ifc" in',
+    "      lo) kind=loopback ;;",
+    "      tailscale*|wg*|netbird*|zt*|tun*|tap*) kind=vpn ;;",
+    "      docker*|br-*|veth*|virbr*|podman*|cni*|cali*|flannel*) kind=bridge ;;",
+    '      *) if [ "$wireless" = 1 ]; then kind=wifi; elif [ "$phys" = 1 ]; then kind=ethernet; else kind=virtual; fi ;;',
+    "    esac",
+    "    method=unknown",
+    "    if command -v nmcli >/dev/null 2>&1; then",
+    '      m=$(nmcli -t -f IP4.METHOD device show "$ifc" 2>/dev/null | head -1 | cut -d: -f2)',
+    '      [ -n "$m" ] && method="$m"',
+    "    fi",
+    "    lease=0",
+    "    if [ -d /run/systemd/netif/leases ]; then",
+    '      idx=$(cat "/sys/class/net/$ifc/ifindex" 2>/dev/null)',
+    '      [ -n "$idx" ] && [ -e "/run/systemd/netif/leases/$idx" ] && lease=1',
+    "    fi",
+    '    dom=""',
+    "    if command -v nmcli >/dev/null 2>&1; then",
+    '      dom=$(nmcli -t -f IP4.DOMAIN device show "$ifc" 2>/dev/null | head -1 | cut -d: -f2)',
+    "    fi",
+    '    if [ -z "$dom" ] && command -v resolvectl >/dev/null 2>&1; then',
+    '      dom=$(resolvectl domain "$ifc" 2>/dev/null | tr " " "\\n" | grep -m1 "\\." )',
+    "    fi",
+    '    echo "iface=$ifc|$mac|$phys|$kind|$method|$lease|$dom"',
+    "  done",
+    "fi",
   ].join("\n");
+}
+
+// ---------------------------------------------------------------------------
+// Address / MAC / DNS index
+// ---------------------------------------------------------------------------
+
+export interface NetworkMac {
+  mac: string;
+  hosts: string[];
+  interfaces: string[];
+  firstSeen: string;
+  lastSeen: string;
+  moved: boolean;
+}
+
+export interface NetworkAddress {
+  address: string;
+  host: string;
+  interface: string;
+  kind: string;
+  firstSeen: string;
+  lastSeen: string;
+}
+
+export interface NetworkDnsEntry {
+  domain: string;
+  name: string;
+  swampManaged: boolean;
+  addresses: string[];
+  matchesHost: boolean;
+}
+
+export interface NetworkHostEntry {
+  host: string;
+  addresses: string[];
+  addressDrift: string[];
+  physicalNics: number;
+  softwareInterfaces: number;
+  dnsNames: string[];
+  dnsAddresses: string[];
+  dnsMismatch: boolean;
+  dns: NetworkDnsEntry[];
+}
+
+/** The subset of the `network` resource the report reads. */
+interface NetworkIndexData {
+  summary: {
+    physicalNics: number;
+    macs: number;
+    movedMacs: number;
+    dnsMismatches: number;
+    hostsWithDrift: number;
+    hostsWithNoDns?: number;
+    staleNames?: number;
+  };
+  byKind: Record<string, number>;
+  domains?: Array<{ domain: string; swampManaged: boolean; source: string }>;
+}
+
+export interface DnsMismatch {
+  host: string;
+  name: string;
+  resolved: string[];
+  reported: string[];
+}
+
+/**
+ * Build the address/MAC/DNS index from the inventory plus the previous index.
+ *
+ * Address kinds are three-state and evidence-based:
+ *   - `static`        the host configures the address manually;
+ *   - `dhcp-pinned`   DHCP, and this host had the same address last sweep (a
+ *                     reservation or a long lease);
+ *   - `dhcp-dynamic`  DHCP, and the host's address changed since the last sweep;
+ *   - `dhcp`          DHCP, first time seen (not enough history to say yet).
+ *
+ * A MAC seen on more than one host (`moved`) is the docking-station / USB-NIC
+ * signal: the interface travels, the machine does not.
+ */
+export function buildNetwork(
+  hosts: InventoryHost[],
+  previous: { macs?: NetworkMac[]; addresses?: NetworkAddress[] } | null,
+  opts: {
+    timestamp: string;
+    dns?: Record<string, string[]>;
+    domains?: Array<{ domain: string; swampManaged: boolean; source: string }>;
+  },
+): {
+  hosts: NetworkHostEntry[];
+  domains: Array<{ domain: string; swampManaged: boolean; source: string }>;
+  macs: NetworkMac[];
+  addresses: NetworkAddress[];
+  dnsMismatches: DnsMismatch[];
+  byKind: Record<string, number>;
+  summary: {
+    hosts: number;
+    physicalNics: number;
+    softwareInterfaces: number;
+    macs: number;
+    movedMacs: number;
+    dnsMismatches: number;
+    hostsWithDrift: number;
+    hostsWithNoDns: number;
+    staleNames: number;
+  };
+} {
+  const ts = opts.timestamp;
+  const prevMacs = new Map((previous?.macs ?? []).map((m) => [m.mac, m]));
+  const prevAddr = new Map(
+    (previous?.addresses ?? []).map((a) => [`${a.host}\u0000${a.address}`, a]),
+  );
+  const prevHostAddrs = new Map<string, Set<string>>();
+  for (const a of previous?.addresses ?? []) {
+    const set = prevHostAddrs.get(a.host) ?? new Set<string>();
+    set.add(a.address);
+    prevHostAddrs.set(a.host, set);
+  }
+
+  const domains = opts.domains ?? [];
+  const macs = new Map<string, NetworkMac>();
+  const addresses = new Map<string, NetworkAddress>();
+  const hostEntries: NetworkHostEntry[] = [];
+  const dnsMismatches: DnsMismatch[] = [];
+
+  for (const h of hosts) {
+    const host = h.name || h.address;
+    const ifaces = h.interfaces ?? [];
+    const reported = new Set(
+      ifaces.flatMap((i) => i.addresses.map((a) => a.split("/")[0])),
+    );
+    const names = [
+      ...new Set([
+        h.name,
+        ...(h.hostnames ?? []),
+      ]),
+    ].filter((n) => n && !isIpAddress(n));
+    const resolved: string[] = [];
+    for (const n of names) {
+      // A host's own name resolving to loopback (a hosts-file entry) says
+      // nothing about the network; only routable answers can disagree.
+      const found = (opts.dns?.[n] ?? []).filter((a) =>
+        !a.startsWith("127.") && a !== "::1"
+      );
+      if (found.length === 0) continue;
+      resolved.push(...found);
+      if (reported.size > 0 && !found.some((a) => reported.has(a))) {
+        dnsMismatches.push({
+          host,
+          name: n,
+          resolved: [...new Set(found)],
+          reported: [...reported],
+        });
+      }
+    }
+
+    for (const iface of ifaces) {
+      // loopback is not a NIC and its all-zero MAC is on every host
+      if (iface.kind === "loopback") continue;
+      if (iface.mac && iface.mac !== "00:00:00:00:00:00") {
+        const prev = macs.get(iface.mac) ?? prevMacs.get(iface.mac);
+        const hostsSeen = [...new Set([...(prev?.hosts ?? []), host])];
+        macs.set(iface.mac, {
+          mac: iface.mac,
+          hosts: hostsSeen,
+          interfaces: [...new Set([...(prev?.interfaces ?? []), iface.name])],
+          firstSeen: prev?.firstSeen || ts,
+          lastSeen: ts,
+          moved: hostsSeen.length > 1,
+        });
+      }
+      for (const cidr of iface.addresses) {
+        const addr = cidr.split("/")[0];
+        // loopback and IPv6 link-local never identify a host across the fleet
+        if (
+          addr.startsWith("127.") || addr === "::1" || addr.startsWith("fe80:")
+        ) {
+          continue;
+        }
+        const base = addressKindFor(iface.method);
+        let kind = base;
+        // Pinned vs dynamic is a lease question, so it only makes sense for IPv4:
+        // an IPv6 privacy address rotates by design and would otherwise read as a
+        // "dynamic lease" on every sweep.
+        if (base === "dhcp" && !addr.includes(":")) {
+          const sameBefore = prevAddr.has(`${host}\u0000${addr}`);
+          const hadOther = [...(prevHostAddrs.get(host) ?? [])].some((a) =>
+            a !== addr
+          );
+          kind = sameBefore
+            ? "dhcp-pinned"
+            : hadOther
+            ? "dhcp-dynamic"
+            : "dhcp";
+        }
+        if (base === "unknown" && reported.has(addr)) kind = "unknown";
+        const prevEntry = prevAddr.get(`${host}\u0000${addr}`);
+        addresses.set(`${host}\u0000${addr}`, {
+          address: addr,
+          host,
+          interface: iface.name,
+          kind,
+          firstSeen: prevEntry?.firstSeen || ts,
+          lastSeen: ts,
+        });
+      }
+    }
+
+    hostEntries.push({
+      host,
+      addresses: [...reported].sort(),
+      addressDrift: h.addressDrift ?? [],
+      physicalNics: ifaces.filter((i) =>
+        i.physical && i.kind !== "vpn" && i.name !== "lo"
+      )
+        .length,
+      softwareInterfaces: ifaces.filter((i) =>
+        ["bridge", "vpn", "virtual"].includes(i.kind) ||
+        (!i.physical && i.kind !== "loopback")
+      ).length,
+      dnsNames: names,
+      dnsAddresses: [...new Set(resolved)].sort(),
+      dnsMismatch: dnsMismatches.some((m) => m.host === host),
+      dns: dnsEntriesFor(h, domains, opts.dns ?? {}, reported),
+    });
+  }
+
+  // MACs that were not seen this sweep keep their lastSeen, so a dock that is
+  // currently unplugged is still remembered — but the all-zero loopback MAC and
+  // loopback-only entries are never identity, and older indexes may still carry
+  // them, so they are dropped rather than inherited.
+  const IGNORED_MAC = "00:00:00:00:00:00";
+  for (const [mac, prev] of prevMacs) {
+    if (mac === IGNORED_MAC) continue;
+    if (
+      prev.interfaces.length > 0 && prev.interfaces.every((i) => i === "lo")
+    ) {
+      continue;
+    }
+    if (!macs.has(mac)) macs.set(mac, prev);
+  }
+  for (const [key, prev] of prevAddr) {
+    const addr = prev.address;
+    if (addr.startsWith("127.") || addr === "::1" || addr.startsWith("fe80:")) {
+      continue;
+    }
+    if (!addresses.has(key)) addresses.set(key, prev);
+  }
+
+  const byKind: Record<string, number> = {};
+  for (const a of addresses.values()) {
+    byKind[a.kind] = (byKind[a.kind] ?? 0) + 1;
+  }
+  const macList = [...macs.values()]
+    .filter((m) => m.mac !== IGNORED_MAC)
+    .sort((a, b) => a.mac.localeCompare(b.mac));
+  return {
+    hosts: hostEntries.sort((a, b) => a.host.localeCompare(b.host)),
+    macs: macList,
+    addresses: [...addresses.values()].sort((a, b) =>
+      `${a.host}${a.address}`.localeCompare(`${b.host}${b.address}`)
+    ),
+    dnsMismatches,
+    byKind,
+    summary: {
+      hosts: hostEntries.length,
+      physicalNics: hostEntries.reduce((n, h) => n + h.physicalNics, 0),
+      softwareInterfaces: hostEntries.reduce(
+        (n, h) => n + h.softwareInterfaces,
+        0,
+      ),
+      macs: macList.length,
+      movedMacs: macList.filter((m) => m.moved).length,
+      dnsMismatches: dnsMismatches.length,
+      hostsWithDrift: hostEntries.filter((h) => h.addressDrift.length > 0)
+        .length,
+      hostsWithNoDns:
+        hostEntries.filter((h) => h.dns.every((d) => d.addresses.length === 0))
+          .length,
+      staleNames: hostEntries.reduce(
+        (n, h) =>
+          n +
+          h.dns.filter((d) => d.addresses.length > 0 && !d.matchesHost).length,
+        0,
+      ),
+    },
+    domains,
+  };
+}
+
+/**
+ * The names a host answers on, per domain.
+ *
+ * A host is looked up as `<host>.<domain>` for every configured domain (skipped
+ * when the name already ends with that domain) plus its bare name. Each answer
+ * is kept with whether it reaches an address the host itself reports, so a name
+ * that points somewhere else — or a domain that has no record for the host —
+ * is data, not a silent absence.
+ */
+export function dnsEntriesFor(
+  h: InventoryHost,
+  domains: Array<{ domain: string; swampManaged: boolean; source: string }>,
+  dns: Record<string, string[]>,
+  reported: Set<string>,
+): NetworkDnsEntry[] {
+  const entries: NetworkDnsEntry[] = [];
+  // "does DNS agree with this host?" is judged against everything the inventory
+  // knows about it — this run's interfaces plus addresses seen earlier — so an
+  // unprobed host is unverified, not stale.
+  const known = new Set([...reported, ...(h.addresses ?? [])]);
+  const bare = [
+    ...new Set([
+      h.name,
+      ...(h.hostnames ?? []),
+    ]),
+  ].filter((n) => n && !isIpAddress(n));
+  const seen = new Set<string>();
+  const add = (domain: string, name: string, swampManaged: boolean) => {
+    const key = `${domain}\u0000${name}`;
+    if (!name || seen.has(key)) return;
+    seen.add(key);
+    const addresses = (dns[name] ?? []).filter((a) =>
+      !a.startsWith("127.") && a !== "::1"
+    );
+    entries.push({
+      domain,
+      name,
+      swampManaged,
+      addresses: [...new Set(addresses)].sort(),
+      matchesHost: addresses.some((a) => known.has(a)),
+    });
+  };
+  for (const name of bare) add("", name, false);
+  // Only a SHORT name is qualified with a domain: appending ".fi.gy" to an
+  // already-qualified "host.home.org.au" produces a name nobody has.
+  const shortNames = bare.filter((n) => !n.includes("."));
+  for (const d of domains) {
+    for (const name of shortNames) {
+      add(d.domain, `${name}.${d.domain}`, d.swampManaged);
+    }
+  }
+  return entries;
+}
+
+/**
+ * The domains to look hosts up in.
+ *
+ * Configured domains come from the call. With `discover`, every installed
+ * @svendowideit/caddy model's `baseDomain` is added as a SWAMP-MANAGED domain —
+ * that is the zone swamp itself serves DNS and TLS for (fi.gy today, another
+ * zone tomorrow), as opposed to a domain swamp has no say in (home.org.au).
+ * Discovery is best-effort: no swamp CLI (a worker, a bare host) just means only
+ * the configured domains are used.
+ */
+async function collectDomains(
+  configured: string[],
+  discover: boolean,
+  hostDomains: string[],
+  _dnsTimeoutMs: number,
+): Promise<Array<{ domain: string; swampManaged: boolean; source: string }>> {
+  const out = new Map<
+    string,
+    { domain: string; swampManaged: boolean; source: string }
+  >();
+  for (const d of configured) {
+    const domain = d.trim().replace(/^\./, "").toLowerCase();
+    if (domain) {
+      out.set(domain, { domain, swampManaged: false, source: "configured" });
+    }
+  }
+  // Domains the hosts themselves report (the DHCP/ resolver search domain) need
+  // no configuration: home.org.au arrives with the lease.
+  for (const d of hostDomains) {
+    const domain = d.trim().replace(/^\./, "").toLowerCase();
+    if (!domain || domain === "local" || !domain.includes(".")) continue;
+    const prev = out.get(domain);
+    if (!prev) out.set(domain, { domain, swampManaged: false, source: "dhcp" });
+  }
+  if (!discover) return collapseDomains([...out.values()]);
+
+  // `swamp` is usually NOT on PATH inside a method process (it is when you run
+  // the command yourself), so ask the running binary where it is.
+  let swampBin = "swamp";
+  try {
+    const exe = Deno.execPath();
+    if (exe && !/\/(deno|swamp-worker)$/.test(exe)) swampBin = exe;
+  } catch {
+    // keep the PATH lookup
+  }
+  // `swamp behavior list --json` is a megabyte of JSON and takes seconds in-process;
+  // do not tie its budget to the DNS timeout.
+  const CLI_TIMEOUT_MS = 20_000;
+  const run = async (args: string[]): Promise<string> => {
+    try {
+      // through the swamp CLI (no in-process API for model globals); argv is
+      // literals only.
+      // swamp-quality-ignore deno-command: reads the caddy models' baseDomain
+      const child = new Deno.Command(swampBin, {
+        args,
+        stdout: "piped",
+        stderr: "piped",
+      }).spawn();
+      const timer = setTimeout(() => {
+        try {
+          child.kill("SIGKILL");
+        } catch {
+          // already gone
+        }
+      }, CLI_TIMEOUT_MS);
+      const res = await child.output();
+      clearTimeout(timer);
+      if (res.code !== 0) {
+        console.warn(
+          `fleet-inventory: ${args.join(" ")} exited ${res.code}: ${
+            new TextDecoder().decode(res.stderr).slice(0, 200)
+          }`,
+        );
+        return "";
+      }
+      return new TextDecoder().decode(res.stdout);
+    } catch (err) {
+      console.warn(
+        `fleet-inventory: could not run ${args.join(" ")} (${swampBin}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      return "";
+    }
+  };
+
+  const listRaw = await run(["behavior", "list", "--json"]);
+  if (!listRaw) {
+    console.warn(
+      "fleet-inventory: domain discovery skipped (no swamp CLI output)",
+    );
+    return collapseDomains([...out.values()]);
+  }
+  let names: string[] = [];
+  try {
+    const parsed = JSON.parse(listRaw);
+    const list = Array.isArray(parsed) ? parsed : (parsed.results ?? []);
+    names = list
+      .filter((m: { type?: string }) => m.type === "@svendowideit/caddy")
+      .map((m: { name?: string }) => String(m.name ?? ""))
+      .filter((n: string) => n !== "");
+  } catch {
+    return collapseDomains([...out.values()]);
+  }
+  console.warn(
+    `fleet-inventory: domain discovery found ${names.length} caddy model(s)`,
+  );
+  for (const name of names) {
+    const raw = await run(["behavior", "get", name, "--json"]);
+    if (!raw) continue;
+    try {
+      const model = JSON.parse(raw);
+      const domain = String(model?.globalArguments?.baseDomain ?? "").trim()
+        .replace(/^\./, "").toLowerCase();
+      if (!domain) continue;
+      out.set(domain, { domain, swampManaged: true, source: "swamp" });
+    } catch {
+      // unreadable model: ignore
+    }
+  }
+  return collapseDomains([...out.values()]);
+}
+
+/**
+ * Drop a domain that is a subdomain of another one in the set.
+ *
+ * Caddy models use `fi.gy` and also `eieio.fi.gy` / `otel.fi.gy` as their base
+ * domains; looking hosts up as `<host>.eieio.fi.gy` would be noise, so only the
+ * widest zone is kept.
+ */
+export function collapseDomains(
+  domains: Array<{ domain: string; swampManaged: boolean; source: string }>,
+): Array<{ domain: string; swampManaged: boolean; source: string }> {
+  const rank = (d: { swampManaged: boolean; source: string }): number =>
+    d.swampManaged || d.source === "swamp" ? 3 : d.source === "dhcp" ? 2 : 1;
+  const sorted = [...domains].sort((a, b) => a.domain.length - b.domain.length);
+  const kept: Array<{ domain: string; swampManaged: boolean; source: string }> =
+    [];
+  for (const d of sorted) {
+    const parent = kept.find((k) =>
+      d.domain === k.domain || d.domain.endsWith(`.${k.domain}`)
+    );
+    if (parent) {
+      // the widest zone wins, and it inherits the strongest provenance seen
+      if (rank(d) > rank(parent)) {
+        parent.swampManaged = d.swampManaged || parent.swampManaged;
+        parent.source = d.source;
+      }
+      continue;
+    }
+    kept.push({ ...d, source: d.source ?? "" });
+  }
+  return kept;
+}
+
+/** Resolve names on the controller (best-effort; empty on failure). */
+async function resolveNames(
+  names: string[],
+  timeoutMs: number,
+): Promise<Record<string, string[]>> {
+  const out: Record<string, string[]> = {};
+  const todo = [...new Set(names.filter((n) => n && !isIpAddress(n)))];
+  await mapWithConcurrency(todo, 8, async (name) => {
+    try {
+      // resolver; the argv is a hostname the model already validated as a name.
+      // swamp-quality-ignore deno-command: DNS resolution through the host's own
+      const child = new Deno.Command("getent", {
+        args: ["ahostsv4", name],
+        stdout: "piped",
+        stderr: "null",
+      }).spawn();
+      const timer = setTimeout(() => {
+        try {
+          child.kill("SIGKILL");
+        } catch {
+          // already gone
+        }
+      }, timeoutMs);
+      const res = await child.output();
+      clearTimeout(timer);
+      if (res.code !== 0) {
+        out[name] = [];
+        return;
+      }
+      const text = new TextDecoder().decode(res.stdout);
+      out[name] = [
+        ...new Set(
+          text.split("\n").map((l) => l.trim().split(/\s+/)[0]).filter(
+            isIpAddress,
+          ),
+        ),
+      ];
+    } catch {
+      out[name] = [];
+    }
+  });
+  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -694,7 +1623,7 @@ export function renderProbeCommand(): string {
 /** The swamp model definition for `@svendowideit/fleet-inventory`. */
 export const model = {
   type: "@svendowideit/fleet-inventory",
-  version: "2026.10.03.3",
+  version: "2026.11.21.1",
   globalArguments: GlobalArgsSchema,
   checks: {
     "valid-config": {
@@ -726,31 +1655,38 @@ export const model = {
     {
       toVersion: "2026.10.02.1",
       description:
-        "Fixes a set of bugs found while running a real /20 sweep. (1) Resources were all written under the instance name 'current', so every read-back returned nothing and specs overwrote each other; each spec now writes under its own instance name (discovery/probe/inventory/report), which fixes accumulation and the downstream reads. (2) discover now ACCUMULATES over the previous discovery (it replaced it each run), so repeated/chunked scans build one inventory. (3) expandCidr no longer caps at 1024 — maxHosts (default 0) scans the whole CIDR, the CIDR is normalised to its network address, and the result reports truncated. (4) The scan no longer leaks file descriptors (timed-out connects are aborted via AbortSignal). (5) probe with no hosts probes every inventoried host and runs with bounded parallelism. (6) correlate preserves the probed flag and probe facts. (7) inferTier honours defaultTier. (8) report reads the inventory RESOURCE, falling back to disk. Default scan ports are now [22,80,443]. Schema is additive (discover gains truncated/maxHosts).",
+        "Fixes a set of bugs found while running a real /20 sweep. (1) Resources were all written under the instance name 'current', so every read-back returned nothing and specs overwrote each other; each spec now writes under its own instance name (discovery/probe/inventory/report), which fixes accumulation and the downstream reads. (2) discover now ACCUMULATES over the previous discovery (it replaced it each run), so" +
+        "repeated/chunked scans build one inventory. (3) expandCidr no longer caps at 1024 — maxHosts (default 0) scans the whole CIDR, the CIDR is normalised to its network address, and the result reports truncated. (4) The scan no longer leaks file descriptors (timed-out connects are aborted via AbortSignal). (5) probe with no hosts probes every inventoried host and runs with bounded parallelism. (6) correlate preserves the" +
+        "probed flag and probe facts. (7) inferTier honours defaultTier. (8) report reads the inventory RESOURCE, falling back to disk. Default scan ports are now [22,80,443]. Schema is additive (discover gains truncated/maxHosts).",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
       toVersion: "2026.10.02.2",
       description:
-        "Host identity is now machine-based, fixing scan/probe double-counting and multi-homed hosts. Each host record gains machineId (Linux /etc/machine-id, Windows MachineGuid, macOS IOPlatformUUID — strongest key), plus alias sets hostnames[], addresses[], macs[]. mergeHosts uses union-find with precedence machine-id > hostname > address/MAC: machine-id matches always merge; same hostname merges unless two different machine ids; address/MAC merge only when at least one record is anonymous, so a scan's IP-only hit joins the host that probed it, while two named hosts sharing a transient IP (DHCP) or MAC (roaming dock) are NOT glued together. One record accumulates all of a machine's addresses, so wifi+wired are one host. probe records machineId first-class. Verified live: a /20 scan + probe now correlates to 47 machines (was 55/53 double-counted). Schema is additive (new fields default).",
+        "Host identity is now machine-based, fixing scan/probe double-counting and multi-homed hosts. Each host record gains machineId (Linux /etc/machine-id, Windows MachineGuid, macOS IOPlatformUUID — strongest key), plus alias sets hostnames[], addresses[], macs[]. mergeHosts uses union-find with precedence machine-id > hostname > address/MAC: machine-id matches always merge; same hostname merges unless two different" +
+        "machine ids; address/MAC merge only when at least one record is anonymous, so a scan's IP-only hit joins the host that probed it, while two named hosts sharing a transient IP (DHCP) or MAC (roaming dock) are NOT glued together. One record accumulates all of a machine's addresses, so wifi+wired are one host. probe records machineId first-class. Verified live: a /20 scan + probe now correlates to 47 machines (was 55/53" +
+        "double-counted). Schema is additive (new fields default).",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
       toVersion: "2026.10.02.3",
       description:
-        "probe now ACCUMULATES across runs (it replaced the probed set each time, so re-probing a subset reset the resource). The `probe` resource gains `attempted` (machines targeted this run) and `known` (cumulative probed machines); `probed` is this run's successful-machine count. Counts are now per distinct MACHINE, not per target address, so a multi-homed host that answered twice counts once (previously 15 address successes read as 15 when only 7 machines were probed). README/manifest now explain that omitting `hosts` probes every inventoried host and how to read the cumulative set. Schema is additive.",
+        "probe now ACCUMULATES across runs (it replaced the probed set each time, so re-probing a subset reset the resource). The `probe` resource gains `attempted` (machines targeted this run) and `known` (cumulative probed machines); `probed` is this run's successful-machine count. Counts are now per distinct MACHINE, not per target address, so a multi-homed host that answered twice counts once (previously 15 address" +
+        "successes read as 15 when only 7 machines were probed). README/manifest now explain that omitting `hosts` probes every inventoried host and how to read the cumulative set. Schema is additive.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
       toVersion: "2026.10.02.4",
       description:
-        "probe (no hosts) now SKIPS hosts that already probed successfully, so a repeated run does not re-SSH known-good machines; new `refresh=true` input forces a full re-probe. Hosts that previously FAILED are still retried (they may have come online). Each host keeps its own `lastSeen` (most-recent contact) instead of the whole set sharing the run timestamp. The run log now spells out attempted/probed/skipped/known and explains why a run may probe 0 successfully. The `probe` resource gains `skipped`. Schema is additive.",
+        "probe (no hosts) now SKIPS hosts that already probed successfully, so a repeated run does not re-SSH known-good machines; new `refresh=true` input forces a full re-probe. Hosts that previously FAILED are still retried (they may have come online). Each host keeps its own `lastSeen` (most-recent contact) instead of the whole set sharing the run timestamp. The run log now spells out attempted/probed/skipped/known and" +
+        "explains why a run may probe 0 successfully. The `probe` resource gains `skipped`. Schema is additive.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
       toVersion: "2026.10.02.5",
       description:
-        "The probe script is now portable across Linux and macOS (was Linux-only). macOS hosts have no /etc/machine-id, so the probe reads their IOPlatformUUID via `ioreg` (fast; `system_profiler` fallback) and total memory via `hw.memsize`; Linux keeps /etc/machine-id / /etc/os-release / /proc/meminfo. `hostname` uses `uname -n`. `os` is the Linux os-release ID (e.g. debian) or `darwin` on macOS. Verified against a real macOS host: it now reports a stable machine id and merges by identity instead of only by name. No schema or argument changes.",
+        "The probe script is now portable across Linux and macOS (was Linux-only). macOS hosts have no /etc/machine-id, so the probe reads their IOPlatformUUID via `ioreg` (fast; `system_profiler` fallback) and total memory via `hw.memsize`; Linux keeps /etc/machine-id / /etc/os-release / /proc/meminfo. `hostname` uses `uname -n`. `os` is the Linux os-release ID (e.g. debian) or `darwin` on macOS. Verified against a real" +
+        "macOS host: it now reports a stable machine id and merges by identity instead of only by name. No schema or argument changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
@@ -774,13 +1710,30 @@ export const model = {
     {
       toVersion: "2026.10.03.2",
       description:
-        "Each step now records only the fields it actually fills: `discover` writes observed hosts (name/address/mac(s)/hostnames/addresses/source/tier/os/lastSeen) and `probe` writes probed hosts (name/address/machineId/hostnames/addresses/source/tier/os/probed/lastSeen) — so a raw snapshot no longer shows consistently-empty deviceClass/vendor/reporting/silent fields that only `inventory` fills. Adds a workflow-scope report `@svendowideit/fleet-inventory-report`, printed at the end of a sweep: a summary (hosts, tiers, OS, device classes) plus explained commands to view the data. The `report` resource gains `byClass` and `nextCommands`. Schema change to discovery/probe host shapes (breaking for a consumer reading those exact keys, but the extension is unpublished).",
+        "Each step now records only the fields it actually fills: `discover` writes observed hosts (name/address/mac(s)/hostnames/addresses/source/tier/os/lastSeen) and `probe` writes probed hosts (name/address/machineId/hostnames/addresses/source/tier/os/probed/lastSeen) — so a raw snapshot no longer shows consistently-empty deviceClass/vendor/reporting/silent fields that only `inventory` fills. Adds a workflow-scope report" +
+        "`@svendowideit/fleet-inventory-report`, printed at the end of a sweep: a summary (hosts, tiers, OS, device classes) plus explained commands to view the data. The `report` resource gains `byClass` and `nextCommands`. Schema change to discovery/probe host shapes (breaking for a consumer reading those exact keys, but the extension is unpublished).",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
     {
       toVersion: "2026.10.03.3",
       description:
         "The end-of-sweep summary now fits one screen (~16 lines, was ~52): breakdowns are compact one-liners and the view commands are a terse, commented block inside a fenced code block, so renderers keep them verbatim instead of reflowing the comments into a blank-line-separated mess. Also drops the now-redundant 'report search' line. Content only; no schema change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.21.1",
+      description:
+        "Network awareness. probe now records every interface with its MAC, " +
+        "whether the kernel exposes a real device behind it (/sys/class/net/<if>/device), " +
+        "its kind (ethernet/wifi/vpn/bridge/virtual/loopback), the IPv4 configuration " +
+        "method (nmcli, when present) and every address; plus the FQDN and the default-route " +
+        "interface. Host records gain interfaces[], addressKinds{} and addressDrift[]; " +
+        "correlate fills drift (a stored address the host itself does not report — the stale " +
+        "record that makes a host look silent) and derives address kinds. New method `network` " +
+        "builds a cross-sweep index: addresses classified static / dhcp-pinned / dhcp-dynamic, " +
+        "MACs that appear on more than one host (a USB NIC or docking station that moves), " +
+        "physical NIC counts vs software-defined interfaces, and DNS names that resolve away " +
+        "from the addresses the host reports. report gains those counts. Schema is additive.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -800,6 +1753,13 @@ export const model = {
     inventory: {
       description: "Correlated fleet inventory",
       schema: InventoryOutputSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    network: {
+      description:
+        "Address/MAC/DNS index: static vs DHCP (pinned/dynamic), MACs that move between hosts, physical vs software interfaces, DNS mismatches, address drift",
+      schema: NetworkOutputSchema,
       lifetime: "infinite",
       garbageCollection: 10,
     },
@@ -922,6 +1882,39 @@ export const model = {
         // work. `refresh=true` forces a full re-probe.
         let targets = args.hosts;
         let skipped = 0;
+        // Every candidate for a host: the addresses the inventory knows, then the
+        // names. A name that resolves somewhere else (a stale tailnet record) must
+        // not make a reachable host look down — try them all and record which won.
+        const candidatesFor = (
+          h: Partial<InventoryHost>,
+          fallback: string,
+        ): string[] => {
+          const addrs = [h.address ?? "", ...(h.addresses ?? [])].filter((a) =>
+            a && isIpAddress(a)
+          );
+          const names = [h.name ?? "", ...(h.hostnames ?? [])].filter((n) =>
+            n && !isIpAddress(n)
+          );
+          return [...new Set([...addrs, ...names, fallback])].filter(Boolean);
+        };
+        const knownHosts = new Map<string, Partial<InventoryHost>>();
+        for (
+          const h of [
+            ...(await readPrevious(context, "discovery")),
+            ...(await readPrevious(context, "inventory")),
+          ]
+        ) {
+          for (
+            const k of [
+              h.name,
+              h.address,
+              ...(h.addresses ?? []),
+              ...(h.hostnames ?? []),
+            ]
+          ) {
+            if (k) knownHosts.set(k.toLowerCase(), h);
+          }
+        }
         if (targets.length === 0) {
           const discovered = await readPrevious(context, "discovery");
           const inventory = await readPrevious(context, "inventory");
@@ -937,7 +1930,12 @@ export const model = {
           const seen = new Set<string>();
           targets = [];
           for (const h of [...discovered, ...inventory]) {
-            const t = h.name || h.address || "";
+            // Probe a KNOWN ADDRESS before a name: DNS for a short name is
+            // often stale (xeon resolved to a dead A record while its real
+            // address answered), and a silently failing name is exactly the
+            // "host went quiet" false positive this model exists to avoid.
+            const addr = (h.address || (h.addresses ?? [])[0] || "").trim();
+            const t = (isIpAddress(addr) ? addr : "") || h.name || addr;
             if (!t || seen.has(t)) continue;
             seen.add(t);
             if (!args.refresh && probedOk.has(t.toLowerCase())) {
@@ -954,7 +1952,12 @@ export const model = {
           targets,
           16,
           async (target) => {
-            const facts = await sshProbe(target, user, args.timeoutMs);
+            const candidates = candidatesFor(
+              knownHosts.get(target.toLowerCase()) ?? {},
+              target,
+            );
+            const probe = await sshProbe(candidates, user, args.timeoutMs);
+            const facts = probe?.facts ?? null;
             // Record the probed hostname and address together, and the machine
             // id as first-class identity (not buried in notes) so it can merge
             // the scan's IP-only record with this named host.
@@ -963,11 +1966,20 @@ export const model = {
             return {
               name: hostname || target,
               address: isIp ? target : "",
-              mac: "",
+              mac: facts?.interfaces?.find((i) => i.mac)?.mac ?? "",
               machineId: facts?.machineId ?? "",
-              hostnames: hostname ? [hostname] : [],
+              hostnames: [hostname, facts?.fqdn ?? ""].filter(
+                (v, i, a) => v !== "" && a.indexOf(v) === i,
+              ),
               addresses: isIp ? [target] : [],
-              macs: [],
+              macs: (facts?.interfaces ?? []).map((i) => i.mac).filter((m) =>
+                m !== ""
+              ),
+              interfaces: facts?.interfaces ?? [],
+              addressKinds: addressKindsOf(facts?.interfaces ?? []),
+              searchDomains: facts?.searchDomains ?? [],
+              reachedVia: probe?.via ?? "",
+              addressDrift: [],
               source: "probe",
               tier: facts ? inferTier(facts, g.defaultTier) : g.defaultTier,
               os: facts?.os ?? "",
@@ -1062,6 +2074,14 @@ export const model = {
         const withReporting = correlate(merged, args.reportingHosts, timestamp);
         const silent = withReporting.filter((h) => h.silent).map((h) => h.name);
 
+        // byClass is part of the inventory schema; populate it here too so a
+        // correlate after an earlier enrich does not drop the classes on read.
+        const byClass: Record<string, number> = {};
+        for (const h of withReporting) {
+          if (h.deviceClass) {
+            byClass[h.deviceClass] = (byClass[h.deviceClass] ?? 0) + 1;
+          }
+        }
         const payload = {
           hosts: withReporting,
           total: withReporting.length,
@@ -1069,6 +2089,7 @@ export const model = {
           silent,
           byTier: tally(withReporting, "tier"),
           byOs: tally(withReporting, "os"),
+          byClass,
           correlatedAt: timestamp,
         };
         await writeInventory(context.globalArgs.outputDir, payload);
@@ -1096,6 +2117,123 @@ export const model = {
           "inventory",
           payload,
         );
+        return { dataHandles: [handle] };
+      },
+    },
+
+    network: {
+      description:
+        "Build the address/MAC/DNS index: static vs DHCP, MACs that move between hosts, physical vs software interfaces, DNS mismatches, address drift",
+      arguments: NetworkArgsSchema,
+      execute: async (
+        args: z.infer<typeof NetworkArgsSchema>,
+        context: {
+          globalArgs: GlobalArgs;
+          logger?: {
+            info: (msg: string, props?: Record<string, unknown>) => void;
+          };
+          readResource?: (name: string) => Promise<unknown>;
+          writeResource: (
+            specName: string,
+            name: string,
+            data: Record<string, unknown>,
+          ) => Promise<{ name: string }>;
+        },
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const timestamp = new Date().toISOString();
+        // Prefer the inventory resource; fall back to the on-disk copy.
+        let hosts: InventoryHost[] = [];
+        try {
+          const stored = await context.readResource?.("inventory") as
+            | { hosts?: InventoryHost[] }
+            | null;
+          if (stored?.hosts) hosts = stored.hosts;
+        } catch {
+          // fall through to disk
+        }
+        if (hosts.length === 0) {
+          hosts = (await readInventory(context.globalArgs.outputDir))?.hosts ??
+            [];
+        }
+        // The previous index is the history this method needs: it is what turns
+        // "dhcp" into "pinned" (same address again) or "dynamic" (it moved), and
+        // what remembers a MAC that is currently unplugged.
+        let previous:
+          | { macs?: NetworkMac[]; addresses?: NetworkAddress[] }
+          | null = null;
+        try {
+          previous = await context.readResource?.("network") as
+            | { macs?: NetworkMac[]; addresses?: NetworkAddress[] }
+            | null;
+        } catch {
+          // first run
+        }
+
+        const hostDomains = [
+          ...new Set(
+            hosts.flatMap((h) => h.searchDomains ?? []),
+          ),
+        ];
+        const domains = await collectDomains(
+          args.domains,
+          args.discoverDomains,
+          hostDomains,
+          args.dnsTimeoutMs,
+        );
+        // Every host is looked up bare and in each domain, so the index can say
+        // which names reach it and which domains have no record for it at all.
+        const bare = [
+          ...new Set(
+            hosts.flatMap((h) => [h.name, ...(h.hostnames ?? [])])
+              .filter((n) => n && !isIpAddress(n)),
+          ),
+        ];
+        const candidates = [
+          ...new Set(
+            bare.flatMap((n) => [
+              n,
+              ...domains
+                .filter((d) => !n.endsWith(`.${d.domain}`))
+                .map((d) => `${n}.${d.domain}`),
+            ]),
+          ),
+        ];
+        const dns = args.resolveDns
+          ? await resolveNames(candidates, args.dnsTimeoutMs)
+          : {};
+        const index = buildNetwork(hosts, previous, {
+          timestamp,
+          dns,
+          domains,
+        });
+
+        context.logger?.info(
+          "Network index: {hosts} host(s), {macs} MAC(s) ({moved} seen on more than one host), " +
+            "{nics} physical NIC(s), {soft} software interface(s), address kinds {kinds}, " +
+            "{dns} DNS mismatch(es), {stale} stale name(s), {nodns} host(s) with no DNS, " +
+            "{drift} host(s) with address drift, domains {domains}",
+          {
+            hosts: index.summary.hosts,
+            macs: index.summary.macs,
+            moved: index.summary.movedMacs,
+            nics: index.summary.physicalNics,
+            soft: index.summary.softwareInterfaces,
+            kinds: JSON.stringify(index.byKind),
+            dns: index.summary.dnsMismatches,
+            stale: index.summary.staleNames,
+            nodns: index.summary.hostsWithNoDns,
+            drift: index.summary.hostsWithDrift,
+            domains:
+              domains.map((d) =>
+                `${d.domain}${d.swampManaged ? " (swamp)" : ""}`
+              )
+                .join(", ") || "none",
+          },
+        );
+        const handle = await context.writeResource("network", "network", {
+          ...index,
+          generatedAt: timestamp,
+        });
         return { dataHandles: [handle] };
       },
     },
@@ -1140,6 +2278,15 @@ export const model = {
             byClass[h.deviceClass] = (byClass[h.deviceClass] ?? 0) + 1;
           }
         }
+        // Network facts, when the `network` method has run.
+        let net: NetworkIndexData | null = null;
+        try {
+          net = await context.readResource?.("network") as
+            | NetworkIndexData
+            | null;
+        } catch {
+          // not built yet
+        }
         const handle = await context.writeResource("report", "report", {
           total,
           reporting,
@@ -1148,6 +2295,15 @@ export const model = {
           byTier: tally(hosts, "tier"),
           byOs: tally(hosts, "os"),
           byClass,
+          physicalNics: net?.summary?.physicalNics ?? 0,
+          macs: net?.summary?.macs ?? 0,
+          movedMacs: net?.summary?.movedMacs ?? 0,
+          dnsMismatches: net?.summary?.dnsMismatches ?? 0,
+          hostsWithDrift: net?.summary?.hostsWithDrift ?? 0,
+          byAddressKind: net?.byKind ?? {},
+          domains: net?.domains ?? [],
+          hostsWithNoDns: net?.summary?.hostsWithNoDns ?? 0,
+          staleNames: net?.summary?.staleNames ?? 0,
           nextCommands: renderNextCommands(),
           generatedAt: timestamp,
         });
@@ -1275,6 +2431,10 @@ function projectProbed(h: InventoryHost): Record<string, unknown> {
     machineId: h.machineId,
     hostnames: h.hostnames,
     addresses: h.addresses,
+    interfaces: h.interfaces,
+    addressKinds: h.addressKinds,
+    searchDomains: h.searchDomains,
+    reachedVia: h.reachedVia,
     source: h.source,
     tier: h.tier,
     os: h.os,
@@ -1318,6 +2478,10 @@ function toInput(
     machineId: h.machineId ?? "",
     hostnames: h.hostnames ?? [],
     addresses: h.addresses ?? [],
+    interfaces: h.interfaces ?? [],
+    addressKinds: h.addressKinds ?? {},
+    searchDomains: h.searchDomains ?? [],
+    reachedVia: h.reachedVia ?? "",
     source: h.source || source,
     tier: h.tier ?? "",
     os: h.os ?? "",
@@ -1439,12 +2603,26 @@ function scanHosts(
 
 /** SSH into a host and run the probe script, returning facts or null. */
 async function sshProbe(
+  candidates: string[],
+  user: string,
+  timeoutMs: number,
+): Promise<{ facts: ReturnType<typeof parseProbeFacts>; via: string } | null> {
+  for (const target of candidates) {
+    const facts = await sshProbeOne(target, user, timeoutMs);
+    if (facts) return { facts, via: target };
+  }
+  return null;
+}
+
+async function sshProbeOne(
   target: string,
   user: string,
   timeoutMs: number,
 ): Promise<ReturnType<typeof parseProbeFacts> | null> {
   const dest = user ? `${user}@${target}` : target;
   try {
+    // fleet prober); fixed options plus a validated user@host, no shell.
+    // swamp-quality-ignore deno-command: SSH is this model's transport (it is the
     const proc = new Deno.Command("ssh", {
       args: [
         "-o",

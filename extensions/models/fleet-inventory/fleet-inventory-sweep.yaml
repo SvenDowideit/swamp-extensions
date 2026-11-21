@@ -44,6 +44,24 @@ inputs:
       type: string
       default: "sven"
       description: SSH user for probe
+    domains:
+      type: array
+      items:
+        type: string
+      default: []
+      description: Domains to look every host up in (e.g. [home.org.au]). Domains
+        swamp serves DNS for are added automatically from the installed caddy
+        models.
+    discoverDomains:
+      type: boolean
+      default: true
+      description: Treat each @svendowideit/caddy model's baseDomain as a
+        swamp-managed domain
+    resolveDns:
+      type: boolean
+      default: true
+      description: Resolve each host's names and flag DNS that disagrees with the
+        addresses the host reports (network step)
     probeTimeoutMs:
       type: integer
       default: 3000
@@ -121,15 +139,36 @@ jobs:
         weight: 0
         allowFailure: true
 
+      - name: network
+        description: Build the address/MAC/DNS index — static vs DHCP, MACs that
+          move between hosts, physical vs software interfaces, DNS mismatches and
+          address drift. Reads the inventory and the previous index, so run it
+          after every correlate.
+        task:
+          type: model_method
+          modelType: "@svendowideit/fleet-inventory"
+          modelName: fleet
+          methodName: network
+          inputs:
+            domains: ${{ inputs.domains }}
+            discoverDomains: ${{ inputs.discoverDomains }}
+            resolveDns: ${{ inputs.resolveDns }}
+        dependsOn:
+          - step: enrich
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: true
+
       - name: report
-        description: Write the coverage report (total, tiers, OS, device classes).
+        description: Write the coverage report (total, tiers, OS, device classes, network facts).
         task:
           type: model_method
           modelType: "@svendowideit/fleet-inventory"
           modelName: fleet
           methodName: report
         dependsOn:
-          - step: enrich
+          - step: network
             condition:
               type: completed
         weight: 0

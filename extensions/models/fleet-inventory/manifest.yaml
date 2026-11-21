@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/fleet-inventory"
-version: "2026.10.03.3"
+version: "2026.11.21.1"
 description: >
   A live inventory of the machines on a network — and which of them have gone
   silent.
@@ -19,6 +19,20 @@ description: >
     an on-disk inventory.json another model can read; generic, it makes no
     assumptions about your network beyond the CIDR/user you pass.
 
+    It is also the network's memory. Each probe records every interface with its
+    MAC, whether the kernel exposes a real device behind it, its kind
+    (ethernet/wifi/vpn/bridge/virtual/loopback), how IPv4 is configured and every
+    address it holds; the `network` method turns that into a cross-sweep index:
+    addresses classified static / DHCP-pinned / DHCP-dynamic, MACs that appear on
+    more than one host (a USB NIC or docking station that moves), physical NICs
+    counted apart from software-defined interfaces, DNS names that resolve away
+    from what the host reports, and stored addresses the host no longer has —
+    which is how the stale record that makes a host look silent is found. The
+    domains it looks hosts up in are discovered rather than configured: the zones
+    swamp itself serves (from the installed caddy models) and the DHCP/resolver
+    search domains the hosts report (lan.example.net, the tailnet zone), each host
+    recording which names reach it and in which domain.
+
   INSTALL
 
       swamp extension pull @svendowideit/fleet-inventory
@@ -34,7 +48,7 @@ description: >
       # enrich -> report. Auto-creates its models; leave cidr empty to reuse what
       # is already discovered (pass a different cidr to ADD a range — discover
       # accumulates). Needs @svendowideit/device-fingerprint (a declared dep).
-      swamp workflow run @svendowideit/fleet-inventory-sweep --input cidr=10.10.0.0/20
+      swamp workflow run @svendowideit/fleet-inventory-sweep --input cidr=198.51.100.0/24
 
       # The individual methods, if you want finer control.
       #
@@ -43,7 +57,7 @@ description: >
         --global-arg sshUser=root
 
       # Scan a subnet and merge any feeds from nmap/mDNS models.
-      swamp model method run fleet discover --input cidr=192.168.1.0/24
+      swamp model method run fleet discover --input cidr=192.0.2.0/24
 
       # Probe the inventoried hosts over SSH for facts. With no `hosts` input,
       # this probes EVERY host discover found — the usual step after a scan.
@@ -51,7 +65,7 @@ description: >
 
       # Probe only specific hosts (e.g. to re-probe a few) by passing `hosts`.
       # Results accumulate: a run updates these hosts and leaves the rest.
-      swamp model method run fleet probe --input 'hosts:json=["core.otel.fi.gy"]'
+      swamp model method run fleet probe --input 'hosts:json=["core.example.com"]'
 
       # See the cumulative probed set (not just the last run).
       swamp data get fleet probe --json | jq '.content.hosts[] | select(.probed) | {name, machineId, addresses, tier}'
@@ -61,7 +75,7 @@ description: >
       # @svendowideit/device-fingerprint or @svendowideit/mdns. Adds deviceClass
       # and vendor to the inventory.
       swamp model method run fleet enrich \
-        --input 'fingerprints:json=[{"host":"10.10.10.1","deviceClass":"unifi","vendor":"Ubiquiti"}]'
+        --input 'fingerprints:json=[{"host":"192.0.2.1","deviceClass":"unifi","vendor":"Ubiquiti"}]'
 
       # Correlate: merge discovery+probe into the inventory, and mark hosts
       # absent from `reportingHosts` as silent. This ALWAYS builds the inventory,
@@ -70,13 +84,26 @@ description: >
       # (no store is running yet). Until then, pass reportingHosts by hand to
       # test; with none, every host reads silent.
       swamp model method run fleet correlate \
-        --input 'reportingHosts:json=["core.otel.fi.gy"]'
+        --input 'reportingHosts:json=["core.example.com"]'
 
       # Report: summaries the inventory (total, reporting, silent, coverage %,
       # by tier/OS). Also waits on the Phase 1 backend feed for a MEANINGFUL
       # coverage/silent number — without a reporting set, coverage is 0% and
       # everything is silent. The tier/OS tallies are useful now.
       swamp model method run fleet report
+
+    # Look every host up in your own domains too (swamp-served zones such as
+    # swamp.example.com are discovered from the installed caddy models automatically). Each
+    # host then records which names reach it, in which domain, and which name
+    # resolves somewhere else.
+    swamp model method run fleet network --input 'domains:json=["lan.example.net"]'
+
+    # Turn the probed interfaces into the address/MAC/DNS index: static vs DHCP,
+    # MACs that move between hosts, physical vs software interfaces, DNS drift.
+    swamp model method run fleet network
+
+    # Read it: which addresses are pinned, which move, which MAC travelled.
+    swamp data get fleet network --json | jq '.content.summary'
 
   CONFIGURE
 

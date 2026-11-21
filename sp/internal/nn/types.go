@@ -131,7 +131,8 @@ type GroupSpec struct {
 	ID     string `yaml:"id"`
 	Title  string `yaml:"title"`
 	Parent string `yaml:"parent"`
-	// Kind selects the loader: data | objects | runs.
+	// Kind selects the loader: data | objects | runs | runhistory |
+	// methods | methodhistory.
 	Kind string `yaml:"kind"`
 
 	// data loader
@@ -145,6 +146,9 @@ type GroupSpec struct {
 
 	// runs loader
 	Workflow string `yaml:"workflow"`
+
+	// method runs loader: the model instance and method this group runs
+	Method string `yaml:"method"`
 
 	// Item projection: field paths only.
 	IDField  string   `yaml:"id"`

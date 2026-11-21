@@ -18,6 +18,7 @@ go build -o nn ./cmd/nn
 ./nn --group news        # start in a group instead of the overview
 ./nn --check             # load every group, print a summary, exit (nncheck)
 ./nn --group runs:workflows/@svendowideit/news-fetch --check   # one history + its schema
+./nn --group runs:methods/gtd.capture --check                  # a method's history + schema
 ```
 
 `nn --check` is the `nncheck` of this suite: it answers "is my config right and
@@ -46,6 +47,21 @@ Run form: `tab`/`↑↓` field · `space` toggle a boolean · `enter` edit · `c
 restore the last run's inputs · `ctrl+s` run · `=` cancel.
 
 Live run: `q` detach (it keeps running) · `x` cancel · `j/k` scroll · `=` menu.
+
+## Runnables
+
+Two groups, one grammar:
+
+- `runs:workflows` — one row per workflow. `space` opens its history: a pinned
+  `+ run this workflow…` row, then the last 50 runs.
+- `runs:methods` — one row per *model instance × method* (950 rows here), so
+  narrow it with `/` first: `/gtd`, `/capture`. `space` opens the same history
+  plus `+ run <method>`.
+
+`+ run` opens a form generated from the declared arguments; `ctrl+s` runs it and
+switches to a live view. Workflows run with `workflow.run`, methods with
+`model.method.run` — the payload shapes come from the serve protocol, not from
+guessing.
 
 ## Reading a menu line
 

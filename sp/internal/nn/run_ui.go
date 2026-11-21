@@ -16,21 +16,33 @@ func (m *Model) cursorItem() *Item {
 	return items[m.cursor]
 }
 
+// targetFromItem reads what a "+ run" row would run.
+func targetFromItem(it *Item) runTarget {
+	if it == nil {
+		return runTarget{}
+	}
+	if w := scalar(it.Raw["workflow"]); w != "" {
+		return runTarget{Kind: "workflow", Workflow: w}
+	}
+	model, method := scalar(it.Raw["model"]), scalar(it.Raw["method"])
+	if model != "" && method != "" {
+		return runTarget{Kind: "method", Model: model, Method: method}
+	}
+	return runTarget{}
+}
+
 // openForm opens the run form for a "+ run" item.
 func (m *Model) openForm(it *Item) (tea.Model, tea.Cmd) {
-	if it == nil {
-		return m, nil
-	}
-	workflow := scalar(it.Raw["workflow"])
-	if workflow == "" {
-		m.status = "this item has no workflow to run"
+	target := targetFromItem(it)
+	if target.Title() == "" {
+		m.status = "this row has nothing to run"
 		return m, nil
 	}
 	if errMsg := scalar(it.Raw["inputError"]); errMsg != "" {
 		m.status = "cannot read inputs: " + errMsg
 		return m, nil
 	}
-	m.form = newForm(workflow, it.Raw["inputs"], m.store.LastInputs(workflow))
+	m.form = newForm(target, it.Raw["inputs"], m.store.LastInputs(target.Key()))
 	m.mode = modeForm
 	m.status = ""
 	return m, nil
@@ -92,7 +104,7 @@ func (m *Model) handleFormKey(key string) (tea.Model, tea.Cmd) {
 			f.editing = true
 		}
 	case "ctrl+r":
-		f.restore(m.store.LastInputs(f.workflow))
+		f.restore(m.store.LastInputs(f.target.Key()))
 	case "ctrl+s":
 		inputs, err := f.submitValues()
 		if err != nil {
@@ -100,30 +112,42 @@ func (m *Model) handleFormKey(key string) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		f.err = ""
-		m.store.SetLastInputs(f.workflow, inputs)
-		return m, m.startRun(f.workflow, inputs)
+		m.store.SetLastInputs(f.target.Key(), inputs)
+		return m, m.startRun(f.target, inputs)
 	}
 	return m, nil
 }
 
-// startRun launches a workflow run and switches to the live item UI.
-func (m *Model) startRun(workflow string, inputs map[string]any) tea.Cmd {
+// startRun launches a workflow or a method run and switches to the live item UI.
+func (m *Model) startRun(target runTarget, inputs map[string]any) tea.Cmd {
 	api := m.runAPI
 	if api == nil {
-		m.status = "no run client: cannot start workflows"
+		m.status = "no run client: cannot start runs"
 		return nil
 	}
-	m.live = newLive(workflow)
-	m.form = nil
-	m.mode = modeLive
-	m.status = ""
-
-	payload := map[string]any{"workflowIdOrName": workflow, "skipAllReports": true}
+	reqType := swamp.ReqWorkflowRun
+	payload := map[string]any{"skipAllReports": true}
+	switch target.Kind {
+	case "workflow":
+		payload["workflowIdOrName"] = target.Workflow
+	case "method":
+		reqType = swamp.ReqMethodRun
+		payload["modelIdOrName"] = target.Model
+		payload["methodName"] = target.Method
+	default:
+		m.status = "cannot run " + target.Title()
+		return nil
+	}
 	if len(inputs) > 0 {
 		payload["inputs"] = inputs
 	}
+
+	m.live = newLive(target.Title())
+	m.form = nil
+	m.mode = modeLive
+	m.status = ""
 	return func() tea.Msg {
-		h, err := api.StartRun(context.Background(), swamp.ReqWorkflowRun, payload)
+		h, err := api.StartRun(context.Background(), reqType, payload)
 		if err != nil {
 			return runDoneMsg{err: err}
 		}

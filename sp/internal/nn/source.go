@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/svendowideit/swamp-project/sp/internal/swamp"
 )
@@ -17,12 +18,40 @@ type API interface {
 	SearchModels(ctx context.Context, query string) (map[string]any, error)
 	SearchWorkflowRuns(ctx context.Context, workflow string, limit int) ([]swamp.WorkflowRunEntry, error)
 	GetWorkflow(ctx context.Context, name string) (map[string]any, error)
+	SearchModelOutputs(ctx context.Context, model string, limit int) ([]swamp.ModelRunEntry, error)
+	GetModel(ctx context.Context, name string) (map[string]any, error)
 }
 
-// Loader resolves group specs into items through the serve client. It holds no
-// state of its own beyond the client, so a group can be reloaded at any time.
+// Loader resolves group specs into items through the serve client. It caches
+// model records for the session: listing methods costs one model.get per
+// instance, and re-entering a group must not pay that again.
 type Loader struct {
 	API API
+
+	mu     sync.Mutex
+	models map[string]map[string]any
+}
+
+// modelRecord returns a model instance's full record, from cache when possible.
+func (l *Loader) modelRecord(ctx context.Context, name string) (map[string]any, error) {
+	l.mu.Lock()
+	if rec, ok := l.models[name]; ok {
+		l.mu.Unlock()
+		return rec, nil
+	}
+	l.mu.Unlock()
+
+	rec, err := l.API.GetModel(ctx, name)
+	if err != nil {
+		return nil, err
+	}
+	l.mu.Lock()
+	if l.models == nil {
+		l.models = map[string]map[string]any{}
+	}
+	l.models[name] = rec
+	l.mu.Unlock()
+	return rec, nil
 }
 
 // Load fills g from its spec. On failure it records g.Err and leaves Items
@@ -38,6 +67,10 @@ func (l *Loader) Load(ctx context.Context, g *Group) error {
 		err = l.loadRuns(ctx, g)
 	case "runhistory":
 		err = l.loadRunHistory(ctx, g)
+	case "methods":
+		err = l.loadMethods(ctx, g)
+	case "methodhistory":
+		err = l.loadMethodHistory(ctx, g)
 	default:
 		err = fmt.Errorf("unknown group kind %q", g.Spec.Kind)
 	}

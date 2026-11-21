@@ -80,6 +80,11 @@ func DefaultConfig() *Config {
 				Menu: []string{"name", "description"},
 			},
 			{
+				ID: "runs:methods", Title: "runs:methods", Kind: "methods",
+				IDField: "name", Format: "runnable",
+				Menu: []string{"name", "description"},
+			},
+			{
 				ID: "objects:workflows", Title: "objects:workflows", Kind: "objects",
 				Collection: "workflows",
 				IDField:    "name", Format: "object",

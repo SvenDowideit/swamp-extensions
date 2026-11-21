@@ -2,6 +2,7 @@ package nn
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -40,11 +41,14 @@ func key(s string) tea.KeyPressMsg {
 
 // fakeAPI serves canned swamp payloads.
 type fakeAPI struct {
-	data         map[string]map[string]any // "model/resource" -> payload
-	workflows    []map[string]any
-	models       []map[string]any
-	runs         map[string][]swamp.WorkflowRunEntry
-	workflowDefs map[string]map[string]any
+	data           map[string]map[string]any // "model/resource" -> payload
+	workflows      []map[string]any
+	models         []map[string]any
+	runs           map[string][]swamp.WorkflowRunEntry
+	methodRuns     []swamp.ModelRunEntry
+	lastModelQuery string
+	lastModelLimit int
+	workflowDefs   map[string]map[string]any
 }
 
 func (f *fakeAPI) GetData(_ context.Context, model, name string, _ int) (map[string]any, error) {
@@ -61,6 +65,20 @@ func (f *fakeAPI) SearchModels(_ context.Context, _ string) (map[string]any, err
 
 func (f *fakeAPI) SearchWorkflowRuns(_ context.Context, workflow string, _ int) ([]swamp.WorkflowRunEntry, error) {
 	return f.runs[workflow], nil
+}
+
+func (f *fakeAPI) GetModel(_ context.Context, name string) (map[string]any, error) {
+	for _, m := range f.models {
+		if scalar(m["name"]) == name {
+			return m, nil
+		}
+	}
+	return nil, errors.New("no such model: " + name)
+}
+
+func (f *fakeAPI) SearchModelOutputs(_ context.Context, model string, limit int) ([]swamp.ModelRunEntry, error) {
+	f.lastModelQuery, f.lastModelLimit = model, limit
+	return f.methodRuns, nil
 }
 
 func (f *fakeAPI) GetWorkflow(_ context.Context, name string) (map[string]any, error) {
@@ -542,7 +560,7 @@ func TestFormSubmitValidates(t *testing.T) {
 			"mode":    map[string]any{"type": "string", "enum": []any{"fast", "full"}},
 		},
 	}
-	f := newForm("sweep", schema, nil)
+	f := newForm(runTarget{Kind: "workflow", Workflow: "sweep"}, schema, nil)
 	if _, err := f.submitValues(); err == nil {
 		t.Fatal("missing required fields must fail validation")
 	}
@@ -578,16 +596,24 @@ func TestFormRestorePrefillsFromLastRun(t *testing.T) {
 		"cidr": map[string]any{"type": "string"},
 		"fp":   map[string]any{"type": "boolean"},
 	}}
-	f := newForm("sweep", schema, map[string]any{"cidr": "10.1.0.0/16", "fp": false})
+	f := newForm(runTarget{Kind: "workflow", Workflow: "sweep"}, schema, map[string]any{"cidr": "10.1.0.0/16", "fp": false})
 	if f.fields[0].Text != "10.1.0.0/16" || f.fields[1].Bool != false {
 		t.Fatalf("prefill failed: %+v", f.fields)
 	}
 }
 
-// fakeRuns implements RunAPI with a preloaded event stream.
-type fakeRuns struct{ handle *swamp.RunHandle }
+// fakeRuns implements RunAPI with a preloaded event stream, and records what it
+// was asked to run.
+type fakeRuns struct {
+	handle  *swamp.RunHandle
+	reqType string
+	payload map[string]any
+}
 
-func (f *fakeRuns) StartRun(context.Context, string, any) (*swamp.RunHandle, error) {
+func (f *fakeRuns) StartRun(_ context.Context, reqType string, p any) (*swamp.RunHandle, error) {
+	f.reqType = reqType
+	b, _ := json.Marshal(p)
+	_ = json.Unmarshal(b, &f.payload)
 	return f.handle, nil
 }
 
@@ -639,11 +665,11 @@ func TestShellRunsAWorkflowFromTheForm(t *testing.T) {
 	}
 
 	// ctrl+s starts the run and switches to the live view.
-	cmd := m.startRun("sweep", map[string]any{"cidr": "10.0.0.0/24"})
+	cmd := m.startRun(runTarget{Kind: "workflow", Workflow: "sweep"}, map[string]any{"cidr": "10.0.0.0/24"})
 	if cmd == nil || m.mode != modeLive {
 		t.Fatalf("expected a live view after starting, mode=%v", m.mode)
 	}
-	if got := m.store.LastInputs("sweep")["cidr"]; got != nil && got != "10.0.0.0/24" {
+	if got := m.store.LastInputs("workflow:sweep")["cidr"]; got != nil && got != "10.0.0.0/24" {
 		t.Fatalf("inputs not remembered: %v", got)
 	}
 	// Deliver the start message and one event, then the terminal frame.
@@ -717,5 +743,148 @@ func TestFooterPutsKeysFirst(t *testing.T) {
 		if !strings.Contains(bar, want) {
 			t.Fatalf("footer missing %q: %q", want, bar)
 		}
+	}
+}
+
+func TestMethodGroupsFlattenAndFilterRuns(t *testing.T) {
+	cfg := &Config{Defaults: Defaults{PageSize: 10}, Groups: []GroupSpec{{
+		ID: "runs:methods", Kind: "methods", IDField: "name",
+		Format: "runnable", Menu: []string{"name", "description"},
+	}}}
+	api := &fakeAPI{
+		models: []map[string]any{{
+			"name": "gtd", "type": "@svendowideit/gtd",
+			"methods": []any{
+				map[string]any{
+					"name": "capture", "description": "Capture a thought",
+					"arguments": map[string]any{"properties": map[string]any{
+						"raw":    map[string]any{"type": "string"},
+						"source": map[string]any{"type": "string"},
+					}},
+				},
+				map[string]any{"name": "engage", "description": "What can I do now"},
+			},
+		}},
+		methodRuns: []swamp.ModelRunEntry{
+			{OutputID: "out-1", ModelName: "gtd", MethodName: "capture", Status: "succeeded",
+				StartedAt: "2026-11-21T10:00:00Z", DurationMS: 1200},
+			{OutputID: "out-9", ModelName: "gtd", MethodName: "engage", Status: "failed",
+				StartedAt: "2026-11-21T11:00:00Z"},
+		},
+	}
+	m := newTestModel(t, cfg, api)
+	g := m.groups[0]
+	if err := m.loader.Load(context.Background(), g); err != nil {
+		t.Fatal(err)
+	}
+	if len(g.Items) != 2 {
+		t.Fatalf("expected one row per model.method, got %d", len(g.Items))
+	}
+	if g.Items[0].ID != "gtd.capture" || g.Items[0].Child != "runs:methods/gtd.capture" {
+		t.Fatalf("unexpected method row: %+v", g.Items[0])
+	}
+	if len(g.Children) != 2 {
+		t.Fatalf("expected a history group per row, got %d", len(g.Children))
+	}
+
+	child := g.Children[0]
+	if err := m.loader.Load(context.Background(), child); err != nil {
+		t.Fatal(err)
+	}
+	if len(child.Items) != 2 || child.Items[0].ID != "+" || !child.Items[0].Pinned {
+		t.Fatalf("history should be '+ run' plus this method's runs: %+v", child.Items)
+	}
+	if got := scalar(child.Items[1].ID); got != "out-1" {
+		t.Fatalf("history must be filtered to this model.method, got %q", got)
+	}
+	if child.Items[0].Raw["inputs"] == nil {
+		t.Fatal("the '+ run' row must carry the method's argument schema")
+	}
+}
+
+func TestMethodRunUsesTheMethodPayload(t *testing.T) {
+	cfg := &Config{Defaults: Defaults{PageSize: 10}, Groups: []GroupSpec{{
+		ID: "runs:methods", Kind: "methods", IDField: "name",
+		Format: "runnable", Menu: []string{"name"},
+	}}}
+	api := &fakeAPI{models: []map[string]any{{
+		"name": "gtd", "type": "@svendowideit/gtd",
+		"methods": []any{map[string]any{
+			"name": "capture",
+			"arguments": map[string]any{"properties": map[string]any{
+				"raw": map[string]any{"type": "string"},
+			}},
+		}},
+	}}}
+	events := make(chan swamp.Event, 4)
+	errc := make(chan error, 1)
+	errc <- nil
+	runs := &fakeRuns{handle: &swamp.RunHandle{Events: events, Errc: errc}}
+
+	m := newTestModel(t, cfg, api)
+	m.SetRunAPI(runs)
+	g := m.groups[0]
+	if err := m.loader.Load(context.Background(), g); err != nil {
+		t.Fatal(err)
+	}
+	m.enterGroup(g)
+	m.handleKey(key("space")) // push gtd.capture history
+	if m.cur == nil || m.cur.ID() != "runs:methods/gtd.capture" {
+		t.Fatalf("space on a method row should open its history, cur=%v", m.cur)
+	}
+	if !m.cur.Loaded {
+		if err := m.loader.Load(context.Background(), m.cur); err != nil {
+			t.Fatal(err)
+		}
+	}
+	m.handleKey(key("space")) // open the form
+	if m.mode != modeForm {
+		t.Fatalf("space on '+ run' should open the form, mode=%v", m.mode)
+	}
+	byName := map[string]*Field{}
+	for _, f := range m.form.fields {
+		byName[f.Name] = f
+	}
+	byName["raw"].Text = "buy milk"
+	cmd := m.startRun(m.form.target, map[string]any{"raw": "buy milk"})
+	if cmd == nil {
+		t.Fatal("expected a run command")
+	}
+	if msg := cmd(); msg == nil {
+		t.Fatal("run command produced no message")
+	}
+	if runs.reqType != "model.method.run" {
+		t.Fatalf("method runs must use model.method.run, got %q", runs.reqType)
+	}
+	if runs.payload["modelIdOrName"] != "gtd" || runs.payload["methodName"] != "capture" {
+		t.Fatalf("method payload must name the model and method: %v", runs.payload)
+	}
+	inputs, _ := runs.payload["inputs"].(map[string]any)
+	if inputs["raw"] != "buy milk" {
+		t.Fatalf("inputs not carried: %v", runs.payload)
+	}
+}
+
+func TestMethodHistoryIsScopedAndBounded(t *testing.T) {
+	// model.method.history.search ignores its query server-side and returns every
+	// run ever (~97 MB), so history must come from model.output.search, scoped by
+	// model and bounded by limit. See §19.3 of the plan.
+	api := &fakeAPI{
+		models: []map[string]any{{"name": "gtd", "methods": []any{
+			map[string]any{"name": "capture", "arguments": map[string]any{}},
+		}}},
+	}
+	g := &Group{Spec: GroupSpec{
+		ID: "h", Kind: "methodhistory", Model: "gtd", Method: "capture", PageSize: 10,
+	}}
+	loader := &Loader{API: api}
+	if err := loader.Load(context.Background(), g); err != nil {
+		t.Fatal(err)
+	}
+	if api.lastModelQuery != "gtd" {
+		t.Fatalf("history must be scoped to the model, got %q", api.lastModelQuery)
+	}
+	if api.lastModelLimit <= 0 || api.lastModelLimit > 500 {
+		t.Fatalf("history must be bounded by a sane limit, got %d", api.lastModelLimit)
 	}
 }

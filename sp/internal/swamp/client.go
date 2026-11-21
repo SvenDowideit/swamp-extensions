@@ -1,11 +1,13 @@
 package swamp
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -19,6 +21,12 @@ import (
 // id and carry the same `type`, failures arrive as {type:"error"}.
 type Client struct {
 	conn *websocket.Conn
+
+	// httpBase and token are used for the request types whose replies are too
+	// large for a WebSocket frame (the server's own client sends these over
+	// HTTP: see HTTP_REQUEST_TYPES in src/serve/protocol.ts).
+	httpBase string
+	token    string
 
 	mu      sync.Mutex
 	pending map[string]*pendingReq
@@ -59,7 +67,17 @@ func Dial(ctx context.Context, baseURL, token string) (*Client, error) {
 	}
 	conn.SetReadLimit(64 << 20)
 
-	c := &Client{conn: conn, pending: map[string]*pendingReq{}}
+	c := &Client{conn: conn, pending: map[string]*pendingReq{}, token: token}
+	if u, err := url.Parse(wsURL); err == nil {
+		switch u.Scheme {
+		case "wss":
+			u.Scheme = "https"
+		default:
+			u.Scheme = "http"
+		}
+		u.Path, u.RawQuery = "", ""
+		c.httpBase = u.String()
+	}
 	go c.readLoop()
 	return c, nil
 }
@@ -335,6 +353,144 @@ func (c *Client) SearchWorkflowRuns(ctx context.Context, workflow string, limit 
 		})
 	}
 	return out, nil
+}
+
+// ModelRunEntry is one row of model.output.search: a single method execution.
+type ModelRunEntry struct {
+	OutputID      string
+	ModelName     string
+	Type          string
+	MethodName    string
+	Status        string
+	StartedAt     string
+	DurationMS    int64
+	TriggeredBy   string
+	WorkflowName  string
+	WorkflowRunID string
+	StepName      string
+	ErrorMessage  string
+}
+
+// httpFrame is one NDJSON frame of the HTTP request endpoint. Failures come back
+// as {code, message} rather than as an error envelope.
+type httpFrame struct {
+	Type    string          `json:"type"`
+	ID      string          `json:"id"`
+	Payload json.RawMessage `json:"payload,omitempty"`
+	Code    string          `json:"code,omitempty"`
+	Message string          `json:"message,omitempty"`
+}
+
+// RequestHTTP issues a request over the HTTP request endpoint instead of the
+// WebSocket. Use it for the request types whose replies can exceed the frame
+// limit (data.get, data.query, model.output.*, *.history.*, report.get).
+func (c *Client) RequestHTTP(ctx context.Context, reqType string, payload any) (json.RawMessage, error) {
+	if c.httpBase == "" {
+		return nil, fmt.Errorf("%s needs the HTTP endpoint; dial with an http(s) or ws(s) URL", reqType)
+	}
+	id := newID()
+	body, err := json.Marshal(wireRequest{Type: reqType, ID: id, Payload: payload})
+	if err != nil {
+		return nil, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
+		c.httpBase+"/api/v1/request", bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if c.token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", reqType, err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return nil, fmt.Errorf("%s: HTTP %d: %s", reqType, resp.StatusCode, strings.TrimSpace(string(msg)))
+	}
+	dec := json.NewDecoder(resp.Body)
+	for {
+		var f httpFrame
+		if err := dec.Decode(&f); err != nil {
+			if err == io.EOF {
+				return nil, fmt.Errorf("%s: no reply for request %s", reqType, id)
+			}
+			return nil, fmt.Errorf("%s: %w", reqType, err)
+		}
+		if f.ID != id && f.ID != "" {
+			continue
+		}
+		if f.Code != "" {
+			return nil, &WireError{Code: f.Code, Message: f.Message}
+		}
+		if len(f.Payload) == 0 {
+			continue
+		}
+		return f.Payload, nil
+	}
+}
+
+// SearchModelOutputs lists a model instance's recent method executions, newest
+// first. Scoped by model and bounded by limit: model.output.search without a
+// model is the whole run history of the repo.
+func (c *Client) SearchModelOutputs(ctx context.Context, model string, limit int) ([]ModelRunEntry, error) {
+	payload := map[string]any{"limit": limit}
+	if model != "" {
+		payload["model"] = model
+	}
+	raw, err := c.RequestHTTP(ctx, ReqModelOutputSearch, payload)
+	if err != nil {
+		return nil, err
+	}
+	res, err := unwrapData(raw)
+	if err != nil {
+		return nil, err
+	}
+	rows := asAnyList(res["results"])
+	out := make([]ModelRunEntry, 0, len(rows))
+	for _, r := range rows {
+		m, ok := r.(map[string]any)
+		if !ok {
+			continue
+		}
+		e := ModelRunEntry{
+			OutputID:      jsonStr(m["id"]),
+			ModelName:     jsonStr(m["modelName"]),
+			Type:          jsonStr(m["type"]),
+			MethodName:    jsonStr(m["methodName"]),
+			Status:        jsonStr(m["status"]),
+			StartedAt:     jsonStr(m["startedAt"]),
+			DurationMS:    int64(num(m["durationMs"])),
+			TriggeredBy:   jsonStr(m["triggeredBy"]),
+			WorkflowName:  jsonStr(m["workflowName"]),
+			WorkflowRunID: jsonStr(m["workflowRunId"]),
+			StepName:      jsonStr(m["stepName"]),
+		}
+		if errObj, ok := m["error"].(map[string]any); ok {
+			e.ErrorMessage = jsonStr(errObj["message"])
+		}
+		out = append(out, e)
+	}
+	return out, nil
+}
+
+// unwrapData decodes an HTTP reply payload, which wraps results in {data: ...}.
+func unwrapData(raw json.RawMessage) (map[string]any, error) {
+	var env dataEnvelope
+	if err := json.Unmarshal(raw, &env); err == nil && len(env.Data) > 0 {
+		var m map[string]any
+		if err := json.Unmarshal(env.Data, &m); err == nil {
+			return m, nil
+		}
+	}
+	var m map[string]any
+	if err := json.Unmarshal(raw, &m); err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 func asAnyList(v any) []any {

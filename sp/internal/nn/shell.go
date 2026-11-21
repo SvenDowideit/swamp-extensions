@@ -871,7 +871,7 @@ func (m *Model) renderHeader() string {
 		right = fmt.Sprintf("%d groups", len(m.groups))
 	case modeForm:
 		if m.form != nil {
-			mid = styleTitle.Render("run " + m.form.workflow)
+			mid = styleTitle.Render("run " + m.form.target.Title())
 			right = m.form.editHint()
 		}
 	case modeLive:

@@ -10,6 +10,31 @@ import (
 	"github.com/charmbracelet/x/ansi"
 )
 
+// runTarget is what a form is going to run: a workflow, or one method of one
+// model instance.
+type runTarget struct {
+	Kind     string // workflow | method
+	Workflow string
+	Model    string
+	Method   string
+}
+
+// Key is the identity used to remember the inputs a target was last run with.
+func (t runTarget) Key() string {
+	if t.Kind == "workflow" {
+		return "workflow:" + t.Workflow
+	}
+	return "method:" + t.Model + "." + t.Method
+}
+
+// Title is what the form header shows.
+func (t runTarget) Title() string {
+	if t.Kind == "workflow" {
+		return t.Workflow
+	}
+	return t.Model + "." + t.Method
+}
+
 // Field is one editable input, derived from a method or workflow argument
 // schema. Nothing here is hand-written per workflow: swamp already declares
 // type, default, enum, minimum, maximum and required, which is exactly what a
@@ -219,17 +244,17 @@ func (f *formState) current() *Field {
 
 // formState is the run form item UI: a list of fields plus an inline editor.
 type formState struct {
-	workflow string
-	fields   []*Field
-	sel      int
-	editing  bool
-	err      string
-	notice   string
+	target  runTarget
+	fields  []*Field
+	sel     int
+	editing bool
+	err     string
+	notice  string
 }
 
 // newForm builds a form, prefilling from last when it is non-empty.
-func newForm(workflow string, schema any, last map[string]any) *formState {
-	f := &formState{workflow: workflow, fields: inputFields(schema)}
+func newForm(target runTarget, schema any, last map[string]any) *formState {
+	f := &formState{target: target, fields: inputFields(schema)}
 	if f.fields == nil {
 		f.fields = []*Field{}
 	}
@@ -311,7 +336,7 @@ func (f *formState) move(delta int) {
 // render draws the form.
 func (f *formState) render(width, height int) []string {
 	out := make([]string, 0, height)
-	head := styleDim.Render(fmt.Sprintf("workflow %s", f.workflow))
+	head := styleDim.Render(fmt.Sprintf("%s %s", f.target.Kind, f.target.Title()))
 	if req := f.requiredCount(); req > 0 {
 		head += styleDim.Render(fmt.Sprintf(" · %d required", req))
 	}

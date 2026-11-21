@@ -48,6 +48,8 @@ export interface SoftwareRow {
     owner: string;
     flags: string[];
     installs: number;
+    /** Every install path this host has for the product (absent on old data). */
+    paths?: string[];
   }>;
   versions: string[];
   skewed: boolean;
@@ -163,6 +165,28 @@ export function link(url: string, text: string, title = ""): string {
   return `<a href="${escapeHtml(url)}" rel="noreferrer" target="_blank"${t}>${
     escapeHtml(text)
   }</a>`;
+}
+
+/**
+ * Where a product actually lives: one entry per host, with every install path
+ * that host has. A count of "abandoned dependencies" is useless without the
+ * file you would have to replace.
+ */
+export function whereInstalled(row: SoftwareRow | undefined): string {
+  if (!row) return "";
+  return row.hosts
+    .filter((h) => (h.paths ?? []).length > 0 || h.version !== "")
+    .map((h) => {
+      const head = `<b>${escapeHtml(h.host)}</b>${
+        h.version ? ` ${escapeHtml(h.version)}` : ""
+      }`;
+      const paths = (h.paths ?? []).filter(Boolean);
+      if (paths.length === 0) return head;
+      return `${head}${
+        paths.map((p) => `<br><code>${escapeHtml(p)}</code>`).join("")
+      }`;
+    })
+    .join("<br>");
 }
 
 export interface ProductLinks {
@@ -483,7 +507,7 @@ export function renderIndex(
 ${
     abandoned.length === 0
       ? `<p class="sub">None found (or the metadata step has not run).</p>`
-      : `<table><thead><tr><th>product</th><th>upstream</th><th class="n">idle</th><th>hosts</th><th>flags</th></tr></thead><tbody>${
+      : `<table><thead><tr><th>product</th><th>upstream</th><th class="n">idle</th><th>host</th><th>where</th><th>flags</th></tr></thead><tbody>${
         abandoned.map((r) => {
           const row = fleet.software.find((x) => x.name === r.name);
           const links = row ? productLinks(row) : { project: "", releases: "" };
@@ -499,7 +523,7 @@ ${
             escapeHtml(humanAge(r.upstreamIdleDays))
           }</td><td>${
             escapeHtml(r.installed.map((i) => i.host).join(", "))
-          }</td><td>${
+          }</td><td class="where">${whereInstalled(row)}</td><td>${
             r.flags.map((f) => badge(f, "warn")).join(" ")
           }</td></tr>`;
         }).join("")

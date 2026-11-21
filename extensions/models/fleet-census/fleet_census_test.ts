@@ -35,7 +35,11 @@ import {
   SWAMP_CATALOG,
   versionOf,
 } from "./fleet_census.ts";
-import { catalogEntryFor, managedByUnit } from "./owners_catalog.ts";
+import {
+  catalogEntryFor,
+  managedByUnit,
+  ownerForUnit,
+} from "./owners_catalog.ts";
 
 const HOME = "/home/sven";
 
@@ -728,6 +732,7 @@ Deno.test("buildFreshness joins the index with release metadata", () => {
           owner: "managed",
           flags: [],
           installs: 1,
+          paths: [],
         },
         {
           host: "b",
@@ -736,6 +741,7 @@ Deno.test("buildFreshness joins the index with release metadata", () => {
           owner: "managed",
           flags: [],
           installs: 1,
+          paths: [],
         },
       ],
       versions: ["0.33.3", "0.35.0"],
@@ -806,6 +812,7 @@ Deno.test("buildFreshness marks an archived or long-idle project abandoned", () 
       owner: "unknown",
       flags: [],
       installs: 1,
+      paths: [],
     }],
     versions: ["1.0.0"],
     skewed: false,
@@ -916,6 +923,7 @@ const fleetFixture: FleetData = {
         owner: "managed",
         flags: [],
         installs: 1,
+        paths: [],
       }],
       versions: ["0.33.3"],
       skewed: false,
@@ -936,6 +944,7 @@ const fleetFixture: FleetData = {
         owner: "unknown",
         flags: [],
         installs: 1,
+        paths: [],
       }],
       versions: ["1.0.0"],
       skewed: false,
@@ -1050,7 +1059,7 @@ Deno.test("renderJson is valid JSON carrying the tables and the ranking", () => 
 // Links (actionable reports)
 // ---------------------------------------------------------------------------
 
-import { link, productLinks } from "./census_report.ts";
+import { link, productLinks, whereInstalled } from "./census_report.ts";
 
 Deno.test("productLinks derives the right upstream URL per registry", () => {
   const row = (identity: string, identities: string[] = []): SoftwareRow => ({
@@ -1143,6 +1152,7 @@ Deno.test("outdatedProducts lists a consistent-but-old product, which skew does 
             owner: "managed",
             flags: [],
             installs: 1,
+            paths: [],
           },
           {
             host: "b",
@@ -1151,6 +1161,7 @@ Deno.test("outdatedProducts lists a consistent-but-old product, which skew does 
             owner: "managed",
             flags: [],
             installs: 1,
+            paths: [],
           },
         ],
         versions: ["20261106.012700.0"],
@@ -1502,4 +1513,158 @@ Deno.test("applyProbeResults ignores a report for a different path", () => {
     ].join("\n"),
   );
   assertEquals((out[0] as { version: string }).version, "");
+});
+
+// ---------------------------------------------------------------------------
+// "Abandoned" is a claim about a file somewhere: say which file
+// ---------------------------------------------------------------------------
+
+Deno.test("buildSoftwareIndex records the install paths behind each host entry", () => {
+  const items = [
+    probeItem({
+      name: "tuios",
+      installPath: "/home/sven/.local/bin/tuios",
+      id: "/home/sven/.local/bin/tuios",
+    }),
+    probeItem({
+      name: "tuios",
+      installPath: "/usr/local/bin/tuios",
+      id: "/usr/local/bin/tuios",
+    }),
+  ];
+  const rows = buildSoftwareIndex([{
+    host: "host-a",
+    ok: true,
+    items: items as never,
+  }]);
+  assertEquals(rows.length, 1);
+  assertEquals(rows[0].hosts[0].installs, 2);
+  assertEquals(rows[0].hosts[0].paths, [
+    "/home/sven/.local/bin/tuios",
+    "/usr/local/bin/tuios",
+  ]);
+});
+
+Deno.test("whereInstalled names every file, per host", () => {
+  const row = {
+    name: "tuios",
+    hosts: [
+      {
+        host: "host-a",
+        version: "1.2.3",
+        manager: "none",
+        owner: "unknown",
+        flags: [],
+        installs: 2,
+        paths: ["/home/sven/.local/bin/tuios", "/usr/local/bin/tuios"],
+      },
+      {
+        host: "host-b",
+        version: "1.2.3",
+        manager: "none",
+        owner: "unknown",
+        flags: [],
+        installs: 1,
+        paths: ["/usr/local/bin/tuios"],
+      },
+    ],
+  } as never;
+  const html = whereInstalled(row);
+  assertEquals(html.includes("<b>host-a</b> 1.2.3"), true);
+  assertEquals(html.includes("<code>/home/sven/.local/bin/tuios</code>"), true);
+  assertEquals(html.includes("<code>/usr/local/bin/tuios</code>"), true);
+  assertEquals(html.includes("<b>host-b</b>"), true);
+});
+
+Deno.test("whereInstalled is empty when the product is not in the index", () => {
+  assertEquals(whereInstalled(undefined), "");
+});
+
+Deno.test("the abandoned table names the file, not just the host", () => {
+  const row = {
+    identity: "github:acme/tuios",
+    identities: [],
+    name: "tuios",
+    hosts: [
+      {
+        host: "host-a",
+        version: "1.2.3",
+        manager: "none",
+        owner: "unknown",
+        flags: [],
+        installs: 1,
+        paths: ["/home/sven/.local/bin/tuios"],
+      },
+    ],
+    versions: ["1.2.3"],
+    skewed: false,
+    managedOn: [],
+    manageableOn: [],
+    extension: "",
+    command: "",
+    missingOn: [],
+  };
+  const html = renderIndex(
+    { hosts: [], software: [row], summary: {}, scannedAt: "" } as never,
+    {
+      rows: [{
+        name: "tuios",
+        repo: "acme/tuios",
+        installed: [{ host: "host-a", version: "1.2.3", channel: "latest" }],
+        latest: { version: "1.2.3", publishedAt: "", tag: "v1.2.3" },
+        lts: null,
+        dev: null,
+        archived: false,
+        upstreamIdleDays: 900,
+        oldestInstalledDays: 90,
+        behindMajor: 0,
+        flags: ["abandoned", "upstream-idle-2y"],
+        error: "",
+      }],
+      summary: {},
+      generatedAt: "",
+    } as never,
+    "now",
+  );
+  assertEquals(html.includes("<code>/home/sven/.local/bin/tuios</code>"), true);
+});
+
+Deno.test("the matched unit decides which extension owns swamp", () => {
+  const swamp = catalogEntryFor("swamp")!;
+  assertEquals(ownerForUnit(swamp, "swamp-serve"), {
+    extension: "@svendowideit/swamp-serve",
+    command: "swamp extension pull @svendowideit/swamp-serve",
+  });
+  assertEquals(ownerForUnit(swamp, "swamp-worker-figy"), {
+    extension: "@svendowideit/swamp-worker",
+    command: "swamp extension pull @svendowideit/swamp-worker",
+  });
+  // an entry that does not distinguish by unit keeps its generic answer
+  const ollama = catalogEntryFor("ollama")!;
+  assertEquals(
+    ownerForUnit(ollama, "ollama").extension,
+    "@svendowideit/ollama",
+  );
+});
+
+Deno.test("a symlink to a unit-run binary is managed, not a conversion candidate", () => {
+  const tsv = [
+    "meta\thost\tt440s",
+    "pathdir\t/home/sven/.local/bin\tknown",
+    "pathdir\t/usr/local/bin\tpath",
+    // the same file reached two ways: the PATH symlink and the real binary
+    "bin\tswamp\t/usr/local/bin/swamp\t/home/sven/.local/bin/swamp\t288404552\t1760000000\tdeadbeef\t1\tsystem\t-\t-\t20261121.085447.0-sha.e52c839b",
+    "bin\tswamp\t/home/sven/.local/bin/swamp\t/home/sven/.local/bin/swamp\t288404552\t1760000000\tdeadbeef\t1\tsystem\t-\t-\t20261121.085447.0-sha.e52c839b",
+    // the unit runs the real path; the symlink must inherit that evidence
+    "unit\tuser\tswamp-serve\t%h/.local/bin/swamp serve --port 9090\t/home/sven/.config/systemd/user/swamp-serve.service",
+    "unitstate\tuser\tswamp-serve\tactive",
+    "meta\tdone\t2026-11-21T00:00:00Z",
+  ].join("\n");
+  const items = buildItems(parseScan(tsv), { home: "/home/sven" });
+  const swampItems = items.filter((i) => i.name === "swamp");
+  assertEquals(swampItems.length, 2);
+  for (const item of swampItems) {
+    assertEquals(item.owner.class, "managed");
+    assertEquals(item.owner.extension, "@svendowideit/swamp-serve");
+  }
 });

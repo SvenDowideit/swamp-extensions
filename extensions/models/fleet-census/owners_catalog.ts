@@ -29,6 +29,18 @@ export interface OwnerCatalogEntry {
    */
   unitPatterns: RegExp[];
   /**
+   * When one extension family runs several kinds of unit for the same product,
+   * the unit that matched says which one is the real owner — a `swamp-serve`
+   * unit is the orchestrator's serve binary, a `swamp-worker-*` unit is a worker
+   * node. Without this, every matched unit is credited to the entry's fallback
+   * `extension`, which told a serve host to install the worker.
+   */
+  unitOwners?: Array<{
+    pattern: RegExp;
+    extension: string;
+    command: string;
+  }>;
+  /**
    * The upstream GitHub repository, when the catalogue knows it. This is what
    * gives a name-only binary (no Go build info) an identity, an upstream link and
    * a freshness lookup.
@@ -85,12 +97,26 @@ export const OWNER_CATALOG: OwnerCatalogEntry[] = [
     unitPatterns: [/^obsidian/],
   },
   {
-    // The worker installs the swamp binary itself; `swamp-serve` is the
-    // orchestrator side of the same extension family.
+    // The same binary is installed two ways: a worker node runs it under a
+    // `swamp-worker-<identity>` unit, an orchestrator runs `swamp serve` under
+    // `swamp-serve`. The unit that matched decides which extension owns it —
+    // crediting both to the worker told orchestrators to install the wrong one.
     match: /^swamp$/,
     extension: "@svendowideit/swamp-worker",
     command: "swamp extension pull @svendowideit/swamp-worker",
     unitPatterns: [/^swamp-worker-/, /^swamp-serve$/],
+    unitOwners: [
+      {
+        pattern: /^swamp-serve$/,
+        extension: "@svendowideit/swamp-serve",
+        command: "swamp extension pull @svendowideit/swamp-serve",
+      },
+      {
+        pattern: /^swamp-worker-/,
+        extension: "@svendowideit/swamp-worker",
+        command: "swamp extension pull @svendowideit/swamp-worker",
+      },
+    ],
     upstreamRepo: "swamp-club/swamp",
     // Deno-compiled: no Go build info, so the only safe source is the binary's
     // own version line, run only when execProbe is enabled.
@@ -139,4 +165,20 @@ export function managedByUnit(
 ): string {
   if (!entry) return "";
   return units.find((u) => entry.unitPatterns.some((p) => p.test(u))) ?? "";
+}
+
+/**
+ * The extension that owns a product on a host where `unit` runs it. Falls back to
+ * the entry's generic answer when the entry does not distinguish by unit.
+ */
+export function ownerForUnit(
+  entry: OwnerCatalogEntry,
+  unit: string,
+): { extension: string; command: string } {
+  for (const uo of entry.unitOwners ?? []) {
+    if (uo.pattern.test(unit)) {
+      return { extension: uo.extension, command: uo.command };
+    }
+  }
+  return { extension: entry.extension, command: entry.command };
 }

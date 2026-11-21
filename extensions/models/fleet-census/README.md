@@ -169,7 +169,15 @@ a `site` resource:
 |---|---|
 | `software.html` | one row per product, **one column per host**: the version each host has, with its channel and a badge for `installs > 1`; `—` means the host was scanned and does not have it, `?` means it was not scanned; rows where the fleet disagrees are shaded. Each product name **links upstream** (GitHub repo, pkg.go.dev, PyPI, npm, Docker Hub), `latest` links to its release tag, and `act` reveals the exact swamp command that would take it over. Two columns explain the row: **`via`** is what installs it (`snap`, `flatpak`, `pip`, `pip-venv`, `npm`, `nvm`, `rustup`, `cargo`, `go`, `nix`, `oci`, or `none` for a hand-installed binary) and **`owner`** is swamp's verdict per host (`managed×N`, `manageable×N`, `unknown×N`) |
 | `host.html` | hosts ordered by **attention**: unreachable (25), unknown software (×3), abandoned dependencies (×8), version skew (×2), conversion opportunities (×2), with a per-host detail of what is abandoned there, **what is behind upstream** (installed → latest) and what could be converted, each **linked upstream** so you can look before deciding |
-| `index.html` | totals, links to both tables, the abandoned list, conversion candidates, **Behind upstream** and **Version skew — hosts disagree** as separate tables (they are different problems: a fleet can agree on one version and still be releases behind, which is exactly what `swamp` was), every product linked upstream with the conversion command beside each candidate |
+`managed` is claimed only from host evidence: a systemd unit that the owning
+extension installs is running **that exact binary** here (`ExecStart` matched
+against the install path *and* its resolved real path, so a PATH symlink inherits
+the evidence of the file it points at). When one product is installed two ways the
+unit that matched decides the owner — a `swamp-serve` unit means
+`@svendowideit/swamp-serve`, a `swamp-worker-<identity>` unit means
+`@svendowideit/swamp-worker` — rather than one generic answer for both.
+
+| `index.html` | totals, links to both tables, the abandoned list — **one line per host with every install path and that host's version**, because "abandoned" is a claim about a specific file — conversion candidates, **Behind upstream** and **Version skew — hosts disagree** as separate tables (they are different problems: a fleet can agree on one version and still be releases behind, which is exactly what `swamp` was), every product linked upstream with the conversion command beside each candidate |
 | `census.json` | all of the above, unstyled, for reports and agents |
 
 No external assets (no CDN, no fonts, no JS libraries); every value is escaped;

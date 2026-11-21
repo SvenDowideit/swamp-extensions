@@ -47,6 +47,7 @@ import {
   catalogEntryFor,
   managedByUnit,
   OWNER_CATALOG,
+  ownerForUnit,
 } from "./owners_catalog.ts";
 
 // ---------------------------------------------------------------------------
@@ -1125,7 +1126,12 @@ export function buildItems(
         user: opts.user ?? "",
         uid: opts.uid ?? "",
       });
-      if (parsed.command !== item.installPath) continue;
+      // a PATH symlink to the unit's binary is the same binary: compare the
+      // resolved path as well, or `/usr/local/bin/swamp -> ~/.local/bin/swamp`
+      // looks unowned while the file it points at is managed
+      const runsThis = parsed.command === item.installPath ||
+        (item.realPath !== "" && parsed.command === item.realPath);
+      if (!runsThis) continue;
       const state = units.get(`${scope}\u0000${unitName}`);
       item.evidence.push({
         signal: "systemd-unit",
@@ -1148,16 +1154,17 @@ export function buildItems(
     const entry = catalogEntryFor(item.name, item.identity.name);
     const unit = managedByUnit(entry, unitsByItem.get(item.id) ?? []);
     if (!entry || unit === "") continue;
+    const owner = ownerForUnit(entry, unit);
     item.owner = {
       class: "managed",
-      extension: entry.extension,
-      command: entry.command,
+      extension: owner.extension,
+      command: owner.command,
       confidence: 0.7,
     };
     item.evidence.push({
       signal: "managed-by",
       detail:
-        `unit '${unit}' is installed by ${entry.extension} and runs this binary on this host`,
+        `unit '${unit}' is installed by ${owner.extension} and runs this binary on this host`,
     });
     item.flags = item.flags.filter((f) => f !== "no-manager");
   }
@@ -1368,6 +1375,8 @@ const SoftwareIndexRowSchema = z.object({
     flags: z.array(z.string()).default([]),
     /** How many separate installs of it this host has (e.g. two swamp copies). */
     installs: z.number().default(1),
+    /** Where each of those installs lives, so a report can say WHICH file. */
+    paths: z.array(z.string()).default([]),
   })).default([]),
   /** Distinct non-empty versions, sorted — more than one means skew. */
   versions: z.array(z.string()).default([]),
@@ -1497,6 +1506,9 @@ export function buildSoftwareIndex(
         // the same host has it twice (two install paths): count the install,
         // keep the more informative version
         existing.installs += 1;
+        if (item.installPath && !existing.paths.includes(item.installPath)) {
+          existing.paths.push(item.installPath);
+        }
         if (!existing.version && item.version) existing.version = item.version;
         if (existing.owner !== "managed" && item.owner.class === "managed") {
           existing.owner = "managed";
@@ -1509,6 +1521,7 @@ export function buildSoftwareIndex(
           owner: item.owner.class,
           flags: item.flags,
           installs: 1,
+          paths: item.installPath ? [item.installPath] : [],
         });
       }
       if (item.owner.extension && row.extension === "") {
@@ -2168,7 +2181,7 @@ interface MethodContext {
 /** A model that censuses the software this host's OS package manager does not own. */
 export const model = {
   type: "@svendowideit/fleet-census",
-  version: "2026.11.21.5",
+  version: "2026.11.21.7",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -2230,6 +2243,31 @@ export const model = {
         "Only a catalogue-owned argv is sent, only for an absolute path of a " +
         "product the catalogue knows, only when execProbe is enabled, and a " +
         "probe that fails still leaves the version unknown. Additive otherwise.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.21.6",
+      description:
+        "The fleet index now records every install path behind each host entry " +
+        "(`hosts[].paths`), and the abandoned-dependencies table in index.html " +
+        "lists the file to replace instead of only the host name: one line per " +
+        "host, one line per install path, with that host's version. 'Abandoned' is " +
+        "a claim about a specific file, so the report names it. Additive: rows " +
+        "built before this change parse with empty paths.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.21.7",
+      description:
+        "Ownership names the extension that actually owns the binary. The swamp " +
+        "product is installed two ways — a worker node under `swamp-worker-<id>`, " +
+        "an orchestrator under `swamp-serve` — and both used to be credited to " +
+        "@svendowideit/swamp-worker, so a serve host was told to install the " +
+        "worker. The catalogue now maps unit -> owner (`unitOwners`). Separately, " +
+        "a unit's ExecStart is matched against an item's realPath as well as its " +
+        "installPath, so `/usr/local/bin/swamp -> ~/.local/bin/swamp` inherits the " +
+        "evidence of the file it points at instead of appearing as an unowned " +
+        "duplicate and re-entering the conversion list.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

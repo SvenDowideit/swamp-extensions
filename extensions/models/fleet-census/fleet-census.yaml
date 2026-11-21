@@ -1,0 +1,198 @@
+id: 82e378c0-5444-4d5a-9206-b147b3abd9b4
+name: "@svendowideit/fleet-census-sweep"
+description: |
+  Census every host in the fleet in one run.
+
+  Reads the host list from the @svendowideit/fleet-inventory model (`fleet`) —
+  its addresses first, then its names — scans each host once over SSH with the
+  read-only scanner, and writes:
+
+    - one `host` and one `<host>.software` resource per reachable host, so the
+      per-host detail is queryable by host name;
+    - one `fleet` resource: the per-host results (including the unreachable
+      ones, with the error) and the cross-host software index — versions per
+      host, the hosts that do NOT have each item, and where the fleet disagrees.
+
+  One unreachable host is recorded, never fatal. No discovered binary is executed
+  on any host.
+
+  Run it from the orchestrator; the fan-out is over SSH, so hosts need not be
+  swamp workers:
+
+      swamp workflow run @svendowideit/fleet-census-sweep
+
+  Limit it to a few hosts:
+
+      swamp workflow run @svendowideit/fleet-census-sweep \
+        --input 'hosts:json=["xeon","p1gen4","t440s"]'
+
+  To run the sweep itself on a worker instead, add `target: <worker>` to the
+  job (the method then SSHes from that worker).
+inputs:
+  properties:
+    hosts:
+      type: array
+      items:
+        type: string
+      default: []
+      description: >
+        Hosts to census (names or addresses). Empty uses the fleet model's host
+        list — every host it knows, address first then names.
+    fleetModel:
+      type: string
+      default: fleet
+      description: The @svendowideit/fleet-inventory model that supplies the host list.
+    sshUser:
+      type: string
+      default: ""
+      description: SSH user. Empty uses the current user.
+    timeoutSec:
+      type: integer
+      default: 180
+      description: Per-host scan budget.
+    parallel:
+      type: integer
+      default: 6
+      description: Hosts scanned at once.
+    maxRepos:
+      type: integer
+      default: 40
+      description: >
+        Cap on the repositories whose release metadata is fetched (the API call
+        is rate limited). Raise it with a token for a full sweep.
+    idleWarnDays:
+      type: integer
+      default: 365
+      description: Flag upstream idle time above this as a warning.
+    idleBadDays:
+      type: integer
+      default: 730
+      description: Flag upstream idle time above this as abandoned.
+    reportHostname:
+      type: string
+      default: census.x1yoga.fi.gy
+      description: Hostname the HTML reports are served on.
+    reportBaseDomain:
+      type: string
+      default: fi.gy
+      description: The Caddy zone whose DNS and TLS serve that hostname.
+    reportRouteIp:
+      type: string
+      default: ""
+      description: Address the DNS A record should point at (the orchestrator's
+        LAN IP). Empty leaves it to a peer Caddy model.
+    publishSite:
+      type: boolean
+      default: true
+      description: Publish the reports through Caddy (set false to only write
+        the files).
+  required: []
+jobs:
+  - name: census
+    description: Scan every host and build the software index.
+    steps:
+      - name: scan
+        description: >
+          One SSH round-trip per host: run the read-only scanner, parse it, and
+          write the per-host and fleet resources.
+        task:
+          type: model_method
+          modelType: "@svendowideit/fleet-census"
+          modelName: fleet-census
+          methodName: census
+          # The catalogue's own fixed version probes (e.g. `swamp --version`) run
+          # only when this is set; nothing derived from discovered data is probed.
+          globalArgs:
+            execProbe: true
+          inputs:
+            hosts: ${{ inputs.hosts }}
+            fleetModel: ${{ inputs.fleetModel }}
+            sshUser: ${{ inputs.sshUser }}
+            timeoutSec: ${{ inputs.timeoutSec }}
+            parallel: ${{ inputs.parallel }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+
+      - name: metadata
+        description: >
+          Release metadata for every product the census identified as a GitHub
+          project — newest version + publishedAt, the LTS and dev channels, and
+          whether the repo is archived. Batched, cached and rate-limit aware; it
+          is allowed to fail so a rate limit cannot lose the census itself.
+        task:
+          type: model_method
+          modelType: "@svendowideit/github-release-install"
+          modelName: release-meta
+          methodName: metadataMany
+          inputs:
+            repos: ${{ data.latest("fleet-census", "fleet").attributes.software.filter(s, s.identity.startsWith("github:")).map(s, s.identity.substring(7)) }}
+            maxRepos: ${{ inputs.maxRepos }}
+        dependsOn:
+          - step: scan
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+
+      - name: assess
+        description: >
+          Join the census with that metadata into freshness rows: how far behind
+          each host is, which channel it is on, the age of the oldest installed
+          version, and abandonment flags.
+        task:
+          type: model_method
+          modelType: "@svendowideit/fleet-census"
+          modelName: fleet-census
+          methodName: assess
+          inputs:
+            releaseMetaModel: release-meta
+            idleWarnDays: ${{ inputs.idleWarnDays }}
+            idleBadDays: ${{ inputs.idleBadDays }}
+        dependsOn:
+          - step: metadata
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: true
+      - name: report
+        description: >
+          Render index.html, software.html (the version matrix, including the
+          hosts that do NOT have each product), host.html (the attention
+          ranking) and census.json into the site directory.
+        task:
+          type: model_method
+          modelType: "@svendowideit/fleet-census"
+          modelName: fleet-census
+          methodName: report
+        dependsOn:
+          - step: assess
+            condition:
+              type: completed
+        weight: 0
+        allowFailure: false
+
+      - name: publish
+        description: >
+          Serve the report directory through Caddy at the report hostname: a
+          caddy model for the zone (created once, then reused) and a
+          file_server route. DNS and TLS are derived by caddy.
+        guard: ${{ inputs.publishSite == false }}
+        task:
+          type: model_method
+          modelType: "@svendowideit/fleet-census"
+          modelName: fleet-census
+          methodName: publish
+          inputs:
+            hostname: ${{ inputs.reportHostname }}
+            baseDomain: ${{ inputs.reportBaseDomain }}
+            routeIp: ${{ inputs.reportRouteIp }}
+        dependsOn:
+          - step: report
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+    dependsOn: []
+    weight: 0
+version: 1

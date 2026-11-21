@@ -1,0 +1,117 @@
+manifestVersion: 1
+name: "@svendowideit/fleet-census"
+version: "2026.11.21.1"
+description: >
+  What is on this host that the OS package manager does not own — and who owns
+  it?
+
+  WHAT IT DOES
+
+    Turns "what did someone install here by hand?" into queryable data. The OS
+    package manager only knows its own packages, so a curl|bash tool, an npx
+    one-shot, a python venv, a container image or a source build is invisible to
+    every audit you run — and invisible, it never gets migrated to swamp or
+    retired. One read-only `inventory` run scans this host and writes `host`,
+    `software` and `summary`: every unowned executable and package with its
+    provenance, install manager, version evidence, age-flags, same-bytes
+    duplicates, and a swamp-owner candidate (`managed` / `manageable` /
+    `unknown`). It also records the host's own interfaces, MACs and addresses so
+    a stale fleet-inventory address can be detected. No discovered binary is ever
+    executed, and `managed` is claimed only for OS packages and swamp itself.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/fleet-census
+
+  DEPENDENCIES
+
+    None. It runs a rendered POSIX `sh` scanner on this host and parses its
+    output, using only what the host already has (`dpkg`, `ip`, `stat`,
+    `sha256sum`, optionally `go`, `npm`, `cargo`, `snap`, `flatpak`, `brew`,
+    `docker`). No network, no credentials, no other extension — the swamp-owner
+    catalogue is data inside this extension, not a call to the registry.
+
+  RUN
+
+      # Census every host the fleet model knows, in one run: one SSH round-trip
+      # per host, per-host `host`/`<host>.software` resources, and a `fleet`
+      # software index (versions per host, who is missing an item, version skew).
+      swamp workflow run @svendowideit/fleet-census-sweep
+
+      # Serve the reports. DNS + TLS are derived by caddy; the route merges with
+      # the other caddy models on the same instance.
+      swamp workflow run @svendowideit/fleet-census-sweep \
+        --input reportRouteIp=192.0.2.10
+
+      # Or census just this host, with no SSH at all.
+      swamp model create @svendowideit/fleet-census census
+      swamp model method run census inventory
+
+      # What the scan found, by owner class: the conversion candidates are the
+      # ones worth migrating to a swamp-managed install.
+      swamp data query 'modelName == "census" && name == "summary"' --select content
+
+      # Every item whose version could not be proven without executing it. Those
+      # are the ones the owner should look at first with a checksum or an
+      # allowlisted `--version` probe.
+      swamp data query 'modelName == "census" && name == "software"' \
+        --select 'content.items.filter(i, i.version == "")'
+
+      # The host's own addresses and MACs, to compare with the fleet inventory.
+      swamp data query 'modelName == "census" && name == "host"' --select content
+
+  CONFIGURE
+
+    Global arguments (set at creation with `--global-arg key=value`, or later
+    with `swamp model edit`):
+
+        scanTimeoutSec       wall-clock budget for the scan        (180)
+        hashMaxBytes         hash files up to this size            (33554432)
+        maxItems             max unowned executables itemised      (400)
+        extraDirs            extra directories to scan             ([])
+        knownDirs            scan ~/.local/bin, ~/go/bin, nvm, …   (true)
+        collectAddresses     record interfaces, MACs and addresses (true)
+        execProbe            run the catalogue's fixed version probes (false)
+        outputDir            where the reports are written
+
+    `execProbe` (default false) lets the catalogue run its own fixed version
+    probes for binaries that carry no version — `swamp --version`, `caddy
+    version`. Nothing derived from discovered data is ever executed.
+
+    Keep `knownDirs` on: over a non-interactive `ssh` command `PATH` is the
+    login-shell default and does not contain `~/.local/bin`, so a PATH-only scan
+    misses most hand-installed software.
+
+  UPGRADE
+
+    Re-run `swamp extension pull @svendowideit/fleet-census` and
+    `swamp model upgrade census`; the scan is idempotent and overwrites
+    `host`/`software`/`summary` with the current state. No workflow is needed to
+    upgrade.
+
+  WHAT IT INSTALLS
+
+    Nothing on the host: no units, no services, no cron triggers, no webhooks, no
+    files. It reads the filesystem, renders the scan to `sh` on stdin, and writes
+    only swamp data.
+
+paths:
+  base: manifest
+
+models:
+  - fleet_census.ts
+
+workflows:
+  - fleet-census.yaml
+
+dependencies:
+  - "@svendowideit/fleet-inventory"
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - fleet_census_test.ts
+
+platforms:
+  - linux-x86_64
+  - linux-aarch64

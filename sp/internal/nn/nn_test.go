@@ -888,3 +888,15 @@ func TestMethodHistoryIsScopedAndBounded(t *testing.T) {
 		t.Fatalf("history must be bounded by a sane limit, got %d", api.lastModelLimit)
 	}
 }
+
+func TestFooterSaysSpaceOpensOnADoorwayRow(t *testing.T) {
+	m := &Model{width: 160, height: 20, mode: modeMenu, cur: &Group{Spec: GroupSpec{ID: "r"}}}
+	m.cur.Items = []*Item{{ID: "wf@1.0.0", Cols: []string{"wf"}, Child: "r/wf"}}
+	if bar := m.renderFooter(); !strings.Contains(bar, "open") {
+		t.Fatalf("a runnable row should advertise that space opens it: %q", bar)
+	}
+	m.cur.Items = []*Item{{ID: "a", Cols: []string{"article"}}}
+	if bar := m.renderFooter(); !strings.Contains(bar, "continue") || strings.Contains(bar, " open") {
+		t.Fatalf("a plain row should advertise continue: %q", bar)
+	}
+}

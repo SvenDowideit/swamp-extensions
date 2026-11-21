@@ -1066,9 +1066,15 @@ func (m *Model) footerHints() []hint {
 		if m.preview != nil {
 			return []hint{{"%", "close"}, {"j/k", "scroll"}, {"space", "close"}, {"Q", "quit"}}
 		}
+		// Say what space will actually do on this row: a doorway (a runnable, a
+		// "+ run") opens; anything else continues the menu.
+		spaceDesc := "continue"
+		if it := m.cursorItem(); it != nil && (it.Child != "" || it.Format == "form") {
+			spaceDesc = "open"
+		}
 		return []hint{
-			{"a-z0-9", "select"}, {"%", "peek"}, {"space", "continue"},
-			{"N/P", "group"}, {"/", "filter"}, {"=", "up"}, {"Y", "overview"}, {"Q", "quit"},
+			{"a-z0-9", "select"}, {"%", "peek"}, {"space", spaceDesc},
+			{"/", "filter"}, {"N/P", "group"}, {"=", "up"}, {"Y", "overview"}, {"Q", "quit"},
 		}
 	case modePager:
 		return []hint{{"space", "page/next"}, {"b", "back"}, {"j/k", "scroll"}, {"=", "menu"}, {"N", "group"}, {"Q", "quit"}}

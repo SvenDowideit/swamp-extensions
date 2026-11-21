@@ -1275,3 +1275,119 @@ Deno.test("the rendered scanner reports its cap instead of breaking silently", (
   assert(script.includes("printf 'meta\\ttruncated\\t%s\\n' \"$TRUNC\""));
   assert(script.includes("TRUNC=1; break"));
 });
+
+Deno.test("resolveTargets scans machines, not raw scan hits, when the fleet has both", async () => {
+  const inventory = {
+    hosts: [
+      // probed machine
+      {
+        name: "host-a",
+        address: "192.0.2.10",
+        addresses: ["192.0.2.10"],
+        hostnames: ["host-a"],
+        probed: true,
+        machineId: "abc123",
+      },
+      // never probed: a scan hit with nothing but an address
+      {
+        name: "192.0.2.99",
+        address: "192.0.2.99",
+        addresses: ["192.0.2.99"],
+        hostnames: [],
+        probed: false,
+        machineId: "",
+      },
+      {
+        name: "192.0.2.98",
+        address: "192.0.2.98",
+        addresses: ["192.0.2.98"],
+        hostnames: [],
+        probed: false,
+        machineId: "",
+      },
+    ],
+  };
+  const ctx = {
+    readModelData: (model: string, spec?: string) =>
+      Promise.resolve(
+        model === "fleet" && spec === "inventory"
+          ? [{ version: 2, content: inventory }]
+          : [],
+      ),
+  };
+  const targets = await resolveTargets({ hosts: [], fleetModel: "fleet" }, ctx);
+  assertEquals(targets.map((t) => t.label), ["host-a"]);
+
+  // if nothing has been probed yet, every known host is still a target
+  const ctxNone = {
+    readModelData: (model: string, spec?: string) =>
+      Promise.resolve(
+        model === "fleet" && spec === "inventory"
+          ? [{
+            version: 2,
+            content: {
+              hosts: inventory.hosts.map((h) => ({
+                ...h,
+                probed: false,
+                machineId: "",
+              })),
+            },
+          }]
+          : [],
+      ),
+  };
+  const all = await resolveTargets({ hosts: [], fleetModel: "fleet" }, ctxNone);
+  assertEquals(all.length, 3);
+});
+
+// ---------------------------------------------------------------------------
+// Deriving the site (no placeholder domain may ever be published)
+// ---------------------------------------------------------------------------
+
+import { deriveSite } from "./fleet_census.ts";
+
+Deno.test("deriveSite reads the zone from the installed caddy models", async () => {
+  const run = (argv: string[]) => {
+    if (argv[1] === "list") {
+      return Promise.resolve({
+        code: 0,
+        stdout: JSON.stringify({
+          results: [
+            { name: "some-other", type: "@svendowideit/other" },
+            { name: "site-caddy", type: "@svendowideit/caddy" },
+          ],
+        }),
+      });
+    }
+    return Promise.resolve({
+      code: 0,
+      stdout: JSON.stringify({
+        globalArguments: { baseDomain: "example.com" },
+      }),
+    });
+  };
+  assertEquals(await deriveSite(run, "host-a.example.com"), {
+    baseDomain: "example.com",
+    hostname: "census.host-a.example.com",
+  });
+});
+
+Deno.test("deriveSite returns null when no caddy model owns a zone", async () => {
+  const run = (argv: string[]) =>
+    Promise.resolve({
+      code: 0,
+      stdout: argv[1] === "list"
+        ? JSON.stringify({
+          results: [{ name: "x", type: "@svendowideit/caddy" }],
+        })
+        : JSON.stringify({ globalArguments: { baseDomain: "" } }),
+    });
+  assertEquals(await deriveSite(run, "host-a"), null);
+});
+
+Deno.test("deriveSite returns null when the CLI gives nothing", async () => {
+  assertEquals(
+    await deriveSite(() => Promise.resolve({ code: 1, stdout: "" }), "host-a"),
+    null,
+  );
+});

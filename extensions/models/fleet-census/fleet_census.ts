@@ -49,12 +49,6 @@ import {
   OWNER_CATALOG,
 } from "./owners_catalog.ts";
 
-/** The model type name. */
-export const FLEET_CENSUS_TYPE = "@svendowideit/fleet-census";
-
-/** The model version — keep in step with manifest.yaml. */
-export const FLEET_CENSUS_VERSION = "2026.11.21.1";
-
 // ---------------------------------------------------------------------------
 // Global arguments
 // ---------------------------------------------------------------------------
@@ -136,11 +130,12 @@ const ReportArgsSchema = z.object({
 });
 
 const PublishArgsSchema = z.object({
-  hostname: z.string().default("census.x1yoga.fi.gy").describe(
-    "Hostname to serve the reports on.",
+  hostname: z.string().default("").describe(
+    "Hostname to serve the reports on. Empty derives census.<host>.<zone>.",
   ),
-  baseDomain: z.string().default("fi.gy").describe(
-    "The Caddy zone (a model's baseDomain) whose DNS + TLS Caddy already owns.",
+  baseDomain: z.string().default("").describe(
+    "The Caddy zone whose DNS + TLS Caddy already owns. Empty reads it from the " +
+      "installed @svendowideit/caddy models.",
   ),
   routeIp: z.string().default("").describe(
     "Address the DNS A record should point at (the orchestrator's LAN IP). " +
@@ -1781,6 +1776,49 @@ export function expandHome(path: string): string {
   return path;
 }
 
+/**
+ * Where this site's reports should be served, derived from what is already here:
+ * the zone the installed caddy models own (`baseDomain`) and this machine's own
+ * hostname. Nothing is invented: with no caddy model there is no zone, and the
+ * caller must not publish rather than guess a placeholder domain.
+ */
+export async function deriveSite(
+  run: (argv: string[]) => Promise<{ code: number; stdout: string }>,
+  localHostname: string,
+): Promise<{ hostname: string; baseDomain: string } | null> {
+  const listRaw = await run(["behavior", "list", "--json"]);
+  if (!listRaw.stdout) return null;
+  let names: string[] = [];
+  try {
+    const parsed = JSON.parse(listRaw.stdout);
+    const list = Array.isArray(parsed) ? parsed : (parsed.results ?? []);
+    names = list
+      .filter((m: { type?: string }) => m.type === "@svendowideit/caddy")
+      .map((m: { name?: string }) => String(m.name ?? ""))
+      .filter((n: string) => n !== "");
+  } catch {
+    return null;
+  }
+  for (const name of names) {
+    const raw = await run(["behavior", "get", name, "--json"]);
+    if (!raw.stdout) continue;
+    try {
+      const model = JSON.parse(raw.stdout);
+      const baseDomain = String(model?.globalArguments?.baseDomain ?? "").trim()
+        .replace(/^\./, "");
+      if (!baseDomain) continue;
+      const host = localHostname.trim().split(".")[0].toLowerCase();
+      return {
+        baseDomain,
+        hostname: host ? `census.${host}.${baseDomain}` : "",
+      };
+    } catch {
+      // unreadable model: try the next one
+    }
+  }
+  return null;
+}
+
 /** The swamp binary to shell out to: the running executable, else PATH. */
 function swampBinary(): string {
   try {
@@ -1929,10 +1967,17 @@ export async function resolveTargets(
     });
   }
 
-  // Fleet list: one target per machine, keyed by name, skipping pure duplicates.
+  // Fleet list: one target per MACHINE. Prefer hosts the inventory actually
+  // probed (a machine id means we reached it at least once); a raw scan hit is
+  // an address, not a machine, and scanning a hundred of them on a schedule is
+  // noise. Fall back to every known host when nothing has been probed yet.
+  const probed = fleetHosts.filter((h) =>
+    h.probed === true || (typeof h.machineId === "string" && h.machineId !== "")
+  );
+  const selected = probed.length > 0 ? probed : fleetHosts;
   const seen = new Set<string>();
   const out: Array<{ label: string; candidates: string[] }> = [];
-  for (const h of fleetHosts) {
+  for (const h of selected) {
     const label = String(h.name || h.address || "");
     if (!label || seen.has(label.toLowerCase())) continue;
     seen.add(label.toLowerCase());
@@ -2026,12 +2071,12 @@ interface MethodContext {
 /** A model that censuses the software this host's OS package manager does not own. */
 export const model = {
   type: "@svendowideit/fleet-census",
-  version: "2026.11.21.1",
+  version: "2026.11.21.3",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
     {
-      toVersion: FLEET_CENSUS_VERSION,
+      toVersion: "2026.11.21.1",
       description:
         "Initial release: scan this host read-only for software the OS package " +
         "manager does not own (PATH superset, package DB, Go build info, pip/" +
@@ -2039,6 +2084,31 @@ export const model = {
         "and manager, record interface addresses and MACs for inventory drift, " +
         "and write `host`, `software` and `summary`. Never executes a discovered " +
         "binary.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.21.2",
+      description:
+        "The sweep workflow runs itself every six hours (0 */6 * * *) and, with " +
+        "no `hosts` input, scans the machines the fleet-inventory model has " +
+        "actually probed rather than every raw scan hit. Also from the review: " +
+        "the scanner reports hitting maxItems (`meta truncated`) instead of " +
+        "breaking silently, the host record carries that warning, per-host data " +
+        "names are de-duplicated when two machines share a hostname, and the kill " +
+        "timer starts before the script is written to stdin. Additive.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.21.3",
+      description:
+        "No shipped trigger, and no configured site. A published extension must " +
+        "not start a fleet scan on someone else's swamp, so the trigger is gone: " +
+        "scheduling is one entry in the site's .swamp/serve.yaml `triggers:` " +
+        "block. And the site needs no inputs — `publish` derives the zone from the " +
+        "installed @svendowideit/caddy models and the hostname as " +
+        "census.<this host>.<zone>, and refuses to publish at all rather than fall " +
+        "back to a placeholder domain. reportHostname/reportBaseDomain defaults " +
+        "are empty (derive), not example.com.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -2404,6 +2474,41 @@ export const model = {
           };
         };
 
+        // Everything site-specific is derived when it was not given: the zone
+        // comes from the caddy models that already own one, and the hostname is
+        // census.<this host>.<zone>. A placeholder domain is never published — if
+        // nothing can be derived, this stops and says so.
+        let baseDomain = args.baseDomain.trim();
+        let hostname = args.hostname.trim();
+        if (baseDomain === "" || hostname === "") {
+          let hostnameForDerivation = "";
+          try {
+            hostnameForDerivation = Deno.hostname();
+          } catch {
+            hostnameForDerivation = Deno.env.get("HOSTNAME") ?? "";
+          }
+          const site = await deriveSite(run, hostnameForDerivation);
+          if (site) {
+            baseDomain = baseDomain || site.baseDomain;
+            hostname = hostname || site.hostname;
+          }
+        }
+        if (hostname === "" || baseDomain === "") {
+          const reason =
+            `no caddy model with a baseDomain is installed, and no hostname/zone ` +
+            `was given: refusing to publish to a placeholder`;
+          ctx.logger?.warn?.("not publishing: {reason}", { reason });
+          const handle = await ctx.writeResource("publish", "publish", {
+            model: args.model,
+            hostname: "",
+            root,
+            ok: false,
+            output: reason,
+            publishedAt: new Date().toISOString(),
+          });
+          return { dataHandles: [handle] };
+        }
+
         // Create the caddy model only if it is not already there: it carries the
         // zone and the record address, and merges with the peer models that
         // already manage this Caddy (status-caddy, my-caddy, …).
@@ -2416,7 +2521,7 @@ export const model = {
             "@svendowideit/caddy",
             args.model,
             "--global-arg",
-            `baseDomain=${args.baseDomain}`,
+            `baseDomain=${baseDomain}`,
             "--global-arg",
             "serviceName=caddy",
             "--global-arg",
@@ -2440,7 +2545,7 @@ export const model = {
           args.model,
           "addRoute",
           "--input",
-          `hostname=${args.hostname}`,
+          `hostname=${hostname}`,
           "--input",
           "kind=file_server",
           "--input",
@@ -2454,7 +2559,7 @@ export const model = {
         ].join("; ");
         const handle = await ctx.writeResource("publish", "publish", {
           model: args.model,
-          hostname: args.hostname,
+          hostname,
           root,
           ok,
           output,
@@ -2465,7 +2570,7 @@ export const model = {
             "serving {root} at https://{hostname} through {model} ({output})",
             {
               root,
-              hostname: args.hostname,
+              hostname,
               model: args.model,
               output: output || "ok",
             },
@@ -2473,7 +2578,7 @@ export const model = {
         } else {
           ctx.logger?.warn?.(
             "could not publish https://{hostname}: {output}",
-            { hostname: args.hostname, output },
+            { hostname, output },
           );
         }
         return { dataHandles: [handle] };

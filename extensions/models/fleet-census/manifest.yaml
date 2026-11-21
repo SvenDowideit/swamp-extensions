@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/fleet-census"
-version: "2026.11.21.1"
+version: "2026.11.21.4"
 description: >
   What is on this host that the OS package manager does not own — and who owns
   it?
@@ -42,6 +42,10 @@ description: >
       # the other caddy models on the same instance.
       swamp workflow run @svendowideit/fleet-census-sweep \
         --input reportRouteIp=192.0.2.10
+
+      # It runs itself every six hours (0 */6 * * *), with every site value
+      # derived: the zone from the installed caddy models, the hostname as
+      # census.<host>.<zone>. Override the cadence in .swamp/serve.yaml.
 
       # Or census just this host, with no SSH at all.
       swamp model create @svendowideit/fleet-census census
@@ -91,9 +95,20 @@ description: >
 
   WHAT IT INSTALLS
 
-    Nothing on the host: no units, no services, no cron triggers, no webhooks, no
-    files. It reads the filesystem, renders the scan to `sh` on stdin, and writes
-    only swamp data.
+    Nothing on the host: no units, no services, no files outside the report
+    directory. It reads the filesystem, renders the scan to `sh` on stdin, and
+    writes swamp data.
+
+    It ships one thing: a six-hourly trigger on
+    `@svendowideit/fleet-census-sweep` (`0 */6 * * *`), so the census, the reports
+    and the served site stay current. That is safe to ship because nothing
+    site-specific is assumed and nothing is invented: `publish` derives the zone
+    from the installed caddy models and the hostname as `census.<host>.<zone>`,
+    **refuses** to publish when no caddy model owns a zone rather than claiming a
+    placeholder domain, and with no `hosts` input the census scans only the
+    machines the fleet model has actually probed. Delete the workflow's `trigger:`
+    to run it by hand, or override the schedule and inputs in the site's
+    `.swamp/serve.yaml`.
 
 paths:
   base: manifest

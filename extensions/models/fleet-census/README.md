@@ -180,10 +180,16 @@ invented.
 
 ### method `publish` — serve it through Caddy
 
-Creates (once) a `census-caddy` @svendowideit/caddy model for the zone with
-`routeIp` and auto DNS/TLS, then ensures a `file_server` route at the hostname.
-The route is idempotent and merges with the other caddy models that share that
-Caddy instance; DNS and the certificate are derived from the route.
+Creates (once) a `census-caddy` @svendowideit/caddy model for the zone and ensures
+a `file_server` route at the hostname. The route is idempotent and merges with the
+other caddy models that share that Caddy instance; DNS and the certificate are
+derived from the route.
+
+Nothing has to be supplied: with no `hostname`/`baseDomain` the zone is read from
+the installed caddy models and the hostname becomes
+`census.<this host>.<zone>` — and the A record is derived from the zone's existing
+record. If no caddy model owns a zone, `publish` **refuses** rather than falling
+back to a placeholder domain, and records why.
 
 ```sh
 swamp model method run fleet-census publish \
@@ -202,6 +208,31 @@ The full sweep is `census → metadata → assess → report → publish`: scan 
 host, fetch upstream release metadata, join it into freshness, render the three
 pages, then serve them at `reportHostname` through Caddy. Set
 `publishSite=false` to only write the files.
+
+### Scheduling
+
+The workflow **ships a six-hourly trigger** (`0 */6 * * *`): pulling it gives a
+site a census, refreshed reports and a refreshed site every six hours. It needs no
+configuration, and it is safe to ship because nothing site-specific is assumed and
+nothing is invented:
+
+- `publish` derives the zone from the installed `@svendowideit/caddy` models and
+  the hostname as `census.<this host>.<zone>`;
+- with no caddy model owning a zone it **refuses** to publish (recorded as
+  `ok:false`, with the reason) instead of claiming a placeholder domain;
+- with no `hosts` input the census scans the machines the fleet model has
+  **probed**, not every raw scan hit.
+
+`swamp serve` registers schedules when it starts, so a serve that was already
+running before you pulled this version needs one restart. Delete the workflow's
+`trigger:` to run it by hand only, or override the cadence and any inputs in the
+site's `.swamp/serve.yaml`:
+
+```yaml
+triggers:
+  '@svendowideit/fleet-census-sweep':
+    schedule: '0 3 * * *'
+```
 
 `provenance` is one of `os`, `language`, `third-party`, `container`,
 `hand-installed`, `source-build`, `swamp`, `unknown`. `manager` is one of `none`,

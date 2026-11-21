@@ -28,6 +28,16 @@ description: |
 
   To run the sweep itself on a worker instead, add `target: <worker>` to the
   job (the method then SSHes from that worker).
+trigger:
+  # Every six hours: refresh the census, the upstream metadata, the freshness
+  # assessment, the three reports and the Caddy-served site.
+  #
+  # This is safe to ship because nothing site-specific is assumed and nothing is
+  # invented: publish derives the zone from the installed caddy models and the
+  # hostname as census.<host>.<zone>, refuses to publish at all when no caddy
+  # model owns a zone, and with no `hosts` input the census scans only machines
+  # the fleet model has actually probed.
+  schedule: "0 */6 * * *"
 inputs:
   properties:
     hosts:
@@ -70,12 +80,16 @@ inputs:
       description: Flag upstream idle time above this as abandoned.
     reportHostname:
       type: string
-      default: census.x1yoga.fi.gy
-      description: Hostname the HTML reports are served on.
+      default: ""
+      description: >-
+        Hostname the HTML reports are served on. Empty derives
+        census.<this host>.<zone> from the installed caddy models.
     reportBaseDomain:
       type: string
-      default: fi.gy
-      description: The Caddy zone whose DNS and TLS serve that hostname.
+      default: ""
+      description: >-
+        The Caddy zone whose DNS and TLS serve that hostname. Empty reads it from
+        the installed @svendowideit/caddy models.
     reportRouteIp:
       type: string
       default: ""

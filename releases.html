@@ -139,7 +139,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Precedence:</strong> <code>--token</code>/<code>--token-file</code>, then <code>SWAMP_SERVER_TOKEN_FILE</code>, then <code>SWAMP_SERVER_TOKEN</code>, then <code>servers.json</code>, then workspace sign-in.</li>
 <li><strong>A withheld token says why.</strong> The CLI warns once per address and the 401 repeats the reason in log and JSON modes, naming the variable and never the token. The message covers: only <code>.swamp.yaml</code> names the address; <code>SWAMP_SERVER_URL</code> pairs it with another server (suggest</li>
 </ul></div>
-
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/repo.md" rel="noopener">design/surfaces/repo.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/serve-workspaces.md" rel="noopener">design/surfaces/serve-workspaces.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261121.085447.0-sha.e52c839b" rel="noopener">release v20261121.085447.0-sha.e52c839b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/e52c839ba84125f40d33197b958c62b698ce7929" rel="noopener">e52c839b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3911" rel="noopener">#3911</a>𝗔 <a href="https://swamp-club.com/lab/4430" rel="noopener">lab#4430</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261121-022312-0-sha-6a624df4">
@@ -206,7 +206,7 @@ footer .ver{color:var(--acc)}
 <li><code>YamlDefinitionRepository.declaresTypeById</code> lost its only caller and is removed.</li>
 <li><code>design/enablers/datastores.md</code> describes the per-pass snapshot an</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261121.013602.0-sha.40762c63" rel="noopener">release v20261121.013602.0-sha.40762c63</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/40762c632fb50960d3f1440eae95788c2bc3a1ad" rel="noopener">40762c63</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3908" rel="noopener">#3908</a>𝗔 <a href="https://swamp-club.com/lab/4314" rel="noopener">lab#4314</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261121-012646-0-sha-d1fbfe0b">
@@ -227,7 +227,7 @@ footer .ver{color:var(--acc)}
 <li>or a folder already sits where a new one would go. <code>swamp workspace import</code> is offered only when the record vouches for that folder.</li>
 <li><strong>Auth:</strong> none is written. The root reads its own <code>.swamp/serve.yaml</code>, as plain <code>swamp serve</code> does. Off loopback or behind a proxy, the existing no-auth refusal applies, and for the root it names that `s</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/serve-workspaces.md" rel="noopener">design/surfaces/serve-workspaces.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261121.012646.0-sha.d1fbfe0b" rel="noopener">release v20261121.012646.0-sha.d1fbfe0b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d1fbfe0b3d9d58029fcae60b10b385ee8ac7d5b4" rel="noopener">d1fbfe0b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3907" rel="noopener">#3907</a>𝗔 <a href="https://swamp-club.com/lab/4975" rel="noopener">lab#4975</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261121-005207-0-sha-a79ce1f3">
@@ -592,7 +592,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Only a host token stored by <code>server-login</code> is exchanged.</strong> A host token from <code>SWAMP_SERVER_TOKEN</code> or a token file never is: an exchange would write a credential to a machine that keeps them out of files, or mint a token on every command.</li>
 <li><strong>Expiry, not retry.</strong> An exchanged token is replaced in the last 5 minutes before it expires (falling back to the still-valid one if that fails); an expired token that</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261119.195756.0-sha.838b520b" rel="noopener">release v20261119.195756.0-sha.838b520b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/838b520b5bf6e31bc17ecf2b13df8f703fd0fe51" rel="noopener">838b520b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3872" rel="noopener">#3872</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4876" rel="noopener">#4876</a>𝗔 <a href="https://swamp-club.com/lab/4877" rel="noopener">lab#4877</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261119-194706-0-sha-24492d70">
@@ -8607,7 +8607,7 @@ footer .ver{color:var(--acc)}
 <ul><li><strong>fix</strong> — 221</li><li><strong>feat</strong> — 93</li><li><strong>perf</strong> — 20</li><li><strong>docs</strong> — 9</li><li><strong>test</strong> — 8</li><li><strong>refactor</strong> — 3</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-21T12:03:44.733Z">2026-11-21T12:03:44.733Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-21T13:07:22.869Z">2026-11-21T13:07:22.869Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

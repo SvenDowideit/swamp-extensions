@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/github-release-install"
-version: "2026.10.11.1"
+version: "2026.11.21.1"
 description: >
   Resolve any GitHub repository's latest (or pinned) release, pick the right
   archive for this machine, verify it against the release's checksums, and
@@ -81,6 +81,14 @@ description: >
       # Render the resolved release (notes + asset table) into Markdown.
       swamp model @svendowideit/github-release-install method run render rel
 
+    # Release metadata for many repositories in one call — newest version and
+    # publication date, the LTS and dev channels, recent tags, archived flag.
+    # Cached for ttlSeconds and capped at maxRepos so a fleet sweep cannot burn
+    # the rate limit.
+    swamp model create @svendowideit/github-release-install release-meta
+    swamp model method run release-meta metadataMany \
+      --input 'repos:json=["ollama/ollama","caddyserver/caddy"]'
+
   CONFIGURE
 
     Any global argument may also be passed per call with `--input`, so a direct
@@ -141,6 +149,7 @@ additionalFiles:
   - README.md
   - LICENSE.txt
   - github_release_test.ts
+  - github_release_install_test.ts
   - github_release_install_methods_test.ts
 
 platforms: []

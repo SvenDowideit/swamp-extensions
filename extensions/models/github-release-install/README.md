@@ -221,6 +221,31 @@ swamp model @svendowideit/github-release-install method run render rel
 swamp data get rel document --json
 ```
 
+### Batch metadata: `metadataMany`
+
+For a fleet-wide consumer (such as `@svendowideit/fleet-census`) one call
+answers "what is the newest release of each of these repositories, when was it
+published, and is there an LTS and a dev channel?":
+
+```sh
+swamp model create @svendowideit/github-release-install release-meta
+swamp model method run release-meta metadataMany --input 'repos:json=["ollama/ollama","caddyserver/caddy"]'
+swamp data get release-meta releases --json | jq '.content.repos[] | {repo, latest, lts, dev, archived}'
+```
+
+| field | meaning |
+|---|---|
+| `latest` | newest **non-prerelease**, by publication date, with `publishedAt` |
+| `lts` | newest non-prerelease whose tag names itself LTS (`-lts`, `-lts.2`); `null` rather than a guess |
+| `dev` | newest prerelease |
+| `tags[]` | the last `perRepo` tags with dates — what an installed-version age is looked up against |
+| `archived`, `pushedAt` | repository state, the abandonment signal |
+| `cached` | reused from the previous result inside `ttlSeconds` |
+
+`maxRepos` caps the call and `rateRemaining` reports the budget, so a caller can
+back off instead of failing. Only GitHub is supported today; other release
+platforms are a separate source to add.
+
 ## Details
 
 ### Models, methods and resources

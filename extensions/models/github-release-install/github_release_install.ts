@@ -259,6 +259,26 @@ const RenderResultSchema = z.object({
   lines: z.array(z.string()),
 });
 
+const MetadataManyArgsSchema = z.object({
+  repos: z.array(z.string()).default([]).describe(
+    "Repositories as owner/name. Duplicates are removed; the list is capped at " +
+      "maxRepos so one call cannot burn the rate limit.",
+  ),
+  maxRepos: z.number().int().positive().max(500).default(40).describe(
+    "Maximum repositories fetched in this call.",
+  ),
+  perRepo: z.number().int().positive().max(100).default(30).describe(
+    "Releases read per repository (newest first).",
+  ),
+  ttlSeconds: z.number().int().nonnegative().default(21600).describe(
+    "Reuse a repository's previous metadata when it was fetched within this " +
+      "window (0 disables the cache).",
+  ),
+  detectChannels: z.boolean().default(true).describe(
+    "Also report the LTS and development (prerelease) channels.",
+  ),
+});
+
 const AuthStatusArgsSchema = z.object({
   checkRemaining: z.boolean().default(false).describe(
     "Make one authenticated request to the releases API and report the " +
@@ -268,6 +288,7 @@ const AuthStatusArgsSchema = z.object({
 });
 
 type AuthStatusArgs = z.infer<typeof AuthStatusArgsSchema>;
+type MetadataManyArgs = z.infer<typeof MetadataManyArgsSchema>;
 
 const AuthStatusResultSchema = z.object({
   authenticated: z.boolean(),
@@ -301,6 +322,71 @@ type MethodContext = {
     version?: number,
   ) => Promise<Record<string, unknown> | null>;
 };
+
+// ---------------------------------------------------------------------------
+// Batch release metadata (used by fleet-wide consumers such as fleet-census)
+// ---------------------------------------------------------------------------
+
+export interface ReleaseTag {
+  tag: string;
+  version: string;
+  publishedAt: string;
+  prerelease: boolean;
+}
+
+export interface Channels {
+  /** Newest non-prerelease. */
+  latest: ReleaseTag | null;
+  /** Newest tag that names itself LTS (e.g. v3.4.1-lts), when one exists. */
+  lts: ReleaseTag | null;
+  /** Newest prerelease (a development channel). */
+  dev: ReleaseTag | null;
+}
+
+/** `v1.2.3` -> `1.2.3`; anything else is left alone. */
+export function normaliseVersion(tag: string): string {
+  return tag.trim().replace(/^v(?=\d)/, "");
+}
+
+/**
+ * Pick the channels out of a release list (newest first, as GitHub returns it).
+ *
+ * `dev` is the newest prerelease, `latest` the newest non-prerelease, and `lts`
+ * the newest tag that says so in its name (`-lts`, `-LTS`, `-lts.1`). Nothing is
+ * guessed from major-version numbers: a project that never labels an LTS channel
+ * gets `lts: null` rather than a wrong answer.
+ */
+export function selectChannels(tags: ReleaseTag[]): Channels {
+  const sorted = [...tags].sort((a, b) =>
+    (b.publishedAt || "").localeCompare(a.publishedAt || "")
+  );
+  return {
+    latest: sorted.find((t) => !t.prerelease) ?? null,
+    dev: sorted.find((t) => t.prerelease) ?? null,
+    lts:
+      sorted.find((t) =>
+        !t.prerelease && /(^|[-._])lts([-._]|\d|$)/i.test(t.tag)
+      ) ??
+        null,
+  };
+}
+
+/** Turn a GitHub releases payload into tags (tolerating missing fields). */
+export function tagsFromReleases(payload: unknown): ReleaseTag[] {
+  if (!Array.isArray(payload)) return [];
+  return payload.flatMap((raw) => {
+    if (raw === null || typeof raw !== "object") return [];
+    const r = raw as Record<string, unknown>;
+    const tag = typeof r.tag_name === "string" ? r.tag_name : "";
+    if (!tag) return [];
+    return [{
+      tag,
+      version: normaliseVersion(tag),
+      publishedAt: typeof r.published_at === "string" ? r.published_at : "",
+      prerelease: r.prerelease === true,
+    }];
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Pure helpers (exported for testing)
@@ -418,7 +504,7 @@ export function formatSummary(
 /** Resolves and downloads GitHub release archives for any repository. */
 export const model = {
   type: "@svendowideit/github-release-install",
-  version: "2026.10.11.1",
+  version: "2026.11.21.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -430,7 +516,19 @@ export const model = {
     {
       toVersion: "2026.10.11.1",
       description:
-        "`download` now reuses an already-verified archive without re-reading and re-hashing it on every call. A sidecar `<archive>.verified.json` marker records the expected digest, algorithm and the file's size+mtime after a successful verification; a later run with the same digest and an unchanged file skips the full-file hash (previously a large archive such as syft's 31 MB tarball was re-hashed on every run). A missing/stale marker falls back to the full re-hash, so the verification guarantee is unchanged. No resource schema change.",
+        "`download` now reuses an already-verified archive without re-reading and re-hashing it on every call. A sidecar `<archive>.verified.json` marker records the expected digest, algorithm and the file's size+mtime after a successful verification; a later run with the same digest and an unchanged file skips the full-file hash (previously a large archive such as syft's 31 MB tarball was re-hashed on every run). A" +
+        "missing/stale marker falls back to the full re-hash, so the verification guarantee is unchanged. No resource schema change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.21.1",
+      description:
+        "Adds `metadataMany`: release metadata for many repositories in one call " +
+        "(newest version + publishedAt, LTS and dev channels, recent tags, archived " +
+        "flag), cached for ttlSeconds, capped at maxRepos, reporting the remaining " +
+        "rate limit. It is the bulk input a fleet-wide freshness/abandonment " +
+        "assessment needs, instead of one call per repository. Also exports the " +
+        "pure helpers normaliseVersion/selectChannels/tagsFromReleases. Additive.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -460,6 +558,56 @@ export const model = {
       schema: RenderResultSchema,
       lifetime: "infinite",
       garbageCollection: 20,
+    },
+    releases: {
+      description:
+        "Release metadata for many repositories at once: newest version and " +
+        "its publication date, the LTS and development channels, tags, and " +
+        "whether the repository is archived — the input a fleet-wide freshness " +
+        "or abandonment assessment needs.",
+      schema: z.object({
+        repos: z.array(z.object({
+          repo: z.string(),
+          ok: z.boolean().default(false),
+          error: z.string().default(""),
+          archived: z.boolean().default(false),
+          pushedAt: z.string().default(""),
+          latest: z.object({
+            tag: z.string().default(""),
+            version: z.string().default(""),
+            publishedAt: z.string().default(""),
+            prerelease: z.boolean().default(false),
+          }).nullable().default(null),
+          lts: z.object({
+            tag: z.string().default(""),
+            version: z.string().default(""),
+            publishedAt: z.string().default(""),
+            prerelease: z.boolean().default(false),
+          }).nullable().default(null),
+          dev: z.object({
+            tag: z.string().default(""),
+            version: z.string().default(""),
+            publishedAt: z.string().default(""),
+            prerelease: z.boolean().default(false),
+          }).nullable().default(null),
+          tags: z.array(z.object({
+            tag: z.string(),
+            version: z.string().default(""),
+            publishedAt: z.string().default(""),
+            prerelease: z.boolean().default(false),
+          })).default([]),
+          fetchedAt: z.string().default(""),
+          cached: z.boolean().default(false),
+        })).default([]),
+        requested: z.number().default(0),
+        fetched: z.number().default(0),
+        cached: z.number().default(0),
+        truncated: z.boolean().default(false),
+        rateRemaining: z.number().nullable().default(null),
+        fetchedAt: z.string(),
+      }),
+      lifetime: "infinite",
+      garbageCollection: 5,
     },
     authStatus: {
       description:
@@ -544,6 +692,173 @@ export const model = {
             guidance: authSetupHint(),
             lines,
           },
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    metadataMany: {
+      description:
+        "Fetch release metadata for many repositories in one call: newest " +
+        "version + publishedAt, the LTS and development channels, recent tags, " +
+        "and whether the repo is archived. Reuses a previous result within " +
+        "ttlSeconds, caps the list at maxRepos, and reports the remaining rate " +
+        "limit so a fleet-wide consumer can back off.",
+      arguments: MetadataManyArgsSchema,
+      execute: async (
+        args: MetadataManyArgs,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const g = context.globalArgs;
+        const fetchedAt = new Date().toISOString();
+        const repos: string[] = [
+          ...new Set(
+            args.repos.map((r: string) => r.trim().replace(/\/+$/, "")).filter(
+              (r: string) => r !== "",
+            ),
+          ),
+        ];
+        const truncated = repos.length > args.maxRepos;
+        const todo = repos.slice(0, args.maxRepos);
+
+        // Reuse a previous result inside the TTL: a fleet census re-run should not
+        // re-spend the rate limit on repositories it just looked up.
+        const previous = await context.readResource("releases").catch(() =>
+          null
+        ) as
+          | { repos?: Array<Record<string, unknown>> }
+          | null;
+        const prevByRepo = new Map(
+          (previous?.repos ?? []).map((r) => [String(r.repo ?? ""), r]),
+        );
+        const freshCutoff = Date.now() - args.ttlSeconds * 1000;
+
+        let token = "";
+        try {
+          token = (await resolveToken(g.githubToken)).token ?? "";
+        } catch {
+          token = "";
+        }
+        const headers = githubHeaders(
+          g.userAgent,
+          "application/vnd.github+json",
+          token,
+        );
+
+        let rateRemaining: number | null = null;
+        const results: Array<Record<string, unknown>> = [];
+        let cached = 0;
+
+        const one = async (repo: string): Promise<void> => {
+          const prev = prevByRepo.get(repo);
+          const prevAt = Date.parse(String(prev?.fetchedAt ?? ""));
+          if (
+            prev && args.ttlSeconds > 0 && Number.isFinite(prevAt) &&
+            prevAt >= freshCutoff
+          ) {
+            cached++;
+            results.push({ ...prev, cached: true });
+            return;
+          }
+          const base = `https://api.github.com/repos/${repo}`;
+          try {
+            const metaRes = await fetch(base, { headers });
+            const remaining = metaRes.headers.get("x-ratelimit-remaining");
+            if (remaining !== null) rateRemaining = Number(remaining);
+            if (!metaRes.ok) {
+              await metaRes.body?.cancel();
+              results.push({
+                repo,
+                ok: false,
+                error: `GET ${base} -> ${metaRes.status}`,
+                fetchedAt,
+              });
+              return;
+            }
+            const meta = await metaRes.json() as Record<string, unknown>;
+
+            const relRes = await fetch(
+              `${base}/releases?per_page=${args.perRepo}`,
+              { headers },
+            );
+            const relRemaining = relRes.headers.get("x-ratelimit-remaining");
+            if (relRemaining !== null) rateRemaining = Number(relRemaining);
+            let tags: ReleaseTag[] = [];
+            if (relRes.ok) {
+              tags = tagsFromReleases(await relRes.json());
+            } else {
+              await relRes.body?.cancel();
+            }
+            const channels = args.detectChannels
+              ? selectChannels(tags)
+              : { latest: selectChannels(tags).latest, lts: null, dev: null };
+            results.push({
+              repo,
+              ok: true,
+              error: "",
+              archived: meta.archived === true,
+              pushedAt: typeof meta.pushed_at === "string"
+                ? meta.pushed_at
+                : "",
+              latest: channels.latest,
+              lts: channels.lts,
+              dev: channels.dev,
+              tags: tags.slice(0, args.perRepo),
+              fetchedAt,
+              cached: false,
+            });
+          } catch (err) {
+            results.push({
+              repo,
+              ok: false,
+              error: err instanceof Error ? err.message : String(err),
+              fetchedAt,
+            });
+          }
+        };
+
+        // 4 at a time: fast enough for a fleet, gentle on an anonymous rate limit.
+        let next = 0;
+        await Promise.all(
+          Array.from(
+            { length: Math.max(1, Math.min(4, todo.length)) },
+            async () => {
+              while (true) {
+                const i = next++;
+                if (i >= todo.length) return;
+                await one(todo[i]);
+              }
+            },
+          ),
+        );
+        results.sort((a, b) => String(a.repo).localeCompare(String(b.repo)));
+
+        const payload = {
+          repos: results,
+          requested: repos.length,
+          fetched: results.filter((r) => r.ok && r.cached !== true).length,
+          cached,
+          truncated,
+          rateRemaining,
+          fetchedAt,
+        };
+        context.logger.info(
+          "release metadata: {ok}/{requested} repo(s) ({cached} cached, {failed} failed)" +
+            "{truncated}, rate limit {rate} remaining",
+          {
+            ok: results.filter((r) => r.ok).length,
+            requested: repos.length,
+            cached,
+            failed: results.filter((r) => !r.ok).length,
+            truncated: truncated
+              ? ` — truncated to maxRepos=${args.maxRepos}`
+              : "",
+            rate: rateRemaining ?? "unknown",
+          },
+        );
+        const handle = await context.writeResource(
+          "releases",
+          "releases",
+          payload,
         );
         return { dataHandles: [handle] };
       },

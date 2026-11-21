@@ -38,6 +38,11 @@ import {
   verifySha256,
   versionsEqual,
 } from "./github_release.ts";
+import {
+  normaliseVersion,
+  selectChannels,
+  tagsFromReleases,
+} from "./github_release_install.ts";
 
 Deno.test("normalizeVersion strips a leading v and whitespace", () => {
   assertEquals(normalizeVersion("v0.8.0"), "0.8.0");
@@ -515,4 +520,84 @@ Deno.test("DEFAULT_ASSET_PATTERN has the required named groups", () => {
   assertEquals(re.source.includes("?<version>"), true);
   assertEquals(re.source.includes("?<os>"), true);
   assertEquals(re.source.includes("?<arch>"), true);
+});
+
+// ---------------------------------------------------------------------------
+// Batch metadata helpers (used by fleet-census)
+// ---------------------------------------------------------------------------
+
+Deno.test("normaliseVersion strips a leading v only when a digit follows", () => {
+  assertEquals(normaliseVersion("v1.2.3"), "1.2.3");
+  assertEquals(normaliseVersion("1.2.3"), "1.2.3");
+  assertEquals(normaliseVersion("v-lts"), "v-lts");
+});
+
+Deno.test("tagsFromReleases tolerates a partial payload", () => {
+  const tags = tagsFromReleases([
+    {
+      tag_name: "v0.35.0",
+      published_at: "2026-11-01T00:00:00Z",
+      prerelease: false,
+    },
+    { tag_name: "" },
+    {
+      tag_name: "v0.36.0-rc1",
+      published_at: "2026-11-10T00:00:00Z",
+      prerelease: true,
+    },
+    null,
+  ]);
+  assertEquals(tags.length, 2);
+  assertEquals(tags[0].version, "0.35.0");
+  assertEquals(tags[1].prerelease, true);
+});
+
+Deno.test("selectChannels picks latest, dev and an explicitly-labelled LTS", () => {
+  const tags = tagsFromReleases([
+    {
+      tag_name: "v3.4.0-lts",
+      published_at: "2026-01-01T00:00:00Z",
+      prerelease: false,
+    },
+    {
+      tag_name: "v3.5.0-lts.2",
+      published_at: "2026-09-01T00:00:00Z",
+      prerelease: false,
+    },
+    // newest by publication date *and* the highest version, so "latest" is
+    // unambiguous however you read it
+    {
+      tag_name: "v4.0.0",
+      published_at: "2026-10-01T00:00:00Z",
+      prerelease: false,
+    },
+    {
+      tag_name: "v4.1.0-rc1",
+      published_at: "2026-11-01T00:00:00Z",
+      prerelease: true,
+    },
+  ]);
+  const ch = selectChannels(tags);
+  assertEquals(ch.latest?.tag, "v4.0.0");
+  assertEquals(ch.dev?.tag, "v4.1.0-rc1");
+  // newest non-prerelease tag that names itself LTS
+  assertEquals(ch.lts?.tag, "v3.5.0-lts.2");
+});
+
+Deno.test("selectChannels returns null LTS rather than guessing one", () => {
+  const ch = selectChannels(tagsFromReleases([
+    {
+      tag_name: "v1.0.0",
+      published_at: "2026-01-01T00:00:00Z",
+      prerelease: false,
+    },
+    {
+      tag_name: "v1.1.0",
+      published_at: "2026-02-01T00:00:00Z",
+      prerelease: false,
+    },
+  ]));
+  assertEquals(ch.latest?.tag, "v1.1.0");
+  assertEquals(ch.lts, null);
+  assertEquals(ch.dev, null);
 });

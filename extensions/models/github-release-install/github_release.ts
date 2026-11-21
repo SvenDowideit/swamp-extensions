@@ -837,6 +837,9 @@ export async function runCmd(
   args: string[],
 ): Promise<{ stdout: string; stderr: string; code: number }> {
   try {
+    // only sources for the host platform and the gh token; argv is fixed by the
+    // caller and never shell-interpolated (see README "External commands").
+    // swamp-quality-ignore deno-command: `uname` and the optional `gh` CLI are the
     const proc = new Deno.Command(bin, {
       args,
       stdout: "piped",
@@ -1054,6 +1057,7 @@ export function mapUnameArch(uname: string): string {
 
 async function uname(flag: string): Promise<string> {
   try {
+    // swamp-quality-ignore deno-command: `uname` is the platform probe; fixed argv.
     const proc = new Deno.Command("uname", {
       args: [flag],
       stdout: "piped",

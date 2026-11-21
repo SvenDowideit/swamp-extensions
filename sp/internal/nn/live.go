@@ -39,6 +39,12 @@ func (l *liveState) appendEvent(ev swamp.Event) {
 		l.add(styleDim.Render("· validating inputs"))
 	case "evaluating_workflow":
 		l.add(styleDim.Render("· evaluating workflow"))
+	case "resolving_model":
+		l.add(styleDim.Render("· resolving model"))
+	case "evaluating_expressions":
+		l.add(styleDim.Render("· evaluating expressions"))
+	case "executing":
+		l.add(styleDim.Render("· executing " + ev.Str("methodName")))
 	case "started":
 		l.runID = ev.Str("runId")
 		l.status = "running"
@@ -68,8 +74,13 @@ func (l *liveState) appendEvent(ev swamp.Event) {
 			l.add(styleErr.Render("job " + ev.Str("jobId") + " " + st))
 		}
 	case "completed":
+		// Workflow runs report a completed `run` object; method runs report the
+		// status inline. Accept both rather than guessing one shape.
 		run, _ := ev.Raw["run"].(map[string]any)
 		st := scalar(run["status"])
+		if st == "" {
+			st = ev.Str("status")
+		}
 		l.status = st
 		l.done = true
 		if st == "succeeded" {
@@ -103,8 +114,13 @@ func (l *liveState) finish(err error) {
 		}
 		l.add(styleErr.Render("! " + err.Error()))
 	}
-	if l.status == "" {
-		l.status = "done"
+	if l.status == "" || l.status == "running" {
+		// A clean terminal frame with no reported status is a success.
+		if err == nil {
+			l.status = "succeeded"
+		} else {
+			l.status = "error"
+		}
 	}
 }
 

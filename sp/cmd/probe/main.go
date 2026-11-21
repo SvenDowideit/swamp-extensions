@@ -28,6 +28,12 @@ func main() {
 	if len(os.Args) > 1 {
 		base = os.Args[1]
 	}
+	// run-method <model> <method>: start a live method run and print its first
+	// events. This is the one probe that writes (it creates a run record), so it
+	// only runs when asked for explicitly.
+	if len(os.Args) > 4 && os.Args[2] == "run-method" {
+		os.Exit(probeMethodRun(base, os.Args[3], os.Args[4]))
+	}
 
 	client, err := swamp.Dial(ctx, base, "")
 	if err != nil {
@@ -174,4 +180,44 @@ func asMaps(v any) []map[string]any {
 		}
 	}
 	return out
+}
+
+// probeMethodRun starts a method run and streams its events for a short while,
+// verifying the model.method.run payload without a TUI.
+func probeMethodRun(base, model, method string) int {
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	client, err := swamp.Dial(ctx, base, "")
+	if err != nil {
+		fmt.Println("dial failed:", err)
+		return 1
+	}
+	defer client.Close()
+
+	payload := map[string]any{
+		"modelIdOrName":  model,
+		"methodName":     method,
+		"skipAllReports": true,
+	}
+	h, err := client.StartRun(ctx, swamp.ReqMethodRun, payload)
+	if err != nil {
+		fmt.Println("model.method.run failed:", err)
+		return 1
+	}
+	deadline := time.After(45 * time.Second)
+	for {
+		select {
+		case ev, ok := <-h.Events:
+			if !ok {
+				fmt.Println("done:", <-h.Errc)
+				return 0
+			}
+			fmt.Printf("event %-22s %v\n", ev.Kind, ev.Raw["stepId"])
+		case <-deadline:
+			fmt.Println("timed out; cancelling")
+			_ = h.Cancel(context.Background())
+			return 1
+		}
+	}
 }

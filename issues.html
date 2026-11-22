@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4913"><span class="tier A">A</span>Dashboard sign-in under a workspace segment: under a serve h</a><a href="#issue-4991"><span class="tier A">A</span>ThemeToggle_test flakes with database is locked reading loca</a><a href="#issue-4983"><span class="tier A">A</span>A hung stagecraft publish holds a tracker&#39;s datastore lock 1</a><a href="#issue-4912"><span class="tier A">A</span>A dashboard session cookie per path: a serve with a path in </a><a href="#issue-4987"><span class="tier A">A</span>stagecraft: start on a claimed key takes the claim&#39;s externa</a><a href="#issue-4988"><span class="tier A">A</span>stagecraft examples: the release gate says which SHA goes in</a><a href="#issue-4896"><span class="tier A">A</span>@swamp/cfgmgmt apt_repository: gpgKeyUrl writes keyring with</a><a href="#issue-4430"><span class="tier A">A</span>SWAMP_SERVER_TOKEN does not authenticate with --server, whil</a><a href="#issue-4367"><span class="tier A">A</span>serve: the cron-fire dedup claim has no deadline, so a hung </a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4992"><span class="tier A">A</span>context.runModel() runs the target method without the target</a><a href="#issue-4996"><span class="tier A">A</span>stagecraft: a write publishes to a separate-extension tracke</a><a href="#issue-4433"><span class="tier A">A</span>stagecraft tracker: the peer read&#39;s token file is removed ho</a><a href="#issue-4913"><span class="tier A">A</span>Dashboard sign-in under a workspace segment: under a serve h</a><a href="#issue-4991"><span class="tier A">A</span>ThemeToggle_test flakes with database is locked reading loca</a><a href="#issue-4983"><span class="tier A">A</span>A hung stagecraft publish holds a tracker&#39;s datastore lock 1</a><a href="#issue-4912"><span class="tier A">A</span>A dashboard session cookie per path: a serve with a path in </a><a href="#issue-4987"><span class="tier A">A</span>stagecraft: start on a claimed key takes the claim&#39;s externa</a><a href="#issue-4988"><span class="tier A">A</span>stagecraft examples: the release gate says which SHA goes in</a></aside><div>
 
 <article class="item" id="issue-4852">
 <h2><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4Shell)</h2>
@@ -92,6 +92,30 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-4992">
+<h2><span class="tier A">A</span>context.runModel() runs the target method without the target&#39;s per-behavior lock</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-22T18:13:58.851Z">2026-11-22T18:13:58.851Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4992" rel="noopener">lab#4992</a></div>
+</article>
+<article class="item" id="issue-4996">
+<h2><span class="tier A">A</span>stagecraft: a write publishes to a separate-extension tracker on a local v3 repository with no serve</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-22T18:11:27.282Z">2026-11-22T18:11:27.282Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4996" rel="noopener">lab#4996</a></div>
+</article>
+<article class="item" id="issue-4433">
+<h2><span class="tier A">A</span>stagecraft tracker: the peer read&#39;s token file is removed however the read ends (and a REFERENCE typo)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-22T17:49:57.683Z">2026-11-22T17:49:57.683Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4433" rel="noopener">lab#4433</a></div>
 </article>
 <article class="item" id="issue-4913">
 <h2><span class="tier A">A</span>Dashboard sign-in under a workspace segment: under a serve host the page signs in to the workspace&#39;s serve</h2>
@@ -141,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4988" rel="noopener">lab#4988</a></div>
 </article>
-<article class="item" id="issue-4896">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4896">
 <h2><span class="tier A">A</span>@swamp/cfgmgmt apt_repository: gpgKeyUrl writes keyring with umask-dependent perms (640 on umask-027) -&gt; apt signature verification fails</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-21T19:41:17.371Z">2026-11-21T19:41:17.371Z</time></span></div>
@@ -165,7 +189,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4367" rel="noopener">lab#4367</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4373">
+<article class="item" id="issue-4373">
 <h2><span class="tier A">A</span>serve: a capability probe answered by a follower does not speak for the leader that handles the forwarded request</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-21T01:53:09.623Z">2026-11-21T01:53:09.623Z</time></span></div>
@@ -4493,21 +4517,13 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
-<article class="item" id="issue-4996">
-<h2><span class="tier B">B</span>stagecraft: a write publishes to a separate-extension tracker on a local v3 repository with no serve</h2>
+<article class="item" id="issue-4914">
+<h2><span class="tier B">B</span>The dashboard switcher lists a serve host&#39;s workspaces, read from workspace.list on the root</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-22T17:00:38.885Z">2026-11-22T17:00:38.885Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-22T18:13:46.895Z">2026-11-22T18:13:46.895Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4996" rel="noopener">lab#4996</a></div>
-</article>
-<article class="item" id="issue-4433">
-<h2><span class="tier B">B</span>stagecraft tracker: the peer read&#39;s token file is removed however the read ends (and a REFERENCE typo)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-22T16:54:59.226Z">2026-11-22T16:54:59.226Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4433" rel="noopener">lab#4433</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4914" rel="noopener">lab#4914</a></div>
 </article>
 <article class="item" id="issue-4948">
 <h2><span class="tier B">B</span>extension push: content hash still depends on the extension&#39;s folder with paths.base: manifest (review report reported missing)</h2>
@@ -4660,14 +4676,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4993" rel="noopener">lab#4993</a></div>
-</article>
-<article class="item" id="issue-4992">
-<h2><span class="tier C">C</span>context.runModel() runs the target method without the target&#39;s per-behavior lock</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-22T16:24:21.111Z">2026-11-22T16:24:21.111Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4992" rel="noopener">lab#4992</a></div>
 </article>
 <article class="item" id="issue-4930">
 <h2><span class="tier C">C</span>Scheduled flaky-test detection is failing</h2>
@@ -4852,14 +4860,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4927" rel="noopener">lab#4927</a></div>
-</article>
-<article class="item" id="issue-4914">
-<h2><span class="tier C">C</span>The dashboard switcher lists a serve host&#39;s workspaces, read from workspace.list on the root</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-19T18:56:21.174Z">2026-11-19T18:56:21.174Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4914" rel="noopener">lab#4914</a></div>
 </article>
 <article class="item" id="issue-4908">
 <h2><span class="tier C">C</span>Admin panel can grant a Personal License to a collective</h2>
@@ -5927,12 +5927,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>732 items across 1 source(s) in this window:
-3 critical, 550 notable, 15 routine,
-164 minor.</p>
+3 critical, 553 notable, 14 routine,
+162 minor.</p>
 <ul><li><strong>issues</strong> — 732</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-22T17:17:49.831Z">2026-11-22T17:17:49.831Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-22T18:24:54.780Z">2026-11-22T18:24:54.780Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

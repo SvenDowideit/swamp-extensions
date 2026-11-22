@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4912"><span class="tier A">A</span>A dashboard session cookie per path: a serve with a path in </a><a href="#issue-4987"><span class="tier A">A</span>stagecraft: start on a claimed key takes the claim&#39;s externa</a><a href="#issue-4988"><span class="tier A">A</span>stagecraft examples: the release gate says which SHA goes in</a><a href="#issue-4896"><span class="tier A">A</span>@swamp/cfgmgmt apt_repository: gpgKeyUrl writes keyring with</a><a href="#issue-4430"><span class="tier A">A</span>SWAMP_SERVER_TOKEN does not authenticate with --server, whil</a><a href="#issue-4367"><span class="tier A">A</span>serve: the cron-fire dedup claim has no deadline, so a hung </a><a href="#issue-4373"><span class="tier A">A</span>serve: a capability probe answered by a follower does not sp</a><a href="#issue-4314"><span class="tier A">A</span>data prune through serve deletes data of an auto-definition </a><a href="#issue-4975"><span class="tier A">A</span>A serve host with no root in host.yaml makes its root an ord</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4913"><span class="tier A">A</span>Dashboard sign-in under a workspace segment: under a serve h</a><a href="#issue-4991"><span class="tier A">A</span>ThemeToggle_test flakes with database is locked reading loca</a><a href="#issue-4983"><span class="tier A">A</span>A hung stagecraft publish holds a tracker&#39;s datastore lock 1</a><a href="#issue-4912"><span class="tier A">A</span>A dashboard session cookie per path: a serve with a path in </a><a href="#issue-4987"><span class="tier A">A</span>stagecraft: start on a claimed key takes the claim&#39;s externa</a><a href="#issue-4988"><span class="tier A">A</span>stagecraft examples: the release gate says which SHA goes in</a><a href="#issue-4896"><span class="tier A">A</span>@swamp/cfgmgmt apt_repository: gpgKeyUrl writes keyring with</a><a href="#issue-4430"><span class="tier A">A</span>SWAMP_SERVER_TOKEN does not authenticate with --server, whil</a><a href="#issue-4367"><span class="tier A">A</span>serve: the cron-fire dedup claim has no deadline, so a hung </a></aside><div>
 
 <article class="item" id="issue-4852">
 <h2><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4Shell)</h2>
@@ -92,6 +92,30 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-4913">
+<h2><span class="tier A">A</span>Dashboard sign-in under a workspace segment: under a serve host the page signs in to the workspace&#39;s serve</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-22T17:14:58.439Z">2026-11-22T17:14:58.439Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4913" rel="noopener">lab#4913</a></div>
+</article>
+<article class="item" id="issue-4991">
+<h2><span class="tier A">A</span>ThemeToggle_test flakes with database is locked reading localStorage during verify-build</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-22T16:45:05.779Z">2026-11-22T16:45:05.779Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4991" rel="noopener">lab#4991</a></div>
+</article>
+<article class="item" id="issue-4983">
+<h2><span class="tier A">A</span>A hung stagecraft publish holds a tracker&#39;s datastore lock 15+ min; after the holder dies the lock stays orphaned and run doctor reports the datastore healthy with no way to release it</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-22T16:24:21.525Z">2026-11-22T16:24:21.525Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4983" rel="noopener">lab#4983</a></div>
 </article>
 <article class="item" id="issue-4912">
 <h2><span class="tier A">A</span>A dashboard session cookie per path: a serve with a path in its address names and scopes its cookie for that path</h2>
@@ -141,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4367" rel="noopener">lab#4367</a></div>
 </article>
-<article class="item" id="issue-4373">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4373">
 <h2><span class="tier A">A</span>serve: a capability probe answered by a follower does not speak for the leader that handles the forwarded request</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-21T01:53:09.623Z">2026-11-21T01:53:09.623Z</time></span></div>
@@ -165,7 +189,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4975" rel="noopener">lab#4975</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4966">
+<article class="item" id="issue-4966">
 <h2><span class="tier A">A</span>extension rm misses dependents that pin the removed extension as name@version</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-21T00:54:36.522Z">2026-11-21T00:54:36.522Z</time></span></div>
@@ -4469,6 +4493,30 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
+<article class="item" id="issue-4996">
+<h2><span class="tier B">B</span>stagecraft: a write publishes to a separate-extension tracker on a local v3 repository with no serve</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-22T17:00:38.885Z">2026-11-22T17:00:38.885Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4996" rel="noopener">lab#4996</a></div>
+</article>
+<article class="item" id="issue-4433">
+<h2><span class="tier B">B</span>stagecraft tracker: the peer read&#39;s token file is removed however the read ends (and a REFERENCE typo)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-22T16:54:59.226Z">2026-11-22T16:54:59.226Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4433" rel="noopener">lab#4433</a></div>
+</article>
+<article class="item" id="issue-4948">
+<h2><span class="tier B">B</span>extension push: content hash still depends on the extension&#39;s folder with paths.base: manifest (review report reported missing)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-22T16:44:46.662Z">2026-11-22T16:44:46.662Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4948" rel="noopener">lab#4948</a></div>
+</article>
 <article class="item" id="issue-4899">
 <h2><span class="tier B">B</span>Team mode: a serve booting with a cold page cache takes 109-122 s to become ready on a real-size datastore (reads about 1 GB)</h2>
 <p class="lede">Issue in_progress</p>
@@ -4484,22 +4532,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4981" rel="noopener">lab#4981</a></div>
-</article>
-<article class="item" id="issue-4983">
-<h2><span class="tier B">B</span>A hung stagecraft publish holds a tracker&#39;s datastore lock 15+ min; after the holder dies the lock stays orphaned and run doctor reports the datastore healthy with no way to release it</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-22T02:05:47.703Z">2026-11-22T02:05:47.703Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4983" rel="noopener">lab#4983</a></div>
-</article>
-<article class="item" id="issue-4948">
-<h2><span class="tier B">B</span>extension push: content hash still depends on the extension&#39;s folder with paths.base: manifest (review report reported missing)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-21T16:16:03.576Z">2026-11-21T16:16:03.576Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4948" rel="noopener">lab#4948</a></div>
 </article>
 <article class="item" id="issue-4958">
 <h2><span class="tier B">B</span>CEL model.&lt;name&gt;.resource loads every latest resource of the behavior, not just the one referenced</h2>
@@ -4581,13 +4613,61 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4374" rel="noopener">lab#4374</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4991">
-<h2><span class="tier C">C</span>ThemeToggle_test flakes with database is locked reading localStorage during verify-build</h2>
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-4998">
+<h2><span class="tier C">C</span>v3: a swamp child process started from inside a method can&#39;t join its parent&#39;s writer lease, so it waits 60 s and fails</h2>
 <p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-22T15:50:34.737Z">2026-11-22T15:50:34.737Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-22T16:49:52.505Z">2026-11-22T16:49:52.505Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4991" rel="noopener">lab#4991</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4998" rel="noopener">lab#4998</a></div>
+</article>
+<article class="item" id="issue-4997">
+<h2><span class="tier C">C</span>context.runModel(): a registry extension from another collective can&#39;t be called unless the caller&#39;s manifest lists it, and the target has no way to allow callers</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-22T16:49:50.153Z">2026-11-22T16:49:50.153Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4997" rel="noopener">lab#4997</a></div>
+</article>
+<article class="item" id="issue-4984">
+<h2><span class="tier C">C</span>stagecraft: a reconcile view that cross-checks reality (git ancestry / registry) against work-item and ticket status</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-22T16:33:41.698Z">2026-11-22T16:33:41.698Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4984" rel="noopener">lab#4984</a></div>
+</article>
+<article class="item" id="issue-4995">
+<h2><span class="tier C">C</span>swamp datastore lock status shows a dead process&#39;s lock as held, and no doctor command checks locks</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-22T16:26:39.085Z">2026-11-22T16:26:39.085Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4995" rel="noopener">lab#4995</a></div>
+</article>
+<article class="item" id="issue-4994">
+<h2><span class="tier C">C</span>swamp run doctor takes the v3 writer lease even without --fix, so it waits behind any writer and fails while serve runs</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-22T16:26:37.184Z">2026-11-22T16:26:37.184Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4994" rel="noopener">lab#4994</a></div>
+</article>
+<article class="item" id="issue-4993">
+<h2><span class="tier C">C</span>On a v3 datastore, one slow CLI command blocks every other writer in the repo, which fails after 60 s</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-22T16:26:35.367Z">2026-11-22T16:26:35.367Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4993" rel="noopener">lab#4993</a></div>
+</article>
+<article class="item" id="issue-4992">
+<h2><span class="tier C">C</span>context.runModel() runs the target method without the target&#39;s per-behavior lock</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-22T16:24:21.111Z">2026-11-22T16:24:21.111Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4992" rel="noopener">lab#4992</a></div>
 </article>
 <article class="item" id="issue-4930">
 <h2><span class="tier C">C</span>Scheduled flaky-test detection is failing</h2>
@@ -4620,14 +4700,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4910" rel="noopener">lab#4910</a></div>
-</article>
-<article class="item" id="issue-4984">
-<h2><span class="tier C">C</span>stagecraft: a reconcile view that cross-checks reality (git ancestry / registry) against work-item and ticket status</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-21T19:41:09.623Z">2026-11-21T19:41:09.623Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4984" rel="noopener">lab#4984</a></div>
 </article>
 <article class="item" id="issue-4985">
 <h2><span class="tier C">C</span>Add-on methods (export const extension) are not found when a step is placed on a worker</h2>
@@ -4788,14 +4860,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4914" rel="noopener">lab#4914</a></div>
-</article>
-<article class="item" id="issue-4913">
-<h2><span class="tier C">C</span>Dashboard sign-in under a workspace segment: under a serve host the page signs in to the workspace&#39;s serve</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-19T18:54:13.584Z">2026-11-19T18:54:13.584Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4913" rel="noopener">lab#4913</a></div>
 </article>
 <article class="item" id="issue-4908">
 <h2><span class="tier C">C</span>Admin panel can grant a Personal License to a collective</h2>
@@ -5300,14 +5364,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3920" rel="noopener">lab#3920</a></div>
-</article>
-<article class="item" id="issue-4433">
-<h2><span class="tier C">C</span>stagecraft tracker: tidy up external relations (duplicate entries, id case, second lookup)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-07T21:32:59.237Z">2026-11-07T21:32:59.237Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4433" rel="noopener">lab#4433</a></div>
 </article>
 <article class="item" id="issue-4476">
 <h2><span class="tier C">C</span>Image factory: golden GCE and Docker base images built on ops</h2>
@@ -5870,13 +5926,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>725 items across 1 source(s) in this window:
-3 critical, 547 notable, 14 routine,
-161 minor.</p>
-<ul><li><strong>issues</strong> — 725</li></ul></section>
+<p>732 items across 1 source(s) in this window:
+3 critical, 550 notable, 15 routine,
+164 minor.</p>
+<ul><li><strong>issues</strong> — 732</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-22T16:05:34.084Z">2026-11-22T16:05:34.084Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-22T17:17:49.831Z">2026-11-22T17:17:49.831Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

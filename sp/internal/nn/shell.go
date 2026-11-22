@@ -433,12 +433,20 @@ func (m *Model) handlePagerKey(key string) (tea.Model, tea.Cmd) {
 		m.mode = modeMenu
 		m.savePosition()
 		return m, nil
-	case "space":
+	case "space", "enter":
+		if it := p.current(); key == "enter" && isDoorway(it) {
+			return m.openDoorway(it)
+		}
 		read, done := p.advance(m.bodyWidth(), bodyH)
 		if len(read) > 0 {
 			m.store.SetAttrs(read[0].Group, read, AttrRead)
 		}
 		if done {
+			// Finishing a doorway read (someone selected it and pressed space)
+			// lands where the row leads, not back at the menu.
+			if len(read) > 0 && isDoorway(read[0]) {
+				return m.openDoorway(read[0])
+			}
 			m.mode = modeMenu
 			m.recount()
 			m.savePosition()
@@ -576,6 +584,18 @@ func (m *Model) continueGroup() (tea.Model, tea.Cmd) {
 	m.store.MarkSeen(visible)
 	selected := m.selectedItems()
 	if len(selected) > 0 {
+		// Doorways are not read in bulk: selecting a runnable and pressing space
+		// means "open it", not "show me three workflow descriptions".
+		allDoorways := true
+		for _, it := range selected {
+			if !isDoorway(it) {
+				allDoorways = false
+				break
+			}
+		}
+		if allDoorways {
+			return m.openDoorway(selected[0])
+		}
 		m.openPager(selected)
 		return m, nil
 	}
@@ -951,6 +971,12 @@ func (m *Model) renderOverview() []string {
 			counts = styleGreenS.Render(strings.Join(bits, " / "))
 		}
 		title := padRight(g.Title(), 22)
+		// Say what a group is for: the difference between "workflows you can run"
+		// and "workflows as objects" is the difference between two groups that
+		// look identical in the overview.
+		if tag := groupTag(g); tag != "" {
+			title = padRight(g.Title(), 22) + styleDim.Render(tag)
+		}
 		line := cursor + " " + title + " " + counts
 		if g.Err != "" {
 			line = cursor + " " + title + " " + styleErr.Render(fit(g.Err, m.width-26))
@@ -964,6 +990,19 @@ func (m *Model) renderOverview() []string {
 		out = append(out, styleDim.Render("no groups (nn.groups.yaml declares none)"))
 	}
 	return out
+}
+
+// groupTag is the one-word role of a group, shown in the overview.
+func groupTag(g *Group) string {
+	switch g.Spec.Kind {
+	case "runs", "methods":
+		return "runnable"
+	case "runhistory", "methodhistory":
+		return "history"
+	case "objects":
+		return "read-only"
+	}
+	return ""
 }
 
 // renderMenu draws one page of the selection menu.
@@ -1077,6 +1116,9 @@ func (m *Model) footerHints() []hint {
 			{"/", "filter"}, {"N/P", "group"}, {"=", "up"}, {"Y", "overview"}, {"Q", "quit"},
 		}
 	case modePager:
+		if m.pager != nil && isDoorway(m.pager.current()) {
+			return []hint{{"space", "open"}, {"enter", "open"}, {"j/k", "scroll"}, {"=", "menu"}, {"Q", "quit"}}
+		}
 		return []hint{{"space", "page/next"}, {"b", "back"}, {"j/k", "scroll"}, {"=", "menu"}, {"N", "group"}, {"Q", "quit"}}
 	case modeForm:
 		if m.form != nil && len(m.form.fields) == 0 {

@@ -900,3 +900,53 @@ func TestFooterSaysSpaceOpensOnADoorwayRow(t *testing.T) {
 		t.Fatalf("a plain row should advertise continue: %q", bar)
 	}
 }
+
+// Regression: selecting a runnable with its id letter and pressing space used to
+// open the *reader* on the workflow's description, so the "+ run" row was
+// unreachable by the most natural key sequence. Doorways are not read in bulk.
+func TestSelectingARunnableThenSpaceOpensItsHistory(t *testing.T) {
+	cfg := &Config{Defaults: Defaults{PageSize: 10}, Groups: []GroupSpec{{
+		ID: "runs", Kind: "runs", Collection: "workflows",
+		IDField: "name", Format: "runnable", Menu: []string{"name", "description"},
+	}}}
+	api := &fakeAPI{
+		workflows:    []map[string]any{{"name": "news-fetch", "description": "fetch news"}},
+		workflowDefs: map[string]map[string]any{"news-fetch": {"inputs": map[string]any{}}},
+	}
+	m := newTestModel(t, cfg, api)
+	g := m.groups[0]
+	if err := m.loader.Load(context.Background(), g); err != nil {
+		t.Fatal(err)
+	}
+	m.enterGroup(g)
+	m.handleKey(key("a"))
+	m.handleKey(key("space"))
+	if m.cur == nil || m.cur.ID() != "runs/news-fetch" {
+		t.Fatalf("select+space must open the runnable's history, cur=%v mode=%v", m.cur, m.mode)
+	}
+	if err := m.loader.Load(context.Background(), m.cur); err != nil {
+		t.Fatal(err)
+	}
+	if len(m.cur.Items) == 0 || m.cur.Items[0].Format != "form" {
+		t.Fatalf("history must start with the '+ run' row: %+v", m.cur.Items)
+	}
+}
+
+// Regression: a doorway row read through the pager must lead somewhere.
+func TestPagerOnADoorwayItemOpensIt(t *testing.T) {
+	cfg := &Config{Groups: []GroupSpec{{ID: "g", Kind: "data", Model: "m", Resource: "r", Path: "items"}}}
+	m := newTestModel(t, cfg, &fakeAPI{})
+	items := []*Item{{ID: "wf", Group: "g", Format: "runnable", Cols: []string{"wf"}, Child: "g/wf"}}
+	m.mode = modeMenu
+	m.cur = &Group{Spec: GroupSpec{ID: "g"}}
+	m.cur.Items = items
+	m.byID["g/wf"] = &Group{Spec: GroupSpec{ID: "g/wf", Kind: "runhistory", Workflow: "wf"}}
+	m.openPager(items)
+	if !strings.Contains(m.render(), "space or enter opens its history") {
+		t.Fatalf("a doorway read should say where it leads:\n%s", m.render())
+	}
+	m.handleKey(key("enter"))
+	if m.cur == nil || m.cur.ID() != "g/wf" {
+		t.Fatalf("enter on a doorway item must open it, cur=%v mode=%v", m.cur, m.mode)
+	}
+}

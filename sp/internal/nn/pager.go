@@ -19,6 +19,9 @@ func bodyLines(it *Item, width int) []string {
 		width = 12
 	}
 	var out []string
+	if hint := doorwayHint(it); hint != "" {
+		out = append(out, hint, "")
+	}
 	if len(it.Meta) > 0 {
 		out = append(out, styleDim.Render(strings.Join(it.Meta, " · ")))
 		out = append(out, "")
@@ -62,6 +65,18 @@ func bodyLines(it *Item, width int) []string {
 		}
 		return append(out, fieldLines(it.Raw, width)...)
 	}
+}
+
+// doorwayHint explains a row that opens something, so the reader is not a dead
+// end someone has to guess their way out of.
+func doorwayHint(it *Item) string {
+	switch {
+	case it.Child != "":
+		return styleDim.Render("→ a runnable: space or enter opens its history and run form")
+	case it.Format == "form":
+		return styleDim.Render("→ a run form: space or enter opens it")
+	}
+	return ""
 }
 
 // fieldLines renders a record as sorted key/value lines, skipping empties.

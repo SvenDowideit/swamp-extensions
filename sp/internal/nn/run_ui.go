@@ -7,6 +7,26 @@ import (
 	"github.com/svendowideit/swamp-project/sp/internal/swamp"
 )
 
+// isDoorway reports whether a row opens something rather than being read in
+// bulk: a runnable (its history), a "+ run" (its form).
+func isDoorway(it *Item) bool {
+	return it != nil && (it.Child != "" || it.Format == "form")
+}
+
+// openDoorway opens whatever a doorway row leads to.
+func (m *Model) openDoorway(it *Item) (tea.Model, tea.Cmd) {
+	if it == nil {
+		return m, nil
+	}
+	if it.Child != "" {
+		return m.pushGroup(it.Child)
+	}
+	if it.Format == "form" {
+		return m.openForm(it)
+	}
+	return m, nil
+}
+
 // cursorItem is the item under the menu cursor on the current page.
 func (m *Model) cursorItem() *Item {
 	items := m.pageItems()

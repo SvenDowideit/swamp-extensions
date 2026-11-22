@@ -58,6 +58,10 @@ Two groups, one grammar:
   narrow it with `/` first: `/gtd`, `/capture`. `space` opens the same history
   plus `+ run <method>`.
 
+Selecting a runnable row with its letter and pressing `space` opens its history
+(doorways are not read in bulk); reading one with `%`/the pager also tells you
+where it leads, and `space`/`enter` there opens it too.
+
 `+ run` opens a form generated from the declared arguments; `ctrl+s` runs it and
 switches to a live view. Workflows run with `workflow.run`, methods with
 `model.method.run` — the payload shapes come from the serve protocol, not from

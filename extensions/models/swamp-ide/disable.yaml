@@ -1,0 +1,38 @@
+id: 521d89a4-7e90-4b88-a4fb-4c4add3487ce
+name: '@svendowideit/swamp-ide-disable'
+description: >
+  Disable the agent IDE for this pi session: remove the session gate, remove
+  the Herdr activity panel and return to the base layout. The OpenObserve
+  history is left alone; run the dashboard method if you want to update it.
+version: 1
+tags:
+  collective: svendowideit
+jobs:
+  - name: main
+    steps:
+      - name: disable-pi
+        description: Remove this pi session's addin gate.
+        task:
+          type: model_method
+          modelType: '@svendowideit/swamp-ide-pi-plugin'
+          modelName: ide-pi
+          methodName: set
+          inputs:
+            enabled: false
+        dependsOn: []
+        weight: 0
+        allowFailure: true
+
+      - name: disable-herdr
+        description: Remove the activity panel and restore the base layout.
+        task:
+          type: model_method
+          modelType: '@svendowideit/swamp-ide'
+          modelName: ide
+          methodName: setHerdr
+          inputs:
+            enabled: false
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+    weight: 0

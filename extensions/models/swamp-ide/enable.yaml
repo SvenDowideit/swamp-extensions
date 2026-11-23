@@ -1,0 +1,51 @@
+id: 2e626360-63e5-4fdf-b7df-e86a9c7aa2a4
+name: '@svendowideit/swamp-ide-enable'
+description: >
+  Enable the agent IDE for this pi session: install the managed addin and
+  session gate when pi is available, install/select the Herdr activity panel,
+  and create/update the OpenObserve dashboard when OpenObserve is available.
+version: 1
+tags:
+  collective: svendowideit
+jobs:
+  - name: main
+    steps:
+      - name: enable-pi
+        description: Install the managed addin and enable this pi session.
+        task:
+          type: model_method
+          modelType: '@svendowideit/swamp-ide-pi-plugin'
+          modelName: ide-pi
+          methodName: set
+          inputs:
+            enabled: true
+        dependsOn: []
+        weight: 0
+        allowFailure: true
+
+      - name: enable-herdr
+        description: Install the activity panel and select the swamp-ide layout.
+        task:
+          type: model_method
+          modelType: '@svendowideit/swamp-ide'
+          modelName: ide
+          methodName: setHerdr
+          inputs:
+            enabled: true
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+
+      - name: enable-openobserve
+        description: Create or update the Swamp Agent IDE dashboard if OpenObserve is reachable.
+        task:
+          type: model_method
+          modelType: '@svendowideit/swamp-ide-openobserve'
+          modelName: ide-openobserve
+          methodName: dashboard
+          inputs:
+            uiBaseUrl: https://obs.otel.fi.gy
+        dependsOn: []
+        weight: 0
+        allowFailure: true
+    weight: 0

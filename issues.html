@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-5017"><span class="tier A">A</span>Extension install wrongly refuses a second nested extension </a><a href="#issue-5016"><span class="tier A">A</span>Output summary rows and workflow listing caches trust a fing</a><a href="#issue-4899"><span class="tier A">A</span>Team mode: a serve booting with a cold page cache takes 109-</a><a href="#issue-5002"><span class="tier A">A</span>Docs: runModel cycle detection is keyed on behavior type and</a><a href="#issue-5000"><span class="tier A">A</span>Docs: invoke-behaviors-from-behaviors should say runModel wa</a><a href="#issue-4914"><span class="tier A">A</span>The dashboard switcher lists a serve host&#39;s workspaces, read</a><a href="#issue-4992"><span class="tier A">A</span>context.runModel() runs the target method without the target</a><a href="#issue-4996"><span class="tier A">A</span>stagecraft: a write publishes to a separate-extension tracke</a><a href="#issue-4433"><span class="tier A">A</span>stagecraft tracker: the peer read&#39;s token file is removed ho</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4981"><span class="tier A">A</span>Team mode: a follower serve&#39;s commits.db WAL is never checkp</a><a href="#issue-5017"><span class="tier A">A</span>Extension install wrongly refuses a second nested extension </a><a href="#issue-5016"><span class="tier A">A</span>Output summary rows and workflow listing caches trust a fing</a><a href="#issue-4899"><span class="tier A">A</span>Team mode: a serve booting with a cold page cache takes 109-</a><a href="#issue-5002"><span class="tier A">A</span>Docs: runModel cycle detection is keyed on behavior type and</a><a href="#issue-5000"><span class="tier A">A</span>Docs: invoke-behaviors-from-behaviors should say runModel wa</a><a href="#issue-4914"><span class="tier A">A</span>The dashboard switcher lists a serve host&#39;s workspaces, read</a><a href="#issue-4992"><span class="tier A">A</span>context.runModel() runs the target method without the target</a><a href="#issue-4996"><span class="tier A">A</span>stagecraft: a write publishes to a separate-extension tracke</a></aside><div>
 
 <article class="item" id="issue-4852">
 <h2><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4Shell)</h2>
@@ -92,6 +92,14 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-4981">
+<h2><span class="tier A">A</span>Team mode: a follower serve&#39;s commits.db WAL is never checkpointed and grows about 1 GB a day (1.7 GB after 2 days), and filled the disk</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-23T19:27:00.908Z">2026-11-23T19:27:00.908Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4981" rel="noopener">lab#4981</a></div>
 </article>
 <article class="item" id="issue-5017">
 <h2><span class="tier A">A</span>Extension install wrongly refuses a second nested extension under a parent&#39;s apps folder when the parent has no lockfile entry</h2>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4996" rel="noopener">lab#4996</a></div>
 </article>
-<article class="item" id="issue-4433">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4433">
 <h2><span class="tier A">A</span>stagecraft tracker: the peer read&#39;s token file is removed however the read ends (and a REFERENCE typo)</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-22T17:49:57.683Z">2026-11-22T17:49:57.683Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4433" rel="noopener">lab#4433</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4913">
+<article class="item" id="issue-4913">
 <h2><span class="tier A">A</span>Dashboard sign-in under a workspace segment: under a serve host the page signs in to the workspace&#39;s serve</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-11-22T17:14:58.439Z">2026-11-22T17:14:58.439Z</time></span></div>
@@ -4565,13 +4573,21 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
-<article class="item" id="issue-4981">
-<h2><span class="tier B">B</span>Team mode: a follower serve&#39;s commits.db WAL is never checkpointed and grows about 1 GB a day (1.7 GB after 2 days), and filled the disk</h2>
+<article class="item" id="issue-4147">
+<h2><span class="tier B">B</span>model.output.search response phase takes 3.9s for 5,000 items with no attribution (redaction vs serialization vs send)</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-23T18:46:44.134Z">2026-11-23T18:46:44.134Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-23T20:02:12.239Z">2026-11-23T20:02:12.239Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4981" rel="noopener">lab#4981</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4147" rel="noopener">lab#4147</a></div>
+</article>
+<article class="item" id="issue-5021">
+<h2><span class="tier B">B</span>feat(workflows): fan-out is usable and inspectable: workflow history get rebuilds a fan-out job&#39;s plan, lanes, halts and gates from the run record, and the swamp skill covers fanOut</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-23T20:01:28.607Z">2026-11-23T20:01:28.607Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5021" rel="noopener">lab#5021</a></div>
 </article>
 <article class="item" id="issue-4994">
 <h2><span class="tier B">B</span>swamp run doctor takes the v3 writer lease even without --fix, so it waits behind any writer and fails while serve runs</h2>
@@ -4677,7 +4693,47 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4374" rel="noopener">lab#4374</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-5020">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-5025">
+<h2><span class="tier C">C</span>docs: fan-out as one general capability in the swamp CLI repo: a README section on running jobs across hosts, consolidated design docs, and quoted lane and gate names</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-23T19:58:16.002Z">2026-11-23T19:58:16.002Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5025" rel="noopener">lab#5025</a></div>
+</article>
+<article class="item" id="issue-4930">
+<h2><span class="tier C">C</span>Scheduled flaky-test detection is failing</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-23T19:50:53.563Z">2026-11-23T19:50:53.563Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4930" rel="noopener">lab#4930</a></div>
+</article>
+<article class="item" id="issue-5024">
+<h2><span class="tier C">C</span>Team mode: a leader that can&#39;t commit (disk full) keeps its lease and reports ready, so the standby never takes over (10 h 44 min write outage on dogfood)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-23T19:44:38.258Z">2026-11-23T19:44:38.258Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5024" rel="noopener">lab#5024</a></div>
+</article>
+<article class="item" id="issue-5023">
+<h2><span class="tier C">C</span>Team mode: the leader commits one forwarded commit at a time for the whole datastore, with catch-up and fsyncs inside, so throughput caps and the event loop stalls under many concurrent members</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-23T19:44:36.480Z">2026-11-23T19:44:36.480Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5023" rel="noopener">lab#5023</a></div>
+</article>
+<article class="item" id="issue-5022">
+<h2><span class="tier C">C</span>Team mode: serve never enforces models&#39; declared data version limits automatically, so history grows without bound (4,712 versions per name vs a declared 10)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-23T19:44:34.584Z">2026-11-23T19:44:34.584Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5022" rel="noopener">lab#5022</a></div>
+</article>
+<article class="item" id="issue-5020">
 <h2><span class="tier C">C</span>Flaky test: serve host restart after shutdown is refused as another host still running on the state folder</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-11-23T18:25:39.389Z">2026-11-23T18:25:39.389Z</time></span></div>
@@ -4724,14 +4780,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/5007" rel="noopener">lab#5007</a></div>
-</article>
-<article class="item" id="issue-4930">
-<h2><span class="tier C">C</span>Scheduled flaky-test detection is failing</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-23T13:59:16.854Z">2026-11-23T13:59:16.854Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4930" rel="noopener">lab#4930</a></div>
 </article>
 <article class="item" id="issue-5001">
 <h2><span class="tier C">C</span>A child swamp run on a behavior its parent run holds waits out the lock timeout; docs say it skips the lock</h2>
@@ -6014,13 +6062,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>743 items across 1 source(s) in this window:
-3 critical, 559 notable, 14 routine,
-167 minor.</p>
-<ul><li><strong>issues</strong> — 743</li></ul></section>
+<p>749 items across 1 source(s) in this window:
+3 critical, 560 notable, 15 routine,
+171 minor.</p>
+<ul><li><strong>issues</strong> — 749</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-23T19:04:05.075Z">2026-11-23T19:04:05.075Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-23T20:04:35.532Z">2026-11-23T20:04:35.532Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

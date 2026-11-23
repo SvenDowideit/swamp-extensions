@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4147"><span class="tier A">A</span>model.output.search response phase takes 3.9s for 5,000 item</a><a href="#issue-4981"><span class="tier A">A</span>Team mode: a follower serve&#39;s commits.db WAL is never checkp</a><a href="#issue-5017"><span class="tier A">A</span>Extension install wrongly refuses a second nested extension </a><a href="#issue-5016"><span class="tier A">A</span>Output summary rows and workflow listing caches trust a fing</a><a href="#issue-4899"><span class="tier A">A</span>Team mode: a serve booting with a cold page cache takes 109-</a><a href="#issue-5002"><span class="tier A">A</span>Docs: runModel cycle detection is keyed on behavior type and</a><a href="#issue-5000"><span class="tier A">A</span>Docs: invoke-behaviors-from-behaviors should say runModel wa</a><a href="#issue-4914"><span class="tier A">A</span>The dashboard switcher lists a serve host&#39;s workspaces, read</a><a href="#issue-4992"><span class="tier A">A</span>context.runModel() runs the target method without the target</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-5021"><span class="tier A">A</span>feat(workflows): fan-out is usable and inspectable: workflow</a><a href="#issue-4147"><span class="tier A">A</span>model.output.search response phase takes 3.9s for 5,000 item</a><a href="#issue-4981"><span class="tier A">A</span>Team mode: a follower serve&#39;s commits.db WAL is never checkp</a><a href="#issue-5017"><span class="tier A">A</span>Extension install wrongly refuses a second nested extension </a><a href="#issue-5016"><span class="tier A">A</span>Output summary rows and workflow listing caches trust a fing</a><a href="#issue-4899"><span class="tier A">A</span>Team mode: a serve booting with a cold page cache takes 109-</a><a href="#issue-5002"><span class="tier A">A</span>Docs: runModel cycle detection is keyed on behavior type and</a><a href="#issue-5000"><span class="tier A">A</span>Docs: invoke-behaviors-from-behaviors should say runModel wa</a><a href="#issue-4914"><span class="tier A">A</span>The dashboard switcher lists a serve host&#39;s workspaces, read</a></aside><div>
 
 <article class="item" id="issue-4852">
 <h2><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4Shell)</h2>
@@ -92,6 +92,14 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-5021">
+<h2><span class="tier A">A</span>feat(workflows): fan-out is usable and inspectable: workflow history get rebuilds a fan-out job&#39;s plan, lanes, halts and gates from the run record, and the swamp skill covers fanOut</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-23T21:57:12.198Z">2026-11-23T21:57:12.198Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5021" rel="noopener">lab#5021</a></div>
 </article>
 <article class="item" id="issue-4147">
 <h2><span class="tier A">A</span>model.output.search response phase takes 3.9s for 5,000 items with no attribution (redaction vs serialization vs send)</h2>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4914" rel="noopener">lab#4914</a></div>
 </article>
-<article class="item" id="issue-4992">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4992">
 <h2><span class="tier A">A</span>context.runModel() runs the target method without the target&#39;s per-behavior lock</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-22T18:13:58.851Z">2026-11-22T18:13:58.851Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4992" rel="noopener">lab#4992</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4996">
+<article class="item" id="issue-4996">
 <h2><span class="tier A">A</span>stagecraft: a write publishes to a separate-extension tracker on a local v3 repository with no serve</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-11-22T18:11:27.282Z">2026-11-22T18:11:27.282Z</time></span></div>
@@ -4581,18 +4589,50 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
-<article class="item" id="issue-5021">
-<h2><span class="tier B">B</span>feat(workflows): fan-out is usable and inspectable: workflow history get rebuilds a fan-out job&#39;s plan, lanes, halts and gates from the run record, and the swamp skill covers fanOut</h2>
+<article class="item" id="issue-4196">
+<h2><span class="tier B">B</span>workflow cancel --server does not send SWAMP_SERVE_EXTRA_HEADERS</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-23T20:59:28.295Z">2026-11-23T20:59:28.295Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-23T22:24:31.100Z">2026-11-23T22:24:31.100Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5021" rel="noopener">lab#5021</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4196" rel="noopener">lab#4196</a></div>
+</article>
+<article class="item" id="issue-5023">
+<h2><span class="tier B">B</span>Team mode: the leader commits one forwarded commit at a time for the whole datastore, with catch-up and fsyncs inside, so throughput caps and the event loop stalls under many concurrent members</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-23T22:24:06.863Z">2026-11-23T22:24:06.863Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5023" rel="noopener">lab#5023</a></div>
+</article>
+<article class="item" id="issue-4165">
+<h2><span class="tier B">B</span>serve (token mode): --admins accepts idp-group entries that can never match</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-23T22:20:14.048Z">2026-11-23T22:20:14.048Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4165" rel="noopener">lab#4165</a></div>
+</article>
+<article class="item" id="issue-3988">
+<h2><span class="tier B">B</span>serve: dispatch to an idle worker waits for its worker_busy write on the shared gateway transition tail</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-23T22:15:43.581Z">2026-11-23T22:15:43.581Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3988" rel="noopener">lab#3988</a></div>
+</article>
+<article class="item" id="issue-3987">
+<h2><span class="tier B">B</span>serve: worker enrollment resolves and creates the worker definition inside the serialized gateway transition tail</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-23T22:15:43.350Z">2026-11-23T22:15:43.350Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/3987" rel="noopener">lab#3987</a></div>
 </article>
 <article class="item" id="issue-5022">
 <h2><span class="tier B">B</span>Team mode: serve never enforces models&#39; declared data version limits automatically, so history grows without bound (4,712 versions per name vs a declared 10)</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-23T20:57:14.429Z">2026-11-23T20:57:14.429Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-23T21:22:57.456Z">2026-11-23T21:22:57.456Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/5022" rel="noopener">lab#5022</a></div>
@@ -4724,14 +4764,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/5024" rel="noopener">lab#5024</a></div>
-</article>
-<article class="item" id="issue-5023">
-<h2><span class="tier C">C</span>Team mode: the leader commits one forwarded commit at a time for the whole datastore, with catch-up and fsyncs inside, so throughput caps and the event loop stalls under many concurrent members</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-23T19:44:36.480Z">2026-11-23T19:44:36.480Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5023" rel="noopener">lab#5023</a></div>
 </article>
 <article class="item" id="issue-5020">
 <h2><span class="tier C">C</span>Flaky test: serve host restart after shutdown is refused as another host still running on the state folder</h2>
@@ -6062,13 +6094,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>749 items across 1 source(s) in this window:
-3 critical, 561 notable, 15 routine,
-170 minor.</p>
-<ul><li><strong>issues</strong> — 749</li></ul></section>
+<p>753 items across 1 source(s) in this window:
+3 critical, 562 notable, 19 routine,
+169 minor.</p>
+<ul><li><strong>issues</strong> — 753</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-23T21:05:31.434Z">2026-11-23T21:05:31.434Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-23T22:28:42.577Z">2026-11-23T22:28:42.577Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

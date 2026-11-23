@@ -1,0 +1,109 @@
+manifestVersion: 1
+name: "@svendowideit/swamp-ide-pi-plugin"
+version: "2026.11.23.1"
+description: >
+  Install, enable and disable the pi addin that routes tool calls through
+  @svendowideit/swamp-ide, and record every routed and bypassed call.
+
+  WHAT IT DOES
+
+    Owns the pi addin as a managed file. It bundles the addin source, writes it
+    into a project (`<project>/.pi/extensions/swamp-ide.ts`) or the global pi
+    agent directory (`~/.pi/agent/extensions/swamp-ide.ts`), refuses to
+    overwrite or remove a file that is not marked as managed, and gates the
+    addin per pi session with a marker. `install` writes the file, `set` writes
+    or removes the session marker, `uninstall` removes the managed file and all
+    markers. The addin itself exposes `swamp_ide`, prefers it over built-in
+    file/shell tools, runs methods through the warm `swamp serve` WebSocket
+    (one connection per session; CLI fallback only when serve is unreachable),
+    records routed and bypassed tool calls as OTLP spans and JSONL activity
+    events, and keeps a per-program histogram of the bash commands that still
+    bypass the IDE. `@svendowideit/swamp-ide` calls `set` so one command
+    enables or disables the whole system.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/swamp-ide-pi-plugin
+
+  DEPENDENCIES
+
+    pi on PATH (or a `~/.pi/agent` install). The addin imports `typebox` from
+    pi itself. No other swamp extension is required; `@svendowideit/swamp-ide`
+    is the front door that installs this one when pi is available.
+
+  RUN
+
+      # Install the managed addin into this project's .pi/extensions.
+      swamp model @svendowideit/swamp-ide-pi-plugin method run install ide-pi
+
+      # Enable it for the current pi session (PI_SESSION_ID), then /reload.
+      swamp model @svendowideit/swamp-ide-pi-plugin method run set ide-pi \
+        --input enabled=true
+
+      # Disable it for every session without removing the file.
+      swamp model @svendowideit/swamp-ide-pi-plugin method run set ide-pi \
+        --input enabled=false
+
+      # Report the install path, pi availability and enabled sessions.
+      swamp model @svendowideit/swamp-ide-pi-plugin method run status ide-pi
+
+    In pi, `/swamp-ide` shows the mode, serve connection and the top shell-outs;
+    `/swamp-ide histogram` shows the top 20, which is the build-priority list.
+
+  CONFIGURE
+
+    Global arguments:
+
+      piBin         pi executable                         (pi)
+      scope         project or global                     (project)
+      projectDir    project root for project scope        (current directory)
+      force         overwrite/remove an unmanaged file    (false)
+
+    `set` takes `enabled` and optional `sessionId` (empty uses
+    `PI_SESSION_ID`; empty on disable clears every marker). `install` and
+    `uninstall` take optional `scope` and `force` overrides.
+
+    The addin reads these environment variables:
+
+      SWAMP_IDE_MODE                  off | advise | enforce   (advise)
+      SWAMP_IDE_SERVE                 off disables the serve fast path
+      SWAMP_SERVE_URL                 serve endpoint (ws://127.0.0.1:9090)
+      SWAMP_AGENT_IDE_SHELLOUT_LOG    shell-out histogram JSONL
+                                      (~/.local/state/swamp-agent-ide/shellouts.jsonl)
+
+  WHAT IT INSTALLS
+
+    One managed TypeScript file in pi's extension directory and one marker per
+    enabled session in the matching `swamp-ide/` directory:
+    `.pi/extensions/swamp-ide.ts` + `.pi/swamp-ide/<session>.enabled`, or
+    `~/.pi/agent/extensions/swamp-ide.ts` +
+    `~/.pi/agent/swamp-ide/<session>.enabled`. It does not edit pi's
+    settings.json or install anything on the host.
+
+repository: 'https://github.com/svendowideit/swamp-extensions'
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - swamp_ide_pi_plugin.ts
+
+binaries:
+  - pi/swamp-ide.ts
+
+dependencies: []
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - swamp_ide_pi_plugin_test.ts
+
+platforms: []
+
+labels:
+  - swamp-ide
+  - pi
+  - plugin
+  - routing

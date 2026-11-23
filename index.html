@@ -71,11 +71,57 @@ footer .ver{color:var(--acc)}
 <h2 class="page-title">Documentation changes — This month</h2>
 <div class="cards">
 <div class="card"><div class="n">119</div><div class="l">FILES CHANGED</div></div>
-<div class="card"><div class="n">200</div><div class="l">CHANGES</div></div>
+<div class="card"><div class="n">201</div><div class="l">CHANGES</div></div>
 <div class="card"><div class="n">17</div><div class="l">WITH MANUAL PAGE</div></div>
 </div>
 <p class="lede">Documentation changed in the This month window, newest first. The activity leaderboard is on the
 <a href="leaderboard.html">Leaderboard</a> page.</p>
+<article class="item doc-item">
+<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></h2>
+<div class="meta"><span>swamp-club/swamp</span><span>7 changes</span><span>updated <time datetime="2026-11-23T15:59:54Z">2026-11-23T15:59:54Z</time></span><span><a href="https://swamp-club.com/manual/reference/datastore-configuration" rel="noopener">published manual</a></span></div>
+<ul class="doc-changes"><li class="doc-change">
+<span class="tier B">B</span>
+<span class="doc-date"><time datetime="2026-11-23T15:59:54Z">2026-11-23T15:59:54Z</time></span>
+<span class="doc-title">an interrupted writer&#39;s recovery warms the files it replays, and the boot steps before it are traced (swamp-club#4899) (#3918)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/346aa08bb4c5dbc0c0c7092cc5317f10339c05cf" rel="noopener">346aa08b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3918" rel="noopener">#3918</a>𝗔 <a href="https://swamp-club.com/lab/4899" rel="noopener">lab#4899</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-18T01:46:09Z">2026-11-18T01:46:09Z</time></span>
+<span class="doc-title">serve&#39;s writer lease takes a 15 s TTL, so a dead leader&#39;s lease lapses after 25 s instead of 40 s (swamp-club#4824) (#3842)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/557247fc0b1b68a1f17693df1bb5f5b9987941c1" rel="noopener">557247fc</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3842" rel="noopener">#3842</a>𝗔 <a href="https://swamp-club.com/lab/4824" rel="noopener">lab#4824</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-17T20:20:32Z">2026-11-17T20:20:32Z</time></span>
+<span class="doc-title">test Workers no longer hang Deno&#39;s npm resolver, per-process state moves into a ProcessRuntime so tests play other processes in-process, and the recurring flaky tests pass under load (swamp-club#4793) (#3834)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/740b26001387957a6bb4574502e5782c38eb4dc8" rel="noopener">740b2600</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3834" rel="noopener">#3834</a>𝗔 <a href="https://swamp-club.com/lab/4793" rel="noopener">lab#4793</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-16T20:58:20Z">2026-11-16T20:58:20Z</time></span>
+<span class="doc-title">a member&#39;s copy follows serve&#39;s compaction by installing serve&#39;s base per partition, so copies stay bounded without a local rebuild (swamp-club#4784) (#3825)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/dce51ecffd2e23f235cbe42f1aa2661e8010a30a" rel="noopener">dce51ecf</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3825" rel="noopener">#3825</a>𝗔 <a href="https://swamp-club.com/lab/4784" rel="noopener">lab#4784</a></span>
+</li>
+<li class="doc-change">
+<span class="tier B">B</span>
+<span class="doc-date"><time datetime="2026-11-10T09:05:08Z">2026-11-10T09:05:08Z</time></span>
+<span class="doc-title">team-mode steps send their lock while their start commits, checkpoints pace from their own run&#39;s flushes, and a run&#39;s final record rides its reports&#39; batch (swamp-club#4574) (#3709)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/543719bf25fca7180a88a460d84ae641322ee053" rel="noopener">543719bf</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3709" rel="noopener">#3709</a>𝗔 <a href="https://swamp-club.com/lab/4574" rel="noopener">lab#4574</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-09T19:12:21Z">2026-11-09T19:12:21Z</time></span>
+<span class="doc-title">large team-mode outputs upload under a size-scaled deadline, serve stores chunks while reading, failing uploads are capped at 3, and a lapse mid-request reports lease_lapsed (swamp-club#4542) (#3694)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4d382f0729ed46c935860316e9fede5a63b39165" rel="noopener">4d382f07</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3694" rel="noopener">#3694</a>𝗔 <a href="https://swamp-club.com/lab/4542" rel="noopener">lab#4542</a></span>
+</li>
+<li class="doc-change">
+<span class="tier B">B</span>
+<span class="doc-date"><time datetime="2026-11-09T12:11:58Z">2026-11-09T12:11:58Z</time></span>
+<span class="doc-title">a team-mode workflow step makes 2 commits and no catch-up of its own, a one-step write takes 2 requests to serve, and a far member&#39;s teardown no longer waits on the feed watch (swamp-club#4525) (#3684)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/395da2342a74e4ed1d1510b6346c281be13e3ac3" rel="noopener">395da234</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3684" rel="noopener">#3684</a>𝗔 <a href="https://swamp-club.com/lab/4525" rel="noopener">lab#4525</a></span>
+</li></ul>
+</article>
 <article class="item doc-item">
 <h2><a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/local-dashboard.md" rel="noopener">design/surfaces/local-dashboard.md</a></h2>
 <div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-11-22T18:58:24Z">2026-11-22T18:58:24Z</time></span><span><span class="dim">no published page</span></span></div>
@@ -796,46 +842,6 @@ footer .ver{color:var(--acc)}
 <span class="doc-date"><time datetime="2026-11-17T00:35:54Z">2026-11-17T00:35:54Z</time></span>
 <span class="doc-title">the Swampify page shows new candidates, reading progress and the offer while its tab stays visible (swamp-club#4808) (#3831)</span>
 <span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/952d8ee91f59746291f37d6dd889d061f06f3517" rel="noopener">952d8ee9</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3831" rel="noopener">#3831</a>𝗔 <a href="https://swamp-club.com/lab/4808" rel="noopener">lab#4808</a></span>
-</li></ul>
-</article>
-<article class="item doc-item">
-<h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>6 changes</span><span>updated <time datetime="2026-11-18T01:46:09Z">2026-11-18T01:46:09Z</time></span><span><a href="https://swamp-club.com/manual/reference/datastore-configuration" rel="noopener">published manual</a></span></div>
-<ul class="doc-changes"><li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-11-18T01:46:09Z">2026-11-18T01:46:09Z</time></span>
-<span class="doc-title">serve&#39;s writer lease takes a 15 s TTL, so a dead leader&#39;s lease lapses after 25 s instead of 40 s (swamp-club#4824) (#3842)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/557247fc0b1b68a1f17693df1bb5f5b9987941c1" rel="noopener">557247fc</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3842" rel="noopener">#3842</a>𝗔 <a href="https://swamp-club.com/lab/4824" rel="noopener">lab#4824</a></span>
-</li>
-<li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-11-17T20:20:32Z">2026-11-17T20:20:32Z</time></span>
-<span class="doc-title">test Workers no longer hang Deno&#39;s npm resolver, per-process state moves into a ProcessRuntime so tests play other processes in-process, and the recurring flaky tests pass under load (swamp-club#4793) (#3834)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/740b26001387957a6bb4574502e5782c38eb4dc8" rel="noopener">740b2600</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3834" rel="noopener">#3834</a>𝗔 <a href="https://swamp-club.com/lab/4793" rel="noopener">lab#4793</a></span>
-</li>
-<li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-11-16T20:58:20Z">2026-11-16T20:58:20Z</time></span>
-<span class="doc-title">a member&#39;s copy follows serve&#39;s compaction by installing serve&#39;s base per partition, so copies stay bounded without a local rebuild (swamp-club#4784) (#3825)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/dce51ecffd2e23f235cbe42f1aa2661e8010a30a" rel="noopener">dce51ecf</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3825" rel="noopener">#3825</a>𝗔 <a href="https://swamp-club.com/lab/4784" rel="noopener">lab#4784</a></span>
-</li>
-<li class="doc-change">
-<span class="tier B">B</span>
-<span class="doc-date"><time datetime="2026-11-10T09:05:08Z">2026-11-10T09:05:08Z</time></span>
-<span class="doc-title">team-mode steps send their lock while their start commits, checkpoints pace from their own run&#39;s flushes, and a run&#39;s final record rides its reports&#39; batch (swamp-club#4574) (#3709)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/543719bf25fca7180a88a460d84ae641322ee053" rel="noopener">543719bf</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3709" rel="noopener">#3709</a>𝗔 <a href="https://swamp-club.com/lab/4574" rel="noopener">lab#4574</a></span>
-</li>
-<li class="doc-change">
-<span class="tier A">A</span>
-<span class="doc-date"><time datetime="2026-11-09T19:12:21Z">2026-11-09T19:12:21Z</time></span>
-<span class="doc-title">large team-mode outputs upload under a size-scaled deadline, serve stores chunks while reading, failing uploads are capped at 3, and a lapse mid-request reports lease_lapsed (swamp-club#4542) (#3694)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4d382f0729ed46c935860316e9fede5a63b39165" rel="noopener">4d382f07</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3694" rel="noopener">#3694</a>𝗔 <a href="https://swamp-club.com/lab/4542" rel="noopener">lab#4542</a></span>
-</li>
-<li class="doc-change">
-<span class="tier B">B</span>
-<span class="doc-date"><time datetime="2026-11-09T12:11:58Z">2026-11-09T12:11:58Z</time></span>
-<span class="doc-title">a team-mode workflow step makes 2 commits and no catch-up of its own, a one-step write takes 2 requests to serve, and a far member&#39;s teardown no longer waits on the feed watch (swamp-club#4525) (#3684)</span>
-<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/395da2342a74e4ed1d1510b6346c281be13e3ac3" rel="noopener">395da234</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3684" rel="noopener">#3684</a>𝗔 <a href="https://swamp-club.com/lab/4525" rel="noopener">lab#4525</a></span>
 </li></ul>
 </article>
 <article class="item doc-item">
@@ -1754,7 +1760,7 @@ footer .ver{color:var(--acc)}
 </article>
 </main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-23T16:04:38.071Z">2026-11-23T16:04:38.071Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-23T17:02:13.587Z">2026-11-23T17:02:13.587Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

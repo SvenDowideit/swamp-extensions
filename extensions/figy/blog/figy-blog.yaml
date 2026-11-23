@@ -11,7 +11,7 @@ inputs:
   properties:
     blogDir:
       type: string
-      default: /home/sven/src/obsidian/blog
+      default: /home/sven/src/obsidian/obsidian/blog
       description: Absolute directory holding Markdown posts.
     templateDir:
       type: string
@@ -26,7 +26,7 @@ inputs:
         the theme.
     siteTitle:
       type: string
-      default: Notes
+      default: fi.gy
       description: Site title used by markdown-blog.
     indexTitle:
       type: string
@@ -83,7 +83,7 @@ inputs:
       description: DNS zone configured with Caddy.
     hostname:
       type: string
-      default: ''
+      default: blog.fi.gy
       description: Full blog hostname; defaults to blog.<host>.<zone>.
     caddyModel:
       type: string
@@ -91,11 +91,11 @@ inputs:
       description: Caddy model for TLS subject handling.
     dnsModel:
       type: string
-      default: my-caddy
+      default: blog-caddy
       description: Caddy model that also has the Pages CNAME DNS record set.
     publishDir:
       type: string
-      default: /home/sven/src/swamp-project/blog
+      default: /home/sven/src/obsidian/blog
       description: Absolute rendered directory served/published.
   required: []
 jobs:

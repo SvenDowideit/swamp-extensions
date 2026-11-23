@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@figy/blog"
-version: "2026.11.23.1"
+version: "2026.11.23.2"
 description: >
   @figy's blog: render Markdown posts from an Obsidian vault folder and publish
   them on Cloudflare Pages. DNS is managed by an isolated Caddy DNS model
@@ -58,25 +58,20 @@ description: >
       MD
 
       # 4. Validate and run; the workflow provisions Python and creates the
-      #    isolated blog-caddy DNS model from my-caddy.
+      #    isolated blog-caddy DNS model from my-caddy. The inputs default to
+      #    this host's configured blog, so no --input flags are needed.
       swamp workflow validate @figy/blog
-      swamp workflow run @figy/blog \\
-        --input blogDir=/home/me/obsidian/blog \\
-        --input publishDir=/home/me/swamp-project/blog \\
-        --input hostname=blog.x1yoga.fi.gy \\
-        --input vaultName=figy-cloudflare-pages \\
-        --input caddyModel=my-caddy \\
-        --input dnsModel=blog-caddy
+      swamp workflow run @figy/blog
 
       # 5. Verify.
-      curl -I https://blog.x1yoga.fi.gy/
+      curl -I https://blog.fi.gy/
 
   CONFIGURE
 
-    blogDir               Absolute directory of Markdown files
+    blogDir               Absolute directory of Markdown files (default /home/sven/src/obsidian/obsidian/blog)
     templatePath          HTML template (default /home/sven/src/obsidian/templates/herdr-borland.html)
     templateDir           Fallback template directory when templatePath is empty
-    siteTitle             Site title (default Notes)
+    siteTitle             Site title (default fi.gy)
     indexTitle            Title for index.html and rss.xml (default "Sven's blog")
     pagesModel            cloudflare-pages-wrangler instance (default blog-pages)
     pagesProject          Pages project name (default figy-blog)
@@ -85,10 +80,10 @@ description: >
     cloudflareAccountIdRef Vault key for account ID (default CLOUDFLARE_ACCOUNT_ID)
     host                  Host segment (default x1yoga)
     zone                  DNS zone (default fi.gy)
-    hostname              Full blog hostname (default blog.<host>.<zone>)
+    hostname              Full blog hostname (default blog.fi.gy)
     caddyModel            Existing Caddy model copied by workflow (default my-caddy)
     dnsModel              Isolated model created by workflow (default blog-caddy)
-    publishDir            Absolute directory published to Pages
+    publishDir            Absolute directory published to Pages (default /home/sven/src/obsidian/blog)
 
   WHAT IT INSTALLS
 

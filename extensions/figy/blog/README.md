@@ -59,7 +59,7 @@ Pages CNAME in its `dnsRecords`.
 The Pages CNAME format is:
 
 ```json
-{"name":"blog.x1yoga.fi.gy","type":"CNAME","value":["figy-blog.pages.dev."],"zone":"fi.gy"}
+{"name":"blog.fi.gy","type":"CNAME","value":["figy-blog.pages.dev."],"zone":"fi.gy"}
 ```
 
 The trailing dot is required. Without it, Gandi treats the CNAME target as
@@ -78,15 +78,16 @@ also names the manual fix: delete the stale CNAME in Gandi, ensure the
 
 | Input | Meaning |
 | --- | --- |
-| `blogDir` | Absolute Obsidian directory of Markdown posts |
+| `blogDir` | Absolute Obsidian directory of Markdown posts; default `/home/sven/src/obsidian/obsidian/blog` |
 | `templatePath` | HTML template file; default `/home/sven/src/obsidian/templates/herdr-borland.html` (Borland Modern Blue) |
 | `templateDir` | Fallback template directory when `templatePath` is empty |
-| `publishDir` | Absolute rendered Pages directory |
+| `publishDir` | Absolute rendered Pages directory; default `/home/sven/src/obsidian/blog` |
+| `siteTitle` | Site title, default `fi.gy` |
 | `indexTitle` | Title for `index.html`/`rss.xml`, default `Sven's blog` |
-| `hostname` | Full blog hostname |
+| `hostname` | Full blog hostname, default `blog.fi.gy` |
 | `vaultName` | Vault name, default `figy-cloudflare-pages` |
-| `caddyModel` | Existing Caddy model copied by the workflow |
-| `dnsModel` | Isolated Caddy model created by the workflow |
+| `caddyModel` | Existing Caddy model copied by the workflow, default `my-caddy` |
+| `dnsModel` | Isolated Caddy model created by the workflow, default `blog-caddy` |
 | `cloudflareTokenRef` | Vault key for the token |
 | `cloudflareAccountIdRef` | Vault key for the account ID |
 
@@ -127,19 +128,16 @@ Validate and run:
 
 ```sh
 swamp workflow validate @figy/blog
-swamp workflow run @figy/blog \
-  --input blogDir=/home/sven/src/obsidian/blog \
-  --input publishDir=/home/sven/src/swamp-project/blog \
-  --input hostname=blog.x1yoga.fi.gy \
-  --input vaultName=figy-cloudflare-pages \
-  --input caddyModel=my-caddy \
-  --input dnsModel=blog-caddy
+swamp workflow run @figy/blog
 ```
+
+The inputs default to this host's configuration (see the table below), so a
+run needs no flags; pass `--input` only to publish a different site.
 
 Manual verification:
 
 ```sh
-curl -I https://blog.x1yoga.fi.gy/
+curl -I https://blog.fi.gy/
 ```
 
 The workflow provisions Python, renders, creates the Pages project, deploys,

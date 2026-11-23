@@ -52,7 +52,18 @@ export interface OwnerCatalogEntry {
    * has `execProbe=true`; the argument list is fixed here, never derived from
    * discovered data.
    */
-  versionProbe?: { args: string[]; pattern: string };
+  versionProbe?: {
+    args: string[];
+    /** First pattern that matches wins. */
+    pattern: string;
+    /**
+     * Ordered alternatives, tried before `pattern`. Some tools print more than
+     * one version — `ollama --version` prints the *server's* first and its own
+     * client build as a warning — and the file's own version is the one that
+     * belongs in a freshness table.
+     */
+    patterns?: string[];
+  };
 }
 
 export const OWNER_CATALOG: OwnerCatalogEntry[] = [
@@ -62,6 +73,20 @@ export const OWNER_CATALOG: OwnerCatalogEntry[] = [
     command: "swamp workflow run @svendowideit/ollama-install",
     unitPatterns: [/^ollama$/],
     upstreamRepo: "ollama/ollama",
+    // The release binary carries no Go module version, and its own line may be
+    // preceded by a "could not connect to a running Ollama instance" warning
+    // ("client version is 0.35.1"), so this is the only reliable source.
+    // `ollama --version` prints the running server's version first and this
+    // binary's own client version as a warning, so the client line wins: it is
+    // the version of the file being catalogued.
+    versionProbe: {
+      args: ["--version"],
+      pattern: "(\\d+\\.\\d+\\.\\d+)",
+      patterns: [
+        "client version is (\\d+\\.\\d+\\.\\d+)",
+        "(\\d+\\.\\d+\\.\\d+)",
+      ],
+    },
   },
   {
     match: /^caddy$/,
@@ -150,9 +175,14 @@ export function catalogEntryFor(
   name: string,
   identityName = "",
 ): OwnerCatalogEntry | null {
-  return OWNER_CATALOG.find((e) =>
-    e.match.test(name) || (identityName !== "" && e.match.test(identityName))
-  ) ?? null;
+  // executable names are not consistently cased: a macOS app bundle ships
+  // `Contents/MacOS/Ollama` while the CLI it wraps is `ollama`. Match the name
+  // case-insensitively so both are the same product (and both get its probe).
+  const candidates = [name, identityName]
+    .filter((v) => v !== "")
+    .map((v) => v.toLowerCase());
+  return OWNER_CATALOG.find((e) => candidates.some((c) => e.match.test(c))) ??
+    null;
 }
 
 /**

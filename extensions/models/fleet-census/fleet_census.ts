@@ -640,6 +640,16 @@ OLDIFS=$IFS
 IFS=:
 for d in $PATH; do IFS=$OLDIFS; add_dir "$d" path; IFS=:; done
 IFS=$OLDIFS
+# Directories that hold third-party binaries but are absent from the minimal PATH
+# of a non-interactive ssh session (which is what the scanner gets). On macOS this
+# is the normal case: /usr/local/bin and /opt/homebrew/bin never appear, so every
+# Homebrew or installer-placed tool was invisible.
+for d in /usr/local/bin /usr/local/sbin /opt/homebrew/bin /opt/local/bin /snap/bin; do
+  add_dir "$d" known
+done
+if [ "$(uname -s 2>/dev/null)" = "Darwin" ]; then
+  for d in /Applications/*.app/Contents/MacOS; do add_dir "$d" app; done
+fi
 if [ "${g.knownDirs}" = "true" ]; then
   for d in "$HOME/.local/bin" "$HOME/bin" "$HOME/.cargo/bin" "$HOME/go/bin" \
            "$HOME/.deno/bin" "$HOME/.bun/bin" "$HOME/.volta/bin" \
@@ -697,10 +707,13 @@ while IFS='|' read -r d dsrc; do
     UNOWNED=$((UNOWNED + 1))
     if [ "$UNOWNED" -gt "$MAXITEMS" ]; then TRUNC=1; break; fi
     size=$(stat -c %s "$real" 2>/dev/null || stat -f %z "$real" 2>/dev/null || echo 0)
-    mtime=$(stat -c %Y "$real" 2>/dev/null || echo 0)
+    mtime=$(stat -c %Y "$real" 2>/dev/null || stat -f %m "$real" 2>/dev/null || echo 0)
     case "$size" in ''|*[!0-9]*) size=0 ;; esac
     sha=""
-    [ "$size" -le "$HASHMAX" ] && sha=$(timeout 20 sha256sum "$real" 2>/dev/null | cut -d' ' -f1)
+    if [ "$size" -le "$HASHMAX" ]; then
+      sha=$(timeout 20 sha256sum "$real" 2>/dev/null | cut -d' ' -f1)
+      [ -n "$sha" ] || sha=$(timeout 20 shasum -a 256 "$real" 2>/dev/null | cut -d' ' -f1)
+    fi
     magic=$(head -c 4 "$real" 2>/dev/null | od -An -tx1 2>/dev/null | tr -d ' \n')
     elf=0; [ "$magic" = "7f454c46" ] && elf=1
     gomod=""; gover=""
@@ -719,6 +732,10 @@ while IFS='|' read -r d dsrc; do
     case "$f" in
       "$HOME"/.local/bin/*)   where=home-local-bin ;;
       /usr/local/bin/*)       where=usr-local-bin ;;
+      /usr/local/sbin/*)      where=usr-local-sbin ;;
+      /opt/homebrew/*)        where=homebrew ;;
+      /opt/local/*)           where=macports ;;
+      /Applications/*.app/*)  where=app-bundle ;;
       /opt/*)                 where=opt ;;
       "$HOME"/.cargo/bin/*|"$HOME"/.rustup/toolchains/*/bin/*) where=cargo ;;
       "$HOME"/go/bin/*)       where=go-bin ;;
@@ -1375,8 +1392,15 @@ const SoftwareIndexRowSchema = z.object({
     flags: z.array(z.string()).default([]),
     /** How many separate installs of it this host has (e.g. two swamp copies). */
     installs: z.number().default(1),
-    /** Where each of those installs lives, so a report can say WHICH file. */
-    paths: z.array(z.string()).default([]),
+    /**
+     * Where each of those installs lives, with the version THAT file reports — a
+     * host can hold two copies of one tool at different versions (a Homebrew CLI
+     * beside an app bundle's server), and one version per host hides it.
+     */
+    paths: z.array(z.object({
+      path: z.string(),
+      version: z.string().default(""),
+    })).default([]),
   })).default([]),
   /** Distinct non-empty versions, sorted — more than one means skew. */
   versions: z.array(z.string()).default([]),
@@ -1506,8 +1530,14 @@ export function buildSoftwareIndex(
         // the same host has it twice (two install paths): count the install,
         // keep the more informative version
         existing.installs += 1;
-        if (item.installPath && !existing.paths.includes(item.installPath)) {
-          existing.paths.push(item.installPath);
+        if (
+          item.installPath &&
+          !existing.paths.some((p) => p.path === item.installPath)
+        ) {
+          existing.paths.push({
+            path: item.installPath,
+            version: item.version,
+          });
         }
         if (!existing.version && item.version) existing.version = item.version;
         if (existing.owner !== "managed" && item.owner.class === "managed") {
@@ -1521,7 +1551,9 @@ export function buildSoftwareIndex(
           owner: item.owner.class,
           flags: item.flags,
           installs: 1,
-          paths: item.installPath ? [item.installPath] : [],
+          paths: item.installPath
+            ? [{ path: item.installPath, version: item.version }]
+            : [],
         });
       }
       if (item.owner.extension && row.extension === "") {
@@ -1999,12 +2031,25 @@ export async function resolveTargets(
   return out.filter((t) => t.candidates.length > 0);
 }
 
+/** The first version a probe's ordered patterns find in its output. */
+export function matchProbeVersion(
+  patterns: string[],
+  stdout: string,
+): string {
+  for (const pattern of patterns) {
+    const m = stdout.match(new RegExp(pattern));
+    if (m) return m[1].trim();
+  }
+  return "";
+}
+
 /** One catalogue probe still owed to a host, with the item it belongs to. */
 export interface ProbeCandidate {
   item: SoftwareItem;
   path: string;
   args: string[];
   pattern: string;
+  patterns?: string[];
 }
 
 /**
@@ -2024,6 +2069,7 @@ export function probeCandidates(items: SoftwareItem[]): ProbeCandidate[] {
       path: item.installPath,
       args: probe.args,
       pattern: probe.pattern,
+      patterns: probe.patterns,
     });
   }
   return out;
@@ -2049,10 +2095,13 @@ export function renderProbeScript(candidates: ProbeCandidate[]): string {
   ];
   for (const c of candidates) {
     const argv = [c.path, ...c.args].map(shQuoteWord).join(" ");
-    // one line per candidate, even when the binary prints nothing
+    // one line per candidate, even when the binary prints nothing. The first
+    // few lines are joined onto that line: `ollama --version` can print a
+    // "could not connect" warning BEFORE the version, and taking only line 1
+    // reported "no version" for a binary that had one.
     lines.push(
       `printf 'probe\\t%s\\t' ${shQuoteWord(c.path)}`,
-      `( ${argv} 2>/dev/null | head -n 1 ) || true`,
+      `( ${argv} 2>/dev/null | head -n 4 | tr '\\t\\n' '  ' ) || true`,
       `printf '\\n'`,
     );
   }
@@ -2079,18 +2128,20 @@ export function applyProbeResults(
   for (const candidate of candidates) {
     const raw = byPath.get(candidate.path);
     if (raw === undefined) continue;
-    const m = raw.match(new RegExp(candidate.pattern));
-    if (!m) continue;
-    candidate.item.version = m[1].replace(/^v/, "");
+    const found = matchProbeVersion(
+      candidate.patterns ?? [candidate.pattern],
+      raw,
+    );
+    if (found === "") continue;
+    candidate.item.version = found.replace(/^v/, "");
     candidate.item.versionSource = "cli";
     candidate.item.flags = candidate.item.flags.filter((f) =>
       f !== "unknown-version"
     );
     candidate.item.evidence.push({
       signal: "version-probe",
-      detail: `${candidate.path} ${candidate.args.join(" ")} -> ${
-        m[1].trim()
-      } (catalogue-owned probe, run on the host)`,
+      detail: `${candidate.path} ${candidate.args.join(" ")} -> ${found}` +
+        ` (catalogue-owned probe, run on the host)`,
     });
   }
   return items;
@@ -2117,16 +2168,18 @@ export async function applyVersionProbes(
     try {
       const res = await run(item.installPath, probe.args);
       if (res.code !== 0) continue;
-      const m = res.stdout.match(new RegExp(probe.pattern));
-      if (!m) continue;
-      item.version = m[1].replace(/^v/, "");
+      const found = matchProbeVersion(
+        probe.patterns ?? [probe.pattern],
+        res.stdout,
+      );
+      if (found === "") continue;
+      item.version = found.replace(/^v/, "");
       item.versionSource = "cli";
       item.flags = item.flags.filter((f) => f !== "unknown-version");
       item.evidence.push({
         signal: "version-probe",
-        detail: `${item.installPath} ${probe.args.join(" ")} -> ${
-          m[1].trim()
-        } (catalogue-owned probe)`,
+        detail: `${item.installPath} ${probe.args.join(" ")} -> ${found}` +
+          ` (catalogue-owned probe)`,
       });
     } catch {
       // a probe that fails leaves the version unknown, which is honest
@@ -2181,7 +2234,7 @@ interface MethodContext {
 /** A model that censuses the software this host's OS package manager does not own. */
 export const model = {
   type: "@svendowideit/fleet-census",
-  version: "2026.11.21.7",
+  version: "2026.11.21.11",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -2268,6 +2321,57 @@ export const model = {
         "installPath, so `/usr/local/bin/swamp -> ~/.local/bin/swamp` inherits the " +
         "evidence of the file it points at instead of appearing as an unowned " +
         "duplicate and re-entering the conversion list.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.21.8",
+      description:
+        "Products whose version cannot be read are no longer invisible. A product " +
+        "that is installed but has no comparable version appears in neither the " +
+        "skew nor the behind-upstream table, so a widely used, swamp-managed tool " +
+        "(ollama, on four hosts) could only be described as `unknown-version`. The index " +
+        "now has a 'Version unknown' table giving each such product, the latest " +
+        "upstream release, and every install path. Ollama also gained a catalogue " +
+        "version probe, and a probe now reads up to four output lines instead of " +
+        "one, because `ollama --version` can print a 'could not connect' warning " +
+        "before 'client version is 0.35.1'.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.21.9",
+      description:
+        "macOS is scanned properly, and one host can show two versions of the " +
+        "same tool. The scanner only looked at $PATH plus home directories, and a " +
+        "non-interactive ssh session on macOS has a PATH of /usr/bin:/bin and " +
+        "nothing else, so /usr/local/bin, /opt/homebrew/bin and every " +
+        "/Applications/*.app were invisible: a Mac with four ollama copies (app, " +
+        "app-server, /usr/local/bin, Homebrew) was reported as not having ollama at " +
+        "all. Those directories are now always scanned, /Applications app bundles " +
+        "included, and BSD stat/shasum fallbacks make mtime and checksums correct " +
+        "there. Fleet index `hosts[].paths` entries now carry the version THAT file " +
+        "reports, and the report labels a path whose version disagrees with the " +
+        "host, so a Homebrew CLI beside an app-bundle server is visible instead of " +
+        "collapsed to one version.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.21.10",
+      description:
+        "A probe can now name which version it wants. `ollama --version` prints " +
+        "the RUNNING SERVER's version first and this binary's own client build as a " +
+        "warning (`ollama version is 0.40.13 Warning: client version is 0.32.9`), " +
+        "so taking the first number labelled a Homebrew 0.32.9 binary as 0.40.13. " +
+        "`versionProbe.patterns` is an ordered list — the client's own version wins " +
+        "for ollama, with the single-version form as the fallback.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.21.11",
+      description:
+        "Catalogue matching is case-insensitive. A macOS app bundle ships " +
+        "`Contents/MacOS/Ollama` while the CLI it wraps is `ollama`, so the GUI " +
+        "binary never matched its catalogue entry and therefore never got a " +
+        "version, an owner or a probe.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

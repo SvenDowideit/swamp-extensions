@@ -48,8 +48,8 @@ export interface SoftwareRow {
     owner: string;
     flags: string[];
     installs: number;
-    /** Every install path this host has for the product (absent on old data). */
-    paths?: string[];
+    /** Every install path this host has, with that file's own version. */
+    paths?: Array<{ path: string; version?: string }>;
   }>;
   versions: string[];
   skewed: boolean;
@@ -180,10 +180,18 @@ export function whereInstalled(row: SoftwareRow | undefined): string {
       const head = `<b>${escapeHtml(h.host)}</b>${
         h.version ? ` ${escapeHtml(h.version)}` : ""
       }`;
-      const paths = (h.paths ?? []).filter(Boolean);
+      const paths = (h.paths ?? []).filter((p) => p && p.path);
       if (paths.length === 0) return head;
       return `${head}${
-        paths.map((p) => `<br><code>${escapeHtml(p)}</code>`).join("")
+        paths.map((p) => {
+          // show a path's own version only when it disagrees with the host line:
+          // two copies at different versions is the interesting case
+          const own = (p.version ?? "").trim();
+          const differs = own !== "" && own !== (h.version ?? "");
+          return `<br><code>${escapeHtml(p.path)}</code>${
+            differs ? ` <span class="dim">${escapeHtml(own)}</span>` : ""
+          }`;
+        }).join("")
       }`;
     })
     .join("<br>");
@@ -395,6 +403,26 @@ export interface OutdatedProduct {
   flags: string[];
 }
 
+/**
+ * Products that are installed somewhere but whose version could not be
+ * determined, so nothing can say whether they are current. They cannot appear in
+ * the skew or behind-upstream tables (both need a comparable version), and
+ * leaving them out entirely hid the case that matters most: a widely used,
+ * swamp-managed tool nobody can age.
+ */
+export function unknownVersionProducts(
+  freshness: FreshnessData | null,
+): FreshnessRow[] {
+  if (!freshness) return [];
+  return freshness.rows
+    .filter((r) =>
+      r.flags.includes("unknown-version") &&
+      r.installed.length > 0 &&
+      r.installed.every((i) => i.version === "")
+    )
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 export function outdatedProducts(
   fleet: FleetData,
   freshness: FreshnessData | null,
@@ -460,6 +488,7 @@ export function renderIndex(
     freshness?.rows.filter((r) =>
       r.archived || r.flags.includes("upstream-idle-2y")
     ) ?? [];
+  const unknownVersion = unknownVersionProducts(freshness);
   const conversions = [...fleet.software]
     .filter((r) => r.manageableOn.length > 0)
     .sort((a, b) => b.manageableOn.length - a.manageableOn.length)
@@ -524,6 +553,31 @@ ${
           }</td><td>${
             escapeHtml(r.installed.map((i) => i.host).join(", "))
           }</td><td class="where">${whereInstalled(row)}</td><td>${
+            r.flags.map((f) => badge(f, "warn")).join(" ")
+          }</td></tr>`;
+        }).join("")
+      }</tbody></table>`
+  }
+
+<h2>Version unknown (${unknownVersion.length})</h2>
+<p class="sub">Installed here, but the binary does not report a version the census can read, so it cannot be compared with upstream — these are neither current nor stale as far as this report can tell, and they are invisible in the tables above. Fixing the version means a catalogue probe (<code>owners_catalog.ts</code>); until then, the only honest statement is where the file is.</p>
+${
+    unknownVersion.length === 0
+      ? `<p class="sub">None — every installed product that the catalogue knows reports a version.</p>`
+      : `<table><thead><tr><th>product</th><th>upstream latest</th><th class="n">upstream idle</th><th>where</th><th>flags</th></tr></thead><tbody>${
+        unknownVersion.map((r) => {
+          const row = fleet.software.find((x) => x.name === r.name);
+          const links = row ? productLinks(row) : { project: "", releases: "" };
+          return `<tr class="searchable" data-search="${
+            escapeHtml(r.name.toLowerCase())
+          }"><td>${link(links.project, r.name)}</td><td>${
+            r.latest ? link(links.releases, r.latest.version) : ""
+          }</td><td class="n">${
+            escapeHtml(humanAge(r.upstreamIdleDays))
+          }</td><td class="where">${
+            whereInstalled(row) ||
+            escapeHtml(r.installed.map((i) => i.host).join(", "))
+          }</td><td>${
             r.flags.map((f) => badge(f, "warn")).join(" ")
           }</td></tr>`;
         }).join("")

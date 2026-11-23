@@ -23,6 +23,7 @@ import {
   identityOf,
   interfaceKind,
   managerOf,
+  matchProbeVersion,
   ownerOf,
   parseExecStart,
   parseNixStorePath,
@@ -1059,7 +1060,12 @@ Deno.test("renderJson is valid JSON carrying the tables and the ranking", () => 
 // Links (actionable reports)
 // ---------------------------------------------------------------------------
 
-import { link, productLinks, whereInstalled } from "./census_report.ts";
+import {
+  link,
+  productLinks,
+  unknownVersionProducts,
+  whereInstalled,
+} from "./census_report.ts";
 
 Deno.test("productLinks derives the right upstream URL per registry", () => {
   const row = (identity: string, identities: string[] = []): SoftwareRow => ({
@@ -1540,8 +1546,8 @@ Deno.test("buildSoftwareIndex records the install paths behind each host entry",
   assertEquals(rows.length, 1);
   assertEquals(rows[0].hosts[0].installs, 2);
   assertEquals(rows[0].hosts[0].paths, [
-    "/home/sven/.local/bin/tuios",
-    "/usr/local/bin/tuios",
+    { path: "/home/sven/.local/bin/tuios", version: "" },
+    { path: "/usr/local/bin/tuios", version: "" },
   ]);
 });
 
@@ -1556,7 +1562,10 @@ Deno.test("whereInstalled names every file, per host", () => {
         owner: "unknown",
         flags: [],
         installs: 2,
-        paths: ["/home/sven/.local/bin/tuios", "/usr/local/bin/tuios"],
+        paths: [{ path: "/home/sven/.local/bin/tuios", version: "" }, {
+          path: "/usr/local/bin/tuios",
+          version: "",
+        }],
       },
       {
         host: "host-b",
@@ -1565,7 +1574,7 @@ Deno.test("whereInstalled names every file, per host", () => {
         owner: "unknown",
         flags: [],
         installs: 1,
-        paths: ["/usr/local/bin/tuios"],
+        paths: [{ path: "/usr/local/bin/tuios", version: "" }],
       },
     ],
   } as never;
@@ -1593,7 +1602,7 @@ Deno.test("the abandoned table names the file, not just the host", () => {
         owner: "unknown",
         flags: [],
         installs: 1,
-        paths: ["/home/sven/.local/bin/tuios"],
+        paths: [{ path: "/home/sven/.local/bin/tuios", version: "" }],
       },
     ],
     versions: ["1.2.3"],
@@ -1667,4 +1676,187 @@ Deno.test("a symlink to a unit-run binary is managed, not a conversion candidate
     assertEquals(item.owner.class, "managed");
     assertEquals(item.owner.extension, "@svendowideit/swamp-serve");
   }
+});
+
+Deno.test("a warning line before the version does not hide it", () => {
+  const item = probeItem({
+    name: "ollama",
+    identity: { kind: "github", name: "ollama/ollama" },
+    installPath: "/usr/local/bin/ollama",
+    id: "/usr/local/bin/ollama",
+  } as never);
+  const candidates = probeCandidates([item as never]);
+  // the host joins the first lines, so the warning and the version share one line
+  const out = applyProbeResults(
+    [item] as never,
+    candidates,
+    [
+      "probe\t/usr/local/bin/ollama\tWarning: could not connect to a running Ollama instance  Warning: client version is 0.35.1  ",
+    ].join("\n"),
+  );
+  assertEquals((out[0] as { version: string }).version, "0.35.1");
+  assertEquals((out[0] as { versionSource: string }).versionSource, "cli");
+});
+
+Deno.test("unknownVersionProducts picks installed products with no readable version", () => {
+  const row = (name: string, versions: string[], flags: string[]) => ({
+    name,
+    repo: `acme/${name}`,
+    installed: versions.map((v, i) => ({
+      host: `host-${i}`,
+      version: v,
+      channel: v === "" ? "unknown" : "latest",
+    })),
+    latest: { version: "9.9.9", publishedAt: "", tag: "v9.9.9" },
+    lts: null,
+    dev: null,
+    archived: false,
+    upstreamIdleDays: 10,
+    oldestInstalledDays: 10,
+    behindMajor: 0,
+    flags,
+    error: "",
+  });
+  const picked = unknownVersionProducts({
+    rows: [
+      row("ollama", ["", "", ""], ["unknown-version"]),
+      row("caddy", ["2.11.9"], []),
+      row("tuios", ["", "1.0.0"], ["unknown-version"]),
+      row("gone", [], ["unknown-version"]),
+    ],
+    summary: {},
+    generatedAt: "",
+  } as never);
+  assertEquals(picked.map((r) => r.name), ["ollama"]);
+});
+
+Deno.test("the index says which installed products it could not age", () => {
+  const html = renderIndex(
+    {
+      hosts: [],
+      software: [{
+        identity: "github:ollama/ollama",
+        identities: [],
+        name: "ollama",
+        hosts: [{
+          host: "x1yoga",
+          version: "",
+          manager: "none",
+          owner: "managed",
+          flags: ["unknown-version"],
+          installs: 1,
+          paths: [{ path: "/usr/local/bin/ollama", version: "" }],
+        }],
+        versions: [],
+        skewed: false,
+        managedOn: ["x1yoga"],
+        manageableOn: [],
+        extension: "@svendowideit/ollama",
+        command: "",
+        missingOn: [],
+      }],
+      summary: { byOwner: {} },
+      scannedAt: "",
+    } as never,
+    {
+      rows: [{
+        name: "ollama",
+        repo: "ollama/ollama",
+        installed: [{ host: "x1yoga", version: "", channel: "unknown" }],
+        latest: { version: "0.40.17", publishedAt: "", tag: "v0.40.17" },
+        lts: null,
+        dev: null,
+        archived: false,
+        upstreamIdleDays: 10,
+        oldestInstalledDays: null,
+        behindMajor: 0,
+        flags: ["unknown-version"],
+        error: "",
+      }],
+      summary: {},
+      generatedAt: "",
+    } as never,
+    "now",
+  );
+  assertEquals(html.includes("Version unknown (1)"), true);
+  assertEquals(html.includes("<code>/usr/local/bin/ollama</code>"), true);
+});
+
+Deno.test("two copies at different versions are both shown for one host", () => {
+  const row = {
+    name: "ollama",
+    hosts: [{
+      host: "Macmini",
+      version: "0.40.13",
+      manager: "none",
+      owner: "managed",
+      flags: [],
+      installs: 4,
+      paths: [
+        {
+          path: "/Applications/Ollama.app/Contents/MacOS/Ollama",
+          version: "0.40.13",
+        },
+        { path: "/opt/homebrew/bin/ollama", version: "0.32.9" },
+        { path: "/usr/local/bin/ollama", version: "0.40.13" },
+      ],
+    }],
+  } as never;
+  const html = whereInstalled(row);
+  // the odd one out is labelled with its own version, the agreeing ones are not
+  assertEquals(
+    html.includes(
+      '<code>/opt/homebrew/bin/ollama</code> <span class="dim">0.32.9</span>',
+    ),
+    true,
+  );
+  assertEquals(
+    html.includes(
+      '<code>/usr/local/bin/ollama</code> <span class="dim">0.40.13</span>',
+    ),
+    false,
+  );
+});
+
+Deno.test("the client's own version wins over the server's", () => {
+  // exactly what `/opt/homebrew/bin/ollama --version` prints on a Mac with the
+  // app's 0.40.13 server running: the server version first, then its own build
+  const out = "ollama version is 0.40.13  Warning: client version is 0.32.9  ";
+  const patterns = [
+    "client version is (\\d+\\.\\d+\\.\\d+)",
+    "(\\d+\\.\\d+\\.\\d+)",
+  ];
+  assertEquals(matchProbeVersion(patterns, out), "0.32.9");
+  // a binary that only prints one version still resolves
+  assertEquals(
+    matchProbeVersion(patterns, "ollama version is 0.40.13"),
+    "0.40.13",
+  );
+  assertEquals(matchProbeVersion(patterns, "no version here"), "");
+});
+
+Deno.test("applyProbeResults uses the ordered patterns for ollama", () => {
+  const item = probeItem({
+    name: "ollama",
+    identity: { kind: "github", name: "ollama/ollama" },
+    installPath: "/opt/homebrew/bin/ollama",
+    id: "/opt/homebrew/bin/ollama",
+  } as never);
+  const candidates = probeCandidates([item as never]);
+  const out = applyProbeResults(
+    [item] as never,
+    candidates,
+    [
+      "probe\t/opt/homebrew/bin/ollama\tollama version is 0.40.13  Warning: client version is 0.32.9",
+    ].join("\n"),
+  );
+  assertEquals((out[0] as { version: string }).version, "0.32.9");
+});
+
+Deno.test("an app bundle's capitalised binary is the same product as the CLI", () => {
+  // /Applications/Ollama.app/Contents/MacOS/Ollama wraps the `ollama` CLI
+  const entry = catalogEntryFor("Ollama");
+  assertEquals(entry?.extension, "@svendowideit/ollama");
+  assertEquals(catalogEntryFor("OLLAMA")?.extension, "@svendowideit/ollama");
+  assertEquals(catalogEntryFor("ollama")?.extension, "@svendowideit/ollama");
 });

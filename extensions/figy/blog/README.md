@@ -11,7 +11,8 @@ Obsidian Markdown Markdown posts, creates a direct-upload Cloudflare Pages
 project, uploads the rendered directory, binds the custom domain, creates an
 isolated Caddy DNS model by reading the existing Caddy model, writes the
 Pages CNAME, reconciles DNS, checks the authoritative CNAME, and verifies the
-public URL.
+public URL. Posts render with the Borland Modern Blue blog template by default;
+pass `templatePath` to use a different HTML template.
 
 ## Install
 
@@ -78,6 +79,8 @@ also names the manual fix: delete the stale CNAME in Gandi, ensure the
 | Input | Meaning |
 | --- | --- |
 | `blogDir` | Absolute Obsidian directory of Markdown posts |
+| `templatePath` | HTML template file; default `/home/sven/src/obsidian/templates/herdr-borland.html` (Borland Modern Blue) |
+| `templateDir` | Fallback template directory when `templatePath` is empty |
 | `publishDir` | Absolute rendered Pages directory |
 | `indexTitle` | Title for `index.html`/`rss.xml`, default `Sven's blog` |
 | `hostname` | Full blog hostname |

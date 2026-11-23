@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@figy/blog"
-version: "2026.10.24.2"
+version: "2026.11.23.1"
 description: >
   @figy's blog: render Markdown posts from an Obsidian vault folder and publish
   them on Cloudflare Pages. DNS is managed by an isolated Caddy DNS model
@@ -16,7 +16,8 @@ description: >
     existing Caddy model's base settings, writes the Pages CNAME into its
     dnsRecords, reconciles DNS, checks the authoritative CNAME (failing with the
     exact manual Gandi cleanup when it is wrong), and verifies the final HTTPS
-    URL.
+    URL. Posts render with the Borland Modern Blue blog theme by default; set
+    templatePath to a different HTML file to use another theme.
 
   INSTALL
 
@@ -73,7 +74,8 @@ description: >
   CONFIGURE
 
     blogDir               Absolute directory of Markdown files
-    templateDir           Optional custom template path
+    templatePath          HTML template (default /home/sven/src/obsidian/templates/herdr-borland.html)
+    templateDir           Fallback template directory when templatePath is empty
     siteTitle             Site title (default Notes)
     indexTitle            Title for index.html and rss.xml (default "Sven's blog")
     pagesModel            cloudflare-pages-wrangler instance (default blog-pages)

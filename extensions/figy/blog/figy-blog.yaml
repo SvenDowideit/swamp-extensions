@@ -19,8 +19,11 @@ inputs:
       description: Optional HTML template directory for markdown-blog.
     templatePath:
       type: string
-      default: ''
-      description: Optional HTML template path passed to markdown2html.
+      default: /home/sven/src/obsidian/templates/herdr-borland.html
+      description: >-
+        Optional HTML template path passed to markdown2html. Defaults to the
+        Borland Modern Blue blog template; set it to a different file to change
+        the theme.
     siteTitle:
       type: string
       default: Notes

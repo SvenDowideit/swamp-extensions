@@ -1,0 +1,90 @@
+manifestVersion: 1
+name: "@svendowideit/swamp-ide-openobserve"
+version: "2026.11.23.1"
+description: >
+  The optional OpenObserve page for @svendowideit/swamp-ide: one dashboard that
+  separates routed herdr-core/vim work from bypassed built-in tool calls.
+
+  WHAT IT DOES
+
+    Creates or updates the Swamp Agent IDE dashboard in an existing
+    OpenObserve instance. Panels: routed vs bypassed counts, operations by
+    route, recent bypassed tool calls, recent routed calls and recent errors.
+    The dashboard groups on real OpenObserve trace columns (`service_name`,
+    `operation_name`, `swamp_outcome`), so it shows what went through
+    herdr-core/vim and what did not. The extension is optional and is installed
+    by @svendowideit/swamp-ide only when OpenObserve is already installed and
+    healthy. It reads the OpenObserve login from a swamp vault; no credential
+    is written into the dashboard or a model definition.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/swamp-ide-openobserve
+
+  DEPENDENCIES
+
+    A running OpenObserve instance (for example from
+    @svendowideit/otel-backend) and a vault holding its login. The default
+    vault is `otel-openobserve-admin`; the default URL is
+    `http://127.0.0.1:5080`.
+
+  RUN
+
+      # Create or update the dashboard against the local OpenObserve.
+      swamp model @svendowideit/swamp-ide-openobserve method run dashboard ide-openobserve \
+        --input uiBaseUrl=https://obs.otel.fi.gy
+
+      # Confirm it exists without changing it.
+      swamp model @svendowideit/swamp-ide-openobserve method run status ide-openobserve
+
+      # Use a different title or folder if you keep more than one IDE page.
+      swamp model @svendowideit/swamp-ide-openobserve method run dashboard ide-openobserve \
+        --input title="Swamp Agent IDE — staging" --input folder=staging
+
+  CONFIGURE
+
+    Global arguments:
+
+      baseUrl          OpenObserve base URL (no trailing slash)  (http://127.0.0.1:5080)
+      organization     Organization that owns the dashboard     (default)
+      vaultName        Vault holding the login                  (otel-openobserve-admin)
+      emailKey         Vault key for the login email            (ZO_ROOT_USER_EMAIL)
+      authRef          Vault key for the login password         (ZO_ROOT_USER_PASSWORD)
+      authHeaderKey    Ready-made Authorization header key      (empty)
+      timeoutMs        Per-request timeout                      (30000)
+
+    `dashboard` takes `title`, `stream`, `folder`, `update` and `uiBaseUrl`.
+    `status` takes `title` and `folder`.
+
+  WHAT IT INSTALLS
+
+    Nothing on the host. It only calls the OpenObserve HTTP API and writes one
+    swamp resource for the dashboard and one for the status check.
+
+repository: 'https://github.com/svendowideit/swamp-extensions'
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - swamp_ide_openobserve.ts
+
+dependencies: []
+
+optionalDependencies:
+  - '@svendowideit/openobserve'
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - swamp_ide_openobserve_test.ts
+
+platforms: []
+
+labels:
+  - swamp-ide
+  - openobserve
+  - observability
+  - dashboard

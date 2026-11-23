@@ -1,0 +1,146 @@
+manifestVersion: 1
+name: "@svendowideit/herdr-core"
+version: "2026.11.23.2"
+description: >
+  Give an agent hands and eyes in a herdr-core session that stays running:
+  terminals, files, commands, search, and the whole machine fleet, as swamp
+  methods and data instead of a shell process per action.
+
+  WHAT IT DOES
+
+    herdr-core (`hc`) is the persistent runtime behind the Herdr desktop app:
+    a background server owns terminals, their programs, scrollback, files and
+    a fleet of other machines. This extension turns that runtime into swamp
+    methods — `terminals`, `read`, `run`, `send`, `keys`, `wait`, `exec`,
+    `file-read`, `file-write`, `file-edit`, `file-edit-lines`, `search`,
+    `machines` — so an agent can observe a live session, run tests where they
+    belong, edit a file exactly once or replace a line range it found with
+    search/read, and search a repo without spawning a shell per step. Every
+    call is fan-out friendly: one `terminals`, `read`, `exec` or `file-*` call
+    handles many targets and takes the swamp lock once. Prefer it to `cat`,
+    `sed`, `rg`, `ssh` or a terminal-scraping wrapper: the result is typed
+    swamp data, the target can be another machine with `--on`, and the same
+    session is visible in every Herdr client. Every method can emit one
+    OTLP/HTTP span with `swamp.route=herdr-core`, `swamp.outcome` and
+    `swamp.method`, resolved from `@svendowideit/otel-settings` when that
+    contract is configured, then from the standard OTEL environment. Each
+    method also appends one JSONL event for the Herdr activity panel, which
+    shows routed vs bypassed tool calls live.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/herdr-core
+
+  DEPENDENCIES
+
+    The `herdr-core` binary (or its `hc` alias) on PATH, or set `herdrBin`.
+    It is installed by @svendowideit/herdr-app and shared by every Herdr
+    install on the machine. Optional: `@svendowideit/otel-settings` — when its
+    model has a resolved contract, spans use that endpoint, mesh and bearer
+    token; without it the standard OTEL environment is used, and without
+    either, tracing is a no-op that never fails a method.
+
+  RUN
+
+      # What is running, and where can it run? Read the live terminals and
+      # the connected machines before choosing a target.
+      swamp model @svendowideit/herdr-core method run status herdr-core
+      swamp model @svendowideit/herdr-core method run terminals herdr-core \
+        --input all=true --input agent=pi
+
+      # Run a test in a terminal I can watch, and wait for its exit code.
+      # The terminal stays alive afterwards, so the output is still there.
+      swamp model @svendowideit/herdr-core method run run herdr-core \
+        --input 'argv:json=["npm","test"]' \
+        --input cwd=/home/sven/src/swamp-project \
+        --input name=test-run
+
+      # Search a repo, then replace one exact occurrence. Both calls return
+      # typed data; the edit is all-or-none and never leaves a half-written
+      # file.
+      swamp model @svendowideit/herdr-core method run search herdr-core \
+        --input pattern=agent-ide-control --input paths:json='["docs"]'
+      swamp model @svendowideit/herdr-core method run file-edit herdr-core \
+        --input path=docs/notes.md \
+        --input 'edits:json=[{"old":"old sentence","new":"new sentence"}]'
+
+      # Do the same on another machine the server already knows about.
+      swamp model @svendowideit/herdr-core method run exec herdr-core \
+        --input machine=xeon \
+        --input 'argv:json=["git","status","--short"]'
+
+      # Check whether tracing is live, then post one test span.
+      swamp model @svendowideit/herdr-core method run otel-status herdr-core
+      swamp model @svendowideit/herdr-core method run otel-status herdr-core \
+        --input test=true
+
+  CONFIGURE
+
+    Global arguments, set on the model definition:
+
+      herdrBin              herdr-core binary or hc alias        (herdr-core)
+      defaultCwd            working directory for commands        (empty)
+      defaultMachine        machine to target by default          (empty)
+      maxOutputBytes        retained terminal/file/exec output    (200000)
+      otelEnabled           export OTLP spans                     (true)
+      otelModel             otel-settings model name              (otel)
+      otelVaultName         vault holding the OTLP bearer token   (empty)
+      otelTokenRef          vault/env key for the token           (OTEL_EXPORTER_OTLP_TOKEN)
+      otelEndpoint          explicit OTLP/HTTP traces endpoint    (empty)
+      otelMesh              preferred contract mesh               (empty)
+      otelServiceName       service.name for spans                (swamp-herdr-core)
+      otelTimeoutMs         maximum time for one span POST        (2500)
+      otelDebug             log the resolved endpoint and errors  (false)
+      eventLogEnabled       append JSONL activity events           (true)
+      eventLog              activity log for the Herdr panel      (~/.local/state/swamp-agent-ide/events.jsonl)
+
+    Per-call arguments are documented by `swamp behavior type describe
+    @svendowideit/herdr-core --json`.
+
+  WHAT IT INSTALLS
+
+    Nothing on the host — no services, cron triggers, daemons or webhooks. It
+    runs the existing herdr-core binary and writes swamp resources and data.
+    It never edits herdr-core's own state files.
+
+repository: 'https://github.com/svendowideit/swamp-extensions'
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - herdr_core.ts
+
+reports:
+  - herdr_core_report.ts
+
+dependencies: []
+
+optionalDependencies:
+  - '@svendowideit/otel-settings'
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - herdr_core_test.ts
+  - herdr_core_otel_test.ts
+  - herdr_core_report.ts
+  - herdr_core_report_test.ts
+
+platforms:
+  - linux-x86_64
+  - linux-aarch64
+  - darwin-x86_64
+  - darwin-aarch64
+  - windows-x86_64
+
+labels:
+  - herdr
+  - herdr-core
+  - terminals
+  - agents
+  - files
+  - search
+  - otel

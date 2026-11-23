@@ -1,0 +1,145 @@
+manifestVersion: 1
+name: "@svendowideit/vim-controller"
+version: "2026.11.23.2"
+description: >
+  Control the Vim buffer a human is watching: read the buffer, replace exact
+  text or line ranges atomically, move the cursor, draw a virtual agent cursor,
+  and read quickfix — without spawning sed or cat.
+
+  WHAT IT DOES
+
+    Vim is already a programmable editor when it is started with
+    `--servername`: `--remote-expr` can read lines, replace a buffer, move the
+    cursor, draw text properties and read quickfix. This extension wraps that
+    surface as swamp methods: `servers`, `open`, `status`, `read`, `edit`,
+    `write`, `cursor`, `annotate`, `command`, `expr`, `keys`, `diagnostics`,
+    `undo` and `close`. `open` starts Vim in a herdr-core terminal so the
+    window stays open for a human to watch; `edit` applies exact-text or
+    line-range changes in one call, rejects an ambiguous match before touching
+    the buffer, returns the undo sequence and a unified diff, and never leaves
+    a half-applied edit. `annotate` uses Vim text properties for a virtual
+    cursor, so the human keeps the real one. Prefer it to `sed -i` or a
+    terminal-scraping wrapper when you want the change to happen in the editor
+    the person is already looking at. Every method can emit one OTLP/HTTP span
+    with `swamp.route=vim`, resolved from `@svendowideit/otel-settings` when
+    that contract is configured, then from the standard OTEL environment. Each
+    method also appends one JSONL event for the Herdr activity panel, which
+    shows routed vs bypassed tool calls live.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/vim
+
+  DEPENDENCIES
+
+    Vim 9 with `+clientserver`, `+channel`, `+textprop` and `+quickfix`, and an
+    X11 display (XWayland is fine). `open` also needs the `herdr-core` binary
+    (or its `hc` alias) to host the terminal; an existing Vim started with
+    `--servername` works without herdr-core. Optional:
+    `@svendowideit/otel-settings` for automatic OTLP endpoint discovery.
+
+  RUN
+
+      # See which Vim servers exist, then open a new one in a herdr terminal.
+      # The window stays open, so this is the "watch it work" path.
+      swamp model @svendowideit/vim method run servers vim
+      swamp model @svendowideit/vim method run open vim \
+        --input server=swamp-demo --input file=src/index.ts \
+        --input cwd=$PWD
+
+      # Read what the human sees, then replace one exact sentence. The edit
+      # is rejected if the text is missing or occurs more than once.
+      swamp model @svendowideit/vim method run read vim \
+        --input server=swamp-demo --input mode=visible
+      swamp model @svendowideit/vim method run edit vim \
+        --input server=swamp-demo \
+        --input 'edits:json=[{"old":"old sentence","new":"new sentence"}]'
+
+      # Show where the agent is looking without moving the human's cursor.
+      swamp model @svendowideit/vim method run annotate vim \
+        --input server=swamp-demo \
+        --input line=12 --input text="▶ agent"
+
+      # Read Vim's quickfix list, or run one Ex command.
+      swamp model @svendowideit/vim method run diagnostics vim \
+        --input server=swamp-demo
+      swamp model @svendowideit/vim method run command vim \
+        --input server=swamp-demo --input command="set number"
+
+      # Check whether tracing is live, then post one test span.
+      swamp model @svendowideit/vim method run otel-status vim
+      swamp model @svendowideit/vim method run otel-status vim \
+        --input test=true
+
+  CONFIGURE
+
+    Global arguments, set on the model definition:
+
+      vimBin                Vim binary                              (vim)
+      herdrBin              herdr-core binary used by `open`        (herdr-core)
+      serverPrefix          prefix for a cwd-derived server name    (swamp-vim)
+      defaultServer         server used when a method names none     (empty)
+      defaultCwd            cwd for `open` when the method gives none (empty)
+      maxOutputBytes        retained buffer/command output          (200000)
+      otelEnabled           export OTLP spans                       (true)
+      otelModel             otel-settings model name                (otel)
+      otelVaultName         vault holding the OTLP bearer token     (empty)
+      otelTokenRef          vault/env key for the token             (OTEL_EXPORTER_OTLP_TOKEN)
+      otelEndpoint          explicit OTLP/HTTP traces endpoint      (empty)
+      otelMesh              preferred contract mesh                 (empty)
+      otelServiceName       service.name for spans                  (swamp-vim)
+      otelTimeoutMs         maximum time for one span POST          (2500)
+      otelDebug             log the resolved endpoint and errors    (false)
+      eventLogEnabled       append JSONL activity events             (true)
+      eventLog              activity log for the Herdr panel        (~/.local/state/swamp-agent-ide/events.jsonl)
+
+    Per-call arguments are documented by `swamp behavior type describe
+    @svendowideit/vim --json`.
+
+  WHAT IT INSTALLS
+
+    Nothing on the host — no services, cron triggers, daemons or webhooks. It
+    sources the bundled `swamp_vim.vim` runtime into a Vim server, runs the
+    existing `vim` and `herdr-core` binaries, and writes swamp resources. It
+    never edits `.vimrc` or any other Vim configuration.
+
+repository: 'https://github.com/svendowideit/swamp-extensions'
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - vim.ts
+
+reports:
+  - vim_report.ts
+
+dependencies: []
+
+optionalDependencies:
+  - '@svendowideit/otel-settings'
+
+binaries:
+  - swamp_vim.vim
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - vim_test.ts
+  - vim_otel_test.ts
+  - vim_report.ts
+  - vim_report_test.ts
+
+platforms:
+  - linux-x86_64
+  - linux-aarch64
+  - darwin-x86_64
+  - darwin-aarch64
+
+labels:
+  - vim
+  - editor
+  - agents
+  - otel

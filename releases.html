@@ -171,7 +171,7 @@ footer .ver{color:var(--acc)}
 <p>1. <strong><code>serve daemon enable</code> drops <code>SWAMP_OAUTH_CLIENT_ID</code>.</strong> The service gets only the flags and <code>serve.yaml</code>. Enable now warns, in log and <code>--json</code> output (a new <code>warnings</code> array), when <code>SWAMP_OAUTH_CLIENT_ID</code>, <code>SWAMP_OAUTH_CLIENT_SECRET_FILE</code> or <code>SWAMP_OAUTH_CLIENT_SECRET</code> is set in the shell without its flag. Each warning names only real sources and never prints a value. The client-id warning is skipped when <code>serve.yaml</code> names the same client. The <code>--oauth-client-id</code> and <code>--oauth-client-secret-file</code> help no longer advertise env forms the service never receives, and the command description says so for all options.</p>
 <p>2. <strong><code>--oauth-client-secret-file</code> without a client id.</strong> In oauth mode, enable refuses it when neither the flag nor <code>serve.yaml</code> names a client id, instead of writing a unit that fails on every start. It never opens the file, which may not be mounted until boot.</p>
 <p>3. <strong>Rotating a vault-seeded secret under <code>--keep-oauth-client-in-vault</code>.</strong> <code>design/primitives/serve.md</code> now says this has no effect once <code>_token-secrets</code> holds a copy, and that <code>--oauth-client-id</code> with a supplie</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/expressions.md" rel="noopener">design/enablers/expressions.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/expressions.md" rel="noopener">design/enablers/expressions.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261124.004307.0-sha.2c32ef2a" rel="noopener">release v20261124.004307.0-sha.2c32ef2a</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/2c32ef2a2be025fabb666c9926f7af48e8858c75" rel="noopener">2c32ef2a</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3934" rel="noopener">#3934</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3602" rel="noopener">#3602</a>𝗔 <a href="https://swamp-club.com/lab/4372" rel="noopener">lab#4372</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261124-002845-0-sha-97d44824">
@@ -382,7 +382,7 @@ footer .ver{color:var(--acc)}
 <li>A version whose metadata changes re-stamps its catalog row, because the catalog reads its metadata through the <code>base_versions</code> join.</li>
 <li>The domain <code>foldCommit</code> and the <code>CompactedBaseWriter</code> port are</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261123.190247.0-sha.9ed01e53" rel="noopener">release v20261123.190247.0-sha.9ed01e53</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/9ed01e539db9781fcbb9c06f10f116d715ab5a39" rel="noopener">9ed01e53</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3925" rel="noopener">#3925</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4679" rel="noopener">#4679</a>𝗔 <a href="https://swamp-club.com/lab/4981" rel="noopener">lab#4981</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261123-183146-0-sha-dbb4274b">
@@ -857,7 +857,7 @@ footer .ver{color:var(--acc)}
 <li>A presence file another user owns is still refused at once, and nothing foreign is ever replaced or killed (<code>otherOwner</code> still forces both verifications false).</li>
 <li>Tradeoff: two genuinely live sidecars sharing a checkout (e.g. a container and its host over a bind mount) are refu</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastore-litestream.md" rel="noopener">design/enablers/datastore-litestream.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261120.151627.0-sha.77c3e8d6" rel="noopener">release v20261120.151627.0-sha.77c3e8d6</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/77c3e8d62e3e1df7b2ad7cfbde7c40b12c25cbe0" rel="noopener">77c3e8d6</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3883" rel="noopener">#3883</a>𝗔 <a href="https://swamp-club.com/lab/4929" rel="noopener">lab#4929</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261120-092442-0-sha-82005b8c">
@@ -8722,7 +8722,7 @@ footer .ver{color:var(--acc)}
 <li><strong><code>design/primitives/workflows.md</code>:</strong> &quot;Fan-out Jobs&quot; is now one section with a glossary (plan, member, disposition, lane, batch, error budget, held, halt, gate). It covers validation, membership, lanes, the offline policy and <code>minWorkers</code>, rollouts, gates, resume and <code>--from</code>, output and history, and run-record fields. New parts cover the environment sent to every host, fan-out in serve workspaces, and jobs that restart their host. It ends with a known-limits list. Every existing rule is kept; a sentence-level comparison against the old text was done by hand.</li>
 <li><strong><code>design/enablers/remote-execution.md</code>:</strong> keeps the scheduling side and links to <code>workflows.md</code> instead of repeating it. The stale &quot;Whole-environment dispatch&quot; limi</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/README.md" rel="noopener">README.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/serve-workspaces.md" rel="noopener">design/surfaces/serve-workspaces.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/README.md" rel="noopener">README.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/serve-workspaces.md" rel="noopener">design/surfaces/serve-workspaces.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261124.064732.0-sha.124c0f3f" rel="noopener">release v20261124.064732.0-sha.124c0f3f</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/124c0f3fb6eaecaed6a6b79c8a3a0126ed50e7a5" rel="noopener">124c0f3f</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3937" rel="noopener">#3937</a>𝗔 <a href="https://swamp-club.com/lab/5025" rel="noopener">lab#5025</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261119-213007-0-sha-4cf47dda">
@@ -9197,7 +9197,7 @@ footer .ver{color:var(--acc)}
 <ul><li><strong>fix</strong> — 240</li><li><strong>feat</strong> — 98</li><li><strong>perf</strong> — 21</li><li><strong>docs</strong> — 10</li><li><strong>test</strong> — 8</li><li><strong>refactor</strong> — 3</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-24T16:08:31.288Z">2026-11-24T16:08:31.288Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-24T17:05:11.298Z">2026-11-24T17:05:11.298Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

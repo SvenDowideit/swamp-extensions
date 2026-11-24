@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-5033"><span class="tier A">A</span>serve: a verify-on-enroll pass can promote a worker that sta</a><a href="#issue-4990"><span class="tier A">A</span>Swampify ranks swamp&#39;s own command sequences as candidates, </a><a href="#issue-5047"><span class="tier A">A</span>workflow run output: approval hints print twice and disagree</a><a href="#issue-5046"><span class="tier A">A</span>Device approval page: values wrap mid-word, styling predates</a><a href="#issue-4306"><span class="tier A">A</span>serve reload reports 0 types reloaded when it replaced edite</a><a href="#issue-5034"><span class="tier A">A</span>Prepare data for better-auth 1.7 while 1.4.22 serves: API ke</a><a href="#issue-5044"><span class="tier A">A</span>Extension scoring runs one at a time, so a burst of pushes l</a><a href="#issue-5025"><span class="tier A">A</span>docs: fan-out as one general capability in the swamp CLI rep</a><a href="#issue-4477"><span class="tier A">A</span>A workflow run keeps every step&#39;s resource contents in memor</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4962"><span class="tier A">A</span>Workflow steps parse every written resource in full, and pas</a><a href="#issue-5051"><span class="tier A">A</span>Reconciler test fails when the temp path folds the status re</a><a href="#issue-4930"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-5020"><span class="tier A">A</span>Flaky test: serve host restart after shutdown is refused as </a><a href="#issue-5036"><span class="tier A">A</span>enrollment_token_rotation_property_test flakes: advanceToken</a><a href="#issue-5018"><span class="tier A">A</span>Flaky test: serve workspace dashboard switcher test expects </a><a href="#issue-5039"><span class="tier A">A</span>serve workspace requests test races a background state probe</a><a href="#issue-5040"><span class="tier A">A</span>Team mode: the standby never checks the writer lease while f</a><a href="#issue-5024"><span class="tier A">A</span>Team mode: a leader that can&#39;t commit (disk full) keeps its </a></aside><div>
 
 <article class="item" id="issue-4852">
 <h2><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4Shell)</h2>
@@ -92,6 +92,86 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-4962">
+<h2><span class="tier A">A</span>Workflow steps parse every written resource in full, and past the V8 string limit their outputs are silently empty</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-24T16:44:00.818Z">2026-11-24T16:44:00.818Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4962" rel="noopener">lab#4962</a></div>
+</article>
+<article class="item" id="issue-5051">
+<h2><span class="tier A">A</span>Reconciler test fails when the temp path folds the status reason across YAML lines</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-24T16:25:01.921Z">2026-11-24T16:25:01.921Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5051" rel="noopener">lab#5051</a></div>
+</article>
+<article class="item" id="issue-4930">
+<h2><span class="tier A">A</span>Scheduled flaky-test detection is failing</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-24T16:25:00.866Z">2026-11-24T16:25:00.866Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4930" rel="noopener">lab#4930</a></div>
+</article>
+<article class="item" id="issue-5020">
+<h2><span class="tier A">A</span>Flaky test: serve host restart after shutdown is refused as another host still running on the state folder</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-24T16:25:00.589Z">2026-11-24T16:25:00.589Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5020" rel="noopener">lab#5020</a></div>
+</article>
+<article class="item" id="issue-5036">
+<h2><span class="tier A">A</span>enrollment_token_rotation_property_test flakes: advanceTokenClock leaves 1 ms of wall-clock margin</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-24T16:25:00.351Z">2026-11-24T16:25:00.351Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5036" rel="noopener">lab#5036</a></div>
+</article>
+<article class="item" id="issue-5018">
+<h2><span class="tier A">A</span>Flaky test: serve workspace dashboard switcher test expects an untouched workspace&#39;s state to hold across a resume</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-24T16:25:00.111Z">2026-11-24T16:25:00.111Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5018" rel="noopener">lab#5018</a></div>
+</article>
+<article class="item" id="issue-5039">
+<h2><span class="tier A">A</span>serve workspace requests test races a background state probe: the untouched workspace&#39;s state can move from unknown to stopped between reads</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-24T16:24:59.876Z">2026-11-24T16:24:59.876Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5039" rel="noopener">lab#5039</a></div>
+</article>
+<article class="item" id="issue-5040">
+<h2><span class="tier A">A</span>Team mode: the standby never checks the writer lease while following, so a stalled-but-connected leader is never replaced (89 s stall, lease lapsed ~64 s, no takeover)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-24T16:15:13.664Z">2026-11-24T16:15:13.664Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5040" rel="noopener">lab#5040</a></div>
+</article>
+<article class="item" id="issue-5024">
+<h2><span class="tier A">A</span>Team mode: a leader that can&#39;t commit (disk full) keeps its lease and reports ready, so the standby never takes over (10 h 44 min write outage on dogfood)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-24T16:15:13.384Z">2026-11-24T16:15:13.384Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5024" rel="noopener">lab#5024</a></div>
+</article>
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-5049">
+<h2><span class="tier A">A</span>Registry: the versions listing for @hivemq/asdlc is cut off mid-body</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-24T16:13:41.285Z">2026-11-24T16:13:41.285Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5049" rel="noopener">lab#5049</a></div>
 </article>
 <article class="item" id="issue-5033">
 <h2><span class="tier A">A</span>serve: a verify-on-enroll pass can promote a worker that started draining while its verify_passed write queued</h2>
@@ -165,7 +245,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4477" rel="noopener">lab#4477</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-5038">
+<article class="item" id="issue-5038">
 <h2><span class="tier A">A</span>Extension archive app check ignores pax path overrides, so a long path is judged under its truncated ustar name</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-24T02:21:44.203Z">2026-11-24T02:21:44.203Z</time></span></div>
@@ -4805,93 +4885,45 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
-<article class="item" id="issue-5039">
-<h2><span class="tier B">B</span>serve workspace requests test races a background state probe: the untouched workspace&#39;s state can move from unknown to stopped between reads</h2>
+<article class="item" id="issue-4905">
+<h2><span class="tier B">B</span>serve --reuse-port on macOS: the AddrInUse refusal blames &#39;a process listening there without --reuse-port&#39; when the cause is the OS</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-24T16:04:30.837Z">2026-11-24T16:04:30.837Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-24T17:00:22.075Z">2026-11-24T17:00:22.075Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5039" rel="noopener">lab#5039</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4905" rel="noopener">lab#4905</a></div>
 </article>
-<article class="item" id="issue-4962">
-<h2><span class="tier B">B</span>Workflow steps parse every written resource in full, and past the V8 string limit their outputs are silently empty</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-24T16:01:53.247Z">2026-11-24T16:01:53.247Z</time></span></div>
+<article class="item" id="issue-4945">
+<h2><span class="tier B">B</span>swamp serve data.query builds its whole response as one WebSocket frame, so a remote query past V8&#39;s string limit fails on the server</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-24T17:00:06.157Z">2026-11-24T17:00:06.157Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4962" rel="noopener">lab#4962</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4945" rel="noopener">lab#4945</a></div>
 </article>
-<article class="item" id="issue-5049">
-<h2><span class="tier B">B</span>Registry: the versions listing for @hivemq/asdlc is cut off mid-body</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-24T16:01:45.591Z">2026-11-24T16:01:45.591Z</time></span></div>
+<article class="item" id="issue-5054">
+<h2><span class="tier B">B</span>data query --select in log mode crashes with Too many properties to enumerate when a selected row is a very large string</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-24T16:56:31.351Z">2026-11-24T16:56:31.351Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5049" rel="noopener">lab#5049</a></div>
-</article>
-<article class="item" id="issue-5051">
-<h2><span class="tier B">B</span>Reconciler test fails when the temp path folds the status reason across YAML lines</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-24T15:34:34.646Z">2026-11-24T15:34:34.646Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5051" rel="noopener">lab#5051</a></div>
-</article>
-<article class="item" id="issue-4930">
-<h2><span class="tier B">B</span>Scheduled flaky-test detection is failing</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-24T15:34:34.399Z">2026-11-24T15:34:34.399Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4930" rel="noopener">lab#4930</a></div>
-</article>
-<article class="item" id="issue-5020">
-<h2><span class="tier B">B</span>Flaky test: serve host restart after shutdown is refused as another host still running on the state folder</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-24T15:34:34.153Z">2026-11-24T15:34:34.153Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5020" rel="noopener">lab#5020</a></div>
-</article>
-<article class="item" id="issue-5036">
-<h2><span class="tier B">B</span>enrollment_token_rotation_property_test flakes: advanceTokenClock leaves 1 ms of wall-clock margin</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-24T15:34:33.896Z">2026-11-24T15:34:33.896Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5036" rel="noopener">lab#5036</a></div>
-</article>
-<article class="item" id="issue-5018">
-<h2><span class="tier B">B</span>Flaky test: serve workspace dashboard switcher test expects an untouched workspace&#39;s state to hold across a resume</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-24T15:34:33.614Z">2026-11-24T15:34:33.614Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5018" rel="noopener">lab#5018</a></div>
-</article>
-<article class="item" id="issue-5024">
-<h2><span class="tier B">B</span>Team mode: a leader that can&#39;t commit (disk full) keeps its lease and reports ready, so the standby never takes over (10 h 44 min write outage on dogfood)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-24T12:47:34.418Z">2026-11-24T12:47:34.418Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5024" rel="noopener">lab#5024</a></div>
-</article>
-<article class="item" id="issue-5040">
-<h2><span class="tier B">B</span>Team mode: the standby never checks the writer lease while following, so a stalled-but-connected leader is never replaced (89 s stall, lease lapsed ~64 s, no takeover)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-24T12:47:32.981Z">2026-11-24T12:47:32.981Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5040" rel="noopener">lab#5040</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5054" rel="noopener">lab#5054</a></div>
 </article>
 <article class="item" id="issue-5022">
 <h2><span class="tier B">B</span>Team mode: serve never enforces models&#39; declared data version limits automatically, so history grows without bound (4,712 versions per name vs a declared 10)</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-24T04:31:49.069Z">2026-11-24T04:31:49.069Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-24T16:42:53.587Z">2026-11-24T16:42:53.587Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/5022" rel="noopener">lab#5022</a></div>
+</article>
+<article class="item" id="issue-4980">
+<h2><span class="tier B">B</span>Team mode: a booting serve blocks its event loop for 21-51 s on a large datastore, longer than the writer lease&#39;s 25 s lapse, so a standby can take over mid-boot</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-24T16:39:59.455Z">2026-11-24T16:39:59.455Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4980" rel="noopener">lab#4980</a></div>
 </article>
 <article class="item" id="issue-5023">
 <h2><span class="tier B">B</span>Team mode: the leader commits one forwarded commit at a time for the whole datastore, with catch-up and fsyncs inside, so throughput caps and the event loop stalls under many concurrent members</h2>
@@ -5005,7 +5037,23 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4374" rel="noopener">lab#4374</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-5050">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-5053">
+<h2><span class="tier C">C</span>Docs: restart-without-dropping-work quotes the old macOS --reuse-port refusal</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-24T16:47:42.927Z">2026-11-24T16:47:42.927Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5053" rel="noopener">lab#5053</a></div>
+</article>
+<article class="item" id="issue-5052">
+<h2><span class="tier C">C</span>Docs: workflow step outputs of a resource too large to load (swamp-club#4962)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-24T16:17:34.627Z">2026-11-24T16:17:34.627Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5052" rel="noopener">lab#5052</a></div>
+</article>
+<article class="item" id="issue-5050">
 <h2><span class="tier C">C</span>Docs: hot-reload reference should say reloadedCount includes edited repo-local behaviors</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-11-24T14:46:35.526Z">2026-11-24T14:46:35.526Z</time></span></div>
@@ -5157,14 +5205,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4977" rel="noopener">lab#4977</a></div>
 </article>
-<article class="item" id="issue-4980">
-<h2><span class="tier C">C</span>Team mode: a booting serve blocks its event loop for 21-51 s on a large datastore, longer than the writer lease&#39;s 25 s lapse, so a standby can take over mid-boot</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-21T00:42:23.136Z">2026-11-21T00:42:23.136Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4980" rel="noopener">lab#4980</a></div>
-</article>
 <article class="item" id="issue-4969">
 <h2><span class="tier C">C</span>ensureReadSet downloads every text resource of a referenced model, not just the instances an expression reads</h2>
 <p class="lede">Open issue</p>
@@ -5237,14 +5277,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3929" rel="noopener">lab#3929</a></div>
 </article>
-<article class="item" id="issue-4945">
-<h2><span class="tier C">C</span>swamp serve data.query builds its whole response as one WebSocket frame, so a remote query past V8&#39;s string limit fails on the server</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-20T15:18:47.728Z">2026-11-20T15:18:47.728Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4945" rel="noopener">lab#4945</a></div>
-</article>
 <article class="item" id="issue-4944">
 <h2><span class="tier C">C</span>swamp data get --json fails with Invalid string length on one record whose pretty-printed content passes V8&#39;s string limit</h2>
 <p class="lede">Open issue</p>
@@ -5292,14 +5324,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4854" rel="noopener">lab#4854</a></div>
-</article>
-<article class="item" id="issue-4905">
-<h2><span class="tier C">C</span>serve --reuse-port on macOS: the AddrInUse refusal blames &#39;a process listening there without --reuse-port&#39; when the cause is the OS</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-19T17:33:03.406Z">2026-11-19T17:33:03.406Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4905" rel="noopener">lab#4905</a></div>
 </article>
 <article class="item" id="issue-4904">
 <h2><span class="tier C">C</span>workflow run --server: after reattaching to a run continued across a serve restart, the step in progress shows the reattach time as its start, so its duration is understated</h2>
@@ -6270,13 +6294,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>775 items across 1 source(s) in this window:
-3 critical, 589 notable, 25 routine,
-158 minor.</p>
-<ul><li><strong>issues</strong> — 775</li></ul></section>
+<p>778 items across 1 source(s) in this window:
+3 critical, 599 notable, 19 routine,
+157 minor.</p>
+<ul><li><strong>issues</strong> — 778</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-24T16:08:31.288Z">2026-11-24T16:08:31.288Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-24T17:05:11.298Z">2026-11-24T17:05:11.298Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

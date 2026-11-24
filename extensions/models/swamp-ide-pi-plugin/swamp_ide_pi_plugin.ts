@@ -608,7 +608,7 @@ async function set(
 /** The pi plugin installer/gate. */
 export const model = {
   type: "@svendowideit/swamp-ide-pi-plugin",
-  version: "2026.11.24.4",
+  version: "2026.11.24.5",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -627,6 +627,12 @@ export const model = {
       toVersion: "2026.11.24.4",
       description:
         "Rejects sh -c/bash -c shell wrappers before approval, requires a non-empty reason and goal for every mutation, removes the approval timeout, and selects the latest matching lease feature so an expired feature cannot shadow a fresh one.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.24.5",
+      description:
+        "Fixes pi failing to load the extension with 'Extension does not export a valid factory function: swamp-ide-policy.ts': the policy library now exports an inert default factory so pi's auto-discovery accepts the file that the addin and guard import.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

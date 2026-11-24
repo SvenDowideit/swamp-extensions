@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/swamp-ide-pi-plugin"
-version: "2026.11.24.4"
+version: "2026.11.24.5"
 description: >
   Install, enable and disable the pi addin that routes tool calls through
   @svendowideit/swamp-ide, and record every routed and bypassed call.
@@ -35,7 +35,10 @@ description: >
     swamp-ide extension sources) and mutating methods cannot be changed by the
     agent without a human-created lease. The human runs
     `/swamp-ide approve <scope> [minutes]` in pi; the agent cannot create the
-    lease. Read-only calls are allowed; everything else fails closed.
+    lease. Read-only calls are allowed; everything else fails closed. The
+    Herdr dialog also offers **Grant directory** for an exact file request; it
+    writes a `dir:<absolute directory>` lease covering every file below that
+    directory, not the filesystem root or protected paths.
 
   INSTALL
 

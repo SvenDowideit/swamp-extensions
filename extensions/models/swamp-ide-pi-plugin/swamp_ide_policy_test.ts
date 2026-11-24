@@ -4,13 +4,17 @@ import {
   authorizationFromLease,
   blockedAuthorization,
   classifyCall,
+  commandAlternatives,
   formatAuthorization,
   guardPlan,
+  isBroadScope,
   isProtectedPath,
   isShellWrapper,
   leaseAllows,
   matchingFeature,
   notRequiredAuthorization,
+  scopeCovers,
+  writeInputProblem,
 } from "./pi/swamp-ide-policy.ts";
 
 const home = "/home/sven";
@@ -204,6 +208,118 @@ Deno.test("the latest matching feature wins over an expired one", () => {
   };
   assert(leaseAllows(lease, scope, "s1", now));
   assertEquals(matchingFeature(lease, scope)?.name, "fresh");
+});
+
+Deno.test("features are bound to their requesting session", () => {
+  const now = Date.now();
+  const scope = "file:/tmp/shared";
+  const lease = {
+    session: "session-a",
+    scopes: [scope],
+    scopeExpiry: { [scope]: "2099-01-01T00:00:00.000Z" },
+    features: {
+      a: {
+        scopes: [scope],
+        session: "session-a",
+        expiresAt: "2099-01-01T00:00:00.000Z",
+      },
+      b: {
+        scopes: [scope],
+        session: "session-b",
+        expiresAt: "2099-01-01T00:00:00.000Z",
+      },
+    },
+    expiresAt: "2099-01-01T00:00:00.000Z",
+  };
+  assert(leaseAllows(lease, scope, "session-a", now));
+  assert(leaseAllows(lease, scope, "session-b", now));
+  assert(!leaseAllows(lease, scope, "session-c", now));
+});
+
+Deno.test("write methods require path, not paths", () => {
+  assertEquals(
+    writeInputProblem("herdr-core", "file-edit", { path: "/tmp/a" }),
+    "",
+  );
+  assert(
+    writeInputProblem("herdr-core", "file-edit", { paths: ["/tmp/a"] })
+      .includes("single `path`"),
+  );
+  assert(
+    writeInputProblem("herdr-core", "file-write", {
+      path: "/tmp/a",
+      paths: ["/tmp/a"],
+    }).includes("both"),
+  );
+  assertEquals(
+    writeInputProblem("herdr-core", "file-read", { paths: ["/tmp/a"] }),
+    "",
+  );
+});
+
+Deno.test("a directory grant covers files below it, not prefixes", () => {
+  assert(scopeCovers(`dir:${cwd}`, `file:${cwd}/AGENTS.md`));
+  assert(
+    scopeCovers(
+      `dir:${cwd}/src`,
+      "file:/home/sven/src/swamp-project/src/nested/app.ts",
+    ),
+  );
+  assert(
+    !scopeCovers(`dir:${cwd}`, "file:/home/sven/src/swamp-project-other/x"),
+  );
+  assert(!scopeCovers("dir:/", `file:${cwd}/AGENTS.md`));
+  assert(!scopeCovers(`dir:${cwd}`, `file:${cwd}`));
+  assert(!scopeCovers(`dir:${cwd}`, "protected:/home/sven/.pi/x"));
+});
+
+Deno.test("a directory feature authorizes an exact file scope", () => {
+  const now = Date.now();
+  const scope = `file:${cwd}/AGENTS.md`;
+  const directory = `dir:${cwd}`;
+  const lease = {
+    session: "s1",
+    scopes: [directory],
+    scopeExpiry: { [directory]: new Date(now + 60_000).toISOString() },
+    features: {
+      "approval:directory": {
+        scopes: [directory],
+        session: "s1",
+        expiresAt: new Date(now + 60_000).toISOString(),
+      },
+    },
+    expiresAt: new Date(now + 60_000).toISOString(),
+  };
+  assert(leaseAllows(lease, scope, "s1", now));
+  assertEquals(matchingFeature(lease, scope)?.name, "approval:directory");
+  assertEquals(
+    authorizationFromLease(lease, scope, "lease").feature,
+    "approval:directory",
+  );
+  assert(!leaseAllows(lease, "file:/tmp/elsewhere", "s1", now));
+});
+
+Deno.test("broad scopes are rejected as too broad", () => {
+  assert(isBroadScope("file-edit"));
+  assert(isBroadScope("protected"));
+  assert(isBroadScope("all"));
+  assert(isBroadScope("exec"));
+  assert(isBroadScope("dir:/"));
+  assert(!isBroadScope("file:/home/sven/src/swamp-project/AGENTS.md"));
+  assert(
+    !isBroadScope("protected:/home/sven/.pi/agent/extensions/swamp-ide.ts"),
+  );
+  assert(!isBroadScope("exec:abc123"));
+});
+
+Deno.test("known shell programs map to internal swamp_ide methods", () => {
+  assertEquals(commandAlternatives(["rg", "pattern"])[0]?.method, "search");
+  assertEquals(commandAlternatives(["cat", "file"])[0]?.method, "file-read");
+  assertEquals(
+    commandAlternatives(["sed", "-i", "s/a/b/", "file"])[0]?.method,
+    "file-edit",
+  );
+  assertEquals(commandAlternatives(["git", "status"]).length, 0);
 });
 
 Deno.test("shell wrappers cannot hide commands", () => {

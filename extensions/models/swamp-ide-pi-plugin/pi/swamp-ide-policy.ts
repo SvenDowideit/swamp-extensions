@@ -78,6 +78,7 @@ export interface Lease {
       scopes?: string[];
       expiresAt?: string;
       untilRevoked?: boolean;
+      session?: string;
       purpose?: string;
       risk?: string;
     }
@@ -95,13 +96,159 @@ export function isShellWrapper(argv: unknown): boolean {
   return SHELL_WRAPPERS.has(command) && String(argv[1] ?? "") === "-c";
 }
 
+export interface CommandAlternative {
+  program: string;
+  system: "herdr-core" | "vim" | "swamp";
+  method: string;
+  reason: string;
+}
+
+/**
+ * Commands that should normally be replaced by a swamp_ide method. Add a new
+ * entry here when a new internal tool covers another command; the approval
+ * dialog and policy tests pick it up automatically.
+ */
+const COMMAND_ALTERNATIVES: Record<
+  string,
+  Omit<CommandAlternative, "program">
+> = {
+  rg: {
+    system: "herdr-core",
+    method: "search",
+    reason: "search files without spawning a process",
+  },
+  grep: {
+    system: "herdr-core",
+    method: "search",
+    reason: "search files without spawning a process",
+  },
+  find: {
+    system: "herdr-core",
+    method: "search",
+    reason: "search files without spawning a process",
+  },
+  fd: {
+    system: "herdr-core",
+    method: "search",
+    reason: "search files without spawning a process",
+  },
+  cat: {
+    system: "herdr-core",
+    method: "file-read",
+    reason: "read file identity and content through swamp data",
+  },
+  head: {
+    system: "herdr-core",
+    method: "file-read",
+    reason: "read file identity and content through swamp data",
+  },
+  tail: {
+    system: "herdr-core",
+    method: "file-read",
+    reason: "read file identity and content through swamp data",
+  },
+  sed: {
+    system: "herdr-core",
+    method: "file-edit",
+    reason: "apply an exact-once edit and return a diff",
+  },
+  awk: {
+    system: "herdr-core",
+    method: "file-edit",
+    reason: "apply an exact-once edit and return a diff",
+  },
+};
+
+/** Native method alternatives for a command's first executable. */
+export function commandAlternatives(argv: unknown): CommandAlternative[] {
+  if (!Array.isArray(argv) || argv.length === 0) return [];
+  const program = String(argv[0] ?? "").split("/").pop() ?? "";
+  const entry = COMMAND_ALTERNATIVES[program];
+  return entry ? [{ program, ...entry }] : [];
+}
+
+const BROAD_SCOPES = new Set([
+  "all",
+  "protected",
+  "file-edit",
+  "file-write",
+  "file-edit-lines",
+  "exec",
+  "run",
+  "exec:unhashed",
+  "run:unhashed",
+  "send",
+  "keys",
+  "interrupt",
+  "kill",
+  "rm",
+  "put",
+  "vim:edit",
+  "vim:write",
+  "vim:command",
+]);
+
+/** A scope that does not name the actual target is too broad to approve. */
+export function isBroadScope(scope: string): boolean {
+  const value = String(scope ?? "");
+  return BROAD_SCOPES.has(value) || value === "dir:" || value === "dir:/";
+}
+
+/**
+ * Whether a granted scope covers a requested scope. Exact scopes match
+ * themselves. A `dir:<directory>` grant covers `file:<path>` only when the
+ * file is inside that directory; it never covers the filesystem root.
+ */
+export function scopeCovers(granted: string, requested: string): boolean {
+  const grant = String(granted ?? "");
+  const want = String(requested ?? "");
+  if (!grant || !want) return false;
+  if (grant === want) return true;
+  if (!grant.startsWith("dir:") || !want.startsWith("file:")) return false;
+  const directory = grant.slice("dir:".length).replace(/\\/g, "/").replace(
+    /\/+$/,
+    "",
+  );
+  const file = want.slice("file:".length).replace(/\\/g, "/");
+  if (!directory || directory === "/" || !file) return false;
+  return file.startsWith(`${directory}/`);
+}
+
+const WRITE_METHODS = new Set([
+  "file-write",
+  "file-edit",
+  "file-edit-lines",
+]);
+
+/** Write methods take one `path`; `paths` is only for file-read/search. */
+export function writeInputProblem(
+  system: string,
+  method: string,
+  input: Record<string, unknown> | undefined,
+): string {
+  if (system !== "herdr-core" || !WRITE_METHODS.has(method)) return "";
+  const hasPath = typeof input?.path === "string" &&
+    String(input.path).trim().length > 0;
+  const hasPaths = Array.isArray(input?.paths);
+  if (hasPath && hasPaths) {
+    return "write methods take a single `path`, not both `path` and `paths`";
+  }
+  if (hasPaths) {
+    return `write methods take a single \`path\`; \`paths\` is only for file-read/search. Call ${method} once per file.`;
+  }
+  if (!hasPath) {
+    return `write methods require a single \`path\`; \`paths\` is only for file-read/search`;
+  }
+  return "";
+}
+
 export interface Authorization {
   status: "allowed" | "not-required" | "blocked";
   scope: string;
   via: "read-only" | "lease" | "dialog" | "none";
   feature?: string;
   expiresAt?: string;
-  approval?: "approve" | "deny" | "fallback" | "explain" | "timeout" | "unavailable" | "cancelled" | null;
+  approval?: "approve" | "deny" | "fallback" | "explain" | "timeout" | "unavailable" | "cancelled" | "too-broad" | "use-tool" | null;
   reason: string;
 }
 
@@ -113,7 +260,10 @@ export function matchingFeature(
   let best: { name: string; expiresAt: string } | null = null;
   let bestTime = -Infinity;
   for (const [name, feature] of Object.entries(lease?.features ?? {})) {
-    if (!Array.isArray(feature.scopes) || !feature.scopes.includes(scope)) continue;
+    if (
+      !Array.isArray(feature.scopes) ||
+      !feature.scopes.some((granted) => scopeCovers(granted, scope))
+    ) continue;
     const expiresAt = String(feature.expiresAt ?? "");
     const time = Date.parse(expiresAt);
     if (time > bestTime) {
@@ -312,26 +462,49 @@ export function leaseAllows(
 ): boolean {
   if (!lease || !scope) return false;
   let expiry = lease.scopeExpiry?.[scope] ?? lease.expiresAt;
-  if (lease.features) {
-    let featureExpiry = "";
-    for (const feature of Object.values(lease.features)) {
-      if (!Array.isArray(feature.scopes) || !feature.scopes.includes(scope)) continue;
-      const candidate = String(feature.expiresAt ?? "");
+  const matching = Object.values(lease.features ?? {}).filter((feature) =>
+    Array.isArray(feature.scopes) &&
+    feature.scopes.some((granted) => scopeCovers(granted, scope))
+  );
+  if (matching.length > 0) {
+    let best = null;
+    let bestTime = -Infinity;
+    for (const feature of matching) {
+      const featureSession = String(feature.session ?? "");
+      if (session && featureSession && featureSession !== session) continue;
       if (
-        !featureExpiry ||
-        Date.parse(candidate) > Date.parse(featureExpiry)
-      ) {
-        featureExpiry = candidate;
+        session && !featureSession && lease.session &&
+        lease.session !== session
+      ) continue;
+      const candidate = String(feature.expiresAt ?? "");
+      const time = Date.parse(candidate);
+      if (time > bestTime) {
+        best = feature;
+        bestTime = time;
       }
     }
-    if (featureExpiry) expiry = featureExpiry;
+    if (!best) return false;
+    expiry = best.expiresAt ?? expiry;
+  } else if (lease.session && session && lease.session !== session) {
+    return false;
   }
   const expires = Date.parse(String(expiry ?? ""));
   if (!isFinite(expires) || expires <= now) return false;
-  if (lease.session && session && lease.session !== session) return false;
   const scopes = Array.isArray(lease.scopes) && lease.scopes.length > 0
     ? lease.scopes
     : [String(lease.scope ?? "")];
-  if (scopes.includes("all") || scopes.includes(scope)) return true;
-  return false;
+  if (scopes.includes("all")) return true;
+  return scopes.some((granted) => scopeCovers(String(granted), scope));
+}
+
+/**
+ * Pi auto-discovers every `extensions/*.ts` file as an extension and refuses to
+ * load a module whose default export is not a factory function ("Extension
+ * does not export a valid factory function"). This module is a library: it
+ * must sit beside the addin and the guard, which import the helpers above by
+ * name. The inert factory below only satisfies pi's loader, so the addin
+ * keeps loading; it registers no hooks, tools or commands of its own.
+ */
+export default function swampIdePolicyLibrary(): void {
+  // Intentionally empty. The addin and the guard import named helpers.
 }

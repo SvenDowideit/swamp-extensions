@@ -41,6 +41,7 @@ import { existsSync, readdirSync } from "node:fs";
 import {
   appendFile,
   mkdir,
+  open,
   readFile,
   realpath,
   stat,
@@ -55,11 +56,14 @@ import {
   authorizationFromLease,
   blockedAuthorization,
   classifyCall,
+  commandAlternatives,
   formatAuthorization,
   guardPlan,
+  isBroadScope,
   isShellWrapper,
   leaseAllows,
   notRequiredAuthorization,
+  writeInputProblem,
 } from "./swamp-ide-policy.ts";
 
 const MODE = (process.env.SWAMP_IDE_MODE ?? "enforce").toLowerCase();
@@ -84,6 +88,8 @@ const PENDING_APPROVAL = process.env.SWAMP_AGENT_IDE_PENDING ??
   join(homedir(), ".local/state/swamp-agent-ide/pending-approval.json");
 const APPROVAL_DECISION = process.env.SWAMP_AGENT_IDE_DECISION ??
   join(homedir(), ".local/state/swamp-agent-ide/approval-decision.json");
+const APPROVAL_LOCK = process.env.SWAMP_AGENT_IDE_APPROVAL_LOCK ??
+  join(homedir(), ".local/state/swamp-agent-ide/approval.lock");
 const HERDR_HOME = process.env.HERDR_APP_HOME ??
   join(homedir(), ".config/herdr-app");
 const APPROVAL_DURATION_MS = 10 * 60_000;
@@ -186,6 +192,50 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** One pending approval at a time across every pi session. */
+async function acquireApprovalLock() {
+  await mkdir(dirname(APPROVAL_LOCK), { recursive: true });
+  const token = randomHex(8);
+  const writeLock = () =>
+    writeFile(
+      APPROVAL_LOCK,
+      JSON.stringify({ token, pid: process.pid, at: Date.now() }),
+      "utf8",
+    );
+  for (;;) {
+    try {
+      const handle = await open(APPROVAL_LOCK, "wx");
+      await writeLock();
+      await handle.close();
+      return {
+        heartbeat: writeLock,
+        release: async () => {
+          try {
+            const current = JSON.parse(await readFile(APPROVAL_LOCK, "utf8"));
+            if (current?.token === token) {
+              await unlink(APPROVAL_LOCK).catch(() => {});
+            }
+          } catch {
+            // Another process already removed or stole the lock.
+          }
+        },
+      };
+    } catch (error) {
+      if (error?.code !== "EEXIST") throw error;
+      try {
+        const current = JSON.parse(await readFile(APPROVAL_LOCK, "utf8"));
+        if (Date.now() - Number(current?.at ?? 0) > 30_000) {
+          await unlink(APPROVAL_LOCK).catch(() => {});
+          continue;
+        }
+      } catch {
+        // Unreadable/lock being replaced; retry.
+      }
+      await sleep(100);
+    }
+  }
+}
+
 function herdrRunning() {
   return existsSync(join(HERDR_HOME, "herdr-app.sock"));
 }
@@ -226,7 +276,21 @@ function effectFor(system, model, method, input) {
 
 /** Ask the Herdr approval mod. The addin only writes the request; the human UI
  * writes the lease and decision, so the agent cannot self-approve. */
-async function requestHerdrApproval({
+async function requestHerdrApproval(args) {
+  let lock;
+  try {
+    lock = await acquireApprovalLock();
+  } catch {
+    return "unavailable";
+  }
+  try {
+    return await requestHerdrApprovalUnlocked({ ...args, lock });
+  } finally {
+    await lock.release();
+  }
+}
+
+async function requestHerdrApprovalUnlocked({
   decision,
   params,
   ctx,
@@ -234,6 +298,7 @@ async function requestHerdrApproval({
   model,
   command,
   signal,
+  lock,
 }) {
   if (!herdrRunning()) return "unavailable";
   const id = `appr-${Date.now().toString(36)}-${randomHex(4)}`;
@@ -257,6 +322,8 @@ async function requestHerdrApproval({
       : String(params.input?.path ?? ""),
     effect: effectFor(system, model, params.method, params.input),
     command,
+    alternatives: commandAlternatives(params.input?.argv),
+    broad: isBroadScope(decision.scope),
     durationMs: APPROVAL_DURATION_MS,
     risk: command ? "runs a command" : "changes state",
   };
@@ -268,7 +335,12 @@ async function requestHerdrApproval({
     return "unavailable";
   }
 
+  let lastLockWrite = Date.now();
   for (;;) {
+    if (Date.now() - lastLockWrite > 5000) {
+      await lock.heartbeat();
+      lastLockWrite = Date.now();
+    }
     if (signal?.aborted) {
       await unlink(PENDING_APPROVAL).catch(() => {});
       return "cancelled";
@@ -1663,6 +1735,7 @@ export default function swampIde(pi) {
     promptGuidelines: [
       "Use swamp_ide system=herdr-core method=file-read/search/file-edit/run/exec instead of bash, read, write, edit or grep for code work.",
       "Use swamp_ide system=vim method=read/edit/annotate when the person is watching a Vim buffer; read before editing.",
+      "Write methods file-write/file-edit/file-edit-lines take input.path (one file); file-read and search take input.paths.",
       "Use swamp_ide system=swamp model=<instance> method=<method> for any swamp model method; do not use a swamp CLI.",
       "When a swamp_ide result starts with an Authorization: line, quote that line verbatim in your response; do not paraphrase or invent an authorization explanation.",
       "Never use sh -c, bash -c, or another shell wrapper for a swamp_ide exec/run. The approval must show the complete exact argv and your explanation; multi-step work must use a committed named script whose full contents were read and shown.",
@@ -1699,6 +1772,16 @@ export default function swampIde(pi) {
       }
       const model = params.model ||
         (system === "vim" ? VIM_MODEL : system === "swamp" ? "" : HERDR_MODEL);
+      const writeProblem = writeInputProblem(system, params.method, params.input);
+      if (writeProblem) {
+        const blocked = blockedAuthorization(
+          `input:${params.method}`,
+          null,
+          writeProblem,
+        );
+        if (info) info.authorization = blocked;
+        throw new Error(`${formatAuthorization(blocked)}\n${writeProblem}`);
+      }
       const timeout = params.timeout ?? 600;
       const timeoutMs = (timeout + 5) * 1000;
 
@@ -1767,6 +1850,17 @@ export default function swampIde(pi) {
           );
         }
       }
+      if (decision.mutating && isBroadScope(decision.scope)) {
+        const blocked = blockedAuthorization(
+          decision.scope,
+          "too-broad",
+          "request is too broad; be more specific to the job you're trying to do",
+        );
+        if (info) info.authorization = blocked;
+        throw new Error(
+          `${formatAuthorization(blocked)}\nReject: be more specific to the job you're trying to do.`,
+        );
+      }
       let authorization = decision.mutating
         ? blockedAuthorization(decision.scope, null, decision.reason)
         : notRequiredAuthorization(decision.reason);
@@ -1815,6 +1909,29 @@ export default function swampIde(pi) {
               decision.scope,
               "dialog",
               "approve",
+            );
+          } else if (approval === "use-tool") {
+            const alternative = commandAlternatives(params.input?.argv)[0];
+            const replacement = alternative
+              ? `swamp_ide system=${alternative.system} method=${alternative.method} instead of ${alternative.program}`
+              : "a native swamp_ide tool";
+            authorization = blockedAuthorization(
+              decision.scope,
+              "use-tool",
+              `use ${replacement} for this job`,
+            );
+            throw new Error(
+              `${formatAuthorization(authorization)}\n` +
+                `Use ${replacement}; the command was not run.`,
+            );
+          } else if (approval === "too-broad") {
+            authorization = blockedAuthorization(
+              decision.scope,
+              "too-broad",
+              "request is too broad; be more specific to the job you're trying to do",
+            );
+            throw new Error(
+              `${formatAuthorization(authorization)}\nReject: be more specific to the job you're trying to do.`,
             );
           } else if (approval === "deny") {
             authorization = blockedAuthorization(
@@ -1984,6 +2101,7 @@ export default function swampIde(pi) {
         features[feature] = {
           scopes,
           untilRevoked,
+          session: currentSessionId(),
           expiresAt: untilRevoked
             ? "2099-01-01T00:00:00.000Z"
             : new Date(Date.now() + durationMs).toISOString(),

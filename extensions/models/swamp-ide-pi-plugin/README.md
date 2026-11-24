@@ -21,7 +21,11 @@ file:
   return to the agent, and closing the dialog (X or Esc) resolves the request as
   a fallback so the agent returns the explicit `/swamp-ide approve <scope>
   <duration>` command immediately. The dialog's Copy button writes the full
-  request to `last-request.txt` and the clipboard.
+  request to `last-request.txt` and the clipboard. For an exact `file:<path>`
+  request it also shows the parent directory and a **Grant directory** button:
+  that writes a `dir:<absolute directory>` lease covering every file below the
+  directory, so the same directory does not need one approval per file. The
+  button is not offered for protected files or the filesystem root.
 - It refuses to overwrite or remove a file that does not contain its managed
   marker, unless `force=true`.
 - `set enabled=true` writes the session marker used by the addin; `enabled=false`
@@ -76,10 +80,12 @@ Scopes are exact strings, for example:
 - `swamp:ide-openobserve.dashboard` — the dashboard
 - `exec`, `run`, `send`, `keys`, `interrupt`, `kill`, `rm`, `put` — herdr-core
 - `vim:edit`, `vim:write`, `vim:command` — Vim mutations
-- `file-write`, `file-edit`, `file-edit-lines` — non-protected files
+- `file:<absolute path>` — one non-protected file
+- `dir:<absolute directory>` — every file below that directory (not `/`), for
+  example from the dialog's **Grant directory** button
 - `protected:<absolute path>` — one protected path
-- `protected` — any protected path (deliberate broad grant)
-- `all` — any scope (deliberate broad grant)
+- `protected` — any protected path (a broad grant that the dialog rejects)
+- `all` — any scope (a broad grant that the dialog rejects)
 
 Protected paths include the addin, guard, policy, `~/.pi` extension/marker
 directories, Herdr mods/layouts, the swamp-ide state directory and the

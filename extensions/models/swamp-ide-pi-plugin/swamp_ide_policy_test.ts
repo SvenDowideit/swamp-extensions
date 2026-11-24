@@ -268,6 +268,18 @@ Deno.test("a directory grant covers files below it, not prefixes", () => {
   assert(
     !scopeCovers(`dir:${cwd}`, "file:/home/sven/src/swamp-project-other/x"),
   );
+  assert(
+    scopeCovers(
+      `dir:${cwd}/extensions`,
+      `protected:${cwd}/extensions/models/swamp-ide/swamp_ide.ts`,
+    ),
+  );
+  assert(
+    !scopeCovers(
+      `dir:${cwd}/extensions`,
+      "protected:/home/sven/.pi/agent/extensions/swamp-ide.ts",
+    ),
+  );
   assert(!scopeCovers("dir:/", `file:${cwd}/AGENTS.md`));
   assert(!scopeCovers(`dir:${cwd}`, `file:${cwd}`));
   assert(!scopeCovers(`dir:${cwd}`, "protected:/home/sven/.pi/x"));

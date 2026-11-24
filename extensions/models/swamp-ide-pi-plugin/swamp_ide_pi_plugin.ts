@@ -329,6 +329,19 @@ async function install(
   }
   await Deno.writeTextFile(policyPath, policySource);
 
+  const lockPath = join(dirname(path), "swamp-ide-lock.ts");
+  const lockSource = await Deno.readTextFile(
+    ctx.extensionFile("pi/swamp-ide-lock.ts"),
+  );
+  const lockCurrent = await readText(lockPath);
+  if (lockCurrent !== null && !managed(lockCurrent) && !force) {
+    throw new Error(
+      `${lockPath} exists and is not managed by ${MANAGED_MARKER}; ` +
+        "pass --input force=true to replace it",
+    );
+  }
+  await Deno.writeTextFile(lockPath, lockSource);
+
   const guardPath = guardPathFor();
   const guardSource = await Deno.readTextFile(
     ctx.extensionFile("pi/swamp-ide-guard.ts"),
@@ -353,6 +366,9 @@ async function install(
       await Deno.remove(projectPath).catch(() => {});
       await Deno.remove(
         join(dirname(projectPath), "swamp-ide-policy.ts"),
+      ).catch(() => {});
+      await Deno.remove(
+        join(dirname(projectPath), "swamp-ide-lock.ts"),
       ).catch(() => {});
     }
   }
@@ -420,8 +436,17 @@ async function uninstall(
         "pass --input force=true to remove it",
     );
   }
+  const lockPath = join(dirname(path), "swamp-ide-lock.ts");
+  const lockCurrent = await readText(lockPath);
+  if (lockCurrent !== null && !managed(lockCurrent) && !force) {
+    throw new Error(
+      `${lockPath} is not managed by ${MANAGED_MARKER}; ` +
+        "pass --input force=true to remove it",
+    );
+  }
   if (current !== null) await Deno.remove(path);
   if (policyCurrent !== null) await Deno.remove(policyPath);
+  if (lockCurrent !== null) await Deno.remove(lockPath);
   if (scope === "global" && guardCurrent !== null) {
     await Deno.remove(guardPath);
   }
@@ -608,7 +633,7 @@ async function set(
 /** The pi plugin installer/gate. */
 export const model = {
   type: "@svendowideit/swamp-ide-pi-plugin",
-  version: "2026.11.24.5",
+  version: "2026.11.25.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -633,6 +658,12 @@ export const model = {
       toVersion: "2026.11.24.5",
       description:
         "Fixes pi failing to load the extension with 'Extension does not export a valid factory function: swamp-ide-policy.ts': the policy library now exports an inert default factory so pi's auto-discovery accepts the file that the addin and guard import.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.25.1",
+      description:
+        "Adds an abortable, bounded, stale-safe approval lock with token-checked heartbeat/release and five tests; serializes manual grant/approve/revoke; adds a CAS window claim and visible approval queue; and lets a dir: lease cover protected descendants so Grant directory works for protected single-file requests.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

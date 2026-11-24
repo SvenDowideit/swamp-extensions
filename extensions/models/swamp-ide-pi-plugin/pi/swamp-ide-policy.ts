@@ -204,12 +204,18 @@ export function scopeCovers(granted: string, requested: string): boolean {
   const want = String(requested ?? "");
   if (!grant || !want) return false;
   if (grant === want) return true;
-  if (!grant.startsWith("dir:") || !want.startsWith("file:")) return false;
+  if (!grant.startsWith("dir:")) return false;
+  const prefix = want.startsWith("file:")
+    ? "file:"
+    : want.startsWith("protected:")
+    ? "protected:"
+    : "";
+  if (!prefix) return false;
   const directory = grant.slice("dir:".length).replace(/\\/g, "/").replace(
     /\/+$/,
     "",
   );
-  const file = want.slice("file:".length).replace(/\\/g, "/");
+  const file = want.slice(prefix.length).replace(/\\/g, "/");
   if (!directory || directory === "/" || !file) return false;
   return file.startsWith(`${directory}/`);
 }

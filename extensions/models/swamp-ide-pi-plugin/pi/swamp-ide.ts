@@ -41,7 +41,6 @@ import { existsSync, readdirSync } from "node:fs";
 import {
   appendFile,
   mkdir,
-  open,
   readFile,
   realpath,
   stat,
@@ -65,6 +64,7 @@ import {
   notRequiredAuthorization,
   writeInputProblem,
 } from "./swamp-ide-policy.ts";
+import { acquireApprovalLock } from "./swamp-ide-lock.ts";
 
 const MODE = (process.env.SWAMP_IDE_MODE ?? "enforce").toLowerCase();
 const HERDR_MODEL = process.env.SWAMP_IDE_HERDR_MODEL ?? "herdr-core";
@@ -90,6 +90,8 @@ const APPROVAL_DECISION = process.env.SWAMP_AGENT_IDE_DECISION ??
   join(homedir(), ".local/state/swamp-agent-ide/approval-decision.json");
 const APPROVAL_LOCK = process.env.SWAMP_AGENT_IDE_APPROVAL_LOCK ??
   join(homedir(), ".local/state/swamp-agent-ide/approval.lock");
+const APPROVAL_QUEUE = process.env.SWAMP_AGENT_IDE_APPROVAL_QUEUE ??
+  join(homedir(), ".local/state/swamp-agent-ide/approval-queue.jsonl");
 const HERDR_HOME = process.env.HERDR_APP_HOME ??
   join(homedir(), ".config/herdr-app");
 const APPROVAL_DURATION_MS = 10 * 60_000;
@@ -192,47 +194,17 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** One pending approval at a time across every pi session. */
-async function acquireApprovalLock() {
-  await mkdir(dirname(APPROVAL_LOCK), { recursive: true });
-  const token = randomHex(8);
-  const writeLock = () =>
-    writeFile(
-      APPROVAL_LOCK,
-      JSON.stringify({ token, pid: process.pid, at: Date.now() }),
-      "utf8",
-    );
-  for (;;) {
-    try {
-      const handle = await open(APPROVAL_LOCK, "wx");
-      await writeLock();
-      await handle.close();
-      return {
-        heartbeat: writeLock,
-        release: async () => {
-          try {
-            const current = JSON.parse(await readFile(APPROVAL_LOCK, "utf8"));
-            if (current?.token === token) {
-              await unlink(APPROVAL_LOCK).catch(() => {});
-            }
-          } catch {
-            // Another process already removed or stole the lock.
-          }
-        },
-      };
-    } catch (error) {
-      if (error?.code !== "EEXIST") throw error;
-      try {
-        const current = JSON.parse(await readFile(APPROVAL_LOCK, "utf8"));
-        if (Date.now() - Number(current?.at ?? 0) > 30_000) {
-          await unlink(APPROVAL_LOCK).catch(() => {});
-          continue;
-        }
-      } catch {
-        // Unreadable/lock being replaced; retry.
-      }
-      await sleep(100);
-    }
+/** Append a queue event for the visible waiting count; best effort. */
+async function appendApprovalQueue(event) {
+  await appendJsonl(APPROVAL_QUEUE, event);
+}
+
+/** Serialize a manual lease transaction against a pending approval. */
+async function acquireLeaseLock() {
+  try {
+    return await acquireApprovalLock({ path: APPROVAL_LOCK });
+  } catch {
+    return null;
   }
 }
 
@@ -277,20 +249,41 @@ function effectFor(system, model, method, input) {
 /** Ask the Herdr approval mod. The addin only writes the request; the human UI
  * writes the lease and decision, so the agent cannot self-approve. */
 async function requestHerdrApproval(args) {
+  const id = `appr-${Date.now().toString(36)}-${randomHex(4)}`;
+  const session = currentSessionId();
+  const scope = String(args?.decision?.scope ?? "");
+  const queueEvent = (event) => ({
+    id,
+    session,
+    scope,
+    at: new Date().toISOString(),
+    event,
+  });
+  await appendApprovalQueue(queueEvent("waiting"));
   let lock;
   try {
-    lock = await acquireApprovalLock();
+    lock = await acquireApprovalLock({
+      path: APPROVAL_LOCK,
+      signal: args?.signal,
+    });
   } catch {
+    await appendApprovalQueue(queueEvent("done"));
     return "unavailable";
   }
+  if (!lock) {
+    await appendApprovalQueue(queueEvent("done"));
+    return args?.signal?.aborted ? "cancelled" : "unavailable";
+  }
   try {
-    return await requestHerdrApprovalUnlocked({ ...args, lock });
+    return await requestHerdrApprovalUnlocked({ ...args, id, lock });
   } finally {
+    await appendApprovalQueue(queueEvent("done"));
     await lock.release();
   }
 }
 
 async function requestHerdrApprovalUnlocked({
+  id,
   decision,
   params,
   ctx,
@@ -301,7 +294,6 @@ async function requestHerdrApprovalUnlocked({
   lock,
 }) {
   if (!herdrRunning()) return "unavailable";
-  const id = `appr-${Date.now().toString(36)}-${randomHex(4)}`;
   const now = new Date();
   const pending = {
     id,
@@ -338,8 +330,12 @@ async function requestHerdrApprovalUnlocked({
   let lastLockWrite = Date.now();
   for (;;) {
     if (Date.now() - lastLockWrite > 5000) {
-      await lock.heartbeat();
+      const held = await lock.heartbeat();
       lastLockWrite = Date.now();
+      if (!held) {
+        await unlink(PENDING_APPROVAL).catch(() => {});
+        return "unavailable";
+      }
     }
     if (signal?.aborted) {
       await unlink(PENDING_APPROVAL).catch(() => {});
@@ -1203,6 +1199,7 @@ const TEST_ARGV = [
   "test",
   "--allow-all",
   "extensions/models/swamp-ide-pi-plugin/swamp_ide_policy_test.ts",
+  "extensions/models/swamp-ide-pi-plugin/swamp_ide_lock_test.ts",
   "extensions/models/swamp-ide-pi-plugin/swamp_ide_pi_plugin_test.ts",
 ];
 
@@ -1232,7 +1229,12 @@ function actionScopes(actions) {
   const allSource = [
     addin,
     policy,
+    join(
+      root,
+      "extensions/models/swamp-ide-pi-plugin/pi/swamp-ide-lock.ts",
+    ),
     join(pluginDir, "swamp_ide_policy_test.ts"),
+    join(pluginDir, "swamp_ide_lock_test.ts"),
     join(pluginDir, "swamp_ide_pi_plugin_test.ts"),
     join(pluginDir, "manifest.yaml"),
     join(pluginDir, "README.md"),
@@ -2094,10 +2096,19 @@ export default function swampIde(pi) {
           );
           return;
         }
-        const current = await readLease();
-        const features = current?.features && typeof current.features === "object"
-          ? { ...current.features }
-          : {};
+        const leaseLock = await acquireLeaseLock();
+        if (!leaseLock) {
+          ctx.ui.notify(
+            "approval lock is busy; try the grant again",
+            "error",
+          );
+          return;
+        }
+        try {
+          const current = await readLease();
+          const features = current?.features && typeof current.features === "object"
+            ? { ...current.features }
+            : {};
         features[feature] = {
           scopes,
           untilRevoked,
@@ -2144,6 +2155,9 @@ export default function swampIde(pi) {
           "info",
         );
         return;
+        } finally {
+          await leaseLock.release();
+        }
       }
       if (verb === "grants") {
         const lease = await readLease();
@@ -2164,20 +2178,41 @@ export default function swampIde(pi) {
           );
           return;
         }
-        const lease = {
-          session: currentSessionId(),
-          scopes: [scope],
-          scopeExpiry: { [scope]: new Date(Date.now() + durationMs).toISOString() },
-          issuedAt: new Date().toISOString(),
-          expiresAt: new Date(Date.now() + durationMs).toISOString(),
-        };
-        await mkdir(dirname(LEASE_PATH), { recursive: true });
-        await writeFile(LEASE_PATH, JSON.stringify(lease, null, 2), "utf8");
-        ctx.ui.notify(`approved ${scope} for ${rest[1]}`, "info");
-        return;
+        const leaseLock = await acquireLeaseLock();
+        if (!leaseLock) {
+          ctx.ui.notify(
+            "approval lock is busy; try the approval again",
+            "error",
+          );
+          return;
+        }
+        try {
+          const lease = {
+            session: currentSessionId(),
+            scopes: [scope],
+            scopeExpiry: { [scope]: new Date(Date.now() + durationMs).toISOString() },
+            issuedAt: new Date().toISOString(),
+            expiresAt: new Date(Date.now() + durationMs).toISOString(),
+          };
+          await mkdir(dirname(LEASE_PATH), { recursive: true });
+          await writeFile(LEASE_PATH, JSON.stringify(lease, null, 2), "utf8");
+          ctx.ui.notify(`approved ${scope} for ${rest[1]}`, "info");
+          return;
+        } finally {
+          await leaseLock.release();
+        }
       }
       if (verb === "revoke") {
-        const feature = rest[0] || "";
+        const leaseLock = await acquireLeaseLock();
+        if (!leaseLock) {
+          ctx.ui.notify(
+            "approval lock is busy; try the revoke again",
+            "error",
+          );
+          return;
+        }
+        try {
+          const feature = rest[0] || "";
         if (feature) {
           const lease = await readLease();
           const features = lease?.features && typeof lease.features === "object"
@@ -2226,6 +2261,9 @@ export default function swampIde(pi) {
         await unlink(LEASE_PATH).catch(() => {});
         ctx.ui.notify("swamp-ide lease revoked", "info");
         return;
+        } finally {
+          await leaseLock.release();
+        }
       }
       if (verb === "lease") {
         const lease = await readLease();

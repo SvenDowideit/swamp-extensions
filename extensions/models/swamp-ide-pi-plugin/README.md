@@ -22,10 +22,11 @@ file:
   a fallback so the agent returns the explicit `/swamp-ide approve <scope>
   <duration>` command immediately. The dialog's Copy button writes the full
   request to `last-request.txt` and the clipboard. For an exact `file:<path>`
-  request it also shows the parent directory and a **Grant directory** button:
-  that writes a `dir:<absolute directory>` lease covering every file below the
-  directory, so the same directory does not need one approval per file. The
-  button is not offered for protected files or the filesystem root.
+  or `protected:<path>` request it also shows the parent directory and a
+  **Grant directory** button: that writes a `dir:<absolute directory>` lease
+  covering every file below the directory, so the same directory does not need
+  one approval per file. Protected directories are available and carry HIGH
+  risk; the button is not offered for the filesystem root.
 - It refuses to overwrite or remove a file that does not contain its managed
   marker, unless `force=true`.
 - `set enabled=true` writes the session marker used by the addin; `enabled=false`
@@ -160,6 +161,10 @@ Managed paths:
 
 - project addin: `.pi/extensions/swamp-ide.ts`
 - global addin: `~/.pi/agent/extensions/swamp-ide.ts`
+- policy: `.pi/extensions/swamp-ide-policy.ts` or
+  `~/.pi/agent/extensions/swamp-ide-policy.ts`
+- approval lock: `.pi/extensions/swamp-ide-lock.ts` or
+  `~/.pi/agent/extensions/swamp-ide-lock.ts`
 - global guard: `~/.pi/agent/extensions/swamp-ide-guard.ts`
 - markers: `.pi/swamp-ide/<session>.enabled` or
   `~/.pi/agent/swamp-ide/<session>.enabled`

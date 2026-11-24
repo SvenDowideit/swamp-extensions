@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/swamp-ide-pi-plugin"
-version: "2026.11.24.5"
+version: "2026.11.25.1"
 description: >
   Install, enable and disable the pi addin that routes tool calls through
   @svendowideit/swamp-ide, and record every routed and bypassed call.
@@ -36,9 +36,10 @@ description: >
     agent without a human-created lease. The human runs
     `/swamp-ide approve <scope> [minutes]` in pi; the agent cannot create the
     lease. Read-only calls are allowed; everything else fails closed. The
-    Herdr dialog also offers **Grant directory** for an exact file request; it
-    writes a `dir:<absolute directory>` lease covering every file below that
-    directory, not the filesystem root or protected paths.
+    Herdr dialog also offers **Grant directory** for an exact file or
+    protected-file request; it writes a `dir:<absolute directory>` lease
+    covering every file below that directory. Protected directories are
+    available and carry HIGH risk; the filesystem root is not.
 
   INSTALL
 
@@ -99,11 +100,12 @@ description: >
 
   WHAT IT INSTALLS
 
-    One managed addin file, one global guard file, one policy file, plus one
-    marker per enabled session:
+    One managed addin file, one global guard file, one policy file, one approval
+    lock file, plus one marker per enabled session:
     `~/.pi/agent/extensions/swamp-ide.ts` +
     `~/.pi/agent/extensions/swamp-ide-guard.ts` +
     `~/.pi/agent/extensions/swamp-ide-policy.ts` +
+    `~/.pi/agent/extensions/swamp-ide-lock.ts` +
     `~/.pi/agent/swamp-ide/<session>.enabled`, or the project-local files plus
     `.pi/swamp-ide/<session>.enabled`. The guard is always global so it can
     fail closed even when a project-local addin does not load. It does not edit
@@ -123,6 +125,7 @@ binaries:
   - pi/swamp-ide.ts
   - pi/swamp-ide-guard.ts
   - pi/swamp-ide-policy.ts
+  - pi/swamp-ide-lock.ts
 
 dependencies: []
 
@@ -131,6 +134,7 @@ additionalFiles:
   - LICENSE.txt
   - swamp_ide_pi_plugin_test.ts
   - swamp_ide_policy_test.ts
+  - swamp_ide_lock_test.ts
 
 platforms: []
 

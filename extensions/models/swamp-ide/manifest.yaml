@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/swamp-ide"
-version: "2026.11.24.4"
+version: "2026.11.24.5"
 description: >
   The single front door for the agent IDE: install, enable and disable the
   herdr-core/vim-controller routing, the pi addin and the resizable Herdr
@@ -24,7 +24,11 @@ description: >
     optional parts are declared optional, and the workflows allow them to be
     absent: the base setup still works with only herdr-core and vim-controller.
     The model also exposes `status` so you can see what is installed without
-    changing it.
+    changing it. The layout it installs also carries the swamp bar: the
+    `obsidian-idea` input and the `browser-launch` button installed by
+    `@svendowideit/herdr-app`, in a row beside the tab strip (or in the status
+    row). A block is only placed for a mod that exists, so installing the bar
+    mods later and re-running enable is enough to see them.
 
     When Herdr is running, the approval request opens with a plain-language
     "You are granting" summary and an explicit Target (the exact file, exact
@@ -37,7 +41,10 @@ description: >
     long scope lists. Closing the dialog with X or Esc resolves the request as
     a fallback, so the agent immediately returns the explicit
     `/swamp-ide approve <scope> <duration>` command. Copy writes the full request to
-    `~/.local/state/swamp-agent-ide/last-request.txt` and the clipboard.
+    `~/.local/state/swamp-agent-ide/last-request.txt` and the clipboard. For an
+    exact file request the dialog also shows the parent directory and a **Grant
+    directory** button; that writes a `dir:<absolute directory>` lease for every
+    file below it, not the filesystem root or protected paths.
 
   INSTALL
 
@@ -75,6 +82,12 @@ description: >
       layout          Layout this extension installs        (swamp-ide)
       baseLayout      Layout to return to on disable        (swamp)
 
+    `setHerdr` takes `placement` (`tabbar`, the default, or `statusbar`) and
+    decides the bar from what is on disk: `mods/obsidian-idea` and
+    `mods/browser-launch` exist, so their blocks are placed; they are absent,
+    so the layout stays as it was and the report says which extension to
+    install. It never edits another extension's files.
+
     The pi plugin and OpenObserve extensions have their own global arguments;
     the workflows pass the defaults.
 
@@ -87,9 +100,18 @@ description: >
     `<herdrHome>/layouts/swamp-ide.json` layout, and the selected layout. It
     runs the Herdr app's documented `do layout.switch` command. `setHerdr` also
     runs `herdr-app check` against all three mods before switching and fails
-    without switching if any check fails. Through the workflows it may also
-    install the managed pi addin and create the OpenObserve dashboard. It does
-    not edit Herdr settings, pi settings or OpenObserve's own data.
+    without switching if any check fails.
+
+    The layout's tab row becomes `bar`: the shipped tab strip, the idea input
+    and the browser button (or, with `placement=statusbar`, the same two
+    blocks appended to the status row at 32px). Only the blocks for mods that
+    exist are placed - the two mods themselves are installed by
+    `@svendowideit/herdr-app`'s `installExtras`, and its mods are checked with
+    the same `herdr-app check` before the switch.
+
+    Through the workflows it may also install the managed pi addin and create
+    the OpenObserve dashboard. It does not edit Herdr settings, pi settings or
+    OpenObserve's own data.
 
 repository: 'https://github.com/svendowideit/swamp-extensions'
 

@@ -248,7 +248,7 @@ export default class SwampIde extends View {
         this.addinHealth = parseObject(String(addinText ?? ""));
         this.guardHealth = parseObject(String(guardText ?? ""));
         this.lease = parseObject(String(leaseText ?? ""));
-        this.leaseError = this.lease ? "" : "no active lease file";
+        this.leaseError = this.lease ? this.leaseError : "no active lease file";
 
         this.error = "";
       } catch (error) {
@@ -797,6 +797,7 @@ export default class SwampIde extends View {
   scopePurpose(scope) {
     if (scope.startsWith("protected:")) return "Edit one protected file";
     if (scope.startsWith("file:")) return "Edit one file";
+    if (scope.startsWith("dir:")) return "Edit files in one directory";
     if (scope.startsWith("exec:")) return "Run one exact command";
     if (scope.startsWith("run:")) return "Run one exact command";
     if (scope.startsWith("swamp:")) return "Run one swamp model method";
@@ -811,6 +812,7 @@ export default class SwampIde extends View {
     if (
       scope.startsWith("protected:") ||
       scope.startsWith("file:") ||
+      scope.startsWith("dir:") ||
       scope.startsWith("exec:") ||
       scope.startsWith("run:") ||
       ["file-edit", "file-write", "file-edit-lines"].includes(scope)
@@ -821,6 +823,7 @@ export default class SwampIde extends View {
   scopeTarget(scope) {
     if (scope.startsWith("protected:")) return scope.slice("protected:".length);
     if (scope.startsWith("file:")) return scope.slice("file:".length);
+    if (scope.startsWith("dir:")) return `Directory ${scope.slice("dir:".length)}`;
     if (["file-edit", "file-write", "file-edit-lines"].includes(scope)) {
       return "NO specific file — any file (broad method grant)";
     }
@@ -899,63 +902,100 @@ export default class SwampIde extends View {
   async writeLease(lease, cx) {
     lease.updatedAt = new Date().toISOString();
     lease.updatedBy = "swamp-ide-panel";
-    this.lease = lease;
     this.leaseError = "";
     try {
-      await writeTextFile(LEASE, `${JSON.stringify(lease, null, 2)}\n`);
+      const currentText = await readTextFile(LEASE).catch(() => null);
+      await writeTextFile(
+        LEASE,
+        `${JSON.stringify(lease, null, 2)}\n`,
+        currentText,
+      );
+      this.lease = lease;
+      return true;
     } catch (error) {
       this.leaseError = `lease write failed: ${String(error?.message ?? error)}`;
+      return false;
+    } finally {
+      cx.notify();
     }
-    cx.notify();
+  }
+
+  async updateLease(cx, mutate) {
+    let lastError = null;
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const currentText = await readTextFile(LEASE).catch(() => null);
+      const current = parseObject(currentText) ?? {};
+      const next = mutate(JSON.parse(JSON.stringify(current)));
+      try {
+        await writeTextFile(
+          LEASE,
+          `${JSON.stringify(next, null, 2)}\n`,
+          currentText,
+        );
+        this.lease = next;
+        this.leaseError = "";
+        return true;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    this.leaseError = `lease write failed: ${String(lastError?.message ?? lastError)}`;
+    return false;
   }
 
   async extendLease(row, milliseconds, cx) {
     if (!this.lease || row.until) return;
-    const lease = JSON.parse(JSON.stringify(this.lease));
-    const now = Date.now();
-    const current = row.kind === "feature"
-      ? lease.features?.[row.featureName ?? row.label]?.expiresAt ?? lease.expiresAt
-      : lease.scopeExpiry?.[row.scopeValue ?? row.label] ?? lease.expiresAt;
-    const base = Math.max(now, Date.parse(String(current ?? "")) || 0);
-    const next = new Date(base + milliseconds).toISOString();
-    lease.scopeExpiry = lease.scopeExpiry ?? {};
-    if (row.kind === "feature") {
-      const feature = lease.features?.[row.featureName ?? row.label];
-      if (!feature) return;
-      feature.untilRevoked = false;
-      feature.expiresAt = next;
-      for (const scope of row.scopes) lease.scopeExpiry[scope] = next;
-    } else {
-      lease.scopeExpiry[row.scopeValue ?? row.label] = next;
-    }
-    this.confirmLease = "";
-    await this.writeLease(lease, cx);
+    const ok = await this.updateLease(cx, (lease) => {
+      const now = Date.now();
+      const current = row.kind === "feature"
+        ? lease.features?.[row.featureName ?? row.label]?.expiresAt ?? lease.expiresAt
+        : lease.scopeExpiry?.[row.scopeValue ?? row.label] ?? lease.expiresAt;
+      const base = Math.max(now, Date.parse(String(current ?? "")) || 0);
+      const next = new Date(base + milliseconds).toISOString();
+      lease.scopeExpiry = lease.scopeExpiry ?? {};
+      if (row.kind === "feature") {
+        const feature = lease.features?.[row.featureName ?? row.label];
+        if (feature) {
+          feature.untilRevoked = false;
+          feature.expiresAt = next;
+          for (const scope of row.scopes) lease.scopeExpiry[scope] = next;
+        }
+      } else {
+        lease.scopeExpiry[row.scopeValue ?? row.label] = next;
+      }
+      return lease;
+    });
+    if (ok) this.confirmLease = "";
+    cx.notify();
   }
 
   async revokeLease(row, cx) {
-    if (!this.lease) return;
-    const lease = JSON.parse(JSON.stringify(this.lease));
-    const scopes = new Set(lease.scopes ?? []);
-    if (row.kind === "feature") {
-      if (lease.features) delete lease.features[row.featureName ?? row.label];
-      const covered = new Set();
-      for (const feature of Object.values(lease.features ?? {})) {
-        for (const scope of feature.scopes ?? []) covered.add(scope);
+    const ok = await this.updateLease(cx, (lease) => {
+      const scopes = new Set(lease.scopes ?? []);
+      if (row.kind === "feature") {
+        if (lease.features) delete lease.features[row.featureName ?? row.label];
+        const covered = new Set();
+        for (const feature of Object.values(lease.features ?? {})) {
+          for (const scope of feature.scopes ?? []) covered.add(scope);
+        }
+        for (const scope of row.scopes) {
+          if (covered.has(scope)) continue;
+          scopes.delete(scope);
+          if (lease.scopeExpiry) delete lease.scopeExpiry[scope];
+        }
+      } else {
+        scopes.delete(row.scopeValue ?? row.label);
+        if (lease.scopeExpiry) delete lease.scopeExpiry[row.scopeValue ?? row.label];
       }
-      for (const scope of row.scopes) {
-        if (covered.has(scope)) continue;
-        scopes.delete(scope);
-        if (lease.scopeExpiry) delete lease.scopeExpiry[scope];
-      }
-    } else {
-      scopes.delete(row.scopeValue ?? row.label);
-      if (lease.scopeExpiry) delete lease.scopeExpiry[row.scopeValue ?? row.label];
+      lease.scopes = [...scopes];
+      return lease;
+    });
+    if (ok) {
+      this.selectedLease = "";
+      this.hoverLease = "";
+      this.confirmLease = "";
     }
-    lease.scopes = [...scopes];
-    this.selectedLease = "";
-    this.hoverLease = "";
-    this.confirmLease = "";
-    await this.writeLease(lease, cx);
+    cx.notify();
   }
 
   requestRevoke(row, cx) {
@@ -971,13 +1011,11 @@ export default class SwampIde extends View {
   renderLeases(t, cx) {
     const rows = this.leaseRows();
     const body = v_flex().gap(4);
-    if (this.leaseError) {
-      body.child(
-        div().px(8).py(4).text_size(10).text_color(t.dim).child(
-          this.leaseError,
-        ),
-      );
-    }
+    body.child(
+      div().h(14).px(8).text_size(10).text_color(t.blocked).child(
+        this.leaseError,
+      ),
+    );
     if (!rows.length) {
       body.child(
         div().py(24).text_size(12).text_color(t.muted).child(

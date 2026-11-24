@@ -17,6 +17,16 @@ One extension pulls the pieces together and gives you one pair of commands:
   Herdr panel/layout, returning to the base layout. OpenObserve history is left
   alone.
 
+The installed layout also carries the **swamp bar** whenever its mods are
+present: the `obsidian-idea` input and the `browser-launch` button, both from
+`@svendowideit/herdr-app`'s `installExtras`, in a row beside the tab strip.
+`setHerdr` only places a block for a mod that exists, so the layout never keeps
+an empty slot; install the bar mods, then re-run enable:
+
+```sh
+swamp workflow run @svendowideit/swamp-ide-enable
+```
+
 The optional parts are declared optional and the workflows allow them to be
 absent, so the base setup still works with only `herdr-core` and
 `vim-controller`. The model also exposes `status` so you can inspect what is
@@ -40,6 +50,10 @@ pull them when you want those parts.
 | `herdrHome` | `""` | Herdr home; empty uses `HERDR_APP_HOME` or `~/.config/herdr-app` |
 | `layout` | `swamp-ide` | Layout installed by this extension |
 | `baseLayout` | `swamp` | Layout to return to when the IDE layout is disabled |
+
+`setHerdr` also takes `placement` (`tabbar` by default, or `statusbar` to put
+the bar in the bottom row) and records the blocks it placed in the `herdr`
+resource (`barBlocks`, `barPlacement`).
 
 The pi plugin and OpenObserve extensions have their own global arguments; the
 workflows pass their defaults.
@@ -126,7 +140,12 @@ swamp method, or a loud "NO specific file" warning for a broad method grant.
 It then shows what is allowed and not allowed, a HIGH/MEDIUM risk
 explanation, how to undo, the agent's reason/goal, and the technical action.
 Its detail body scrolls; Approve, Deny, Explain and Copy stay in a pinned
-footer. Approve writes a named lease feature carrying the purpose, target and
+footer. For an exact file request it also shows the parent directory and a
+**Grant directory** button; that writes a `dir:<absolute directory>` lease for
+every file below that directory, so a run of related files needs one approval
+instead of one per file. The button is not offered for protected files or the
+filesystem root, and the dialog states the wider target before the button is
+used. Approve writes a named lease feature carrying the purpose, target and
 risk and a decision; Deny/Explain write only the decision. Closing with X or
 Esc writes a `fallback` decision and removes the pending request. Copy writes
 the full request to `last-request.txt` and the clipboard (`wl-copy`/`xclip`

@@ -24,6 +24,7 @@ const PENDING = STATE + "/pending-approval.json";
 const DECISION = STATE + "/approval-decision.json";
 const LEASE = STATE + "/lease.json";
 const LAST_REQUEST = STATE + "/last-request.txt";
+const LAST_COPY = STATE + "/last-copy.txt";
 const LAST_ERROR = STATE + "/approval-error.txt";
 const OPEN_KEY = "swamp-ide-approval.open";
 const DISMISSED_KEY = "swamp-ide-approval.dismissed";
@@ -77,6 +78,15 @@ function humanDuration(pending) {
   if (!isFinite(ms) || ms <= 0) return "until revoked";
   const minutes = Math.round(ms / 60_000);
   return `${minutes} minute${minutes === 1 ? "" : "s"}`;
+}
+
+/** Parent directory of an absolute file path, or "" when it is the root. */
+function parentDirectory(path) {
+  const clean = String(path ?? "").replace(/\/+$/, "");
+  if (!clean || clean === "/") return "";
+  const cut = clean.lastIndexOf("/");
+  if (cut <= 0) return "";
+  return clean.slice(0, cut);
 }
 
 /** Turn a machine scope into plain language a person can judge. */
@@ -139,11 +149,14 @@ function grantInfo(pending) {
 
   if (scope.startsWith("file:")) {
     const path = scope.slice("file:".length);
+    const directory = parentDirectory(path);
     return {
       title: "Edit one file",
       body: `Allow the agent to edit exactly this file for ${duration}:`,
       target: path,
       path,
+      directory,
+      directoryScope: directory ? `dir:${directory}` : "",
       allows: [
         `Edit this exact file as often as needed for ${duration}.`,
         "Make the change the agent just described.",
@@ -225,6 +238,34 @@ function grantInfo(pending) {
   };
 }
 
+/** The wider alternative offered for an exact file request. */
+function directoryGrantInfo(pending) {
+  const info = grantInfo(pending);
+  const directory = info.directory || "";
+  const duration = humanDuration(pending);
+  return {
+    ...info,
+    title: "Edit files in one directory",
+    body: `Allow the agent to edit any file under this directory for ${duration}:`,
+    target: directory,
+    path: directory,
+    allows: [
+      `Edit any file under ${directory} for ${duration}.`,
+      "Use sibling files in that directory if the task needs them.",
+    ],
+    denies: [
+      `Files outside ${directory}.`,
+      "Shell commands, model methods, or other directories.",
+    ],
+    riskLevel: "HIGH",
+    risks: [
+      "This is wider than the single file in the request.",
+      `Every file under ${directory} can be edited, not just the requested file.`,
+      "Revoking does not revert changes already made.",
+    ],
+  };
+}
+
 /** The complete request, as text: everything the dialog shows plus ids. */
 function requestText(pending) {
   if (!pending) return "";
@@ -260,6 +301,14 @@ function requestText(pending) {
     ...(info.target ? [`Target: ${info.target}`] : []),
     ...(info.path ? [info.path] : []),
     ...(info.command ? [info.command] : []),
+    ...(info.directory
+      ? [
+        "",
+        "Directory alternative:",
+        info.directory,
+        `This grants edits to any file under that directory for ${humanDuration(pending)}.`,
+      ]
+      : []),
     "",
     "Allows:",
     ...info.allows.map((item) => `- ${item}`),
@@ -291,6 +340,7 @@ export default class SwampIdeApproval extends View {
     this.pending = null;
     this.pendingId = "";
     this.error = "";
+    this.copied = "";
     this.busy = false;
     this.resolved = false;
     this.overlay = props()?.overlay ?? "";
@@ -367,43 +417,63 @@ export default class SwampIdeApproval extends View {
     this.error = "";
     cx.notify();
     try {
-      if (decision === "approve") {
-        const currentText = await readTextFile(LEASE).catch(() => null);
-        const current = parse(currentText) ?? {};
-        const scopes = new Set([...(current.scopes ?? []), pending.scope]);
-        const scopeExpiry = { ...(current.scopeExpiry ?? {}) };
-        const expires = new Date(
-          Date.now() + Number(pending.durationMs ?? 600_000),
-        ).toISOString();
-        scopeExpiry[pending.scope] = expires;
-        const features = { ...(current.features ?? {}) };
+      if (decision === "approve" || decision === "approve-directory") {
         const info = grantInfo(pending);
-        features[`approval:${pending.id}`] = {
-          scopes: [pending.scope],
-          untilRevoked: false,
-          expiresAt: expires,
-          purpose: `${info.title}: ${pending.goal || pending.reason || ""}`.trim(),
-          risk: info.riskLevel,
-          requestId: pending.id,
-          requestedAt: pending.createdAt ?? new Date().toISOString(),
-        };
-        const expiries = [
-          ...Object.values(scopeExpiry),
-          ...Object.values(features).map((feature) => feature.expiresAt),
-        ].filter(Boolean).map((value) => Date.parse(String(value)));
-        const next = {
-          session: pending.session || current.session || "",
-          features,
-          scopes: [...scopes],
-          scopeExpiry,
-          issuedAt: new Date().toISOString(),
-          expiresAt: new Date(Math.max(...expiries, Date.now())).toISOString(),
-        };
-        await writeTextFile(LEASE, JSON.stringify(next, null, 2), currentText);
+        const directoryGrant = decision === "approve-directory";
+        const scope = directoryGrant ? info.directoryScope : pending.scope;
+        if (!scope) {
+          throw new Error("this request has no directory to grant");
+        }
+        const scopeInfo = directoryGrant ? directoryGrantInfo(pending) : info;
+        let saved = false;
+        let lastError = null;
+        for (let attempt = 0; attempt < 8; attempt++) {
+          const currentText = await readTextFile(LEASE).catch(() => null);
+          const current = parse(currentText) ?? {};
+          const scopes = new Set([...(current.scopes ?? []), scope]);
+          const scopeExpiry = { ...(current.scopeExpiry ?? {}) };
+          const expires = new Date(
+            Date.now() + Number(pending.durationMs ?? 600_000),
+          ).toISOString();
+          scopeExpiry[scope] = expires;
+          const features = { ...(current.features ?? {}) };
+          features[`approval:${pending.id}`] = {
+            scopes: [scope],
+            untilRevoked: false,
+            expiresAt: expires,
+            session: pending.session || current.session || "",
+            purpose: `${scopeInfo.title}: ${pending.goal || pending.reason || ""}`.trim(),
+            risk: scopeInfo.riskLevel,
+            requestId: pending.id,
+            requestedAt: pending.createdAt ?? new Date().toISOString(),
+          };
+          const expiries = [
+            ...Object.values(scopeExpiry),
+            ...Object.values(features).map((feature) => feature.expiresAt),
+          ].filter(Boolean).map((value) => Date.parse(String(value)));
+          const next = {
+            session: current.session || pending.session || "",
+            features,
+            scopes: [...scopes],
+            scopeExpiry,
+            issuedAt: new Date().toISOString(),
+            expiresAt: new Date(Math.max(...expiries, Date.now())).toISOString(),
+          };
+          try {
+            await writeTextFile(LEASE, JSON.stringify(next, null, 2), currentText);
+            saved = true;
+            break;
+          } catch (error) {
+            lastError = error;
+          }
+        }
+        if (!saved) {
+          throw lastError ?? new Error("lease update did not commit");
+        }
       }
       await writeJson(DECISION, {
         id: pending.id,
-        decision,
+        decision: "approve",
         at: new Date().toISOString(),
       });
       this.resolved = true;
@@ -446,7 +516,62 @@ export default class SwampIdeApproval extends View {
       await exec("xclip", ["-selection", "clipboard", LAST_REQUEST])
         .catch(() => null);
     }
+    this.copied = "full request copied";
     cx.notify();
+  }
+
+  async copyText(text, label, cx) {
+    const value = String(text ?? "").trim();
+    if (!value) return;
+    this.error = "";
+    this.copied = "";
+    try {
+      cx.write_to_clipboard(value);
+    } catch {
+      // Fall through to the desktop clipboard tools.
+    }
+    let copied = false;
+    try {
+      const result = await exec("wl-copy", [value]);
+      copied = result.code === 0;
+    } catch {
+      // wl-copy may be unavailable.
+    }
+    if (!copied) {
+      try {
+        await writeTextFile(LAST_COPY, value);
+        const result = await exec("xclip", [
+          "-selection",
+          "clipboard",
+          LAST_COPY,
+        ]);
+        copied = result.code === 0;
+      } catch {
+        // Native clipboard is optional.
+      }
+    }
+    this.copied = copied
+      ? `${label} copied`
+      : `${label} saved to ${LAST_COPY}`;
+    cx.notify();
+  }
+
+  copyableText(t, id, text, label, cx, size = 12) {
+    const value = String(text ?? "");
+    return div()
+      .id(id)
+      .w_full()
+      .min_w(0)
+      .whitespace_normal()
+      .text_size(size)
+      .text_color(t.foreground)
+      .cursor_pointer()
+      .hover((s) => s.bg(t.hover))
+      .on_click((_event, inner) => {
+        inner.stop_propagation();
+        void this.copyText(value, label, inner);
+      })
+      .child(value);
   }
 
   button(t, label, bg, fg, border, action) {
@@ -485,6 +610,9 @@ export default class SwampIdeApproval extends View {
       : "";
     const body = v_flex().gap(10).p(12).w_full().min_w(0);
     const info = pending ? grantInfo(pending) : null;
+    const alternatives = Array.isArray(pending?.alternatives)
+      ? pending.alternatives
+      : [];
     const riskColor = info?.riskLevel === "HIGH"
       ? t.blocked
       : info?.riskLevel === "MEDIUM"
@@ -502,8 +630,40 @@ export default class SwampIdeApproval extends View {
       body.child(
         v_flex().gap(4).p(8).rounded(6).bg(t.chrome).min_w(0)
           .child(div().text_size(12).font_semibold().text_color(t.foreground).child("Target"))
-          .child(div().w_full().min_w(0).whitespace_normal().text_size(12).text_color(info.targetWarning ? t.blocked : t.foreground).child(info.target ?? "no target specified")),
+          .child(this.copyableText(t, "approval-target", info.target ?? "no target specified", "target", cx)),
       );
+      if (info.directoryScope) {
+        body.child(
+          v_flex().gap(4).p(8).rounded(6).bg(t.raised).min_w(0)
+            .child(div().text_size(12).font_semibold().text_color(t.foreground).child("Directory alternative"))
+            .child(div().w_full().min_w(0).whitespace_normal().text_size(11).text_color(t.muted).child(
+              `Grant edits to any file under ${info.directory} for ${approvalMinutes}m, instead of only ${info.path}.`,
+            ))
+            .child(div().w_full().min_w(0).whitespace_normal().text_size(11).text_color(t.dim).child(
+              "Use this when you are happy with that wider scope and want to avoid approving each file individually.",
+            )),
+        );
+      }
+      if (alternatives.length > 0) {
+        body.child(
+          v_flex().gap(4).p(8).rounded(6).bg(t.raised).min_w(0)
+            .child(div().text_size(12).font_semibold().text_color(t.blocked).child("Use the internal tool"))
+            .children(alternatives.map((alternative) =>
+              div().w_full().min_w(0).whitespace_normal().text_size(11).text_color(t.muted).child(
+                `Use swamp_ide system=${alternative.system} method=${alternative.method} instead of ${alternative.program}: ${alternative.reason}`,
+              )
+            )),
+        );
+      }
+      if (pending.broad === true) {
+        body.child(
+          v_flex().gap(3).p(8).rounded(6).bg(t.raised).min_w(0)
+            .child(div().text_size(12).font_semibold().text_color(t.blocked).child("Request is too broad"))
+            .child(div().w_full().min_w(0).whitespace_normal().text_size(11).text_color(t.muted).child(
+              "Reject this and ask the agent to be more specific to the job it is trying to do.",
+            )),
+        );
+      }
       body.child(
         v_flex().gap(4).p(8).rounded(6).bg(t.selected).min_w(0)
           .child(div().text_size(12).font_semibold().text_color(t.foreground).child("You are granting"))
@@ -517,12 +677,12 @@ export default class SwampIdeApproval extends View {
       body.child(
         v_flex().gap(4).p(8).rounded(6).bg(t.raised).min_w(0)
           .child(div().text_size(12).font_semibold().text_color(t.foreground).child("Why the agent is asking"))
-          .child(div().w_full().min_w(0).whitespace_normal().text_size(12).text_color(t.foreground).child(pending.reason ?? "")),
+          .child(this.copyableText(t, "approval-reason", pending.reason ?? "", "reason", cx)),
       );
       body.child(
         v_flex().gap(4).p(8).rounded(6).bg(t.raised).min_w(0)
           .child(div().text_size(12).font_semibold().text_color(t.foreground).child("What approving lets it do"))
-          .child(div().w_full().min_w(0).whitespace_normal().text_size(12).text_color(t.foreground).child(pending.goal ?? "")),
+          .child(this.copyableText(t, "approval-goal", pending.goal ?? "", "goal", cx)),
       );
       body.child(
         v_flex().gap(4).p(8).rounded(6).bg(t.chrome).min_w(0)
@@ -580,7 +740,7 @@ export default class SwampIdeApproval extends View {
         body.child(
           v_flex().gap(4).p(8).rounded(6).bg(t.chrome).min_w(0)
             .child(div().text_size(12).font_semibold().text_color(t.foreground).child("Command"))
-            .child(div().w_full().min_w(0).whitespace_normal().text_size(11).text_color(t.muted).child(command)),
+            .child(this.copyableText(t, "approval-command", command, "command", cx, 11)),
         );
       }
       body.child(
@@ -596,9 +756,19 @@ export default class SwampIdeApproval extends View {
 
     const footer = h_flex().h(48).px(12).py(8).flex_none().items_center().gap(8)
       .border_t_1().border_color(t.border);
+    if (pending?.broad === true) {
+      footer.child(
+        this.button(t, "Reject broad", t.surface, t.blocked, t.blocked, (_e, cx) => this.decide("too-broad", cx)),
+      );
+    }
+    if (alternatives.length > 0) {
+      footer.child(
+        this.button(t, `Use ${alternatives[0].method}`, t.solid, t.solid_foreground, t.solid, (_e, cx) => this.decide("use-tool", cx)),
+      );
+    }
     if (pending) {
       footer.child(
-        div().flex_1().min_w(0).text_size(11).text_color(t.blocked).child(this.error),
+        div().flex_1().min_w(0).text_size(11).text_color(this.error ? t.blocked : t.working).child(this.error || this.copied),
       );
       footer.child(
         this.button(t, "Copy", t.surface, t.foreground, t.input, (_e, cx) => this.copy(cx)),
@@ -609,6 +779,11 @@ export default class SwampIdeApproval extends View {
       footer.child(
         this.button(t, "Deny", t.surface, t.foreground, t.blocked, (_e, cx) => this.decide("deny", cx)),
       );
+      if (info?.directoryScope) {
+        footer.child(
+          this.button(t, "Grant directory", t.surface, t.foreground, t.input, (_e, cx) => this.decide("approve-directory", cx)),
+        );
+      }
       footer.child(
         this.button(t, "Approve", t.solid, t.solid_foreground, t.solid, (_e, cx) => this.decide("approve", cx)),
       );

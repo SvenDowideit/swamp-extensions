@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-5054"><span class="tier A">A</span>data query --select in log mode crashes with Too many proper</a><a href="#issue-4945"><span class="tier A">A</span>swamp serve data.query builds its whole response as one WebS</a><a href="#issue-5055"><span class="tier A">A</span>serve --reuse-port on Linux: the AddrInUse refusal blames a </a><a href="#issue-5034"><span class="tier A">A</span>Prepare data for better-auth 1.7 while 1.4.22 serves: API ke</a><a href="#issue-4905"><span class="tier A">A</span>serve --reuse-port on macOS: the AddrInUse refusal blames &#39;a</a><a href="#issue-4962"><span class="tier A">A</span>Workflow steps parse every written resource in full, and pas</a><a href="#issue-5051"><span class="tier A">A</span>Reconciler test fails when the temp path folds the status re</a><a href="#issue-4930"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-5020"><span class="tier A">A</span>Flaky test: serve host restart after shutdown is refused as </a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4904"><span class="tier A">A</span>workflow run --server: after reattaching to a run continued </a><a href="#issue-4985"><span class="tier A">A</span>Add-on methods (export const extension) are not found when a</a><a href="#issue-5054"><span class="tier A">A</span>data query --select in log mode crashes with Too many proper</a><a href="#issue-4945"><span class="tier A">A</span>swamp serve data.query builds its whole response as one WebS</a><a href="#issue-5055"><span class="tier A">A</span>serve --reuse-port on Linux: the AddrInUse refusal blames a </a><a href="#issue-5034"><span class="tier A">A</span>Prepare data for better-auth 1.7 while 1.4.22 serves: API ke</a><a href="#issue-4905"><span class="tier A">A</span>serve --reuse-port on macOS: the AddrInUse refusal blames &#39;a</a><a href="#issue-4962"><span class="tier A">A</span>Workflow steps parse every written resource in full, and pas</a><a href="#issue-5051"><span class="tier A">A</span>Reconciler test fails when the temp path folds the status re</a></aside><div>
 
 <article class="item" id="issue-4852">
 <h2><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4Shell)</h2>
@@ -92,6 +92,22 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-4904">
+<h2><span class="tier A">A</span>workflow run --server: after reattaching to a run continued across a serve restart, the step in progress shows the reattach time as its start, so its duration is understated</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-24T19:56:53.969Z">2026-11-24T19:56:53.969Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4904" rel="noopener">lab#4904</a></div>
+</article>
+<article class="item" id="issue-4985">
+<h2><span class="tier A">A</span>Add-on methods (export const extension) are not found when a step is placed on a worker</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-24T19:15:05.784Z">2026-11-24T19:15:05.784Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4985" rel="noopener">lab#4985</a></div>
 </article>
 <article class="item" id="issue-5054">
 <h2><span class="tier A">A</span>data query --select in log mode crashes with Too many properties to enumerate when a selected row is a very large string</h2>
@@ -149,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/5051" rel="noopener">lab#5051</a></div>
 </article>
-<article class="item" id="issue-4930">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4930">
 <h2><span class="tier A">A</span>Scheduled flaky-test detection is failing</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-24T16:25:00.866Z">2026-11-24T16:25:00.866Z</time></span></div>
@@ -165,7 +181,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/5020" rel="noopener">lab#5020</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-5036">
+<article class="item" id="issue-5036">
 <h2><span class="tier A">A</span>enrollment_token_rotation_property_test flakes: advanceTokenClock leaves 1 ms of wall-clock margin</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-24T16:25:00.351Z">2026-11-24T16:25:00.351Z</time></span></div>
@@ -4917,29 +4933,21 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
+<article class="item" id="issue-4944">
+<h2><span class="tier B">B</span>swamp data get --json fails with Invalid string length on one record whose pretty-printed content passes V8&#39;s string limit</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-24T19:56:59.500Z">2026-11-24T19:56:59.500Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4944" rel="noopener">lab#4944</a></div>
+</article>
 <article class="item" id="issue-4980">
 <h2><span class="tier B">B</span>Team mode: a booting serve blocks its event loop for 21-51 s on a large datastore, longer than the writer lease&#39;s 25 s lapse, so a standby can take over mid-boot</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-24T19:03:08.441Z">2026-11-24T19:03:08.441Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-24T19:10:47.177Z">2026-11-24T19:10:47.177Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4980" rel="noopener">lab#4980</a></div>
-</article>
-<article class="item" id="issue-4904">
-<h2><span class="tier B">B</span>workflow run --server: after reattaching to a run continued across a serve restart, the step in progress shows the reattach time as its start, so its duration is understated</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-24T19:01:35.092Z">2026-11-24T19:01:35.092Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4904" rel="noopener">lab#4904</a></div>
-</article>
-<article class="item" id="issue-4985">
-<h2><span class="tier B">B</span>Add-on methods (export const extension) are not found when a step is placed on a worker</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-24T18:51:15.537Z">2026-11-24T18:51:15.537Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4985" rel="noopener">lab#4985</a></div>
 </article>
 <article class="item" id="issue-5023">
 <h2><span class="tier B">B</span>Team mode: the leader commits one forwarded commit at a time for the whole datastore, with catch-up and fsyncs inside, so throughput caps and the event loop stalls under many concurrent members</h2>
@@ -5061,7 +5069,47 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4374" rel="noopener">lab#4374</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-5056">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-5058">
+<h2><span class="tier C">C</span>Scheduled flaky-test detection is failing</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-24T19:59:04.581Z">2026-11-24T19:59:04.581Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5058" rel="noopener">lab#5058</a></div>
+</article>
+<article class="item" id="issue-5057">
+<h2><span class="tier C">C</span>swamp data get --server fails on a record whose reply passes V8&#39;s maximum string length, which a local data get prints</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-24T19:46:57.140Z">2026-11-24T19:46:57.140Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5057" rel="noopener">lab#5057</a></div>
+</article>
+<article class="item" id="issue-5007">
+<h2><span class="tier C">C</span>Stagecraft - Add visual dependency graph</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-24T19:06:38.129Z">2026-11-24T19:06:38.129Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5007" rel="noopener">lab#5007</a></div>
+</article>
+<article class="item" id="issue-5008">
+<h2><span class="tier C">C</span>Stagecraft - Ticket priority</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-24T19:06:31.704Z">2026-11-24T19:06:31.704Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5008" rel="noopener">lab#5008</a></div>
+</article>
+<article class="item" id="issue-5009">
+<h2><span class="tier C">C</span>Stagecraft - Ticket &quot;epic&quot; assignment (or generalized labeling)</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-24T19:06:23.183Z">2026-11-24T19:06:23.183Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5009" rel="noopener">lab#5009</a></div>
+</article>
+<article class="item" id="issue-5056">
 <h2><span class="tier C">C</span>fleet_fan_out_history_test: the offline-member-reconnects test fails under load with run status failed</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-11-24T17:50:43.330Z">2026-11-24T17:50:43.330Z</time></span></div>
@@ -5140,30 +5188,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/5035" rel="noopener">lab#5035</a></div>
-</article>
-<article class="item" id="issue-5009">
-<h2><span class="tier C">C</span>Stagecraft - Ticket &quot;epic&quot; assignment (or generalized labeling)</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-23T15:01:01.090Z">2026-11-23T15:01:01.090Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5009" rel="noopener">lab#5009</a></div>
-</article>
-<article class="item" id="issue-5008">
-<h2><span class="tier C">C</span>Stagecraft - Ticket priority</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-23T14:58:07.703Z">2026-11-23T14:58:07.703Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5008" rel="noopener">lab#5008</a></div>
-</article>
-<article class="item" id="issue-5007">
-<h2><span class="tier C">C</span>Stagecraft - Add visual dependency graph</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-23T14:56:59.911Z">2026-11-23T14:56:59.911Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5007" rel="noopener">lab#5007</a></div>
 </article>
 <article class="item" id="issue-5001">
 <h2><span class="tier C">C</span>A child swamp run on a behavior its parent run holds waits out the lock timeout; docs say it skips the lock</h2>
@@ -5300,14 +5324,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/3929" rel="noopener">lab#3929</a></div>
-</article>
-<article class="item" id="issue-4944">
-<h2><span class="tier C">C</span>swamp data get --json fails with Invalid string length on one record whose pretty-printed content passes V8&#39;s string limit</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-20T15:18:46.790Z">2026-11-20T15:18:46.790Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4944" rel="noopener">lab#4944</a></div>
 </article>
 <article class="item" id="issue-4943">
 <h2><span class="tier C">C</span>Store large values once: content-addressed sharing across resources and versions</h2>
@@ -6310,13 +6326,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>780 items across 1 source(s) in this window:
-3 critical, 603 notable, 18 routine,
-156 minor.</p>
-<ul><li><strong>issues</strong> — 780</li></ul></section>
+<p>782 items across 1 source(s) in this window:
+3 critical, 605 notable, 17 routine,
+157 minor.</p>
+<ul><li><strong>issues</strong> — 782</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-24T19:09:47.944Z">2026-11-24T19:09:47.944Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-24T20:08:02.144Z">2026-11-24T20:08:02.144Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

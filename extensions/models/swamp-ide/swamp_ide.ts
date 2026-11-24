@@ -511,7 +511,7 @@ async function status(
 /** The swamp-ide setup model. */
 export const model = {
   type: "@svendowideit/swamp-ide",
-  version: "2026.11.24.5",
+  version: "2026.11.25.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -532,8 +532,13 @@ export const model = {
         "The installed layout carries the swamp bar: a row beside the tab strip (placement=tabbar, the default) or two blocks in the status row (placement=statusbar), holding the obsidian-idea input and the browser-launch button. A block is only placed when its mod exists in Herdr's mods folder, so the layout names the extension to install instead of leaving an empty block; mods supplied by that extension are checked before the layout switches.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.25.1",
+      description:
+        "The approval dialog offers Grant directory for protected single-file requests as well as ordinary files; the policy authorizes a dir: lease for protected descendants and the approval lock, window claim and waiting queue are bounded and observable.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
-
   resources: {
     herdr: {
       description: "The Herdr activity panel and layout state",

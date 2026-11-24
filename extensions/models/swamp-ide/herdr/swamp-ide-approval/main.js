@@ -26,6 +26,8 @@ const LEASE = STATE + "/lease.json";
 const LAST_REQUEST = STATE + "/last-request.txt";
 const LAST_COPY = STATE + "/last-copy.txt";
 const LAST_ERROR = STATE + "/approval-error.txt";
+const CLAIM = STATE + "/approval-claim.json";
+const QUEUE = STATE + "/approval-queue.jsonl";
 const OPEN_KEY = "swamp-ide-approval.open";
 const DISMISSED_KEY = "swamp-ide-approval.dismissed";
 const POLL_MS = 500;
@@ -37,6 +39,19 @@ function parse(text) {
   } catch {
     return null;
   }
+}
+
+/** Count requests still waiting for a dialog from the queue JSONL. */
+function waitingCount(text) {
+  const waiting = new Map();
+  for (const line of String(text ?? "").split(/\r?\n/)) {
+    if (!line.trim()) continue;
+    const event = parse(line);
+    if (!event?.id) continue;
+    if (event.event === "waiting") waiting.set(event.id, true);
+    else if (event.event === "done") waiting.delete(event.id);
+  }
+  return waiting.size;
 }
 
 async function logError(message) {
@@ -98,11 +113,14 @@ function grantInfo(pending) {
 
   if (scope.startsWith("protected:")) {
     const path = scope.slice("protected:".length);
+    const directory = parentDirectory(path);
     return {
       title: "Edit one protected file",
       body: `Allow the agent to edit exactly this file for ${duration}:`,
       target: path,
       path,
+      directory,
+      directoryScope: directory ? `dir:${directory}` : "",
       allows: [
         `Edit this exact file as often as needed for ${duration}.`,
         "Make the change the agent just described.",
@@ -343,13 +361,108 @@ export default class SwampIdeApproval extends View {
     this.copied = "";
     this.busy = false;
     this.resolved = false;
+    this.owner = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+    this.claimId = "";
+    this.queueCount = 0;
     this.overlay = props()?.overlay ?? "";
     cx.timer.every(POLL_MS, (cx) => this.refresh(cx));
     this.refresh(cx);
   }
 
+  async releaseClaim() {
+    const id = this.claimId;
+    this.claimId = "";
+    if (!id) return;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const text = await readTextFile(CLAIM).catch(() => null);
+      const claim = parse(text);
+      if (!claim || claim.id !== id || claim.owner !== this.owner) return;
+      try {
+        await writeTextFile(
+          CLAIM,
+          JSON.stringify({
+            ...claim,
+            released: true,
+            releasedAt: Date.now(),
+          }),
+          text,
+        );
+        return;
+      } catch {
+        // A heartbeat may have won the CAS; retry with the new snapshot.
+      }
+    }
+  }
+
+  async touchClaim() {
+    const text = await readTextFile(CLAIM).catch(() => null);
+    const claim = parse(text);
+    if (
+      !claim || claim.id !== this.claimId || claim.owner !== this.owner
+    ) {
+      this.claimId = "";
+      return false;
+    }
+    const next = JSON.stringify({
+      ...claim,
+      released: false,
+      heartbeatAt: Date.now(),
+    });
+    try {
+      await writeTextFile(CLAIM, next, text);
+      return true;
+    } catch {
+      this.claimId = "";
+      return false;
+    }
+  }
+
+  /** Only one Herdr window may own a pending request. A dead owner's claim
+   * expires after 30s; released or stale claims are overwritten by CAS. */
+  async ensureClaim(pending) {
+    if (this.claimId === pending.id) return await this.touchClaim();
+    const text = await readTextFile(CLAIM).catch(() => null);
+    const current = parse(text);
+    if (current?.id === pending.id) {
+      if (current.owner === this.owner) {
+        this.claimId = pending.id;
+        return await this.touchClaim();
+      }
+      const at = Date.parse(String(current.heartbeatAt ?? current.at ?? ""));
+      if (
+        !current.released && isFinite(at) && Date.now() - at < 30_000
+      ) return false;
+    } else if (current) {
+      // A claim for a different request cannot own this pending request.
+      // The addin writes only one pending file, so overwrite it by CAS.
+    }
+
+    try {
+      await writeTextFile(
+        CLAIM,
+        JSON.stringify({
+          id: pending.id,
+          owner: this.owner,
+          at: Date.now(),
+          heartbeatAt: Date.now(),
+          released: false,
+        }),
+        text,
+      );
+      this.claimId = pending.id;
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async refresh(cx) {
-    this.pending = parse(await readTextFile(PENDING).catch(() => null));
+    const [pendingText, queueText] = await Promise.all([
+      readTextFile(PENDING).catch(() => null),
+      readTextFile(QUEUE).catch(() => null),
+    ]);
+    this.pending = parse(pendingText);
+    this.queueCount = waitingCount(queueText);
     if (this.pending?.id !== this.pendingId) {
       this.pendingId = this.pending?.id ?? "";
       this.error = "";
@@ -360,9 +473,38 @@ export default class SwampIdeApproval extends View {
       this.pending = null;
     }
 
-    if (!this.overlay && !checking()) {
-      const open = String(shared(OPEN_KEY) ?? "");
-      if (this.pending && !open) {
+    // The layout contains a persistent (non-overlay) instance; only that
+    // instance owns the claim and opens/closes the dialog. An overlay
+    // instance must render the pending request but never compete for it.
+    if (this.overlay) {
+      cx.notify();
+      return;
+    }
+
+    if (!this.pending) {
+      await this.releaseClaim();
+      const openId = String(shared(OPEN_KEY) ?? "");
+      if (openId) {
+        closeOverlay(openId);
+        setShared(OPEN_KEY, "");
+      }
+    } else {
+      const owns = await this.ensureClaim(this.pending);
+      if (!owns) {
+        if (this.overlay) {
+          this.pending = null;
+          closeOverlay(this.overlay);
+          this.overlay = "";
+          setShared(OPEN_KEY, "");
+        }
+        cx.notify();
+        return;
+      }
+    }
+
+    if (!this.overlay && !checking() && this.pending) {
+      const openId = String(shared(OPEN_KEY) ?? "");
+      if (!openId) {
         const id = openOverlay({
           mod: "swamp-ide-approval",
           props: { requestId: this.pending.id },
@@ -372,9 +514,6 @@ export default class SwampIdeApproval extends View {
           modal: true,
         });
         setShared(OPEN_KEY, id);
-      } else if (!this.pending && open) {
-        closeOverlay(open);
-        setShared(OPEN_KEY, "");
       }
     }
     cx.notify();
@@ -394,7 +533,6 @@ export default class SwampIdeApproval extends View {
           decision: "fallback",
           at: new Date().toISOString(),
         });
-        await unlink(PENDING).catch(() => {});
       } catch (error) {
         this.error = String(error?.message ?? error);
         void logError(`close: ${this.error}`);
@@ -407,6 +545,7 @@ export default class SwampIdeApproval extends View {
     this.pending = null;
     this.overlay = "";
     this.resolved = false;
+    await this.releaseClaim();
     cx.notify();
   }
 
@@ -478,7 +617,6 @@ export default class SwampIdeApproval extends View {
       });
       this.resolved = true;
       this.error = "";
-      await unlink(PENDING).catch(() => {});
       setShared(DISMISSED_KEY, pending.id);
       await this.close(cx);
     } catch (error) {
@@ -624,7 +762,7 @@ export default class SwampIdeApproval extends View {
     } else {
       body.child(
         div().w_full().min_w(0).whitespace_normal().text_size(12).text_color(t.muted).child(
-          `${pending.session ? "session " + String(pending.session).slice(0, 8) : "new request"} · waiting for your decision`,
+          `${pending.session ? "session " + String(pending.session).slice(0, 8) : "new request"} · waiting for your decision${this.queueCount > 1 ? ` · ${this.queueCount - 1} other request${this.queueCount === 2 ? "" : "s"} waiting` : ""}`,
         ),
       );
       body.child(

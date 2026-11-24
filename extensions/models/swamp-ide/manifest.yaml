@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/swamp-ide"
-version: "2026.11.24.5"
+version: "2026.11.25.1"
 description: >
   The single front door for the agent IDE: install, enable and disable the
   herdr-core/vim-controller routing, the pi addin and the resizable Herdr
@@ -42,9 +42,10 @@ description: >
     a fallback, so the agent immediately returns the explicit
     `/swamp-ide approve <scope> <duration>` command. Copy writes the full request to
     `~/.local/state/swamp-agent-ide/last-request.txt` and the clipboard. For an
-    exact file request the dialog also shows the parent directory and a **Grant
-    directory** button; that writes a `dir:<absolute directory>` lease for every
-    file below it, not the filesystem root or protected paths.
+    exact file or protected-file request the dialog also shows the parent
+    directory and a **Grant directory** button; that writes a
+    `dir:<absolute directory>` lease for every file below it. Protected
+    directories are available and carry HIGH risk; the filesystem root is not.
 
   INSTALL
 

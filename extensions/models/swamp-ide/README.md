@@ -140,12 +140,13 @@ swamp method, or a loud "NO specific file" warning for a broad method grant.
 It then shows what is allowed and not allowed, a HIGH/MEDIUM risk
 explanation, how to undo, the agent's reason/goal, and the technical action.
 Its detail body scrolls; Approve, Deny, Explain and Copy stay in a pinned
-footer. For an exact file request it also shows the parent directory and a
-**Grant directory** button; that writes a `dir:<absolute directory>` lease for
-every file below that directory, so a run of related files needs one approval
-instead of one per file. The button is not offered for protected files or the
-filesystem root, and the dialog states the wider target before the button is
-used. Approve writes a named lease feature carrying the purpose, target and
+footer. For an exact file or protected-file request it also shows the parent
+directory and a **Grant directory** button; that writes a `dir:<absolute
+directory>` lease for every file below that directory, so a run of related
+files needs one approval instead of one per file. The button is not offered
+for the filesystem root; protected directories are available and carry HIGH
+risk. The dialog states the wider target before the button is used. Approve
+writes a named lease feature carrying the purpose, target and
 risk and a decision; Deny/Explain write only the decision. Closing with X or
 Esc writes a `fallback` decision and removes the pending request. Copy writes
 the full request to `last-request.txt` and the clipboard (`wl-copy`/`xclip`

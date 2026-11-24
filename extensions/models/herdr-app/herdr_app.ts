@@ -64,6 +64,11 @@ import {
   withSource,
   withThemeChoice,
 } from "./herdr_app_shared.ts";
+import {
+  ExtrasArgsSchema,
+  ExtrasSchema,
+  installHerdrExtras,
+} from "./herdr_extras.ts";
 
 // ---------------------------------------------------------------------------
 // Arguments
@@ -229,6 +234,7 @@ const UninstallArgs = UninstallArgsSchema;
 const InstallThemeArgs = InstallThemeArgsSchema;
 const RenderScriptArgs = RenderScriptArgsSchema;
 const SshFleetArgs = SshFleetArgsSchema;
+const ExtrasArgs = ExtrasArgsSchema;
 
 type PlanArgsType = z.infer<typeof PlanArgsSchema>;
 type InstallArgsType = z.infer<typeof InstallArgsSchema>;
@@ -237,6 +243,7 @@ type UninstallArgsType = z.infer<typeof UninstallArgsSchema>;
 type InstallThemeArgsType = z.infer<typeof InstallThemeArgsSchema>;
 type RenderScriptArgsType = z.infer<typeof RenderScriptArgsSchema>;
 type SshFleetArgsType = z.infer<typeof SshFleetArgsSchema>;
+type ExtrasArgsType = z.infer<typeof ExtrasArgsSchema>;
 
 // ---------------------------------------------------------------------------
 // Resources
@@ -1969,7 +1976,7 @@ function bundledThemeText(ctx: MethodContext, id: string): string {
 /** Model definition for `@svendowideit/herdr-app`. */
 export const model = {
   type: "@svendowideit/herdr-app",
-  version: "2026.11.09.3",
+  version: "2026.11.24.2",
   globalArguments: z.object({}),
 
   upgrades: [
@@ -2003,6 +2010,28 @@ export const model = {
         "It is skipped when the layout is already present, since that " +
         "installer refuses to overwrite. status now lists the layouts Herdr " +
         "offers, and swampLayout=false opts out.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.24.1",
+      description:
+        "New installExtras method: installs the swamp bar mods into Herdr's " +
+        "home (an obsidian-idea input that captures through " +
+        "@svendowideit/obsidian-factory, and a browser-launch button), writes " +
+        "the swamp.json/browser.json they read, and merges one programs.json " +
+        "entry and the ctrl-shift-i / ctrl-alt-b keys without replacing what " +
+        "you wrote. @svendowideit/swamp-ide places the blocks. No existing " +
+        "argument changed; every part is opt-out.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.24.2",
+      description:
+        "The swamp bar reads correctly: the idea input is a full-height, " +
+        "padded field instead of a bare element, and the browser button sits " +
+        "beside it rather than centred in its block. installExtras now " +
+        "records the hashes it wrote in swamp-extras.json, so re-running it " +
+        "upgrades its own files while still keeping anything you edited.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -2053,6 +2082,15 @@ export const model = {
         "The result of `installTheme`: where the bundled theme was written, " +
         "whether it is on show, and anything the person should know.",
       schema: ThemeSchema,
+      lifetime: "infinite" as const,
+      garbageCollection: 10,
+    },
+    extras: {
+      description:
+        "The result of `installExtras`: the swamp bar mods written, the config " +
+        "files they read, the programs.json and keys.json entries, and Herdr's " +
+        "own check of each mod.",
+      schema: ExtrasSchema,
       lifetime: "infinite" as const,
       garbageCollection: 10,
     },
@@ -2360,6 +2398,71 @@ export const model = {
           warning: result.warning,
           checkedAt: deps.now().toISOString(),
         });
+        return { dataHandles: [handle] };
+      },
+    },
+
+    installExtras: {
+      description:
+        "Install the swamp bar inside Herdr: the `obsidian-idea` input (which " +
+        "captures a thought through @svendowideit/obsidian-factory's `capture` " +
+        "method) and the `browser-launch` button (which opens the configured " +
+        "argv, browsh by default, in a new tab on this space's machine). Writes " +
+        "their mods, `swamp.json` and `browser.json`, and merges one " +
+        "`programs.json` entry and two `keys.json` bindings without replacing " +
+        "what you already wrote. Idempotent; Herdr's own `check` runs on each " +
+        "installed mod. The swamp layout (@svendowideit/swamp-ide) places the " +
+        "blocks; re-run its enable workflow after this.",
+      arguments: ExtrasArgs,
+      execute: async (args: ExtrasArgsType, ctx: MethodContext) => {
+        const deps = await hostDeps((message) => ctx.logger.info(message));
+        if (!ctx.extensionFile) {
+          throw new Error(
+            "this swamp build does not expose extension files; cannot install " +
+              "the swamp bar mods",
+          );
+        }
+        const result = await installHerdrExtras(deps, {
+          appHome: appHomeOf(deps, args.herdrHome),
+          ideaBox: args.ideaBox,
+          browserButton: args.browserButton,
+          programsEntry: args.programsEntry,
+          keys: args.keys,
+          swampRepo: args.swampRepo,
+          boardModel: args.boardModel,
+          swampBinary: args.swampBinary,
+          browserArgv: args.browserArgv,
+          herdrBin: args.herdrBin,
+          force: args.force,
+          files: (relative) => ctx.extensionFile!(relative),
+        });
+        const handle = await ctx.writeResource("extras", "extras", {
+          ...result,
+        });
+        for (const warning of result.warnings) ctx.logger.warn(warning);
+        const failed = result.checks.filter((check) => check.code !== 0);
+        if (failed.length > 0) {
+          throw new Error(
+            "files were installed but Herdr could not load a mod:\n" +
+              failed.map((check) =>
+                `${check.name} (${check.dir}): ${
+                  check.output || `exit ${check.code}`
+                }`
+              ).join("\n"),
+          );
+        }
+        ctx.logger.info(
+          "swamp bar: {mods}; programs.json {programs}; keys {keys}",
+          {
+            mods: result.mods.map((mod) => `${mod.name} ${mod.action}`).join(
+              ", ",
+            ),
+            programs: result.programs.action,
+            keys: result.keys.map((key) => `${key.key} ${key.action}`).join(
+              ", ",
+            ),
+          },
+        );
         return { dataHandles: [handle] };
       },
     },

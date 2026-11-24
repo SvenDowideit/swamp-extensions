@@ -1321,6 +1321,7 @@ Deno.test("the model declares every method and resource", () => {
     Object.keys(model.methods).sort(),
     [
       "install",
+      "installExtras",
       "installTheme",
       "plan",
       "renderScript",
@@ -1331,7 +1332,16 @@ Deno.test("the model declares every method and resource", () => {
   );
   assertEquals(
     Object.keys(model.resources).sort(),
-    ["install", "plan", "release", "script", "status", "theme", "transport"],
+    [
+      "extras",
+      "install",
+      "plan",
+      "release",
+      "script",
+      "status",
+      "theme",
+      "transport",
+    ],
   );
 });
 

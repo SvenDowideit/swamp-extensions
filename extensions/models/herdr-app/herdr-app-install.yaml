@@ -98,6 +98,47 @@ inputs:
       type: string
       default: herdr-swamp-layout
       description: Model instance name for the swamp layout installer.
+    ideaBox:
+      type: boolean
+      default: false
+      description: >-
+        Install the swamp bar's add-idea input (mods/obsidian-idea) and the
+        swamp.json it reads. Needs swampRepo. Off by default so an existing
+        upgrade changes nothing.
+    browserButton:
+      type: boolean
+      default: false
+      description: >-
+        Install the swamp bar's browser button (mods/browser-launch), which
+        opens the argv in browser.json in a new tab. Off by default.
+    programsEntry:
+      type: boolean
+      default: true
+      description: >-
+        Add the browsh entry to programs.json when the browser button is
+        installed, so the tab + menu lists it too.
+    keys:
+      type: boolean
+      default: true
+      description: >-
+        Merge ctrl-shift-i (idea box) and ctrl-alt-b (browser) into keys.json
+        when those keys are free.
+    swampRepo:
+      type: string
+      default: ""
+      description: >-
+        Absolute path to the swamp repository that holds the obsidian-board
+        model. Required with ideaBox.
+    boardModel:
+      type: string
+      default: obsidian-board
+      description: Behavior instance whose capture method the idea box calls.
+    swampBinary:
+      type: string
+      default: ""
+      description: >-
+        The swamp binary the idea box runs. Empty finds swamp on PATH and
+        records its absolute path.
     herdrHome:
       type: string
       default: ""
@@ -235,6 +276,39 @@ jobs:
             herdrHome: ${{ steps.status.outputs.herdrHome }}
         dependsOn:
           - step: status
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: false
+      - name: extras
+        description: >-
+          Install the swamp bar inside Herdr: the add-idea input (which
+          captures through @svendowideit/obsidian-factory's capture method) and
+          the browser button (browsh in a new tab), plus the swamp.json and
+          browser.json they read, one tab + menu entry and two keys. Opt-in:
+          both mods default to false so an upgrade changes nothing, and
+          ideaBox needs swampRepo. Re-run the swamp-ide enable workflow
+          afterwards so the layout carries the blocks.
+        guard: >-
+          ${{ inputs.uninstall == true || (inputs.ideaBox == false &&
+          inputs.browserButton == false) }}
+        task:
+          type: model_method
+          modelType: '@svendowideit/herdr-app'
+          modelName: ${{ inputs.appName }}
+          methodName: installExtras
+          inputs:
+            ideaBox: ${{ inputs.ideaBox }}
+            browserButton: ${{ inputs.browserButton }}
+            programsEntry: ${{ inputs.programsEntry }}
+            keys: ${{ inputs.keys }}
+            swampRepo: ${{ inputs.swampRepo }}
+            boardModel: ${{ inputs.boardModel }}
+            swampBinary: ${{ inputs.swampBinary }}
+            herdrHome: ${{ inputs.herdrHome }}
+            force: ${{ inputs.force }}
+        dependsOn:
+          - step: install
             condition:
               type: succeeded
         weight: 0

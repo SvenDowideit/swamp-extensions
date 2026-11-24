@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/herdr-app"
-version: "2026.11.09.3"
+version: "2026.11.24.2"
 description: >
   Install, update and remove the Herdr desktop app — and herdr-core with it —
   on Linux, macOS and Windows, from swamp, whichever machine swamp is running on.
@@ -47,6 +47,13 @@ description: >
     @svendowideit/herdr-app-ssh, which pipes the pinned installer to hosts that
     have no swamp. Without it, the local, serve and worker workflows still work.
 
+    The swamp bar mods travel as `binaries:` (the `.js` and `.svg` files; their
+    `mod.json` is an additional file), because swamp keeps binaries in a pulled
+    extension but not in the bundle a swamp worker runs. `installExtras`
+    therefore runs on a host that has this extension pulled — the local machine
+    or a `--server` host — and says so rather than writing a partial mod. The
+    worker workflow does not run it.
+
   RUN
 
       # Install or upgrade on this machine. Idempotent, so it is also the
@@ -80,6 +87,15 @@ description: >
       # Install or refresh just the bundled theme. It lands in Herdr's own home
       # and is selected only when no theme is chosen yet.
       swamp model @svendowideit/herdr-app method run installTheme herdr-app
+
+      # Put the swamp bar inside Herdr: an "add idea" input that captures onto
+      # the obsidian-factory board, and a browser button that opens browsh in a
+      # new tab. Writes both mods and the config they read, and adds one tab +
+      # menu entry and two keys where they are free. Re-run the swamp-ide enable
+      # workflow afterwards so the layout carries the blocks.
+      swamp model @svendowideit/herdr-app method run installExtras herdr-app \
+        --input swampRepo=/home/me/src/swamp-project \
+        --input boardModel=obsidian-board
 
       # Install the app somewhere else, and leave themes entirely alone.
       swamp workflow run @svendowideit/herdr-app-install \
@@ -117,6 +133,19 @@ description: >
       removeCore     uninstall also removes the core          (default false)
       removeTheme    uninstall also removes the theme file    (default false)
       uninstall      remove instead of install                (default false)
+
+    `installExtras` takes its own settings, all optional except `swampRepo`:
+
+      ideaBox        install the obsidian-idea input mod       (default true)
+      browserButton  install the browser-launch button mod     (default true)
+      programsEntry  add the browsh entry to programs.json     (default true)
+      keys           merge ctrl-shift-i and ctrl-alt-b          (default true)
+      swampRepo      the swamp repository holding the board   (required with ideaBox)
+      boardModel     behavior instance whose capture it calls   (default obsidian-board)
+      swampBinary    the swamp binary the box runs             (default: swamp on PATH)
+      browserArgv    argv the button opens                     (default docker run --rm -it browsh/browsh)
+      herdrBin       binary used to check each mod             (default herdr-app)
+      force          replace differing files, entries and keys (default false)
 
     Platform defaults: Linux `$XDG_DATA_HOME/herdr-app` with `~/.local/bin` and a
     launcher entry; macOS `~/Applications/Herdr.app`; Windows
@@ -163,6 +192,16 @@ description: >
     five mods into `layouts/`, `themes/` and `mods/` — once: that installer
     refuses to overwrite, so an existing (or edited) layout is left alone.
 
+    `installExtras` writes `mods/obsidian-idea/` and `mods/browser-launch/` into
+    Herdr's own home, plus the `swamp.json` (repo, board model, absolute swamp
+    binary) and `browser.json` (argv) they read. It merges one `browsh` entry
+    into `programs.json` — so the tab + menu lists the browser — and the
+    `ctrl-shift-i` / `ctrl-alt-b` bindings into `keys.json`, only where those
+    keys are free, saving a `.bak-herdr-app` copy of anything it rewrites. An
+    edited mod file or a taken key is reported and left alone unless
+    `force=true`. It never touches the vault: the idea reaches the board only
+    through @svendowideit/obsidian-factory's own `capture` method.
+
 repository: https://github.com/svendowideit/swamp-extensions
 
 license: MIT
@@ -184,13 +223,23 @@ dependencies:
 
 optionalDependencies:
   - "@swamp/ssh"
+  - "@svendowideit/obsidian-factory"
 
 additionalFiles:
   - README.md
   - LICENSE.txt
   - themes/borland-modern-blue.json
+  - extras/obsidian-idea/mod.json
+  - extras/browser-launch/mod.json
   - herdr_app_test.ts
   - herdr_app_shared_test.ts
+  - herdr_extras_test.ts
+
+binaries:
+  - extras/obsidian-idea/main.js
+  - extras/obsidian-idea/icon.svg
+  - extras/browser-launch/main.js
+  - extras/browser-launch/icon.svg
 
 platforms:
   - linux-x86_64

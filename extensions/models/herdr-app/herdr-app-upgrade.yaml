@@ -76,6 +76,42 @@ inputs:
         Also install the Herdr swamp layout — approvals, runs and quick-run
         panels for this CLI inside Herdr — from @jpisgeek/herdr-swamp-layout.
         Skipped when already installed; turn it off to leave layouts alone.
+    ideaBox:
+      type: boolean
+      default: false
+      description: >-
+        Also install the swamp bar's add-idea input (and the swamp.json it
+        reads) into Herdr's home. Needs swampRepo. Off by default so an
+        upgrade changes nothing; re-run the swamp-ide enable workflow after.
+    browserButton:
+      type: boolean
+      default: false
+      description: >-
+        Also install the swamp bar's browser button, which opens browsh in a
+        new tab. Off by default.
+    programsEntry:
+      type: boolean
+      default: true
+      description: Add the browsh entry to programs.json with the browser button.
+    keys:
+      type: boolean
+      default: true
+      description: Merge ctrl-shift-i and ctrl-alt-b into keys.json when free.
+    swampRepo:
+      type: string
+      default: ""
+      description: >-
+        Absolute path to the swamp repository that holds obsidian-board.
+        Required with ideaBox.
+    boardModel:
+      type: string
+      default: obsidian-board
+      description: Behavior instance whose capture method the idea box calls.
+    swampBinary:
+      type: string
+      default: ""
+      description: >-
+        The swamp binary the idea box runs. Empty finds swamp on PATH.
   required: []
 jobs:
   - name: upgrade
@@ -101,6 +137,13 @@ jobs:
             theme: ${{ inputs.theme }}
             selectTheme: ${{ inputs.selectTheme }}
             swampLayout: ${{ inputs.swampLayout }}
+            ideaBox: ${{ inputs.ideaBox }}
+            browserButton: ${{ inputs.browserButton }}
+            programsEntry: ${{ inputs.programsEntry }}
+            keys: ${{ inputs.keys }}
+            swampRepo: ${{ inputs.swampRepo }}
+            boardModel: ${{ inputs.boardModel }}
+            swampBinary: ${{ inputs.swampBinary }}
         dependsOn: []
         weight: 0
         allowFailure: false

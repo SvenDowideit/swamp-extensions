@@ -173,6 +173,54 @@ swamp model @svendowideit/herdr-app method run status herdr-app
 swamp workflow run @svendowideit/herdr-app-install --input uninstall=true
 ```
 
+## Extras: the swamp bar
+
+Two small Herdr mods, installed into Herdr's own home by `installExtras`:
+
+- **`obsidian-idea`** — a one-line input that captures a thought onto the
+  `obsidian-factory` board by running that model's public `capture` method. The
+  board model stays the only writer; this extension never touches the vault.
+- **`browser-launch`** — a button that opens the configured argv (browsh by
+  default) in a new tab on the focused space's machine.
+
+`installExtras` also writes the two configs they read (`swamp.json` with the
+repo, board model and absolute swamp binary; `browser.json` with the argv),
+merges one `browsh` entry into `programs.json` (so the tab **+** menu lists it),
+and adds `ctrl-shift-i` / `ctrl-alt-b` to `keys.json` — only where those keys
+are free. Nothing you wrote is replaced: an edited mod file, a different
+`browsh` entry or a taken key is reported and left alone unless `force=true`,
+and anything it rewrites keeps a `.bak-herdr-app` copy.
+
+The **placement** is not this extension's: `@svendowideit/swamp-ide` owns the
+layout and carries a block for each mod that exists. So install the bar first,
+then re-run its enable workflow.
+
+```sh
+# Install both mods and the config they read on this host, then let the
+# swamp-ide layout carry them. swampRepo is required: it is where
+# obsidian-board lives, so the idea box knows where to run swamp.
+swamp model @svendowideit/herdr-app method run installExtras herdr-app \
+  --input swampRepo=$HOME/src/swamp-project
+
+# Re-run the layout so the bar appears (idempotent; it reads which mods
+# exist). Run it again any time you install or remove a bar mod.
+swamp workflow run @svendowideit/swamp-ide-enable
+
+# Browser only, no idea box: no swampRepo needed, and the button still gets
+# its + menu entry and ctrl-alt-b key.
+swamp model @svendowideit/herdr-app method run installExtras herdr-app \
+  --input ideaBox=false
+
+# Replace something you edited earlier. Without force the run reports what it
+# left alone; with force it keeps a .bak-herdr-app copy beside the new file.
+swamp model @svendowideit/herdr-app method run installExtras herdr-app \
+  --input swampRepo=$HOME/src/swamp-project --input force=true
+```
+
+`@svendowideit/herdr-app-install` and `-upgrade` run the same method as an
+opt-in step: pass `--input ideaBox=true --input swampRepo=<repo>` (an upgrade
+with no such inputs installs no bar, so an existing machine changes nothing).
+
 ## Upgrade
 
 ```sh
@@ -198,6 +246,7 @@ workflow per worker, or the SSH workflow for hosts without swamp.
 | `status` | `appDir`, `binDir` | Runs the installed binaries and writes `status`: presence, versions, paths, app shape, and where the core was found. |
 | `uninstall` | `appDir`, `binDir`, `removeCore`, `removeTheme`, `herdrHome`, `force` | Removes the app, its command link and its launcher entry or shortcut; the shared core only with `removeCore=true`, the theme file only with `removeTheme=true`. Writes `install` with action `uninstalled`. |
 | `installTheme` | `theme`, `herdrHome`, `select`, `force` | Writes the bundled theme into Herdr's `themes/` and selects it in `settings.json` when nothing is chosen yet. Idempotent; writes the `theme` resource. |
+| `installExtras` | `ideaBox`, `browserButton`, `programsEntry`, `keys`, `swampRepo`, `boardModel`, `swampBinary`, `browserArgv`, `herdrBin`, `herdrHome`, `force` | Installs the swamp bar mods and the config they read, merges the `programs.json` entry and the two keys, and writes the `extras` resource — including Herdr's own `check` of every mod it installed. Idempotent; nothing differing is replaced without `force`. |
 | `renderScript` | `version`, `coreVersion`, `core`, `force`, `releasesUrl`, `verifyCoreSignature` | Resolves the release and renders the pinned POSIX installer used by the SSH workflow — one branch per Linux/macOS target, so a mixed fleet works — and writes `script`. Windows has no branch because the script is POSIX. |
 | `sshFleet` | `fleet`, `hosts`, `user`, `port`, `identityFile`, `hostKeyChecking`, `connectTimeoutSec` | Turns the host list into an `@swamp/ssh` fleet (hosts plus transport) and writes `transport`. |
 
@@ -256,6 +305,12 @@ both the step's own outcome and the `layouts` list `status` read), and
 - `themes/borland-modern-blue.json` — the theme this extension ships, validated
   by the tests against Herdr's own rules (16 ANSI colours, `#rrggbb` palette,
   known colour names) and read at run time through `ctx.extensionFile`.
+- `extras/obsidian-idea/` and `extras/browser-launch/` — the two Herdr mods,
+  copied into `<herdrHome>/mods/` by `installExtras`. They are plain mod files,
+  so a copy a person edits is compared against the bundle and kept.
+- `herdr_extras.ts` — the bar installer and its pure helpers (the
+  `programs.json` entry merge, the `keys.json` binding merge, the PATH lookup).
+  Every file is compared before writing, so a re-run is silent.
 - `herdr_app.ts` — the model. `hostDeps()` is the single IO seam (fetch,
   subprocess, platform, environment); `resolveRelease`, `probeInstalled`,
   `installHerdr` and `uninstallHerdr` take it as an argument, so tests run the

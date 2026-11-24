@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/swamp-ide-openobserve"
-version: "2026.11.23.1"
+version: "2026.11.23.2"
 description: >
   The optional OpenObserve page for @svendowideit/swamp-ide: one dashboard that
   separates routed herdr-core/vim work from bypassed built-in tool calls.
@@ -9,13 +9,14 @@ description: >
 
     Creates or updates the Swamp Agent IDE dashboard in an existing
     OpenObserve instance. Panels: routed vs bypassed counts, operations by
-    route, recent bypassed tool calls, recent routed calls and recent errors.
-    The dashboard groups on real OpenObserve trace columns (`service_name`,
+    route, recent bypassed tool calls, recent routed calls, recent errors and
+    the shell-out histogram (per-program/subcommand bash spans). The dashboard
+    groups on real OpenObserve trace columns (`service_name`,
     `operation_name`, `swamp_outcome`), so it shows what went through
-    herdr-core/vim and what did not. The extension is optional and is installed
-    by @svendowideit/swamp-ide only when OpenObserve is already installed and
-    healthy. It reads the OpenObserve login from a swamp vault; no credential
-    is written into the dashboard or a model definition.
+    herdr-core/vim/swamp and what did not. The extension is optional and is
+    installed by @svendowideit/swamp-ide only when OpenObserve is already
+    installed and healthy. It reads the OpenObserve login from a swamp vault;
+    no credential is written into the dashboard or a model definition.
 
   INSTALL
 

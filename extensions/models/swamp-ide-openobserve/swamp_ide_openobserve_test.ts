@@ -28,12 +28,14 @@ Deno.test("buildAgentIdeDashboard separates routed and bypassed spans", () => {
   assertEquals(body.version, 8);
   const tabs = body.tabs as Array<Record<string, unknown>>;
   const panels = tabs[0].panels as Array<Record<string, unknown>>;
-  assertEquals(panels.length, 5);
+  assertEquals(panels.length, 6);
   const sql = panels.map((panel) => {
     const queries = panel.queries as Array<Record<string, unknown>>;
     return String(queries[0].query ?? "");
   }).join("\n");
   assertStringIncludes(sql, "bypass.%");
+  assertStringIncludes(sql, "bypass.bash.%");
+  assertStringIncludes(sql, "tool.bash.%");
   assertStringIncludes(sql, "swamp-herdr-core");
   assertStringIncludes(sql, "swamp-vim");
   assertStringIncludes(sql, "swamp_outcome");

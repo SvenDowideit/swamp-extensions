@@ -12,12 +12,16 @@ OpenObserve instance. Panels:
 - operations by route;
 - recent bypassed tool calls;
 - recent routed herdr-core/vim calls;
-- recent IDE errors.
+- recent IDE errors;
+- the shell-out histogram, grouped by per-program/subcommand bash span name.
 
 The dashboard groups on real OpenObserve trace columns (`service_name`,
 `operation_name`, `swamp_outcome`), because OpenObserve does not expose
-arbitrary span attributes as columns. The pi plugin encodes the route in the
-span name: `swamp_ide.herdr-core.*`, `swamp_ide.vim.*` and `bypass.*`.
+arbitrary span attributes as columns. The pi plugin encodes the route in the span name:
+`swamp_ide.herdr-core.*`, `swamp_ide.vim.*`, `swamp_ide.swamp.*`,
+`bypass.bash.<program>[.<subcommand>]` and `tool.bash.<program>`.
+The shell-out panel selects the `bypass.bash.%` and `tool.bash.%` span names
+and groups by `operation_name`, which is a real OpenObserve column.
 
 `swamp-ide` installs this extension only when OpenObserve is already installed
 and healthy; it is not required for the routing or the Herdr activity panel.

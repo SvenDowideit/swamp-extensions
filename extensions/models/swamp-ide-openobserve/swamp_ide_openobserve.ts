@@ -241,12 +241,25 @@ export function buildAgentIdeDashboard(
       "operation_name",
       { x: 0, y: 34, w: 96, h: 10, i: 5 },
     ),
+    tablePanel(
+      "swamp-shellouts",
+      "Shell-out histogram",
+      `SELECT operation_name, COUNT(*) AS calls, ` +
+        `SUM(CASE WHEN swamp_outcome = 'success' THEN 1 ELSE 0 END) AS ok, ` +
+        `SUM(CASE WHEN swamp_outcome <> 'success' THEN 1 ELSE 0 END) AS errors ` +
+        `FROM "${stream}" WHERE service_name = 'pi-swamp-ide' ` +
+        `AND (operation_name LIKE 'bypass.bash.%' OR operation_name LIKE 'tool.bash.%') ` +
+        `GROUP BY operation_name ORDER BY calls DESC`,
+      stream,
+      "operation_name",
+      { x: 0, y: 44, w: 96, h: 12, i: 6 },
+    ),
   ];
   return {
     version: 8,
     title,
     description:
-      "Swamp agent IDE routing: routed herdr-core/vim spans versus bypassed built-in tool calls.",
+      "Swamp agent IDE routing: routed herdr-core/vim spans, bypassed built-in tool calls, and the shell-out histogram.",
     folder_id: folder,
     tabs: [{ tabId: "default", name: "Swamp IDE", panels }],
   };
@@ -497,8 +510,16 @@ async function status(
 /** The Swamp Agent IDE dashboard extension. */
 export const model = {
   type: "@svendowideit/swamp-ide-openobserve",
-  version: "2026.11.23.1",
+  version: "2026.11.23.2",
   globalArguments: GlobalArgsSchema,
+  upgrades: [
+    {
+      toVersion: "2026.11.23.2",
+      description:
+        "Adds the shell-out histogram panel for per-program bash spans.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
 
   resources: {
     dashboard: {

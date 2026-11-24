@@ -1,22 +1,43 @@
 manifestVersion: 1
 name: "@svendowideit/swamp-ide"
-version: "2026.11.23.1"
+version: "2026.11.24.4"
 description: >
   The single front door for the agent IDE: install, enable and disable the
-  herdr-core/vim-controller routing, the pi addin and the Herdr activity panel.
+  herdr-core/vim-controller routing, the pi addin and the resizable Herdr
+  Swamp IDE panel with three stacked sections.
 
   WHAT IT DOES
 
     One extension pulls the pieces together and gives you one pair of commands:
     `@svendowideit/swamp-ide-enable` and `@svendowideit/swamp-ide-disable`.
-    Enable installs and selects the Herdr activity panel/layout, installs and
-    gates the pi addin when pi is available, and creates or updates the
-    OpenObserve dashboard when OpenObserve is installed and healthy. Disable
-    removes the session gate and the Herdr panel/layout and returns to the base
-    layout; the OpenObserve history is left alone. The optional parts are
-    declared optional, and the workflows allow them to be absent: the base
-    setup still works with only herdr-core and vim-controller. The model also
-    exposes `status` so you can see what is installed without changing it.
+    Enable installs and selects the resizable right-hand Swamp IDE panel and
+    layout, installs and gates the pi addin when pi is available, and creates
+    or updates the OpenObserve dashboard when OpenObserve is installed and
+    healthy. The panel has three independently resizable sections (Activity,
+    Command histogram and Leases) and a component-health indicator that reads
+    the addin/guard heartbeats and says all active, degraded, or tracking off.
+    The histogram lists programs with counts and expands to the top 10 commands
+    per program. The Leases section is human-only: click a lease to extend it
+    by 5m/30m/1h or revoke it with confirmation; the agent has no route to
+    those controls. Disable removes the session gate and the Herdr panel/layout
+    and returns to the base layout; the OpenObserve history is left alone. The
+    optional parts are declared optional, and the workflows allow them to be
+    absent: the base setup still works with only herdr-core and vim-controller.
+    The model also exposes `status` so you can see what is installed without
+    changing it.
+
+    When Herdr is running, the approval request opens with a plain-language
+    "You are granting" summary and an explicit Target (the exact file, exact
+    command, swamp method, or a loud NO specific file warning for a broad
+    method grant). It then shows what the agent may do, what it may not do, a
+    HIGH/MEDIUM risk explanation and how to undo it. The agent's reason/goal,
+    effect and inputs follow. Approve, Deny, Explain and Copy stay pinned.
+    Approved requests become named lease features whose purpose, target and
+    risk appear in the Leases section on hover, with an inner scrollbar for
+    long scope lists. Closing the dialog with X or Esc resolves the request as
+    a fallback, so the agent immediately returns the explicit
+    `/swamp-ide approve <scope> <duration>` command. Copy writes the full request to
+    `~/.local/state/swamp-agent-ide/last-request.txt` and the clipboard.
 
   INSTALL
 
@@ -34,7 +55,8 @@ description: >
   RUN
 
       # Enable the whole system: Herdr panel/layout, pi addin + session gate,
-      # and the OpenObserve dashboard when OpenObserve is healthy.
+      # and the OpenObserve dashboard when OpenObserve is healthy. It discovers
+      # the newest live pi session, so no sessionId is needed.
       swamp workflow run @svendowideit/swamp-ide-enable
 
       # Disable the session gate and remove the Herdr panel/layout. The
@@ -58,12 +80,16 @@ description: >
 
   WHAT IT INSTALLS
 
-    The Herdr activity mod at `<herdrHome>/mods/swamp-activity/`, the
+    The Herdr activity mod at `<herdrHome>/mods/swamp-activity/`, the resizable
+    Swamp IDE panel with Activity, Command histogram and Leases sections at
+    `<herdrHome>/mods/swamp-ide/`, the approval dialog at
+    `<herdrHome>/mods/swamp-ide-approval/`, the
     `<herdrHome>/layouts/swamp-ide.json` layout, and the selected layout. It
-    runs the Herdr app's documented `do layout.switch` command. Through the
-    workflows it may also install the managed pi addin and create the
-    OpenObserve dashboard. It does not edit Herdr settings, pi settings or
-    OpenObserve's own data.
+    runs the Herdr app's documented `do layout.switch` command. `setHerdr` also
+    runs `herdr-app check` against all three mods before switching and fails
+    without switching if any check fails. Through the workflows it may also
+    install the managed pi addin and create the OpenObserve dashboard. It does
+    not edit Herdr settings, pi settings or OpenObserve's own data.
 
 repository: 'https://github.com/svendowideit/swamp-extensions'
 
@@ -82,6 +108,10 @@ workflows:
 binaries:
   - herdr/main.js
   - herdr/mod.json
+  - herdr/swamp-ide/main.js
+  - herdr/swamp-ide/mod.json
+  - herdr/swamp-ide-approval/main.js
+  - herdr/swamp-ide-approval/mod.json
   - herdr/layout.json
 
 dependencies:

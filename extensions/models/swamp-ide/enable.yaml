@@ -7,6 +7,15 @@ description: >
 version: 1
 tags:
   collective: svendowideit
+inputs:
+  properties:
+    sessionId:
+      type: string
+      default: ""
+      description: >-
+        pi session id to gate. Empty discovers the newest live pi session, so
+        the one-command enable works without knowing PI_SESSION_ID.
+  # sessionId is optional; discovery handles the normal one-command case.
 jobs:
   - name: main
     steps:
@@ -19,9 +28,11 @@ jobs:
           methodName: set
           inputs:
             enabled: true
+            scope: global
+            sessionId: ${{ inputs.sessionId }}
         dependsOn: []
         weight: 0
-        allowFailure: true
+        allowFailure: false
 
       - name: enable-herdr
         description: Install the activity panel and select the swamp-ide layout.

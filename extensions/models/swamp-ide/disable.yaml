@@ -10,8 +10,8 @@ tags:
 jobs:
   - name: main
     steps:
-      - name: disable-pi
-        description: Remove this pi session's addin gate.
+      - name: disable-pi-global
+        description: Remove the global addin gate for this pi session.
         task:
           type: model_method
           modelType: '@svendowideit/swamp-ide-pi-plugin'
@@ -19,6 +19,21 @@ jobs:
           methodName: set
           inputs:
             enabled: false
+            scope: global
+        dependsOn: []
+        weight: 0
+        allowFailure: true
+
+      - name: disable-pi-project
+        description: Remove the legacy project addin gate for this pi session.
+        task:
+          type: model_method
+          modelType: '@svendowideit/swamp-ide-pi-plugin'
+          modelName: ide-pi
+          methodName: set
+          inputs:
+            enabled: false
+            scope: project
         dependsOn: []
         weight: 0
         allowFailure: true

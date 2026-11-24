@@ -36,18 +36,30 @@ const SetHerdrArgsSchema = z.object({
 
 const StatusArgsSchema = z.object({});
 
+const ModCheckSchema = z.object({
+  name: z.string(),
+  dir: z.string(),
+  code: z.number(),
+  output: z.string().default(""),
+});
+
 const HerdrOutputSchema = z.object({
   action: z.enum(["enabled", "disabled", "unchanged"]),
   herdrHome: z.string(),
   modDir: z.string(),
+  ideModDir: z.string().default(""),
   layoutPath: z.string(),
   modInstalled: z.boolean(),
+  ideModInstalled: z.boolean().default(false),
   layoutInstalled: z.boolean(),
   activeLayout: z.string().default(""),
   herdrAvailable: z.boolean(),
+  checks: z.array(ModCheckSchema).default([]),
   message: z.string().default(""),
   updatedAt: z.string(),
 });
+
+type ModCheck = z.infer<typeof ModCheckSchema>;
 
 interface MethodContext {
   globalArgs: GlobalArgs;
@@ -92,9 +104,17 @@ export function herdrHomeOf(g: GlobalArgs): string {
 export function herdrPaths(
   herdrHome: string,
   layout: string,
-): { modDir: string; layoutPath: string } {
+): {
+  modDir: string;
+  ideModDir: string;
+  approvalModDir: string;
+  layoutPath: string;
+} {
+  const mods = join(herdrHome, "mods");
   return {
-    modDir: join(herdrHome, "mods", "swamp-activity"),
+    modDir: join(mods, "swamp-activity"),
+    ideModDir: join(mods, "swamp-ide"),
+    approvalModDir: join(mods, "swamp-ide-approval"),
     layoutPath: join(herdrHome, "layouts", `${layout}.json`),
   };
 }
@@ -110,6 +130,7 @@ async function run(
   args: string[],
 ): Promise<CommandResult> {
   try {
+    // swamp-quality-ignore deno-command
     const out = await new Deno.Command(bin, {
       args,
       stdin: "null",
@@ -151,6 +172,29 @@ async function exists(path: string): Promise<boolean> {
   }
 }
 
+/** Parse each installed mod with Herdr's own loader. */
+async function checkMods(
+  g: GlobalArgs,
+  paths: ReturnType<typeof herdrPaths>,
+): Promise<ModCheck[]> {
+  const entries: Array<[string, string]> = [
+    ["activity", paths.modDir],
+    ["panel", paths.ideModDir],
+    ["approval", paths.approvalModDir],
+  ];
+  const checks: ModCheck[] = [];
+  for (const [name, dir] of entries) {
+    const result = await run(g.herdrBin, ["check", dir]);
+    checks.push({
+      name,
+      dir,
+      code: result.code,
+      output: `${result.stdout}${result.stderr}`.trim(),
+    });
+  }
+  return checks;
+}
+
 async function writeBundled(
   ctx: MethodContext,
   relative: string,
@@ -181,13 +225,48 @@ async function setHerdr(
     ? "enabled"
     : "disabled";
   let message = "";
+  let checks: ModCheck[] = [];
 
   if (args.enabled) {
     await Deno.mkdir(paths.modDir, { recursive: true });
     await writeBundled(ctx, "herdr/main.js", join(paths.modDir, "main.js"));
     await writeBundled(ctx, "herdr/mod.json", join(paths.modDir, "mod.json"));
+    await Deno.mkdir(paths.ideModDir, { recursive: true });
+    await writeBundled(
+      ctx,
+      "herdr/swamp-ide/main.js",
+      join(paths.ideModDir, "main.js"),
+    );
+    await writeBundled(
+      ctx,
+      "herdr/swamp-ide/mod.json",
+      join(paths.ideModDir, "mod.json"),
+    );
+    await Deno.mkdir(paths.approvalModDir, { recursive: true });
+    await writeBundled(
+      ctx,
+      "herdr/swamp-ide-approval/main.js",
+      join(paths.approvalModDir, "main.js"),
+    );
+    await writeBundled(
+      ctx,
+      "herdr/swamp-ide-approval/mod.json",
+      join(paths.approvalModDir, "mod.json"),
+    );
     await writeBundled(ctx, "herdr/layout.json", paths.layoutPath);
     if (herdrAvailable) {
+      checks = await checkMods(g, paths);
+      const failed = checks.filter((check) => check.code !== 0);
+      if (failed.length > 0) {
+        throw new Error(
+          "Herdr mod check failed; files were installed but the layout was not switched:\n" +
+            failed.map((check) =>
+              `${check.name} (${check.dir}): ${
+                check.output || `exit ${check.code}`
+              }`
+            ).join("\n"),
+        );
+      }
       const switched = await run(g.herdrBin, [
         "do",
         "layout.switch",
@@ -211,18 +290,25 @@ async function setHerdr(
     }
     await Deno.remove(paths.layoutPath).catch(() => {});
     await Deno.remove(paths.modDir, { recursive: true }).catch(() => {});
-    message = "activity panel and layout removed";
+    await Deno.remove(paths.ideModDir, { recursive: true }).catch(() => {});
+    await Deno.remove(paths.approvalModDir, { recursive: true }).catch(
+      () => {},
+    );
+    message = "activity panels and layout removed";
   }
 
   const data: z.infer<typeof HerdrOutputSchema> = {
     action,
     herdrHome: dir,
     modDir: paths.modDir,
+    ideModDir: paths.ideModDir,
     layoutPath: paths.layoutPath,
     modInstalled: await exists(paths.modDir),
+    ideModInstalled: await exists(paths.ideModDir),
     layoutInstalled: await exists(paths.layoutPath),
     activeLayout: await activeLayout(g),
     herdrAvailable,
+    checks,
     message,
     updatedAt: new Date().toISOString(),
   };
@@ -242,12 +328,15 @@ async function status(
     action: "unchanged",
     herdrHome: dir,
     modDir: paths.modDir,
+    ideModDir: paths.ideModDir,
     layoutPath: paths.layoutPath,
     modInstalled: await exists(paths.modDir),
+    ideModInstalled: await exists(paths.ideModDir),
     layoutInstalled: await exists(paths.layoutPath),
     activeLayout: current,
     herdrAvailable: current !== "" ||
       (await run(g.herdrBin, ["--version"])).code === 0,
+    checks: [],
     message: current === g.layout ? "swamp-ide layout is active" : "",
     updatedAt: new Date().toISOString(),
   };
@@ -257,8 +346,22 @@ async function status(
 /** The swamp-ide setup model. */
 export const model = {
   type: "@svendowideit/swamp-ide",
-  version: "2026.11.23.1",
+  version: "2026.11.24.4",
   globalArguments: GlobalArgsSchema,
+  upgrades: [
+    {
+      toVersion: "2026.11.23.2",
+      description:
+        "Adds the collapsible Swamp IDE right-hand panel with Activity, shell-out Histogram and component-health indicator widgets.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.24.4",
+      description:
+        "setHerdr now runs herdr-app check against the installed activity, panel and approval mods before switching layout and fails without switching when any check fails; the per-mod results are returned in the herdr data.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
 
   resources: {
     herdr: {

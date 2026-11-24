@@ -46,17 +46,6 @@
                 "weight": 1
               },
               "min": 90
-            },
-            {
-              "id": "swamp-activity",
-              "type": "block",
-              "content": {
-                "mod": "swamp-activity"
-              },
-              "size": {
-                "weight": 1
-              },
-              "min": 120
             }
           ]
         },
@@ -100,6 +89,7 @@
         {
           "id": "work-body",
           "type": "row",
+          "resizable": true,
           "children": [
             {
               "id": "main",
@@ -166,6 +156,7 @@
             {
               "id": "swamp",
               "type": "column",
+              "hidden": true,
               "children": [
                 {
                   "id": "swamp-approvals",
@@ -231,6 +222,67 @@
               "min": 300,
               "max": 700,
               "gap": 8
+            },
+            {
+              "id": "swamp-ide",
+              "type": "column",
+              "children": [
+                {
+                  "id": "swamp-ide-activity",
+                  "type": "block",
+                  "content": {
+                    "mod": "swamp-ide",
+                    "props": {
+                      "section": "activity"
+                    }
+                  },
+                  "size": {
+                    "weight": 3
+                  },
+                  "min": 110
+                },
+                {
+                  "id": "swamp-ide-histogram",
+                  "type": "block",
+                  "content": {
+                    "mod": "swamp-ide",
+                    "props": {
+                      "section": "histogram"
+                    }
+                  },
+                  "size": {
+                    "weight": 2
+                  },
+                  "min": 100
+                },
+                {
+                  "id": "swamp-ide-leases",
+                  "type": "block",
+                  "content": {
+                    "mod": "swamp-ide",
+                    "props": {
+                      "section": "leases"
+                    }
+                  },
+                  "size": {
+                    "weight": 1
+                  },
+                  "min": 90
+                }
+              ],
+              "size": {
+                "px": 420
+              },
+              "min": 240,
+              "max": 900,
+              "gap": 6,
+              "resizable": true,
+              "background": "chrome",
+              "border": {
+                "width": 1,
+                "color": "border"
+              },
+              "radius": 10
             }
           ],
           "padding": 8,
@@ -268,6 +320,17 @@
         }
       ],
       "resizable": false
+    }
+  ],
+  "floating": [
+    {
+      "id": "swamp-ide-approval",
+      "content": {
+        "mod": "swamp-ide-approval"
+      },
+      "edge": "right",
+      "align": "center",
+      "peek": 0
     }
   ],
   "background": "canvas",

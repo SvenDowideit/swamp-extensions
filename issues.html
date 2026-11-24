@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-5038"><span class="tier A">A</span>Extension archive app check ignores pax path overrides, so a</a><a href="#issue-5037"><span class="tier A">A</span>Extension archive extraction reads pax extended-header entri</a><a href="#issue-4847"><span class="tier A">A</span>Docs: document swamp workflow approve --resume in the manual</a><a href="#issue-4855"><span class="tier A">A</span>Docs: nested workflows inherit their caller&#39;s placement (swa</a><a href="#issue-4866"><span class="tier A">A</span>Docs: autoupdate can restart worker and serve daemons, and s</a><a href="#issue-4871"><span class="tier A">A</span>Docs: enrollment token rotation now reaches workers from wor</a><a href="#issue-4199"><span class="tier A">A</span>A malformed --ca-cert file is reported as an unreadable OS c</a><a href="#issue-4959"><span class="tier A">A</span>Docs: resourceSize limits in .swamp.yaml and data query --so</a><a href="#issue-4198"><span class="tier A">A</span>TLS hint blames a missing root CA and macOS for every invali</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4477"><span class="tier A">A</span>A workflow run keeps every step&#39;s resource contents in memor</a><a href="#issue-5038"><span class="tier A">A</span>Extension archive app check ignores pax path overrides, so a</a><a href="#issue-5037"><span class="tier A">A</span>Extension archive extraction reads pax extended-header entri</a><a href="#issue-4847"><span class="tier A">A</span>Docs: document swamp workflow approve --resume in the manual</a><a href="#issue-4855"><span class="tier A">A</span>Docs: nested workflows inherit their caller&#39;s placement (swa</a><a href="#issue-4866"><span class="tier A">A</span>Docs: autoupdate can restart worker and serve daemons, and s</a><a href="#issue-4871"><span class="tier A">A</span>Docs: enrollment token rotation now reaches workers from wor</a><a href="#issue-4199"><span class="tier A">A</span>A malformed --ca-cert file is reported as an unreadable OS c</a><a href="#issue-4959"><span class="tier A">A</span>Docs: resourceSize limits in .swamp.yaml and data query --so</a></aside><div>
 
 <article class="item" id="issue-4852">
 <h2><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4Shell)</h2>
@@ -92,6 +92,14 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-4477">
+<h2><span class="tier A">A</span>A workflow run keeps every step&#39;s resource contents in memory, so a large forEach fan-out can exhaust the heap</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-24T02:40:56.761Z">2026-11-24T02:40:56.761Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4477" rel="noopener">lab#4477</a></div>
 </article>
 <article class="item" id="issue-5038">
 <h2><span class="tier A">A</span>Extension archive app check ignores pax path overrides, so a long path is judged under its truncated ustar name</h2>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4959" rel="noopener">lab#4959</a></div>
 </article>
-<article class="item" id="issue-4198">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4198">
 <h2><span class="tier A">A</span>TLS hint blames a missing root CA and macOS for every invalid peer certificate failure</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-24T02:21:42.951Z">2026-11-24T02:21:42.951Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4198" rel="noopener">lab#4198</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4730">
+<article class="item" id="issue-4730">
 <h2><span class="tier A">A</span>Docs: dashboard and history get name who started and decided a run by username</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-11-24T02:21:42.472Z">2026-11-24T02:21:42.472Z</time></span></div>
@@ -4733,21 +4741,29 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
-<article class="item" id="issue-5025">
-<h2><span class="tier B">B</span>docs: fan-out as one general capability in the swamp CLI repo: a README section on running jobs across hosts, consolidated design docs, and quoted lane and gate names</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-11-24T02:27:38.983Z">2026-11-24T02:27:38.983Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5025" rel="noopener">lab#5025</a></div>
-</article>
 <article class="item" id="issue-5024">
 <h2><span class="tier B">B</span>Team mode: a leader that can&#39;t commit (disk full) keeps its lease and reports ready, so the standby never takes over (10 h 44 min write outage on dogfood)</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-24T02:25:06.171Z">2026-11-24T02:25:06.171Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-24T02:54:46.653Z">2026-11-24T02:54:46.653Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/5024" rel="noopener">lab#5024</a></div>
+</article>
+<article class="item" id="issue-5022">
+<h2><span class="tier B">B</span>Team mode: serve never enforces models&#39; declared data version limits automatically, so history grows without bound (4,712 versions per name vs a declared 10)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-24T02:46:49.804Z">2026-11-24T02:46:49.804Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5022" rel="noopener">lab#5022</a></div>
+</article>
+<article class="item" id="issue-5025">
+<h2><span class="tier B">B</span>docs: fan-out as one general capability in the swamp CLI repo: a README section on running jobs across hosts, consolidated design docs, and quoted lane and gate names</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-24T02:46:48.524Z">2026-11-24T02:46:48.524Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5025" rel="noopener">lab#5025</a></div>
 </article>
 <article class="item" id="issue-5040">
 <h2><span class="tier B">B</span>Team mode: the standby never checks the writer lease while following, so a stalled-but-connected leader is never replaced (89 s stall, lease lapsed ~64 s, no takeover)</h2>
@@ -4756,14 +4772,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/5040" rel="noopener">lab#5040</a></div>
-</article>
-<article class="item" id="issue-4477">
-<h2><span class="tier B">B</span>A workflow run keeps every step&#39;s resource contents in memory, so a large forEach fan-out can exhaust the heap</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-24T02:06:53.811Z">2026-11-24T02:06:53.811Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4477" rel="noopener">lab#4477</a></div>
 </article>
 <article class="item" id="issue-5034">
 <h2><span class="tier B">B</span>Prepare data for better-auth 1.7 while 1.4.22 serves: API key referenceId backfill, device code dedupe and indexes, SAML provider SP metadata</h2>
@@ -4780,14 +4788,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/5023" rel="noopener">lab#5023</a></div>
-</article>
-<article class="item" id="issue-5022">
-<h2><span class="tier B">B</span>Team mode: serve never enforces models&#39; declared data version limits automatically, so history grows without bound (4,712 versions per name vs a declared 10)</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-23T21:22:57.456Z">2026-11-23T21:22:57.456Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5022" rel="noopener">lab#5022</a></div>
 </article>
 <article class="item" id="issue-4994">
 <h2><span class="tier B">B</span>swamp run doctor takes the v3 writer lease even without --fix, so it waits behind any writer and fails while serve runs</h2>
@@ -6199,12 +6199,12 @@ footer .ver{color:var(--acc)}
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
 <p>766 items across 1 source(s) in this window:
-3 critical, 580 notable, 20 routine,
+3 critical, 581 notable, 19 routine,
 163 minor.</p>
 <ul><li><strong>issues</strong> — 766</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-24T02:29:34.295Z">2026-11-24T02:29:34.295Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-24T03:06:02.281Z">2026-11-24T03:06:02.281Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

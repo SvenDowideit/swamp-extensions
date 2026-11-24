@@ -1,4 +1,5 @@
 import { z } from "npm:zod@4";
+import { spawn } from "node:child_process";
 
 const GlobalArgsSchema = z.object({
   accountId: z.string().min(1).describe("Cloudflare account ID"),
@@ -64,17 +65,63 @@ async function cloudflarePages(
   return parsed;
 }
 
+/** Cloudflare returns 8000018 when the same custom domain is already attached. */
+export function isAlreadyBound(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes("8000018") ||
+    message.toLowerCase().includes("already added this custom domain");
+}
+
+/**
+ * Run the Wrangler CLI. Kept in one documented helper so the subprocess
+ * exception is reviewed once rather than inside every method.
+ */
+async function runWrangler(
+  args: string[],
+  env: Record<string, string>,
+): Promise<{ success: boolean; code: number; stdout: string; stderr: string }> {
+  return await new Promise((resolve, reject) => {
+    const child = spawn("npx", ["wrangler", ...args], {
+      env,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk.toString();
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+    child.on("error", reject);
+    child.on("close", (code) => {
+      resolve({
+        success: code === 0,
+        code: code ?? 1,
+        stdout,
+        stderr,
+      });
+    });
+  });
+}
+
 /**
  * Cloudflare Pages direct-upload helper.
  */
 export const model = {
   type: "@svendowideit/cloudflare-pages-wrangler",
-  version: "2026.10.24.2",
+  version: "2026.10.24.3",
   upgrades: [
     {
       toVersion: "2026.10.24.2",
       description:
         "Idempotent project creation and typed method arguments; no schema change",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.24.3",
+      description:
+        "Treat Cloudflare's already-added custom-domain response (8000018) as an idempotent success in bindDomain",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -178,9 +225,8 @@ export const model = {
         if (!stat?.isDirectory) {
           throw new Error(`Directory not found: ${args.directory as string}`);
         }
-        const command = new Deno.Command("npx", {
-          args: [
-            "wrangler",
+        const output = await runWrangler(
+          [
             "pages",
             "deploy",
             args.directory as string,
@@ -191,17 +237,14 @@ export const model = {
             "--commit-dirty",
             "true",
           ],
-          env: {
+          {
             ...Deno.env.toObject(),
             CLOUDFLARE_API_TOKEN: g.apiToken,
             CLOUDFLARE_ACCOUNT_ID: g.accountId,
           },
-          stdout: "piped",
-          stderr: "piped",
-        });
-        const output = await command.output();
-        const stdout = new TextDecoder().decode(output.stdout);
-        const stderr = new TextDecoder().decode(output.stderr);
+        );
+        const stdout = output.stdout;
+        const stderr = output.stderr;
         if (!output.success) {
           throw new Error(
             `Wrangler direct upload failed (${output.code}): ${
@@ -236,13 +279,29 @@ export const model = {
         context: MethodContext,
       ) => {
         const g = context.globalArgs;
-        const result = await cloudflarePages(
-          "POST",
-          `/accounts/${g.accountId}/pages/projects/${args
-            .projectName as string}/domains`,
-          g.apiToken,
-          { name: args.domain as string },
-        );
+        let result: unknown;
+        try {
+          result = await cloudflarePages(
+            "POST",
+            `/accounts/${g.accountId}/pages/projects/${args
+              .projectName as string}/domains`,
+            g.apiToken,
+            { name: args.domain as string },
+          );
+        } catch (error) {
+          if (!isAlreadyBound(error)) throw error;
+          result = {
+            alreadyBound: true,
+            message: "custom domain already added",
+          };
+          context.logger?.info(
+            "Domain {domain} is already bound to {project}; treating as success",
+            {
+              domain: args.domain as string,
+              project: args.projectName as string,
+            },
+          );
+        }
         const handle = await context.writeResource(
           "project",
           args.projectName as string,

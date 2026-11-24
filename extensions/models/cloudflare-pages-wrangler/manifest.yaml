@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/cloudflare-pages-wrangler"
-version: "2026.10.24.2"
+version: "2026.10.24.3"
 description: >
   Direct-upload Cloudflare Pages deployment and custom-domain binding for sites
   that do not use a Git repository.
@@ -11,7 +11,8 @@ description: >
     bind a custom domain, without requiring Git integration or a GitHub
     repository. It wraps the Wrangler direct-upload workflow behind normal
     typed swamp methods so deployments are repeatable, auditable, and secret
-    safe. Prefer it over manual drag-and-drop uploads or a shell script: the
+    safe. Binding a domain that is already attached is treated as an idempotent
+    success. Prefer it over manual drag-and-drop uploads or a shell script: the
     account, token, project name, directory, and domain all come from model
     arguments, and every method writes swamp data.
 

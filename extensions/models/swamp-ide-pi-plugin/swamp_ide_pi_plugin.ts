@@ -67,6 +67,12 @@ const PluginOutputSchema = z.object({
   piVersion: z.string().default(""),
   sessionId: z.string().default(""),
   sessionEnabled: z.boolean().default(false),
+  guardPath: z.string().default(""),
+  guardInstalled: z.boolean().default(false),
+  addinLoaded: z.boolean().default(false),
+  guardLoaded: z.boolean().default(false),
+  addinHeartbeatAt: z.string().default(""),
+  guardHeartbeatAt: z.string().default(""),
   message: z.string().default(""),
   updatedAt: z.string(),
 });
@@ -160,6 +166,11 @@ export function pathsFor(
   };
 }
 
+/** The guard is always global: it must load even when the project addin does not. */
+export function guardPathFor(): string {
+  return join(home(), ".pi", "agent", "extensions", "swamp-ide-guard.ts");
+}
+
 async function piInfo(
   g: GlobalArgs,
 ): Promise<{ available: boolean; version: string }> {
@@ -184,6 +195,84 @@ async function readText(path: string): Promise<string | null> {
   }
 }
 
+const ADDIN_HEARTBEAT = join(home(), ".local/state/swamp-agent-ide/addin.json");
+const GUARD_HEARTBEAT = join(home(), ".local/state/swamp-agent-ide/guard.json");
+
+async function heartbeatInfo(
+  path: string,
+): Promise<{ loaded: boolean; at: string }> {
+  const text = await readText(path);
+  if (!text) return { loaded: false, at: "" };
+  try {
+    const parsed = JSON.parse(text) as Record<string, unknown>;
+    return { loaded: true, at: String(parsed.updatedAt ?? "") };
+  } catch {
+    return { loaded: false, at: "" };
+  }
+}
+
+const SESSION_POINTER = join(
+  home(),
+  ".local/state/swamp-agent-ide/pi-session.json",
+);
+
+/** The newest live pi session, so the enable workflow needs no extra command. */
+export async function discoverPiSession(): Promise<string> {
+  try {
+    const env = Deno.env.get("PI_SESSION_ID") ?? "";
+    if (env) return env;
+  } catch {
+    // ignore
+  }
+  const pointer = await readText(SESSION_POINTER);
+  if (pointer) {
+    try {
+      const parsed = JSON.parse(pointer) as Record<string, unknown>;
+      const at = Date.parse(String(parsed.updatedAt ?? ""));
+      const pointed = String(parsed.session ?? "");
+      if (isFinite(at) && Date.now() - at < 5 * 60_000 && pointed) {
+        return pointed;
+      }
+    } catch {
+      // fall through to session files
+    }
+  }
+
+  const candidates: Array<{ id: string; at: number }> = [];
+  const walk = async (dir: string): Promise<void> => {
+    let entries: AsyncIterable<Deno.DirEntry>;
+    try {
+      entries = Deno.readDir(dir);
+    } catch {
+      return;
+    }
+    for await (const entry of entries) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory) {
+        await walk(path);
+        continue;
+      }
+      if (!entry.isFile || !entry.name.endsWith(".jsonl")) continue;
+      const match = entry.name.match(
+        /_([0-9a-f]{8}-[0-9a-f-]{27,})\.jsonl$/i,
+      );
+      if (!match) continue;
+      try {
+        const info = await Deno.stat(path);
+        const at = info.mtime?.getTime() ?? 0;
+        if (at > Date.now() - 5 * 60_000) {
+          candidates.push({ id: match[1], at });
+        }
+      } catch {
+        // ignore
+      }
+    }
+  };
+  await walk(join(home(), ".pi", "agent", "sessions"));
+  candidates.sort((a, b) => b.at - a.at);
+  return candidates[0]?.id ?? "";
+}
+
 function managed(text: string | null): boolean {
   return Boolean(text && text.includes(MANAGED_MARKER));
 }
@@ -199,6 +288,8 @@ async function install(
     action: "installed" | "updated";
     piAvailable: boolean;
     piVersion: string;
+    guardPath: string;
+    guardInstalled: boolean;
   }
 > {
   const g = ctx.globalArgs;
@@ -224,12 +315,56 @@ async function install(
   }
   await Deno.mkdir(dirname(path), { recursive: true });
   await Deno.writeTextFile(path, source);
+
+  const policyPath = join(dirname(path), "swamp-ide-policy.ts");
+  const policySource = await Deno.readTextFile(
+    ctx.extensionFile("pi/swamp-ide-policy.ts"),
+  );
+  const policyCurrent = await readText(policyPath);
+  if (policyCurrent !== null && !managed(policyCurrent) && !force) {
+    throw new Error(
+      `${policyPath} exists and is not managed by ${MANAGED_MARKER}; ` +
+        "pass --input force=true to replace it",
+    );
+  }
+  await Deno.writeTextFile(policyPath, policySource);
+
+  const guardPath = guardPathFor();
+  const guardSource = await Deno.readTextFile(
+    ctx.extensionFile("pi/swamp-ide-guard.ts"),
+  );
+  const guardCurrent = await readText(guardPath);
+  if (guardCurrent !== null && !managed(guardCurrent) && !force) {
+    throw new Error(
+      `${guardPath} exists and is not managed by ${MANAGED_MARKER}; ` +
+        "pass --input force=true to replace it",
+    );
+  }
+  await Deno.mkdir(dirname(guardPath), { recursive: true });
+  await Deno.writeTextFile(guardPath, guardSource);
+
+  // A global install replaces the legacy project-local copy so pi cannot load
+  // two swamp_ide tools. The project session markers stay: the global addin
+  // and the guard both read them.
+  if (scope === "global") {
+    const projectPath = pathsFor(g, "project").path;
+    const projectText = await readText(projectPath);
+    if (projectText !== null && managed(projectText)) {
+      await Deno.remove(projectPath).catch(() => {});
+      await Deno.remove(
+        join(dirname(projectPath), "swamp-ide-policy.ts"),
+      ).catch(() => {});
+    }
+  }
+
   return {
     path,
     markerDir,
     action: current === null ? "installed" : "updated",
     piAvailable: true,
     piVersion: pi.version,
+    guardPath,
+    guardInstalled: true,
   };
 }
 
@@ -244,28 +379,52 @@ async function uninstall(
     action: "removed" | "unchanged";
     piAvailable: boolean;
     piVersion: string;
+    guardPath: string;
+    guardInstalled: boolean;
   }
 > {
   const g = ctx.globalArgs;
   const pi = await piInfo(g);
   const { path, markerDir } = pathsFor(g, scope);
   const current = await readText(path);
-  if (current === null) {
+  const guardPath = guardPathFor();
+  const guardCurrent = await readText(guardPath);
+  if (current === null && guardCurrent === null) {
     return {
       path,
       markerDir,
       action: "unchanged",
       piAvailable: pi.available,
       piVersion: pi.version,
+      guardPath,
+      guardInstalled: false,
     };
   }
-  if (!managed(current) && !force) {
+  if (current !== null && !managed(current) && !force) {
     throw new Error(
       `${path} is not managed by ${MANAGED_MARKER}; ` +
         "pass --input force=true to remove it",
     );
   }
-  await Deno.remove(path);
+  if (guardCurrent !== null && !managed(guardCurrent) && !force) {
+    throw new Error(
+      `${guardPath} is not managed by ${MANAGED_MARKER}; ` +
+        "pass --input force=true to remove it",
+    );
+  }
+  const policyPath = join(dirname(path), "swamp-ide-policy.ts");
+  const policyCurrent = await readText(policyPath);
+  if (policyCurrent !== null && !managed(policyCurrent) && !force) {
+    throw new Error(
+      `${policyPath} is not managed by ${MANAGED_MARKER}; ` +
+        "pass --input force=true to remove it",
+    );
+  }
+  if (current !== null) await Deno.remove(path);
+  if (policyCurrent !== null) await Deno.remove(policyPath);
+  if (scope === "global" && guardCurrent !== null) {
+    await Deno.remove(guardPath);
+  }
   // Disable every session marker for this scope.
   try {
     for await (const entry of Deno.readDir(markerDir)) {
@@ -282,6 +441,8 @@ async function uninstall(
     action: "removed",
     piAvailable: pi.available,
     piVersion: pi.version,
+    guardPath,
+    guardInstalled: scope === "global" ? false : guardCurrent !== null,
   };
 }
 
@@ -299,6 +460,28 @@ async function enabledSessions(markerDir: string): Promise<string[]> {
   return sessions.sort();
 }
 
+/** Health fields shared by every plugin output. */
+async function healthFields(): Promise<{
+  guardPath: string;
+  guardInstalled: boolean;
+  addinLoaded: boolean;
+  guardLoaded: boolean;
+  addinHeartbeatAt: string;
+  guardHeartbeatAt: string;
+}> {
+  const guardPath = guardPathFor();
+  const addin = await heartbeatInfo(ADDIN_HEARTBEAT);
+  const guard = await heartbeatInfo(GUARD_HEARTBEAT);
+  return {
+    guardPath,
+    guardInstalled: (await readText(guardPath)) !== null,
+    addinLoaded: addin.loaded,
+    guardLoaded: guard.loaded,
+    addinHeartbeatAt: addin.at,
+    guardHeartbeatAt: guard.at,
+  };
+}
+
 /** Build a plugin status record. */
 async function statusFor(
   ctx: MethodContext,
@@ -309,6 +492,9 @@ async function statusFor(
   const { path, markerDir } = pathsFor(g, scope);
   const current = await readText(path);
   const sessions = await enabledSessions(markerDir);
+  const addin = await heartbeatInfo(ADDIN_HEARTBEAT);
+  const guard = await heartbeatInfo(GUARD_HEARTBEAT);
+  const guardPath = guardPathFor();
   return {
     action: "unchanged",
     scope,
@@ -320,6 +506,12 @@ async function statusFor(
     piVersion: pi.version,
     sessionId: sessions[0] ?? "",
     sessionEnabled: sessions.length > 0,
+    guardPath,
+    guardInstalled: (await readText(guardPath)) !== null,
+    addinLoaded: addin.loaded,
+    guardLoaded: guard.loaded,
+    addinHeartbeatAt: addin.at,
+    guardHeartbeatAt: guard.at,
     message: sessions.length
       ? `enabled for ${sessions.join(", ")}`
       : "no session marker",
@@ -367,6 +559,7 @@ async function set(
       piVersion: pi.version,
       sessionId,
       sessionEnabled: false,
+      ...await healthFields(),
       message: sessionId ? `disabled ${sessionId}` : "disabled all sessions",
       updatedAt: new Date().toISOString(),
     };
@@ -375,22 +568,14 @@ async function set(
     };
   }
 
-  const installed = current !== null && managed(current)
-    ? {
-      path,
-      markerDir,
-      action: "unchanged" as const,
-      piAvailable: true,
-      piVersion: pi.version,
-    }
-    : await install(ctx, scope, g.force);
-  const sessionId = args.sessionId || (() => {
-    try {
-      return Deno.env.get("PI_SESSION_ID") ?? "";
-    } catch {
-      return "";
-    }
-  })();
+  const installed = await install(ctx, scope, g.force);
+  const sessionId = args.sessionId || await discoverPiSession();
+  if (!sessionId) {
+    throw new Error(
+      "enabled=true could not discover a live pi session; pass " +
+        "--input sessionId=<pi session id>.",
+    );
+  }
   await Deno.mkdir(markerDir, { recursive: true });
   if (sessionId) {
     await Deno.writeTextFile(
@@ -399,7 +584,7 @@ async function set(
     );
   }
   const data: z.infer<typeof PluginOutputSchema> = {
-    action: installed.action === "unchanged" ? "enabled" : installed.action,
+    action: "enabled",
     scope,
     path: installed.path,
     markerDir: installed.markerDir,
@@ -409,6 +594,7 @@ async function set(
     piVersion: installed.piVersion,
     sessionId,
     sessionEnabled: Boolean(sessionId),
+    ...await healthFields(),
     message: sessionId
       ? `enabled for ${sessionId}`
       : "plugin installed; run /reload in the pi session",
@@ -422,8 +608,28 @@ async function set(
 /** The pi plugin installer/gate. */
 export const model = {
   type: "@svendowideit/swamp-ide-pi-plugin",
-  version: "2026.11.23.1",
+  version: "2026.11.24.4",
   globalArguments: GlobalArgsSchema,
+  upgrades: [
+    {
+      toVersion: "2026.11.23.2",
+      description:
+        "Uses swamp serve for method calls, adds system=swamp, the shell-out histogram, per-program span names, a global fail-closed guard, addin/guard heartbeats, and a human-lease capability policy for protected paths and mutating methods.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.24.3",
+      description:
+        "Every swamp_ide result now starts with a deterministic Authorization line generated from a structured authorization record (read-only, existing lease, approved dialog, blocked/denied/timeout/unavailable); the same fields are recorded in activity events and OTLP spans, and the addin prompt requires the line to be quoted verbatim.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.24.4",
+      description:
+        "Rejects sh -c/bash -c shell wrappers before approval, requires a non-empty reason and goal for every mutation, removes the approval timeout, and selects the latest matching lease feature so an expired feature cannot shadow a fresh one.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
 
   resources: {
     plugin: {
@@ -457,6 +663,7 @@ export const model = {
           piVersion: result.piVersion,
           sessionId: "",
           sessionEnabled: false,
+          ...await healthFields(),
           message: "run /reload in pi to load it",
           updatedAt: new Date().toISOString(),
         };
@@ -487,6 +694,7 @@ export const model = {
           piVersion: result.piVersion,
           sessionId: "",
           sessionEnabled: false,
+          ...await healthFields(),
           message: "run /reload in pi to unload it",
           updatedAt: new Date().toISOString(),
         };

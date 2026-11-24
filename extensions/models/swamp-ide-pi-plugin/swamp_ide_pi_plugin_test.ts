@@ -6,6 +6,7 @@
 import { assert, assertEquals } from "jsr:@std/assert@1";
 import {
   type GlobalArgs,
+  guardPathFor,
   MANAGED_MARKER,
   model,
   pathsFor,
@@ -34,6 +35,10 @@ Deno.test("global paths live under ~/.pi/agent", () => {
   const paths = pathsFor(args({ scope: "global" }), "global");
   assert(paths.path.endsWith("/.pi/agent/extensions/swamp-ide.ts"));
   assert(paths.markerDir.endsWith("/.pi/agent/swamp-ide"));
+});
+
+Deno.test("the guard is always installed globally", () => {
+  assert(guardPathFor().endsWith("/.pi/agent/extensions/swamp-ide-guard.ts"));
 });
 
 Deno.test("the managed marker is stable", () => {

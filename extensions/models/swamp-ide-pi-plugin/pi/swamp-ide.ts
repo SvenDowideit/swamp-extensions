@@ -15,7 +15,7 @@
 //      can prioritise which missing herdr-core/vim method to build next.
 //
 // Configuration (environment):
-//   SWAMP_IDE_MODE=off|advise|enforce   default advise
+//   SWAMP_IDE_MODE=off|advise|enforce   default enforce
 //   SWAMP_IDE_HERDR_MODEL               default herdr-core
 //   SWAMP_IDE_VIM_MODEL                 default vim-controller
 //   SWAMP_IDE_OTEL_ENABLED=false        turn span export off
@@ -25,6 +25,7 @@
 //   SWAMP_IDE_OTEL_ENDPOINT             explicit OTLP/HTTP traces endpoint
 //   SWAMP_AGENT_IDE_EVENT_LOG           default ~/.local/state/swamp-agent-ide/events.jsonl
 //   SWAMP_AGENT_IDE_SHELLOUT_LOG        default ~/.local/state/swamp-agent-ide/shellouts.jsonl
+//   SWAMP_AGENT_IDE_ADDIN_HEARTBEAT     default ~/.local/state/swamp-agent-ide/addin.json
 //   SWAMP_IDE_SERVE=off                disable the swamp serve fast path
 //   SWAMP_SERVE_URL                    default ws://127.0.0.1:9090
 //   SWAMP_BIN                          default swamp
@@ -35,22 +36,33 @@
 // a span is not exported, and a missing serve falls back to the CLI.
 
 import { spawn } from "node:child_process";
-import { randomBytes } from "node:crypto";
-import { existsSync } from "node:fs";
+import { randomBytes, createHash } from "node:crypto";
+import { existsSync, readdirSync } from "node:fs";
 import {
   appendFile,
   mkdir,
   readFile,
+  realpath,
   stat,
   unlink,
   writeFile,
 } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
-import { basename, dirname, join } from "node:path";
+import { basename, dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Type } from "typebox";
+import {
+  authorizationFromLease,
+  blockedAuthorization,
+  classifyCall,
+  formatAuthorization,
+  guardPlan,
+  isShellWrapper,
+  leaseAllows,
+  notRequiredAuthorization,
+} from "./swamp-ide-policy.ts";
 
-const MODE = (process.env.SWAMP_IDE_MODE ?? "advise").toLowerCase();
+const MODE = (process.env.SWAMP_IDE_MODE ?? "enforce").toLowerCase();
 const HERDR_MODEL = process.env.SWAMP_IDE_HERDR_MODEL ?? "herdr-core";
 const VIM_MODEL = process.env.SWAMP_IDE_VIM_MODEL ?? "vim-controller";
 const SWAMP_BIN = process.env.SWAMP_BIN ?? "swamp";
@@ -64,6 +76,18 @@ const EVENT_LOG = process.env.SWAMP_AGENT_IDE_EVENT_LOG ??
   join(homedir(), ".local/state/swamp-agent-ide/events.jsonl");
 const SHELLOUT_LOG = process.env.SWAMP_AGENT_IDE_SHELLOUT_LOG ??
   join(homedir(), ".local/state/swamp-agent-ide/shellouts.jsonl");
+const ADDIN_HEARTBEAT = process.env.SWAMP_AGENT_IDE_ADDIN_HEARTBEAT ??
+  join(homedir(), ".local/state/swamp-agent-ide/addin.json");
+const LEASE_PATH = process.env.SWAMP_AGENT_IDE_LEASE ??
+  join(homedir(), ".local/state/swamp-agent-ide/lease.json");
+const PENDING_APPROVAL = process.env.SWAMP_AGENT_IDE_PENDING ??
+  join(homedir(), ".local/state/swamp-agent-ide/pending-approval.json");
+const APPROVAL_DECISION = process.env.SWAMP_AGENT_IDE_DECISION ??
+  join(homedir(), ".local/state/swamp-agent-ide/approval-decision.json");
+const HERDR_HOME = process.env.HERDR_APP_HOME ??
+  join(homedir(), ".config/herdr-app");
+const APPROVAL_DURATION_MS = 10 * 60_000;
+const ADDIN_LOADED_AT = new Date().toISOString();
 const SERVE_ENABLED = process.env.SWAMP_IDE_SERVE !== "off";
 const SERVE_URL_RAW = (process.env.SWAMP_IDE_SERVE_URL ??
   process.env.SWAMP_SERVE_URL ?? "").trim();
@@ -88,10 +112,216 @@ function randomHex(bytes) {
 }
 
 /** Only the sessions with an explicit marker get the tool and hooks. */
+function markerDirs() {
+  const dirs = [
+    MARKER_DIR,
+    join(homedir(), ".pi", "agent", "swamp-ide"),
+  ];
+  let dir = process.cwd();
+  for (let i = 0; i < 8; i++) {
+    dirs.push(join(dir, ".pi", "swamp-ide"));
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return dirs;
+}
+
+/** Pi does not put PI_SESSION_ID in the extension process; fall back to the
+ * single enabled marker so the workflow's global marker still matches. */
+function currentSessionId() {
+  const env = process.env.PI_SESSION_ID ?? "";
+  if (env) return env;
+  const ids = new Set();
+  for (const dir of markerDirs()) {
+    try {
+      for (const name of readdirSync(dir)) {
+        if (name.endsWith(".enabled")) {
+          ids.add(name.slice(0, -".enabled".length));
+        }
+      }
+    } catch {
+      // no marker directory
+    }
+  }
+  return ids.size === 1 ? [...ids][0] : "";
+}
+
 function sessionEnabled() {
   if (process.env.SWAMP_IDE_FORCE === "1") return true;
-  const id = process.env.PI_SESSION_ID;
-  return Boolean(id && existsSync(join(MARKER_DIR, `${id}.enabled`)));
+  const id = currentSessionId();
+  if (!id) return false;
+  return markerDirs().some((markerDir) =>
+    existsSync(join(markerDir, `${id}.enabled`))
+  );
+}
+
+async function readLease() {
+  try {
+    return JSON.parse(await readFile(LEASE_PATH, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+async function canonicalPath(path, cwd) {
+  const raw = String(path ?? "");
+  if (!raw) return "";
+  const expanded = raw.startsWith("~")
+    ? join(homedir(), raw.slice(1))
+    : raw;
+  const target = isAbsolute(expanded) ? expanded : join(cwd, expanded);
+  try {
+    return await realpath(target);
+  } catch {
+    try {
+      return join(await realpath(dirname(target)), basename(target));
+    } catch {
+      return target;
+    }
+  }
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function herdrRunning() {
+  return existsSync(join(HERDR_HOME, "herdr-app.sock"));
+}
+
+function effectFor(system, model, method, input) {
+  if (system === "swamp") {
+    if (model === "ide-openobserve" && method === "dashboard") {
+      return "Create or update the OpenObserve 'Swamp Agent IDE' dashboard and its six panels.";
+    }
+    if (model === "ide-pi" && method === "set") {
+      return "Install/update the global pi addin, guard, policy and the session marker.";
+    }
+    if (model === "ide-pi" && method === "install") {
+      return "Install the managed pi addin, guard and policy files.";
+    }
+    if (model === "ide" && method === "setHerdr") {
+      return "Install and select the Herdr Swamp IDE mods and layout.";
+    }
+    return `Run ${model}.${method} with the inputs shown below.`;
+  }
+  if (system === "herdr-core") {
+    if (method === "exec" || method === "run") {
+      return "Run the exact command in the cwd shown below.";
+    }
+    if (method === "file-write" || method === "file-edit" || method === "file-edit-lines") {
+      return `Write or edit exactly: ${input?.path ?? "the path shown below"}.`;
+    }
+    if (method === "send" || method === "keys") {
+      return "Send input to a live terminal.";
+    }
+    return `Run herdr-core ${method}.`;
+  }
+  if (system === "vim") {
+    return `Run Vim ${method} against the buffer shown below.`;
+  }
+  return "Run the action shown below.";
+}
+
+/** Ask the Herdr approval mod. The addin only writes the request; the human UI
+ * writes the lease and decision, so the agent cannot self-approve. */
+async function requestHerdrApproval({
+  decision,
+  params,
+  ctx,
+  system,
+  model,
+  command,
+  signal,
+}) {
+  if (!herdrRunning()) return "unavailable";
+  const id = `appr-${Date.now().toString(36)}-${randomHex(4)}`;
+  const now = new Date();
+  const pending = {
+    id,
+    session: currentSessionId(),
+    createdAt: now.toISOString(),
+    reason: String(params.reason ?? decision.reason ?? "mutation requested"),
+    goal: String(params.goal ?? `Allow ${model}.${params.method}`),
+    scope: String(decision.scope),
+    action: String(decision.scope),
+    system: String(system),
+    model: String(model),
+    method: String(params.method),
+    input: params.input ?? {},
+    path: decision.scope.startsWith("file:")
+      ? decision.scope.slice("file:".length)
+      : decision.scope.startsWith("protected:")
+      ? decision.scope.slice("protected:".length)
+      : String(params.input?.path ?? ""),
+    effect: effectFor(system, model, params.method, params.input),
+    command,
+    durationMs: APPROVAL_DURATION_MS,
+    risk: command ? "runs a command" : "changes state",
+  };
+  try {
+    await mkdir(dirname(PENDING_APPROVAL), { recursive: true });
+    await writeFile(PENDING_APPROVAL, JSON.stringify(pending, null, 2), "utf8");
+    await unlink(APPROVAL_DECISION).catch(() => {});
+  } catch {
+    return "unavailable";
+  }
+
+  for (;;) {
+    if (signal?.aborted) {
+      await unlink(PENDING_APPROVAL).catch(() => {});
+      return "cancelled";
+    }
+    try {
+      const text = await readFile(APPROVAL_DECISION, "utf8");
+      const replied = JSON.parse(text);
+      if (replied?.id === id) {
+        await unlink(PENDING_APPROVAL).catch(() => {});
+        await unlink(APPROVAL_DECISION).catch(() => {});
+        return String(replied.decision ?? "deny");
+      }
+    } catch {
+      // wait for the human
+    }
+    await sleep(500);
+  }
+}
+
+/** Write proof that the addin loaded and knows its active tool set. */
+async function writeAddinHeartbeat(pi, extra = {}) {
+  try {
+    await mkdir(dirname(ADDIN_HEARTBEAT), { recursive: true });
+    await writeFile(
+      ADDIN_HEARTBEAT,
+      JSON.stringify({
+        component: "addin",
+        loadedAt: ADDIN_LOADED_AT,
+        updatedAt: new Date().toISOString(),
+        pid: process.pid,
+        session: currentSessionId(),
+        mode: MODE,
+        activeTools: typeof pi.getAllTools === "function"
+          ? pi.getActiveTools?.() ?? []
+          : [],
+        allTools: typeof pi.getAllTools === "function"
+          ? pi.getAllTools().map((tool) => tool.name)
+          : [],
+        swampIdeRegistered: typeof pi.getAllTools === "function"
+          ? pi.getAllTools().some((tool) => tool.name === "swamp_ide")
+          : false,
+        serveEnabled: SERVE_ENABLED,
+        serveConnected: Boolean(
+          serveClient && serveClient.ws?.readyState === 1,
+        ),
+        serveUrl: normalizeServeUrl(SERVE_URL_RAW),
+        ...extra,
+      }),
+      "utf8",
+    );
+  } catch {
+    // The panel will show the missing heartbeat; never break the tool call.
+  }
 }
 
 function truncate(value, max = 4000) {
@@ -442,6 +672,18 @@ function formatServeRun(model, method, outputs, reports, completed) {
     if (report.markdown) lines.push(report.markdown);
     else if (report.error) lines.push(`report failed: ${report.error}`);
   }
+  for (const artifact of completed?.dataArtifacts ?? []) {
+    const attributes = artifact?.attributes ?? {};
+    const text = attributes.text ?? attributes.content ?? attributes.stdout;
+    if (typeof text === "string" && text.trim()) {
+      lines.push(`── Data: ${artifact.name} ──`);
+      lines.push(text);
+    }
+    if (typeof attributes.stderr === "string" && attributes.stderr.trim()) {
+      lines.push(`── stderr: ${artifact.name} ──`);
+      lines.push(attributes.stderr);
+    }
+  }
   if (completed) {
     lines.push(
       `Completed   ${method} on ${model} ${completed.status} in ${completed.duration}ms`,
@@ -609,6 +851,16 @@ async function emitToolSpan(info, sessionId, cwd) {
 
   const attributes = {
     "swamp.agent.tool.name": info.toolName ?? "unknown",
+    ...(info.authorization
+      ? {
+        "swamp.agent.authorization.status": info.authorization.status,
+        "swamp.agent.authorization.scope": info.authorization.scope ?? "",
+        "swamp.agent.authorization.via": info.authorization.via ?? "",
+        "swamp.agent.authorization.feature": info.authorization.feature ?? "",
+        "swamp.agent.authorization.approval": info.authorization.approval ?? "",
+        "swamp.agent.authorization.reason": info.authorization.reason ?? "",
+      }
+      : {}),
     "swamp.agent.tool.routed": route === "herdr-core" || route === "vim",
     "swamp.agent.tool.bypass": bypass,
     "swamp.agent.tool.blocked": info.blocked === true,
@@ -860,6 +1112,97 @@ function splitShellWords(text) {
   return words;
 }
 
+function parseDurationMs(value) {
+  const match = String(value ?? "").trim().match(/^(\d+)([smhd])$/i);
+  if (!match) return 0;
+  const unit = match[2].toLowerCase();
+  const factor = unit === "s"
+    ? 1000
+    : unit === "m"
+    ? 60_000
+    : unit === "h"
+    ? 3_600_000
+    : 86_400_000;
+  return Number(match[1]) * factor;
+}
+
+const TEST_ARGV = [
+  join(homedir(), ".swamp/deno/deno"),
+  "test",
+  "--allow-all",
+  "extensions/models/swamp-ide-pi-plugin/swamp_ide_policy_test.ts",
+  "extensions/models/swamp-ide-pi-plugin/swamp_ide_pi_plugin_test.ts",
+];
+
+function repoRoot() {
+  let dir = process.cwd();
+  for (let i = 0; i < 8; i++) {
+    if (existsSync(join(dir, "extensions", "models"))) return dir;
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return process.cwd();
+}
+
+function actionScopes(actions) {
+  const root = repoRoot();
+  const addin = join(
+    root,
+    "extensions/models/swamp-ide-pi-plugin/pi/swamp-ide.ts",
+  );
+  const policy = join(
+    root,
+    "extensions/models/swamp-ide-pi-plugin/pi/swamp-ide-policy.ts",
+  );
+  const pluginDir = join(root, "extensions/models/swamp-ide-pi-plugin");
+  const swampIdeDir = join(root, "extensions/models/swamp-ide");
+  const allSource = [
+    addin,
+    policy,
+    join(pluginDir, "swamp_ide_policy_test.ts"),
+    join(pluginDir, "swamp_ide_pi_plugin_test.ts"),
+    join(pluginDir, "manifest.yaml"),
+    join(pluginDir, "README.md"),
+    join(swampIdeDir, "herdr/main.js"),
+    join(swampIdeDir, "herdr/mod.json"),
+    join(swampIdeDir, "herdr/swamp-ide/main.js"),
+    join(swampIdeDir, "herdr/swamp-ide/mod.json"),
+    join(swampIdeDir, "herdr/swamp-ide-approval/main.js"),
+    join(swampIdeDir, "herdr/swamp-ide-approval/mod.json"),
+    join(swampIdeDir, "herdr/layout.json"),
+    join(swampIdeDir, "swamp_ide.ts"),
+    join(swampIdeDir, "manifest.yaml"),
+    join(swampIdeDir, "README.md"),
+    join(swampIdeDir, "enable.yaml"),
+    join(swampIdeDir, "disable.yaml"),
+  ];
+  const out = [];
+  for (const action of String(actions ?? "").split(",")) {
+    const name = action.trim();
+    if (!name) continue;
+    if (name === "edit-addin") {
+      out.push(`protected:${addin}`, `protected:${policy}`);
+    } else if (name === "edit-swamp-ide") {
+      for (const path of allSource) out.push(`protected:${path}`);
+    } else if (name === "install-addin") {
+      out.push("swamp:ide-pi.set");
+    } else if (name === "install-herdr-panel") {
+      out.push("swamp:ide.setHerdr");
+    } else if (name === "update-dashboard") {
+      out.push("swamp:ide-openobserve.dashboard");
+    } else if (name === "run-tests") {
+      const hash = createHash("sha256").update(
+        JSON.stringify({ argv: TEST_ARGV, cwd: root }),
+      ).digest("hex").slice(0, 16);
+      out.push(`exec:${hash}`);
+    } else {
+      out.push(name);
+    }
+  }
+  return [...new Set(out)];
+}
+
 /** The executable one shell segment runs, with wrappers and assignments removed. */
 function shelloutFromSegment(segment) {
   const words = splitShellWords(segment);
@@ -912,6 +1255,28 @@ function shelloutFromSegment(segment) {
   return { program, subcommand, builtin: SHELL_BUILTINS.has(program) };
 }
 
+function shelloutsFromArgv(argv) {
+  if (!Array.isArray(argv) || argv.length === 0) return [];
+  const parts = argv.map(String);
+  const base = basename(parts[0]);
+  if (
+    ["sh", "bash", "zsh", "dash"].includes(base) &&
+    parts[1] === "-c" &&
+    parts[2]
+  ) {
+    return shelloutsFromCommand(parts[2]);
+  }
+  let subcommand = "";
+  if (SUBCOMMAND_PROGRAMS.has(base)) {
+    for (let i = 1; i < parts.length; i++) {
+      if (parts[i].startsWith("-")) continue;
+      subcommand = parts[i];
+      break;
+    }
+  }
+  return [{ program: base, subcommand, builtin: false }];
+}
+
 /** Every executable a bash command runs, one per shell segment. */
 function shelloutsFromCommand(command) {
   return splitShellSegments(command)
@@ -922,7 +1287,11 @@ function shelloutsFromCommand(command) {
 /** Append one line per shelled-out program, for the prioritisation histogram. */
 async function appendShellouts(info, shellouts, ctx) {
   const ts = new Date(info.endMs ?? Date.now()).toISOString();
-  const category = info.route === "bypass" ? "bypass" : "other";
+  const category = info.route === "bypass"
+    ? "bypass"
+    : info.route === "herdr-core"
+    ? "routed"
+    : "other";
   const durationMs = Math.max(
     0,
     (info.endMs ?? Date.now()) - (info.startMs ?? Date.now()),
@@ -1056,16 +1425,61 @@ function hintForBash(command) {
 export default function swampIde(pi) {
   if (!sessionEnabled()) return;
 
+  void writeAddinHeartbeat(pi);
+  void connectServe().then(() => writeAddinHeartbeat(pi));
+  void appendActivity({
+    ts: ADDIN_LOADED_AT,
+    source: "pi",
+    kind: "startup",
+    name: "swamp_ide addin",
+    method: "",
+    target: "",
+    machine: "",
+    route: "other",
+    outcome: "success",
+    durationMs: 0,
+    model: "pi",
+    detail: `mode=${MODE}`,
+    command: "",
+    error: "",
+    session: currentSessionId(),
+    cwd: process.cwd(),
+    blocked: false,
+  });
+
   pi.on("before_agent_start", async (event) => {
     try {
       const options = event.systemPromptOptions;
-      if (!options) return;
-      options.promptGuidelines ??= [];
-      options.promptGuidelines.push(
-        "Use swamp_ide system=herdr-core for file reads, writes, exact edits, ripgrep search, running tests, and terminal/agent inspection instead of bash/read/write/edit/grep.",
-        "Use swamp_ide system=vim when the person is watching a Vim buffer: read before editing and annotate the agent's position instead of moving their cursor.",
-        "Use bash only for commands swamp_ide does not cover (git, the swamp CLI, one-off probes).",
-      );
+      if (options) {
+        options.promptGuidelines ??= [];
+        options.promptGuidelines.push(
+          "Only swamp_ide is available in enforce mode. There is no bash, read, write, edit or grep tool. For files, search, commands and terminals use swamp_ide system=herdr-core. For live buffers use system=vim. For any swamp model method use system=swamp with model=<instance>.",
+          "Use swamp_ide system=swamp model=ide-openobserve method=dashboard for extension methods such as the OpenObserve dashboard; do not look for a swamp CLI.",
+          "If a task truly cannot be expressed through swamp_ide, stop and report the missing method; do not ask for a shell.",
+        );
+      }
+
+      if (MODE === "enforce") {
+        const names = typeof pi.getAllTools === "function"
+          ? pi.getAllTools().map((tool) => tool.name)
+          : [];
+        const plan = guardPlan(names);
+        // Never blank the tool set: if swamp_ide did not register, leave the
+        // baseline enabled and record that tracking is off.
+        if (plan.activeTools.length > 0) {
+          try {
+            pi.setActiveTools(plan.activeTools);
+          } catch {
+            // The guard is the second layer and degrades safely too.
+          }
+        }
+        await writeAddinHeartbeat(pi, {
+          swampIdeRegistered: plan.hasSwampIde,
+          activeTools: pi.getActiveTools?.() ?? [],
+          enforced: plan.enforcing,
+          reason: plan.reason,
+        });
+      }
     } catch {
       // Hooks must never break the turn.
     }
@@ -1103,8 +1517,8 @@ export default function swampIde(pi) {
       }
       if (MODE !== "enforce") return;
       if (toolName === "swamp_ide") return;
+      if (info) info.blocked = true;
       if (BYPASS_TOOLS.has(toolName)) {
-        if (info) info.blocked = true;
         return {
           block: true,
           reason: hintForTool(toolName, event.input ?? {}),
@@ -1112,11 +1526,13 @@ export default function swampIde(pi) {
       }
       if (toolName === "bash") {
         const command = String(event.input?.command ?? "");
-        if (BYPASS_BASH.test(command)) {
-          if (info) info.blocked = true;
-          return { block: true, reason: hintForBash(command) };
-        }
+        return { block: true, reason: hintForBash(command) };
       }
+      return {
+        block: true,
+        reason:
+          "Only swamp_ide is available in enforce mode. Use system=herdr-core for files, search, commands and terminals; system=vim for live buffers; system=swamp model=<instance> for swamp model methods.",
+      };
     } catch {
       // ignore
     }
@@ -1134,7 +1550,13 @@ export default function swampIde(pi) {
       const toolName = info.toolName;
       const routed = toolName === "swamp_ide";
       const bash = toolName === "bash" ? String(info.args?.command ?? "") : "";
-      const shellouts = toolName === "bash" ? shelloutsFromCommand(bash) : [];
+      const routedArgv = toolName === "swamp_ide" &&
+          (info.method === "exec" || info.method === "run")
+        ? shelloutsFromArgv(info.args?.input?.argv)
+        : [];
+      const shellouts = toolName === "bash"
+        ? shelloutsFromCommand(bash)
+        : routedArgv;
       const bypass = !routed &&
         (BYPASS_TOOLS.has(toolName) ||
           (toolName === "bash" && BYPASS_BASH.test(bash)));
@@ -1143,7 +1565,11 @@ export default function swampIde(pi) {
       info.error = event.isError ? truncate(resultText(event.result), 500) : "";
       info.result = truncate(resultText(event.result), 2000);
       info.route = routed
-        ? (info.system === "vim" ? "vim" : "herdr-core")
+        ? (info.system === "vim"
+          ? "vim"
+          : info.system === "swamp"
+          ? "swamp"
+          : "herdr-core")
         : (bypass ? "bypass" : "other");
       info.shell = shellouts.length > 0
         ? {
@@ -1156,13 +1582,26 @@ export default function swampIde(pi) {
           category: info.route === "bypass" ? "bypass" : "other",
         }
         : undefined;
+      const shellLabel = shellouts.length > 0
+        ? shellouts
+          .map((item) =>
+            item.subcommand
+              ? `${item.program}.${item.subcommand}`
+              : item.program
+          )
+          .join("+")
+        : "bash";
       info.spanName = routed
-        ? `swamp_ide.${info.system === "vim" ? "vim" : "herdr-core"}.${
-          info.method ?? "call"
-        }`
+        ? `swamp_ide.${
+          info.system === "vim"
+            ? "vim"
+            : info.system === "swamp"
+            ? "swamp"
+            : "herdr-core"
+        }.${info.method ?? "call"}`
         : bypass
-        ? `bypass.${toolName}`
-        : `tool.${toolName}`;
+        ? (toolName === "bash" ? `bypass.bash.${shellLabel}` : `bypass.${toolName}`)
+        : (toolName === "bash" ? `tool.bash.${shellLabel}` : `tool.${toolName}`);
       info.bypassReason = bypass
         ? `used built-in ${toolName} instead of swamp_ide`
         : "";
@@ -1189,9 +1628,16 @@ export default function swampIde(pi) {
         error: info.error ?? "",
         session: ctx.sessionId ?? "",
         cwd: ctx.cwd ?? "",
+        authStatus: info.authorization?.status ?? "",
+        authScope: info.authorization?.scope ?? "",
+        authVia: info.authorization?.via ?? "",
+        authFeature: info.authorization?.feature ?? "",
+        authApproval: info.authorization?.approval ?? "",
+        authReason: info.authorization?.reason ?? "",
         blocked: info.blocked === true,
       });
       await emitToolSpan(info, ctx.sessionId, ctx.cwd);
+      await writeAddinHeartbeat(pi);
     } catch {
       // ignore
     }
@@ -1201,9 +1647,10 @@ export default function swampIde(pi) {
     name: "swamp_ide",
     label: "Swamp IDE",
     description:
-      "Run a @svendowideit/herdr-core or @svendowideit/vim-controller method against a " +
-      "live session. Use herdr-core for terminals, files, search, exec and " +
-      "the machine fleet; use vim for the buffer a person is watching. " +
+      "Run a @svendowideit/herdr-core, @svendowideit/vim-controller or arbitrary swamp model method " +
+      "against a live session. Use herdr-core for terminals, files, search, exec and " +
+      "the machine fleet; use vim for the buffer a person is watching; use system=swamp " +
+      "with model=<instance> for any swamp model method (for example the OpenObserve dashboard). " +
       "Methods (herdr-core): status, terminals, read, run, send, keys, " +
       "interrupt, kill, rm, put, wait, exec, file-read, file-write, " +
       "file-edit, file-edit-lines, search, machines, machine-add, " +
@@ -1212,18 +1659,33 @@ export default function swampIde(pi) {
       "annotate, select, diff, command, expr, keys, diagnostics, undo, " +
       "close, otel-status.",
     promptSnippet:
-      "Run swamp herdr-core/vim methods for file, search, run and live editor work",
+      "Run swamp herdr-core/vim/swamp methods; the only tool in enforce mode",
     promptGuidelines: [
       "Use swamp_ide system=herdr-core method=file-read/search/file-edit/run/exec instead of bash, read, write, edit or grep for code work.",
       "Use swamp_ide system=vim method=read/edit/annotate when the person is watching a Vim buffer; read before editing.",
-      "Use bash only for commands swamp_ide does not cover (git, the swamp CLI, one-off probes).",
+      "Use swamp_ide system=swamp model=<instance> method=<method> for any swamp model method; do not use a swamp CLI.",
+      "When a swamp_ide result starts with an Authorization: line, quote that line verbatim in your response; do not paraphrase or invent an authorization explanation.",
+      "Never use sh -c, bash -c, or another shell wrapper for a swamp_ide exec/run. The approval must show the complete exact argv and your explanation; multi-step work must use a committed named script whose full contents were read and shown.",
     ],
     parameters: Type.Object({
-      system: Type.Union([Type.Literal("herdr-core"), Type.Literal("vim")]),
+      system: Type.Union([
+        Type.Literal("herdr-core"),
+        Type.Literal("vim"),
+        Type.Literal("swamp"),
+      ]),
       method: Type.String({ description: "The swamp method to run." }),
       input: Type.Optional(Type.Record(Type.String(), Type.Any())),
       model: Type.Optional(Type.String({
-        description: "Override the swamp model instance name.",
+        description:
+          "Swamp model instance name; required when system=swamp.",
+      })),
+      reason: Type.Optional(Type.String({
+        description:
+          "Why this mutation is needed; shown in the Herdr approval dialog.",
+      })),
+      goal: Type.Optional(Type.String({
+        description:
+          "What this mutation will achieve; shown in the Herdr approval dialog.",
       })),
       timeout: Type.Optional(Type.Number({
         description: "Seconds before the swamp run is cancelled.",
@@ -1232,8 +1694,11 @@ export default function swampIde(pi) {
     async execute(toolCallId, params, signal, _onUpdate, ctx) {
       const info = calls.get(toolCallId);
       const system = params.system;
+      if (system === "swamp" && !params.model) {
+        throw new Error("swamp_ide system=swamp requires model=<instance>");
+      }
       const model = params.model ||
-        (system === "vim" ? VIM_MODEL : HERDR_MODEL);
+        (system === "vim" ? VIM_MODEL : system === "swamp" ? "" : HERDR_MODEL);
       const timeout = params.timeout ?? 600;
       const timeoutMs = (timeout + 5) * 1000;
 
@@ -1245,6 +1710,175 @@ export default function swampIde(pi) {
         info.system = system;
         info.method = params.method;
       }
+
+      const sessionCwd = ctx?.cwd ?? process.cwd();
+      const requestedCwd = params.input?.cwd;
+      const cwd = requestedCwd
+        ? (isAbsolute(String(requestedCwd))
+          ? String(requestedCwd)
+          : join(sessionCwd, String(requestedCwd)))
+        : sessionCwd;
+      let canonical = "";
+      if (params.input?.path) {
+        canonical = await canonicalPath(String(params.input.path), cwd);
+      }
+      const commandHash = system === "herdr-core" &&
+          (params.method === "exec" || params.method === "run")
+        ? createHash("sha256").update(
+          JSON.stringify({ argv: params.input?.argv ?? [], cwd }),
+        ).digest("hex").slice(0, 16)
+        : "";
+      if (system === "herdr-core" &&
+        (params.method === "exec" || params.method === "run") &&
+        isShellWrapper(params.input?.argv)
+      ) {
+        const blocked = blockedAuthorization(
+          "exec:shell-wrapper",
+          null,
+          "a shell wrapper hides the real command from the approval dialog and cannot be approved",
+        );
+        if (info) info.authorization = blocked;
+        throw new Error(
+          `${formatAuthorization(blocked)}\n` +
+            "Show the complete exact argv instead, or commit a named script whose full contents you have read and show the script path.",
+        );
+      }
+      const decision = classifyCall({
+        system,
+        method: params.method,
+        model,
+        input: params.input,
+        cwd,
+        home: homedir(),
+        canonicalPath: canonical,
+        commandHash,
+      });
+      if (decision.mutating) {
+        if (!String(params.reason ?? "").trim() || !String(params.goal ?? "").trim()) {
+          const blocked = blockedAuthorization(
+            decision.scope,
+            null,
+            "a mutation request is missing a complete reason and goal and cannot be approved",
+          );
+          if (info) info.authorization = blocked;
+          throw new Error(
+            `${formatAuthorization(blocked)}\n` +
+              "Provide both reason and goal, describing the command and its effect, then retry.",
+          );
+        }
+      }
+      let authorization = decision.mutating
+        ? blockedAuthorization(decision.scope, null, decision.reason)
+        : notRequiredAuthorization(decision.reason);
+      if (decision.mutating) {
+        let lease = await readLease();
+        if (leaseAllows(lease, String(decision.scope), String(currentSessionId()))) {
+          authorization = authorizationFromLease(
+            lease,
+            decision.scope,
+            "lease",
+          );
+        } else {
+          const command = system === "herdr-core" &&
+              (params.method === "exec" || params.method === "run")
+            ? { argv: params.input?.argv ?? [], cwd }
+            : null;
+          const approval = await requestHerdrApproval({
+            decision,
+            params,
+            ctx,
+            system,
+            model,
+            command,
+            signal,
+          });
+          if (approval === "approve") {
+            lease = await readLease();
+            if (
+              !leaseAllows(
+                lease,
+                String(decision.scope),
+                String(currentSessionId()),
+              )
+            ) {
+              authorization = blockedAuthorization(
+                decision.scope,
+                "approve",
+                "you approved, but no matching lease was written",
+              );
+              throw new Error(
+                `${formatAuthorization(authorization)}\nNo action was performed.`,
+              );
+            }
+            authorization = authorizationFromLease(
+              lease,
+              decision.scope,
+              "dialog",
+              "approve",
+            );
+          } else if (approval === "deny") {
+            authorization = blockedAuthorization(
+              decision.scope,
+              "deny",
+              "you denied the Herdr dialog",
+            );
+            throw new Error(
+              `${formatAuthorization(authorization)}\nNo action was performed.`,
+            );
+          } else if (approval === "fallback") {
+            authorization = blockedAuthorization(
+              decision.scope,
+              "fallback",
+              "the Herdr dialog was closed without a decision",
+            );
+            throw new Error(
+              `${formatAuthorization(authorization)}\n` +
+                `Approve from pi with the exact command below.\n` +
+                `/swamp-ide approve ${decision.scope} 10m\n` +
+                `command: ${JSON.stringify(params.input ?? {})}`,
+            );
+          } else if (approval === "explain") {
+            authorization = blockedAuthorization(
+              decision.scope,
+              "explain",
+              "you asked for an explanation instead of approving",
+            );
+            throw new Error(
+              `${formatAuthorization(authorization)}\n` +
+                "Re-call with a clearer reason and goal; no action was performed.",
+            );
+          } else if (approval === "cancelled") {
+            authorization = blockedAuthorization(
+              decision.scope,
+              "cancelled",
+              "the approval request was cancelled",
+            );
+            throw new Error(
+              `${formatAuthorization(authorization)}\nNo action was performed.`,
+            );
+          } else if (approval === "timeout") {
+            authorization = blockedAuthorization(
+              decision.scope,
+              "timeout",
+              "the Herdr dialog was not answered before the 120s timeout",
+            );
+            throw new Error(
+              `${formatAuthorization(authorization)}\nNo action was performed.`,
+            );
+          } else {
+            authorization = blockedAuthorization(
+              decision.scope,
+              "unavailable",
+              "Herdr was not running, so no approval dialog could be shown",
+            );
+            throw new Error(
+              `${formatAuthorization(authorization)}\n` +
+                `Run /swamp-ide approve ${decision.scope} 10m from pi to authorize it.`,
+            );
+          }
+        }
+      }
+      if (info) info.authorization = authorization;
 
       // The serve fast path runs in the server's warm repo, so no per-call
       // swamp process, extension load, or datastore lock handshake. If the
@@ -1259,12 +1893,16 @@ export default function swampIde(pi) {
       });
       if (served) {
         return {
-          content: [{ type: "text", text: served.text }],
+          content: [{
+            type: "text",
+            text: `${formatAuthorization(authorization)}\n\n${served.text}`,
+          }],
           details: {
             ...served.details,
             system,
             method: params.method,
             model,
+            authorization,
           },
         };
       }
@@ -1287,16 +1925,17 @@ export default function swampIde(pi) {
           TRACEPARENT: `00-${traceId}-${spanId}-01`,
         };
         const result = await runProcess(SWAMP_BIN, args, {
-          cwd: ctx.cwd,
+          cwd,
           env,
           timeoutMs,
         });
         const text = [
+          formatAuthorization(authorization),
           `$ ${SWAMP_BIN} ${args.join(" ")}`,
           result.stdout.trim(),
           result.stderr.trim(),
           `exit ${result.code ?? "?"}`,
-        ].filter(Boolean).join("\n");
+        ].filter(Boolean).join("\n\n");
         if (result.code !== 0) {
           throw Object.assign(new Error(text), { partialText: text });
         }
@@ -1308,6 +1947,7 @@ export default function swampIde(pi) {
             model,
             via: "cli",
             exitCode: result.code,
+            authorization,
           },
         };
       } finally {
@@ -1322,14 +1962,169 @@ export default function swampIde(pi) {
     description:
       "Show the swamp IDE routing mode, OTLP, serve and shell-out histogram",
     handler: async (args, ctx) => {
-      const text = String(args ?? "").trim().toLowerCase();
+      const raw = String(args ?? "").trim();
+      const [verb, ...rest] = raw.split(/\s+/);
+      if (verb === "grant") {
+        const feature = rest[0] || "";
+        const scopes = actionScopes(rest[1] || "");
+        const duration = rest[2] || "";
+        const untilRevoked = duration === "until-revoked";
+        const durationMs = untilRevoked ? 0 : parseDurationMs(duration);
+        if (!feature || !scopes.length || (!untilRevoked && !durationMs)) {
+          ctx.ui.notify(
+            "usage: /swamp-ide grant <feature> <action[,action]> <30s|10m|1h|until-revoked>",
+            "error",
+          );
+          return;
+        }
+        const current = await readLease();
+        const features = current?.features && typeof current.features === "object"
+          ? { ...current.features }
+          : {};
+        features[feature] = {
+          scopes,
+          untilRevoked,
+          expiresAt: untilRevoked
+            ? "2099-01-01T00:00:00.000Z"
+            : new Date(Date.now() + durationMs).toISOString(),
+        };
+        const allScopes = [
+          ...new Set(
+            Object.values(features).flatMap((entry) =>
+              Array.isArray(entry.scopes) ? entry.scopes : []
+            ),
+          ),
+        ];
+        const expiresAt = new Date(
+          Math.max(
+            ...Object.values(features).map((entry) =>
+              Date.parse(String(entry.expiresAt ?? ""))
+            ),
+          ),
+        ).toISOString();
+        const scopeExpiry = {};
+        for (const entry of Object.values(features)) {
+          for (const scope of entry.scopes ?? []) {
+            scopeExpiry[scope] = entry.expiresAt;
+          }
+        }
+        await mkdir(dirname(LEASE_PATH), { recursive: true });
+        await writeFile(
+          LEASE_PATH,
+          JSON.stringify({
+            session: currentSessionId(),
+            features,
+            scopes: allScopes,
+            scopeExpiry,
+            issuedAt: new Date().toISOString(),
+            expiresAt,
+          }, null, 2),
+          "utf8",
+        );
+        ctx.ui.notify(
+          `granted ${feature}: ${scopes.length} scope(s) ${duration}`,
+          "info",
+        );
+        return;
+      }
+      if (verb === "grants") {
+        const lease = await readLease();
+        const features = lease?.features ?? {};
+        const lines = Object.entries(features).map(([name, entry]) =>
+          `${name}: ${entry.untilRevoked ? "until-revoked" : entry.expiresAt} — ${entry.scopes?.length ?? 0} scope(s)`
+        );
+        ctx.ui.notify(lines.length ? lines.join("\n") : "no grants", "info");
+        return;
+      }
+      if (verb === "approve") {
+        const scope = rest[0] || "";
+        const durationMs = parseDurationMs(rest[1]);
+        if (!scope || !durationMs) {
+          ctx.ui.notify(
+            "usage: /swamp-ide approve <scope> <30s|10m|1h>",
+            "error",
+          );
+          return;
+        }
+        const lease = {
+          session: currentSessionId(),
+          scopes: [scope],
+          scopeExpiry: { [scope]: new Date(Date.now() + durationMs).toISOString() },
+          issuedAt: new Date().toISOString(),
+          expiresAt: new Date(Date.now() + durationMs).toISOString(),
+        };
+        await mkdir(dirname(LEASE_PATH), { recursive: true });
+        await writeFile(LEASE_PATH, JSON.stringify(lease, null, 2), "utf8");
+        ctx.ui.notify(`approved ${scope} for ${rest[1]}`, "info");
+        return;
+      }
+      if (verb === "revoke") {
+        const feature = rest[0] || "";
+        if (feature) {
+          const lease = await readLease();
+          const features = lease?.features && typeof lease.features === "object"
+            ? { ...lease.features }
+            : {};
+          delete features[feature];
+          const allScopes = [
+            ...new Set(
+              Object.values(features).flatMap((entry) =>
+                Array.isArray(entry.scopes) ? entry.scopes : []
+              ),
+            ),
+          ];
+          if (allScopes.length) {
+            const expiresAt = new Date(
+              Math.max(
+                ...Object.values(features).map((entry) =>
+                  Date.parse(String(entry.expiresAt ?? ""))
+                ),
+              ),
+            ).toISOString();
+            const scopeExpiry = {};
+            for (const entry of Object.values(features)) {
+              for (const scope of entry.scopes ?? []) {
+                scopeExpiry[scope] = entry.expiresAt;
+              }
+            }
+            await writeFile(
+              LEASE_PATH,
+              JSON.stringify({
+                session: currentSessionId(),
+                features,
+                scopes: allScopes,
+                scopeExpiry,
+                issuedAt: new Date().toISOString(),
+                expiresAt,
+              }, null, 2),
+              "utf8",
+            );
+          } else {
+            await unlink(LEASE_PATH).catch(() => {});
+          }
+          ctx.ui.notify(`revoked ${feature}`, "info");
+          return;
+        }
+        await unlink(LEASE_PATH).catch(() => {});
+        ctx.ui.notify("swamp-ide lease revoked", "info");
+        return;
+      }
+      if (verb === "lease") {
+        const lease = await readLease();
+        ctx.ui.notify(
+          lease ? JSON.stringify(lease, null, 2) : "no swamp-ide lease",
+          "info",
+        );
+        return;
+      }
+      const text = raw.toLowerCase();
       const full = text.includes("histogram") || text.includes("shellout");
       const otel = await resolveOtel();
       const serve = serveStatus();
       const hist = await shelloutHistogram(full ? 20 : 5);
       const lines = [
         `mode: ${MODE}`,
-        `session: ${process.env.PI_SESSION_ID ?? "unknown"}`,
+        `session: ${currentSessionId() || "unknown"}`,
         `herdr-core model: ${HERDR_MODEL}`,
         `vim model: ${VIM_MODEL}`,
         otel

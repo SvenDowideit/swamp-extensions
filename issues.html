@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-5004"><span class="tier A">A</span>Placement that resolves to an empty string queues for the fu</a><a href="#issue-5088"><span class="tier A">A</span>Add a dashboard link to the apps header</a><a href="#issue-5089"><span class="tier A">A</span>Commits from a workflow&#39;s parallel steps reach serve one at </a><a href="#issue-4994"><span class="tier A">A</span>swamp run doctor takes the v3 writer lease even without --fi</a><a href="#issue-4998"><span class="tier A">A</span>v3: a swamp child process started from inside a method can&#39;t</a><a href="#issue-4993"><span class="tier A">A</span>On a v3 datastore, one slow CLI command blocks every other w</a><a href="#issue-5085"><span class="tier A">A</span>Load-guard refusal advice and hints name the fix that applie</a><a href="#issue-5073"><span class="tier A">A</span>In a v3 team, swamp access grant create --server exits 0 but</a><a href="#issue-4980"><span class="tier A">A</span>Team mode: a booting serve blocks its event loop for 21-51 s</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-5083"><span class="tier A">A</span>A v3 team member returning after a few days away can&#39;t work </a><a href="#issue-5004"><span class="tier A">A</span>Placement that resolves to an empty string queues for the fu</a><a href="#issue-5088"><span class="tier A">A</span>Add a dashboard link to the apps header</a><a href="#issue-5089"><span class="tier A">A</span>Commits from a workflow&#39;s parallel steps reach serve one at </a><a href="#issue-4994"><span class="tier A">A</span>swamp run doctor takes the v3 writer lease even without --fi</a><a href="#issue-4998"><span class="tier A">A</span>v3: a swamp child process started from inside a method can&#39;t</a><a href="#issue-4993"><span class="tier A">A</span>On a v3 datastore, one slow CLI command blocks every other w</a><a href="#issue-5085"><span class="tier A">A</span>Load-guard refusal advice and hints name the fix that applie</a><a href="#issue-5073"><span class="tier A">A</span>In a v3 team, swamp access grant create --server exits 0 but</a></aside><div>
 
 <article class="item" id="issue-4852">
 <h2><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4Shell)</h2>
@@ -92,6 +92,14 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-5083">
+<h2><span class="tier A">A</span>A v3 team member returning after a few days away can&#39;t work for nearly an hour (serial chunk fetches, a timed-out catch-up restarts as full recovery, the serve blocks building the base index)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-25T22:23:51.552Z">2026-11-25T22:23:51.552Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5083" rel="noopener">lab#5083</a></div>
 </article>
 <article class="item" id="issue-5004">
 <h2><span class="tier A">A</span>Placement that resolves to an empty string queues for the full queueTimeout instead of clearing placement</h2>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/5073" rel="noopener">lab#5073</a></div>
 </article>
-<article class="item" id="issue-4980">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4980">
 <h2><span class="tier A">A</span>Team mode: a booting serve blocks its event loop for 21-51 s on a large datastore, longer than the writer lease&#39;s 25 s lapse, so a standby can take over mid-boot</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-25T09:41:05.280Z">2026-11-25T09:41:05.280Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4980" rel="noopener">lab#4980</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-5079">
+<article class="item" id="issue-5079">
 <h2><span class="tier A">A</span>A load-guard refusal caused by a page&#39;s running total should point at --limit, and a base64 refusal should say so</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-11-25T03:32:17.390Z">2026-11-25T03:32:17.390Z</time></span></div>
@@ -5189,21 +5197,29 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
-<article class="item" id="issue-5083">
-<h2><span class="tier B">B</span>A v3 team member returning after a few days away can&#39;t work for nearly an hour (serial chunk fetches, a timed-out catch-up restarts as full recovery, the serve blocks building the base index)</h2>
+<article class="item" id="issue-5087">
+<h2><span class="tier B">B</span>serve: runtime-data sync restores a stale worker record and can mispair its server token</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-25T22:20:28.414Z">2026-11-25T22:20:28.414Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-25T22:53:31.889Z">2026-11-25T22:53:31.889Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5083" rel="noopener">lab#5083</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5087" rel="noopener">lab#5087</a></div>
 </article>
 <article class="item" id="issue-5094">
 <h2><span class="tier B">B</span>v3 writes on team members cost far more CPU per write than v2, so small members queue process startup behind them</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-25T22:19:19.542Z">2026-11-25T22:19:19.542Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-25T22:40:00.872Z">2026-11-25T22:40:00.872Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/5094" rel="noopener">lab#5094</a></div>
+</article>
+<article class="item" id="issue-5103">
+<h2><span class="tier B">B</span>A v3 team member returning after a long gap is working within 30 seconds: batched chunk fetch, then lazy hydration</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-25T22:30:45.691Z">2026-11-25T22:30:45.691Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5103" rel="noopener">lab#5103</a></div>
 </article>
 <article class="item" id="issue-5098">
 <h2><span class="tier B">B</span>a checkout sends one forward batch at a time, so a parallel workflow&#39;s commits pay one replication confirm each, back to back</h2>
@@ -5212,14 +5228,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/5098" rel="noopener">lab#5098</a></div>
-</article>
-<article class="item" id="issue-5087">
-<h2><span class="tier B">B</span>serve: runtime-data sync restores a stale worker record and can mispair its server token</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-25T20:39:35.708Z">2026-11-25T20:39:35.708Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5087" rel="noopener">lab#5087</a></div>
 </article>
 <article class="item" id="issue-5101">
 <h2><span class="tier B">B</span>A server-token rotation that loses its lock still writes, so a record can pair with another mint&#39;s secret</h2>
@@ -5328,7 +5336,7 @@ footer .ver{color:var(--acc)}
 <section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-5102">
 <h2><span class="tier C">C</span>Scheduled flaky-test detection is failing</h2>
 <p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-25T19:44:59.825Z">2026-11-25T19:44:59.825Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-25T22:59:48.363Z">2026-11-25T22:59:48.363Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/5102" rel="noopener">lab#5102</a></div>
@@ -6686,13 +6694,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>827 items across 1 source(s) in this window:
-3 critical, 637 notable, 17 routine,
+<p>828 items across 1 source(s) in this window:
+3 critical, 638 notable, 17 routine,
 170 minor.</p>
-<ul><li><strong>issues</strong> — 827</li></ul></section>
+<ul><li><strong>issues</strong> — 828</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-25T22:24:41.742Z">2026-11-25T22:24:41.742Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-25T23:02:50.154Z">2026-11-25T23:02:50.154Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

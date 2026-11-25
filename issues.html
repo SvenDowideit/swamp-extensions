@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-4957"><span class="tier A">A</span>data query --select content and foreign-content hydration lo</a><a href="#issue-5076"><span class="tier A">A</span>Flaky: fleet_fan_out_history &#39;a member offline at plan time </a><a href="#issue-5068"><span class="tier A">A</span>fan-out: a worker whose verify-on-enroll probe is still runn</a><a href="#issue-5060"><span class="tier A">A</span>swamp behavior output data --server fails on an output whose</a><a href="#issue-5059"><span class="tier A">A</span>data query --select content on a large JSON record aborts wi</a><a href="#issue-4513"><span class="tier A">A</span>swamp dashboard exits on SIGHUP (terminal hangup) instead of</a><a href="#issue-4668"><span class="tier A">A</span>forEach in: referencing run.id silently expands to empty (no</a><a href="#issue-5032"><span class="tier A">A</span>stagecraft: dispatch is not idempotent - re-running it opens</a><a href="#issue-5066"><span class="tier A">A</span>Collective invitations can&#39;t be accepted or declined after t</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-5070"><span class="tier A">A</span>The load guard&#39;s structure estimate under-prices some JSON s</a><a href="#issue-5080"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-5062"><span class="tier A">A</span>serve&#39;s per-principal rate limit throttles one member&#39;s norm</a><a href="#issue-4957"><span class="tier A">A</span>data query --select content and foreign-content hydration lo</a><a href="#issue-5076"><span class="tier A">A</span>Flaky: fleet_fan_out_history &#39;a member offline at plan time </a><a href="#issue-5068"><span class="tier A">A</span>fan-out: a worker whose verify-on-enroll probe is still runn</a><a href="#issue-5060"><span class="tier A">A</span>swamp behavior output data --server fails on an output whose</a><a href="#issue-5059"><span class="tier A">A</span>data query --select content on a large JSON record aborts wi</a><a href="#issue-4513"><span class="tier A">A</span>swamp dashboard exits on SIGHUP (terminal hangup) instead of</a></aside><div>
 
 <article class="item" id="issue-4852">
 <h2><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4Shell)</h2>
@@ -92,6 +92,30 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-5070">
+<h2><span class="tier A">A</span>The load guard&#39;s structure estimate under-prices some JSON shapes, so a large enough record of them can still abort V8 instead of being refused</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-25T03:02:13.586Z">2026-11-25T03:02:13.586Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5070" rel="noopener">lab#5070</a></div>
+</article>
+<article class="item" id="issue-5080">
+<h2><span class="tier A">A</span>Scheduled flaky-test detection is failing</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-25T02:24:36.784Z">2026-11-25T02:24:36.784Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5080" rel="noopener">lab#5080</a></div>
+</article>
+<article class="item" id="issue-5062">
+<h2><span class="tier A">A</span>serve&#39;s per-principal rate limit throttles one member&#39;s normal parallel workflow (a 32-step fan-out hits hundreds of 429s)</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-25T02:24:20.711Z">2026-11-25T02:24:20.711Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5062" rel="noopener">lab#5062</a></div>
 </article>
 <article class="item" id="issue-4957">
 <h2><span class="tier A">A</span>data query --select content and foreign-content hydration load oversized items without the resource load guard</h2>
@@ -141,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4513" rel="noopener">lab#4513</a></div>
 </article>
-<article class="item" id="issue-4668">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4668">
 <h2><span class="tier A">A</span>forEach in: referencing run.id silently expands to empty (no validate warning); run.id in a forEach guard also mismatches the data workflowRunId</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-25T00:32:35.936Z">2026-11-25T00:32:35.936Z</time></span></div>
@@ -165,7 +189,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/5066" rel="noopener">lab#5066</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4058">
+<article class="item" id="issue-4058">
 <h2><span class="tier A">A</span>Model-scoped output search with since/until reads every output of the model before applying the window</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-25T00:16:54.577Z">2026-11-25T00:16:54.577Z</time></span></div>
@@ -5069,29 +5093,29 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
-<article class="item" id="issue-5080">
-<h2><span class="tier B">B</span>Scheduled flaky-test detection is failing</h2>
+<article class="item" id="issue-5072">
+<h2><span class="tier B">B</span>data search and behavior output logs decode stored content without the resource load guard</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-25T02:20:59.746Z">2026-11-25T02:20:59.746Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-25T03:01:39.016Z">2026-11-25T03:01:39.016Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5080" rel="noopener">lab#5080</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5072" rel="noopener">lab#5072</a></div>
 </article>
-<article class="item" id="issue-5062">
-<h2><span class="tier B">B</span>serve&#39;s per-principal rate limit throttles one member&#39;s normal parallel workflow (a 32-step fan-out hits hundreds of 429s)</h2>
+<article class="item" id="issue-5083">
+<h2><span class="tier B">B</span>A v3 team member returning after a few days away can&#39;t work for nearly an hour (serial chunk fetches, a timed-out catch-up restarts as full recovery, the serve blocks building the base index)</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-25T02:20:31.197Z">2026-11-25T02:20:31.197Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-25T02:38:50.696Z">2026-11-25T02:38:50.696Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5062" rel="noopener">lab#5062</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5083" rel="noopener">lab#5083</a></div>
 </article>
-<article class="item" id="issue-5070">
-<h2><span class="tier B">B</span>The load guard&#39;s structure estimate under-prices some JSON shapes, so a large enough record of them can still abort V8 instead of being refused</h2>
+<article class="item" id="issue-5073">
+<h2><span class="tier B">B</span>In a v3 team, swamp access grant create --server exits 0 but the grant never reaches the leader&#39;s policy, so a new user can&#39;t be onboarded</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-25T02:11:45.218Z">2026-11-25T02:11:45.218Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-25T02:27:42.180Z">2026-11-25T02:27:42.180Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5070" rel="noopener">lab#5070</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5073" rel="noopener">lab#5073</a></div>
 </article>
 <article class="item" id="issue-5079">
 <h2><span class="tier B">B</span>A load-guard refusal caused by a page&#39;s running total should point at --limit, and a base64 refusal should say so</h2>
@@ -5108,22 +5132,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/5071" rel="noopener">lab#5071</a></div>
-</article>
-<article class="item" id="issue-5072">
-<h2><span class="tier B">B</span>data search and behavior output logs decode stored content without the resource load guard</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-25T02:05:48.492Z">2026-11-25T02:05:48.492Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5072" rel="noopener">lab#5072</a></div>
-</article>
-<article class="item" id="issue-5073">
-<h2><span class="tier B">B</span>In a v3 team, swamp access grant create --server exits 0 but the grant never reaches the leader&#39;s policy, so a new user can&#39;t be onboarded</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-25T01:30:26.642Z">2026-11-25T01:30:26.642Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5073" rel="noopener">lab#5073</a></div>
 </article>
 <article class="item" id="issue-4980">
 <h2><span class="tier B">B</span>Team mode: a booting serve blocks its event loop for 21-51 s on a large datastore, longer than the writer lease&#39;s 25 s lapse, so a standby can take over mid-boot</h2>
@@ -5253,7 +5261,15 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4374" rel="noopener">lab#4374</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-5081">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-5084">
+<h2><span class="tier C">C</span>Document SWAMP_CLUB_URL for credential-injecting proxies; let the auth gate pass without a local key</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-25T02:55:10.003Z">2026-11-25T02:55:10.003Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5084" rel="noopener">lab#5084</a></div>
+</article>
+<article class="item" id="issue-5081">
 <h2><span class="tier C">C</span>Filter issues by participation (authored, commented, or assigned) in CLI and web Lab</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-11-25T01:55:38.375Z">2026-11-25T01:55:38.375Z</time></span></div>
@@ -6558,13 +6574,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>811 items across 1 source(s) in this window:
-3 critical, 622 notable, 23 routine,
-163 minor.</p>
-<ul><li><strong>issues</strong> — 811</li></ul></section>
+<p>813 items across 1 source(s) in this window:
+3 critical, 625 notable, 21 routine,
+164 minor.</p>
+<ul><li><strong>issues</strong> — 813</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-25T02:24:33.648Z">2026-11-25T02:24:33.648Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-25T03:04:59.733Z">2026-11-25T03:04:59.733Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

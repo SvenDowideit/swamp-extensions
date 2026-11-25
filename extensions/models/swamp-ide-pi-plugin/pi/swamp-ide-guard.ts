@@ -75,7 +75,7 @@ async function appendEvent(event: Record<string, unknown>) {
     await mkdir(dirname(EVENT_LOG), { recursive: true });
     await appendFile(EVENT_LOG, JSON.stringify(event) + "\n", "utf8");
     const info = await stat(EVENT_LOG);
-    if (info.size > 2_000_000) {
+    if (info.size > 900_000) {
       const text = await readFile(EVENT_LOG, "utf8");
       const lines = text.split(/\r?\n/).filter(Boolean).slice(-1000);
       await writeFile(EVENT_LOG, lines.join("\n") + "\n", "utf8");
@@ -166,6 +166,10 @@ export default function swampIdeGuard(pi: any) {
     reason: "guard loaded; not applied yet",
   });
   if (!enabled()) return;
+  const heartbeatTimer = setInterval(() => {
+    apply(pi);
+  }, 30_000);
+  heartbeatTimer.unref?.();
 
   pi.on("before_agent_start", async (_event: any, ctx: any) => {
     const result = apply(pi);

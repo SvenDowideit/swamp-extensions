@@ -152,3 +152,15 @@ export async function acquireApprovalLock(
     await sleep(pollMs);
   }
 }
+
+/**
+ * Pi auto-discovers every `extensions/*.ts` file as an extension and refuses to
+ * load a module whose default export is not a factory function ("Extension
+ * does not export a valid factory function"). This module is a library: the
+ * addin imports `acquireApprovalLock` from here by name. The inert factory
+ * below only satisfies pi's loader, so the addin keeps loading; it registers
+ * no hooks, tools or commands of its own.
+ */
+export default function swampIdeLockLibrary(): void {
+  // Intentionally empty. The addin imports the named helper.
+}

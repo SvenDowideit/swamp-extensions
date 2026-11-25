@@ -633,7 +633,7 @@ async function set(
 /** The pi plugin installer/gate. */
 export const model = {
   type: "@svendowideit/swamp-ide-pi-plugin",
-  version: "2026.11.25.1",
+  version: "2026.11.25.2",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -664,6 +664,12 @@ export const model = {
       toVersion: "2026.11.25.1",
       description:
         "Adds an abortable, bounded, stale-safe approval lock with token-checked heartbeat/release and five tests; serializes manual grant/approve/revoke; adds a CAS window claim and visible approval queue; and lets a dir: lease cover protected descendants so Grant directory works for protected single-file requests.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.25.2",
+      description:
+        "Fixes pi failing to load the extension with 'Extension does not export a valid factory function: swamp-ide-lock.ts': the extracted lock library now exports an inert default factory, like the policy library, so pi's auto-discovery accepts every file it installs beside the addin.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -404,7 +404,7 @@ async function appendJsonl(path, event) {
     await mkdir(dirname(path), { recursive: true });
     await appendFile(path, JSON.stringify(event) + "\n", "utf8");
     const info = await stat(path);
-    if (info.size > 2_000_000) {
+    if (info.size > 900_000) {
       const text = await readFile(path, "utf8");
       const lines = text.split(/\r?\n/).filter(Boolean).slice(-1000);
       await writeFile(path, lines.join("\n") + "\n", "utf8");
@@ -1500,6 +1500,10 @@ export default function swampIde(pi) {
   if (!sessionEnabled()) return;
 
   void writeAddinHeartbeat(pi);
+  const heartbeatTimer = setInterval(() => {
+    void writeAddinHeartbeat(pi);
+  }, 30_000);
+  heartbeatTimer.unref?.();
   void connectServe().then(() => writeAddinHeartbeat(pi));
   void appendActivity({
     ts: ADDIN_LOADED_AT,
@@ -1519,6 +1523,10 @@ export default function swampIde(pi) {
     session: currentSessionId(),
     cwd: process.cwd(),
     blocked: false,
+  });
+
+  pi.on("session_start", async () => {
+    await writeAddinHeartbeat(pi);
   });
 
   pi.on("before_agent_start", async (event) => {

@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/swamp-ide-pi-plugin"
-version: "2026.11.25.1"
+version: "2026.11.25.2"
 description: >
   Install, enable and disable the pi addin that routes tool calls through
   @svendowideit/swamp-ide, and record every routed and bypassed call.

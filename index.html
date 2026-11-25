@@ -71,15 +71,21 @@ footer .ver{color:var(--acc)}
 <h2 class="page-title">Documentation changes — This month</h2>
 <div class="cards">
 <div class="card"><div class="n">126</div><div class="l">FILES CHANGED</div></div>
-<div class="card"><div class="n">232</div><div class="l">CHANGES</div></div>
+<div class="card"><div class="n">236</div><div class="l">CHANGES</div></div>
 <div class="card"><div class="n">17</div><div class="l">WITH MANUAL PAGE</div></div>
 </div>
 <p class="lede">Documentation changed in the This month window, newest first. The activity leaderboard is on the
 <a href="leaderboard.html">Leaderboard</a> page.</p>
 <article class="item doc-item">
 <h2><a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/data.md" rel="noopener">design/primitives/data.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>2 changes</span><span>updated <time datetime="2026-11-25T03:31:09Z">2026-11-25T03:31:09Z</time></span><span><span class="dim">no published page</span></span></div>
+<div class="meta"><span>swamp-club/swamp</span><span>3 changes</span><span>updated <time datetime="2026-11-25T03:36:37Z">2026-11-25T03:36:37Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-25T03:36:37Z">2026-11-25T03:36:37Z</time></span>
+<span class="doc-title">--json output escapes long strings in slices instead of aborting V8, behavior output logs and data get ask the load guard, the search preview reads only the start of a body, and a refusal says what the read already holds (swamp-club#5072, swamp-club#5071, swamp-club#5079) (#3964)</span>
+<span class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261125.033127.0-sha.4ed119ce" rel="noopener">release v20261125.033127.0-sha.4ed119ce</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4ed119cec52bbfda4d558cfb44c6a3f031e07935" rel="noopener">4ed119ce</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3964" rel="noopener">#3964</a>𝗔 <a href="https://swamp-club.com/lab/5072" rel="noopener">lab#5072</a></span>
+</li>
+<li class="doc-change">
 <span class="tier A">A</span>
 <span class="doc-date"><time datetime="2026-11-25T03:31:09Z">2026-11-25T03:31:09Z</time></span>
 <span class="doc-title">--json output escapes long strings in slices instead of aborting V8, behavior output logs and data get ask the load guard, the search preview reads only the start of a body, and a refusal says what the read already holds (swamp-club#5072, swamp-club#5071, swamp-club#5079) (#3964)</span>
@@ -94,8 +100,14 @@ footer .ver{color:var(--acc)}
 </article>
 <article class="item doc-item">
 <h2><a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>9 changes</span><span>updated <time datetime="2026-11-25T02:23:22Z">2026-11-25T02:23:22Z</time></span><span><a href="https://swamp-club.com/manual/reference/datastore-configuration" rel="noopener">published manual</a></span></div>
+<div class="meta"><span>swamp-club/swamp</span><span>10 changes</span><span>updated <time datetime="2026-11-25T02:32:35Z">2026-11-25T02:32:35Z</time></span><span><a href="https://swamp-club.com/manual/reference/datastore-configuration" rel="noopener">published manual</a></span></div>
 <ul class="doc-changes"><li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-25T02:32:35Z">2026-11-25T02:32:35Z</time></span>
+<span class="doc-title">one member&#39;s parallel workflow fan-out is no longer throttled by serve&#39;s rate limits, while per-member memory stays bounded (swamp-club#5062) (#3961)</span>
+<span class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261125.022850.0-sha.b67e11cb" rel="noopener">release v20261125.022850.0-sha.b67e11cb</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b67e11cbfb61a4eff622a1b3db5e99cf139357bf" rel="noopener">b67e11cb</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3961" rel="noopener">#3961</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/5023" rel="noopener">#5023</a>𝗔 <a href="https://swamp-club.com/lab/5062" rel="noopener">lab#5062</a></span>
+</li>
+<li class="doc-change">
 <span class="tier A">A</span>
 <span class="doc-date"><time datetime="2026-11-25T02:23:22Z">2026-11-25T02:23:22Z</time></span>
 <span class="doc-title">one member&#39;s parallel workflow fan-out is no longer throttled by serve&#39;s rate limits, while per-member memory stays bounded (swamp-club#5062) (#3961)</span>
@@ -1622,22 +1634,34 @@ footer .ver{color:var(--acc)}
 </article>
 <article class="item doc-item">
 <h2><a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/audit-doctor.md" rel="noopener">design/surfaces/audit-doctor.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-11-05T20:54:32Z">2026-11-05T20:54:32Z</time></span><span><a href="https://swamp-club.com/manual/explanation/the-audit-system" rel="noopener">published manual</a></span></div>
+<div class="meta"><span>swamp-club/swamp</span><span>2 changes</span><span>updated <time datetime="2026-11-05T20:54:32Z">2026-11-05T20:54:32Z</time></span><span><a href="https://swamp-club.com/manual/explanation/the-audit-system" rel="noopener">published manual</a></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
 <span class="doc-date"><time datetime="2026-11-05T20:54:32Z">2026-11-05T20:54:32Z</time></span>
 <span class="doc-title">the Claude audit hook records PowerShell calls, swamp audit install --user covers repos a session starts above, and doctor audit warns when a nested repo&#39;s hook cannot fire (swamp-club#4009) (#3634)</span>
 <span class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261105.205023.0-sha.366cc864" rel="noopener">release v20261105.205023.0-sha.366cc864</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/366cc864aae8d2ed6360dc2808cd0ca5b0e9b999" rel="noopener">366cc864</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3634" rel="noopener">#3634</a>𝗔 <a href="https://swamp-club.com/lab/4009" rel="noopener">lab#4009</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-05T20:50:05Z">2026-11-05T20:50:05Z</time></span>
+<span class="doc-title">the Claude audit hook records PowerShell calls, swamp audit install --user covers repos a session starts above, and doctor audit warns when a nested repo&#39;s hook cannot fire (swamp-club#4009) (#3634)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/366cc864aae8d2ed6360dc2808cd0ca5b0e9b999" rel="noopener">366cc864</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3634" rel="noopener">#3634</a>𝗔 <a href="https://swamp-club.com/lab/4009" rel="noopener">lab#4009</a></span>
 </li></ul>
 </article>
 <article class="item doc-item">
 <h2><a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/audit.md" rel="noopener">design/surfaces/audit.md</a></h2>
-<div class="meta"><span>swamp-club/swamp</span><span>1 change</span><span>updated <time datetime="2026-11-05T20:54:32Z">2026-11-05T20:54:32Z</time></span><span><span class="dim">no published page</span></span></div>
+<div class="meta"><span>swamp-club/swamp</span><span>2 changes</span><span>updated <time datetime="2026-11-05T20:54:32Z">2026-11-05T20:54:32Z</time></span><span><span class="dim">no published page</span></span></div>
 <ul class="doc-changes"><li class="doc-change">
 <span class="tier A">A</span>
 <span class="doc-date"><time datetime="2026-11-05T20:54:32Z">2026-11-05T20:54:32Z</time></span>
 <span class="doc-title">the Claude audit hook records PowerShell calls, swamp audit install --user covers repos a session starts above, and doctor audit warns when a nested repo&#39;s hook cannot fire (swamp-club#4009) (#3634)</span>
 <span class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261105.205023.0-sha.366cc864" rel="noopener">release v20261105.205023.0-sha.366cc864</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/366cc864aae8d2ed6360dc2808cd0ca5b0e9b999" rel="noopener">366cc864</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3634" rel="noopener">#3634</a>𝗔 <a href="https://swamp-club.com/lab/4009" rel="noopener">lab#4009</a></span>
+</li>
+<li class="doc-change">
+<span class="tier A">A</span>
+<span class="doc-date"><time datetime="2026-11-05T20:50:05Z">2026-11-05T20:50:05Z</time></span>
+<span class="doc-title">the Claude audit hook records PowerShell calls, swamp audit install --user covers repos a session starts above, and doctor audit warns when a nested repo&#39;s hook cannot fire (swamp-club#4009) (#3634)</span>
+<span class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/366cc864aae8d2ed6360dc2808cd0ca5b0e9b999" rel="noopener">366cc864</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3634" rel="noopener">#3634</a>𝗔 <a href="https://swamp-club.com/lab/4009" rel="noopener">lab#4009</a></span>
 </li></ul>
 </article>
 <article class="item doc-item">
@@ -1974,7 +1998,7 @@ footer .ver{color:var(--acc)}
 </article>
 </main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-25T07:05:18.017Z">2026-11-25T07:05:18.017Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-25T08:04:23.978Z">2026-11-25T08:04:23.978Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

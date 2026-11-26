@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-5105"><span class="tier A">A</span>serve: a step whose only worker cannot record its busy statu</a><a href="#issue-5106"><span class="tier A">A</span>Killed-run test: the workflow child should fail if its run e</a><a href="#issue-4894"><span class="tier A">A</span>A host&#39;s router turns a child&#39;s refused WebSocket into 502, </a><a href="#issue-4881"><span class="tier A">A</span>CLI: idempotent swamp-club requests don&#39;t retry a 503, 502, </a><a href="#issue-5102"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-5101"><span class="tier A">A</span>A server-token rotation that loses its lock still writes, so</a><a href="#issue-5087"><span class="tier A">A</span>serve: runtime-data sync restores a stale worker record and </a><a href="#issue-5083"><span class="tier A">A</span>A v3 team member returning after a few days away can&#39;t work </a><a href="#issue-5004"><span class="tier A">A</span>Placement that resolves to an empty string queues for the fu</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-5104"><span class="tier A">A</span>serve: the server-token record refresh on the auth path is u</a><a href="#issue-4734"><span class="tier A">A</span>vault: legacy type deprecation warning wraps names in double</a><a href="#issue-5105"><span class="tier A">A</span>serve: a step whose only worker cannot record its busy statu</a><a href="#issue-5106"><span class="tier A">A</span>Killed-run test: the workflow child should fail if its run e</a><a href="#issue-4894"><span class="tier A">A</span>A host&#39;s router turns a child&#39;s refused WebSocket into 502, </a><a href="#issue-4881"><span class="tier A">A</span>CLI: idempotent swamp-club requests don&#39;t retry a 503, 502, </a><a href="#issue-5102"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-5101"><span class="tier A">A</span>A server-token rotation that loses its lock still writes, so</a><a href="#issue-5087"><span class="tier A">A</span>serve: runtime-data sync restores a stale worker record and </a></aside><div>
 
 <article class="item" id="issue-4852">
 <h2><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4Shell)</h2>
@@ -92,6 +92,22 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-5104">
+<h2><span class="tier A">A</span>serve: the server-token record refresh on the auth path is unthrottled and takes the exclusive sync gate</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-26T01:30:17.049Z">2026-11-26T01:30:17.049Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5104" rel="noopener">lab#5104</a></div>
+</article>
+<article class="item" id="issue-4734">
+<h2><span class="tier A">A</span>vault: legacy type deprecation warning wraps names in doubled quotes</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-26T01:25:02.656Z">2026-11-26T01:25:02.656Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4734" rel="noopener">lab#4734</a></div>
 </article>
 <article class="item" id="issue-5105">
 <h2><span class="tier A">A</span>serve: a step whose only worker cannot record its busy status waits forever when it has no queue timeout</h2>
@@ -149,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/5087" rel="noopener">lab#5087</a></div>
 </article>
-<article class="item" id="issue-5083">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-5083">
 <h2><span class="tier A">A</span>A v3 team member returning after a few days away can&#39;t work for nearly an hour (serial chunk fetches, a timed-out catch-up restarts as full recovery, the serve blocks building the base index)</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-25T22:23:51.552Z">2026-11-25T22:23:51.552Z</time></span></div>
@@ -165,7 +181,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/5004" rel="noopener">lab#5004</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-5088">
+<article class="item" id="issue-5088">
 <h2><span class="tier A">A</span>Add a dashboard link to the apps header</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-11-25T16:35:25.004Z">2026-11-25T16:35:25.004Z</time></span></div>
@@ -5253,21 +5269,37 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
-<article class="item" id="issue-4734">
-<h2><span class="tier B">B</span>vault: legacy type deprecation warning wraps names in doubled quotes</h2>
+<article class="item" id="issue-5107">
+<h2><span class="tier B">B</span>filesystem v3: a datastore made unreadable mid-run ends the command with a raw PermissionDenied instead of a named error</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-26T01:00:07.406Z">2026-11-26T01:00:07.406Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-26T01:58:43.467Z">2026-11-26T01:58:43.467Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4734" rel="noopener">lab#4734</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5107" rel="noopener">lab#5107</a></div>
 </article>
-<article class="item" id="issue-5104">
-<h2><span class="tier B">B</span>serve: the server-token record refresh on the auth path is unthrottled and takes the exclusive sync gate</h2>
+<article class="item" id="issue-4490">
+<h2><span class="tier B">B</span>data query rejects CEL list macros: exists(c, ...) fails with Unknown field &quot;c&quot;</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-26T00:59:42.443Z">2026-11-26T00:59:42.443Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-26T01:55:12.479Z">2026-11-26T01:55:12.479Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5104" rel="noopener">lab#5104</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4490" rel="noopener">lab#4490</a></div>
+</article>
+<article class="item" id="issue-5098">
+<h2><span class="tier B">B</span>a checkout sends one forward batch at a time, so a parallel workflow&#39;s commits pay one replication confirm each, back to back</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-26T01:40:44.395Z">2026-11-26T01:40:44.395Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5098" rel="noopener">lab#5098</a></div>
+</article>
+<article class="item" id="issue-5108">
+<h2><span class="tier B">B</span>A returning v3 team member&#39;s first command doesn&#39;t wait for files it doesn&#39;t touch: owed files hydrated on demand (lazy hydration, first cut)</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-26T01:18:47.161Z">2026-11-26T01:18:47.161Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5108" rel="noopener">lab#5108</a></div>
 </article>
 <article class="item" id="issue-5103">
 <h2><span class="tier B">B</span>A v3 team member returning after a long gap is working within 30 seconds: batched chunk fetch, then lazy hydration</h2>
@@ -5284,14 +5316,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/5094" rel="noopener">lab#5094</a></div>
-</article>
-<article class="item" id="issue-5098">
-<h2><span class="tier B">B</span>a checkout sends one forward batch at a time, so a parallel workflow&#39;s commits pay one replication confirm each, back to back</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-25T21:29:03.130Z">2026-11-25T21:29:03.130Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5098" rel="noopener">lab#5098</a></div>
 </article>
 <article class="item" id="issue-4995">
 <h2><span class="tier B">B</span>swamp datastore lock status shows a dead process&#39;s lock as held, and no doctor command checks locks</h2>
@@ -5389,7 +5413,39 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4374" rel="noopener">lab#4374</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-5005">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-5112">
+<h2><span class="tier C">C</span>Docs: example of a CEL list macro in a data query predicate</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-26T01:55:46.424Z">2026-11-26T01:55:46.424Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5112" rel="noopener">lab#5112</a></div>
+</article>
+<article class="item" id="issue-5111">
+<h2><span class="tier C">C</span>data query: an evaluation budget for predicates from serve clients</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-26T01:55:44.867Z">2026-11-26T01:55:44.867Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5111" rel="noopener">lab#5111</a></div>
+</article>
+<article class="item" id="issue-5110">
+<h2><span class="tier C">C</span>data query rejects cel.bind: the bound name and the cel namespace fail field validation</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-26T01:55:35.668Z">2026-11-26T01:55:35.668Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5110" rel="noopener">lab#5110</a></div>
+</article>
+<article class="item" id="issue-5109">
+<h2><span class="tier C">C</span>Docs: vaults reference quotes the old doubled-quote renamed-type warning</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-26T01:25:15.150Z">2026-11-26T01:25:15.150Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5109" rel="noopener">lab#5109</a></div>
+</article>
+<article class="item" id="issue-5005">
 <h2><span class="tier C">C</span>Nested workflow inputs do not reach the child&#39;s step expressions (passed values and defaults evaluate to empty)</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-11-26T00:32:10.895Z">2026-11-26T00:32:10.895Z</time></span></div>
@@ -6221,14 +6277,6 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4493" rel="noopener">lab#4493</a></div>
 </article>
-<article class="item" id="issue-4490">
-<h2><span class="tier C">C</span>data query rejects CEL list macros: exists(c, ...) fails with Unknown field &quot;c&quot;</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-07T00:09:12.286Z">2026-11-07T00:09:12.286Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/4490" rel="noopener">lab#4490</a></div>
-</article>
 <article class="item" id="issue-4483">
 <h2><span class="tier C">C</span>telemetry_workflow_method_invocations_test can leave its swamp-tel-wf-test temp dir behind, failing verify-build&#39;s leftover check</h2>
 <p class="lede">Open issue</p>
@@ -6718,13 +6766,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>831 items across 1 source(s) in this window:
-3 critical, 645 notable, 17 routine,
-166 minor.</p>
-<ul><li><strong>issues</strong> — 831</li></ul></section>
+<p>837 items across 1 source(s) in this window:
+3 critical, 647 notable, 18 routine,
+169 minor.</p>
+<ul><li><strong>issues</strong> — 837</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-26T01:06:01.218Z">2026-11-26T01:06:01.218Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-26T02:03:47.791Z">2026-11-26T02:03:47.791Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

@@ -141,7 +141,7 @@ footer .ver{color:var(--acc)}
 <ul>
 <li>Unit tests: body-only scoping, init outside the binding, nested binds, a bind feeding a list macro and a bind inside a macro body, field-named binders, a macro binder named <code>cel</code>, malformed shapes still reporting <code>cel</code>, content/at</li>
 </ul></div>
-
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/data-query.md" rel="noopener">design/enablers/data-query.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261126.024235.0-sha.f0feb54a" rel="noopener">release v20261126.024235.0-sha.f0feb54a</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/f0feb54aff988ac7b4f03e7f5782858b1d201a62" rel="noopener">f0feb54a</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3986" rel="noopener">#3986</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3984" rel="noopener">#3984</a>𝗔 <a href="https://swamp-club.com/lab/5110" rel="noopener">lab#5110</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261126-022502-0-sha-8e48b97d">
@@ -163,7 +163,7 @@ footer .ver{color:var(--acc)}
 <li>The v3 copy, litestream, writer lease and bucket suites, with the Litestream binary, pass on swamp-verify (346 tests).</li>
 <li>Local verifi</li>
 </ul></div>
-
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastore-litestream.md" rel="noopener">design/enablers/datastore-litestream.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261126.022502.0-sha.8e48b97d" rel="noopener">release v20261126.022502.0-sha.8e48b97d</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8e48b97d73d15480a8e44812485054f2c6d5dde8" rel="noopener">8e48b97d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3985" rel="noopener">#3985</a>𝗔 <a href="https://swamp-club.com/lab/5113" rel="noopener">lab#5113</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261126-021835-0-sha-bd7a3270">
@@ -244,7 +244,7 @@ footer .ver{color:var(--acc)}
 <ul>
 <li><code>verify-build</code>, `verify-</li>
 </ul></div>
-
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261126.013609.0-sha.16e7eefc" rel="noopener">release v20261126.013609.0-sha.16e7eefc</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/16e7eefc6bb5c54dd38544e1f076e56d88dd4588" rel="noopener">16e7eefc</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3982" rel="noopener">#3982</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3974" rel="noopener">#3974</a>𝗔 <a href="https://swamp-club.com/lab/5087" rel="noopener">lab#5087</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261126-012921-0-sha-652ebaf3">
@@ -263,7 +263,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Refusals are remembered.</strong> A refusal is reused for <code>REFRESH_RETRY_MS</code> (30 seconds), and expired entries are dropped as new ones are added. A marker that moved under the gate is not remembered as a refusal.</li>
 </ul>
 <p>The refresh is reached only after the presented secret matched the vault secret, so this was contention caused by legitima</p></div>
-
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261126.012921.0-sha.652ebaf3" rel="noopener">release v20261126.012921.0-sha.652ebaf3</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/652ebaf367cb924d12f61233b072cb1ac79883cc" rel="noopener">652ebaf3</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3981" rel="noopener">#3981</a>𝗔 <a href="https://swamp-club.com/lab/5104" rel="noopener">lab#5104</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261126-012337-0-sha-4b0e06ed">
@@ -388,7 +388,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Status only, not a raw handshake.</strong> A raw upstream handshake would keep the child&#39;s body and <code>Retry-After</code>, but no Deno or browser WebSocket client can read a refused handshake&#39;s body or headers, and it would put a hand-written frame codec on every relayed socket. The child&#39;s body and headers are dropped; nothing from the child but the status number crosses.</li>
 <li><strong>The child is asked once.</strong> One upstream handshake per caller attempt, so a refused credential is never sent twice (no re-ask, which #4877 tried and revert</li>
 </ul></div>
-
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/serve-workspaces.md" rel="noopener">design/surfaces/serve-workspaces.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261126.002810.0-sha.e4529fed" rel="noopener">release v20261126.002810.0-sha.e4529fed</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/e4529fedb4ec01d0de4155a4814e942863e0cf6d" rel="noopener">e4529fed</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3977" rel="noopener">#3977</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4877" rel="noopener">#4877</a>𝗔 <a href="https://swamp-club.com/lab/4894" rel="noopener">lab#4894</a></div>
 </article>
 <section class="tail"><h2>Other notable changes</h2><article class="item" id="release-swamp-club-swamp-v20261126-000935-0-sha-279d3b0d">
@@ -412,7 +412,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Docs:</strong> <code>design/primitives/extensions.md</code> (&quot;Registry retries&quot;) and <code>design/surfaces/inbox.md</code> say which swamp-club reads retry.</li>
 </ul>
 <p>Trade-off: when swamp-club is down, these user-run commands can now wait up to the 150s budget in</p></div>
-
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/extensions.md" rel="noopener">design/primitives/extensions.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/inbox.md" rel="noopener">design/surfaces/inbox.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261126.000935.0-sha.279d3b0d" rel="noopener">release v20261126.000935.0-sha.279d3b0d</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/279d3b0d7038306b1e299da9fd1cc5bde7acc150" rel="noopener">279d3b0d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3976" rel="noopener">#3976</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3859" rel="noopener">#3859</a>𝗔 <a href="https://swamp-club.com/lab/4881" rel="noopener">lab#4881</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261125-233318-0-sha-4474939c">
@@ -472,7 +472,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Worker GC.</strong></li>
 <li>It never prunes a worker this serve holds, and it deletes by</li>
 </ul></div>
-
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/serve-phase-telemetry.md" rel="noopener">design/enablers/serve-phase-telemetry.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261125.232423.0-sha.21d12177" rel="noopener">release v20261125.232423.0-sha.21d12177</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/21d121778b4cd161998058c67138cc60504c9c95" rel="noopener">21d12177</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3974" rel="noopener">#3974</a>𝗔 <a href="https://swamp-club.com/lab/5087" rel="noopener">lab#5087</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261125-222336-0-sha-a1fe1a96">
@@ -515,7 +515,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Clearing.</strong> <code>clearEmptyPlacement</code> (<code>src/domain/workflows/placement.ts</code>) drops an empty <code>target</code>, <code>platform</code> or label value and reports which fields it cleared. It runs on authored values in <code>resolvePlacement</code>, and again after the step&#39;s expressions resolve, so values known only when the step runs (a <code>forEach</code> item, for example) clear too. <code>callerPlacement</code> applies it, so a nested child never inherits an empty selector.</li>
 <li><strong>Remote-only.</strong> The existing refusal stays the single enforcement point. When fields were cleared it names them: *&quot;Meth</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/references/remote-execution.md" rel="noopener">.claude/skills/swamp/references/workflow/references/remote-execution.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/access-control.md" rel="noopener">design/enablers/access-control.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/references/remote-execution.md" rel="noopener">.claude/skills/swamp/references/workflow/references/remote-execution.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261125.174955.0-sha.861c24ef" rel="noopener">release v20261125.174955.0-sha.861c24ef</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/861c24ef3e4206f2418664d85f46df8aa0858af4" rel="noopener">861c24ef</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3972" rel="noopener">#3972</a>𝗔 <a href="https://swamp-club.com/lab/5004" rel="noopener">lab#5004</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261125-163602-0-sha-0f4bc259">
@@ -581,7 +581,7 @@ footer .ver{color:var(--acc)}
 <li>A replay keeps a live writer&#39;s journaled files only for that writer&#39;s own commits.</li>
 <li><strong>Catch-up under locks:</strong> a behavior lock catches</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/surfaces/serve-workspaces.md" rel="noopener">design/surfaces/serve-workspaces.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/access-control.md" rel="noopener">design/enablers/access-control.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261125.143715.0-sha.4ee44d61" rel="noopener">release v20261125.143715.0-sha.4ee44d61</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4ee44d61444785909680a4dc27ed74f3d7bebaac" rel="noopener">4ee44d61</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3969" rel="noopener">#3969</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/5083" rel="noopener">#5083</a>𝗔 <a href="https://swamp-club.com/lab/4993" rel="noopener">lab#4993</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261125-133531-0-sha-75ceedfd">
@@ -654,7 +654,7 @@ footer .ver{color:var(--acc)}
 <li>a failed rebuild answers the run with an error frame;</li>
 <li>leader and follower: the subject is allowed, then denied, on both through the publishe</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261125.095216.0-sha.16430b63" rel="noopener">release v20261125.095216.0-sha.16430b63</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/16430b63aeea6f9ef1d251d2fc38a14edacd493b" rel="noopener">16430b63</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3966" rel="noopener">#3966</a>𝗔 <a href="https://swamp-club.com/lab/5073" rel="noopener">lab#5073</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261125-094108-0-sha-0bacdce0">
@@ -860,7 +860,7 @@ footer .ver{color:var(--acc)}
 <li><strong>New estimate:</strong> for content a path will parse as JSON, the guard also prices its structure (<code>assertParsable</code>, <code>parseRefusalFor</code>). That&#39;s the bytes plus V8&#39;s cost per object (56, plus 8 per member past the fourth), per array (48) and per array element (8), calibrated from fresh-process measurements.</li>
 <li>**Wh</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/data-query.md" rel="noopener">design/enablers/data-query.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261125.003942.0-sha.11bcdba1" rel="noopener">release v20261125.003942.0-sha.11bcdba1</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/11bcdba177f830fde6a2eb6ccdb95dd4c4f6b6ad" rel="noopener">11bcdba1</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3957" rel="noopener">#3957</a>𝗔 <a href="https://swamp-club.com/lab/5059" rel="noopener">lab#5059</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261124-235806-0-sha-f7213c84">
@@ -1026,7 +1026,7 @@ footer .ver{color:var(--acc)}
 <li>A dispatch of a method the type defines itself carries no add-on bundle and builds none.</li>
 <li>Attaching an add-on records only its source snapshot; Deno is resolved only when a dispatch first needs the bun</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/extensions.md" rel="noopener">design/primitives/extensions.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261124.191435.0-sha.2e73b114" rel="noopener">release v20261124.191435.0-sha.2e73b114</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/2e73b11448d5a118c3185600a62e640246ecb1b3" rel="noopener">2e73b114</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3949" rel="noopener">#3949</a>𝗔 <a href="https://swamp-club.com/lab/4985" rel="noopener">lab#4985</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261124-174832-0-sha-76fa238d">
@@ -1453,7 +1453,7 @@ footer .ver{color:var(--acc)}
 <p>| Lookup latency | Before | After |</p>
 <p>|---|---|---|</p>
 <p>| 20 ms | 344 ms |</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/serve-phase-telemetry.md" rel="noopener">design/enablers/serve-phase-telemetry.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261123.203312.0-sha.050cda59" rel="noopener">release v20261123.203312.0-sha.050cda59</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/050cda594f3431908075da6dae06c797edabbc21" rel="noopener">050cda59</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3926" rel="noopener">#3926</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4146" rel="noopener">#4146</a>𝗔 <a href="https://swamp-club.com/lab/4147" rel="noopener">lab#4147</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261123-202438-0-sha-050cda59">
@@ -1475,7 +1475,7 @@ footer .ver{color:var(--acc)}
 <p>{&quot;event&quot;:&quot;auto_resolve&quot;,&quot;status&quot;:&quot;failed&quot;,&quot;type&quot;:&quot;@test/gc-fixture&quot;,&quot;reason&quot;:&quot;local_source_failed&quot;,&quot;file&quot;:&quot;extensions/models/test/gc-fixture.ts&quot;,&quot;error&quot;:&quot;deno bundle failed for …: error: SyntaxError: Unexpected token <code>is</code> …&quot;}</p>
 <p>```</p>
 <h4 class="body-h">Test Pl</h4></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/serve-phase-telemetry.md" rel="noopener">design/enablers/serve-phase-telemetry.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261123.202438.0-sha.050cda59" rel="noopener">release v20261123.202438.0-sha.050cda59</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/050cda594f3431908075da6dae06c797edabbc21" rel="noopener">050cda59</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3927" rel="noopener">#3927</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3926" rel="noopener">#3926</a>𝗔 <a href="https://swamp-club.com/lab/4147" rel="noopener">lab#4147</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261123-190247-0-sha-9ed01e53">
@@ -10294,7 +10294,7 @@ footer .ver{color:var(--acc)}
 <ul><li><strong>fix</strong> — 282</li><li><strong>feat</strong> — 103</li><li><strong>perf</strong> — 21</li><li><strong>docs</strong> — 10</li><li><strong>test</strong> — 8</li><li><strong>refactor</strong> — 3</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-26T04:05:20.433Z">2026-11-26T04:05:20.433Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-26T05:08:25.153Z">2026-11-26T05:08:25.153Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

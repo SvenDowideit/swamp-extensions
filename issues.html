@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-5103"><span class="tier A">A</span>A v3 team member returning after a long gap is working withi</a><a href="#issue-5115"><span class="tier A">A</span>serve lands concurrent commit requests one after the other, </a><a href="#issue-5110"><span class="tier A">A</span>data query rejects cel.bind: the bound name and the cel name</a><a href="#issue-5113"><span class="tier A">A</span>a serve lists its lineage on every sync when its fence is a </a><a href="#issue-4490"><span class="tier A">A</span>data query rejects CEL list macros: exists(c, ...) fails wit</a><a href="#issue-5098"><span class="tier A">A</span>a checkout sends one forward batch at a time, so a parallel </a><a href="#issue-5107"><span class="tier A">A</span>filesystem v3: a datastore made unreadable mid-run ends the </a><a href="#issue-5104"><span class="tier A">A</span>serve: the server-token record refresh on the auth path is u</a><a href="#issue-4734"><span class="tier A">A</span>vault: legacy type deprecation warning wraps names in double</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-5108"><span class="tier A">A</span>A returning v3 team member&#39;s first command doesn&#39;t wait for </a><a href="#issue-5103"><span class="tier A">A</span>A v3 team member returning after a long gap is working withi</a><a href="#issue-5115"><span class="tier A">A</span>serve lands concurrent commit requests one after the other, </a><a href="#issue-5110"><span class="tier A">A</span>data query rejects cel.bind: the bound name and the cel name</a><a href="#issue-5113"><span class="tier A">A</span>a serve lists its lineage on every sync when its fence is a </a><a href="#issue-4490"><span class="tier A">A</span>data query rejects CEL list macros: exists(c, ...) fails wit</a><a href="#issue-5098"><span class="tier A">A</span>a checkout sends one forward batch at a time, so a parallel </a><a href="#issue-5107"><span class="tier A">A</span>filesystem v3: a datastore made unreadable mid-run ends the </a><a href="#issue-5104"><span class="tier A">A</span>serve: the server-token record refresh on the auth path is u</a></aside><div>
 
 <article class="item" id="issue-4852">
 <h2><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4Shell)</h2>
@@ -92,6 +92,14 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-5108">
+<h2><span class="tier A">A</span>A returning v3 team member&#39;s first command doesn&#39;t wait for files it doesn&#39;t touch: owed files hydrated on demand (lazy hydration, first cut)</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-26T10:28:16.086Z">2026-11-26T10:28:16.086Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5108" rel="noopener">lab#5108</a></div>
 </article>
 <article class="item" id="issue-5103">
 <h2><span class="tier A">A</span>A v3 team member returning after a long gap is working within 30 seconds: batched chunk fetch, then lazy hydration</h2>
@@ -157,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/5104" rel="noopener">lab#5104</a></div>
 </article>
-<article class="item" id="issue-4734">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4734">
 <h2><span class="tier A">A</span>vault: legacy type deprecation warning wraps names in doubled quotes</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-26T01:25:02.656Z">2026-11-26T01:25:02.656Z</time></span></div>
@@ -165,7 +173,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4734" rel="noopener">lab#4734</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-5105">
+<article class="item" id="issue-5105">
 <h2><span class="tier A">A</span>serve: a step whose only worker cannot record its busy status waits forever when it has no queue timeout</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-26T00:57:36.706Z">2026-11-26T00:57:36.706Z</time></span></div>
@@ -5325,13 +5333,21 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
-<article class="item" id="issue-5108">
-<h2><span class="tier B">B</span>A returning v3 team member&#39;s first command doesn&#39;t wait for files it doesn&#39;t touch: owed files hydrated on demand (lazy hydration, first cut)</h2>
+<article class="item" id="issue-5122">
+<h2><span class="tier B">B</span>A returning v3 team member&#39;s first command reaches 30 s: owe metadata and outputs too, and cut the remaining base-load costs</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-26T10:29:01.996Z">2026-11-26T10:29:01.996Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5122" rel="noopener">lab#5122</a></div>
+</article>
+<article class="item" id="issue-5123">
+<h2><span class="tier B">B</span>Bump AWS SDK from 3.1161.0 to 3.1177.0</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-26T10:00:38.749Z">2026-11-26T10:00:38.749Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-26T10:27:28.429Z">2026-11-26T10:27:28.429Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5108" rel="noopener">lab#5108</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5123" rel="noopener">lab#5123</a></div>
 </article>
 <article class="item" id="issue-5094">
 <h2><span class="tier B">B</span>v3 writes on team members cost far more CPU per write than v2, so small members queue process startup behind them</h2>
@@ -5453,15 +5469,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4374" rel="noopener">lab#4374</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-5122">
-<h2><span class="tier C">C</span>A returning v3 team member&#39;s first command reaches 30 s: owe metadata and outputs too, and cut the remaining base-load costs</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-26T09:56:46.462Z">2026-11-26T09:56:46.462Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5122" rel="noopener">lab#5122</a></div>
-</article>
-<article class="item" id="issue-5121">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-5121">
 <h2><span class="tier C">C</span>Repeatable quests for returning users, workshops, and demos</h2>
 <p class="lede">Open issue</p>
 <div class="meta"><span><time datetime="2026-11-26T09:07:38.436Z">2026-11-26T09:07:38.436Z</time></span></div>
@@ -6838,13 +6846,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>846 items across 1 source(s) in this window:
-3 critical, 654 notable, 16 routine,
-173 minor.</p>
-<ul><li><strong>issues</strong> — 846</li></ul></section>
+<p>847 items across 1 source(s) in this window:
+3 critical, 655 notable, 17 routine,
+172 minor.</p>
+<ul><li><strong>issues</strong> — 847</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-26T10:07:37.963Z">2026-11-26T10:07:37.963Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-26T11:03:32.675Z">2026-11-26T11:03:32.675Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-5141"><span class="tier A">A</span>serve_federation_gate_rules_test fails on main: pinned reque</a><a href="#issue-5139"><span class="tier A">A</span>AGENTS.md: name every architecture fitness test, not only *_</a><a href="#issue-5118"><span class="tier A">A</span>serve&#39;s read-model catch-up costs ~6 ms even with nothing to</a><a href="#issue-5128"><span class="tier A">A</span>Serve federation slice 1, unit 2: the hub (join tokens, /fed</a><a href="#issue-5126"><span class="tier A">A</span>a command that meets SQLite busy in a checkout another proce</a><a href="#issue-5133"><span class="tier A">A</span>swamp update on Windows fails silently when PS7&#39;s PSModulePa</a><a href="#issue-5130"><span class="tier A">A</span>On-demand v3 history compaction: run it now from the CLI or </a><a href="#issue-5131"><span class="tier A">A</span>Fair behavior (model) lock: waiters acquire in arrival order</a><a href="#issue-4466"><span class="tier A">A</span>Workflow-scoped data get reports the behavior id as modelNam</a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-5142"><span class="tier A">A</span>worker --label parsing silently drops a __proto__ key</a><a href="#issue-5143"><span class="tier A">A</span>Give the older-serve refusal on worker token create --label </a><a href="#issue-5144"><span class="tier A">A</span>A serve follower whose copy is restored from the lineage aft</a><a href="#issue-5141"><span class="tier A">A</span>serve_federation_gate_rules_test fails on main: pinned reque</a><a href="#issue-5139"><span class="tier A">A</span>AGENTS.md: name every architecture fitness test, not only *_</a><a href="#issue-5118"><span class="tier A">A</span>serve&#39;s read-model catch-up costs ~6 ms even with nothing to</a><a href="#issue-5128"><span class="tier A">A</span>Serve federation slice 1, unit 2: the hub (join tokens, /fed</a><a href="#issue-5126"><span class="tier A">A</span>a command that meets SQLite busy in a checkout another proce</a><a href="#issue-5133"><span class="tier A">A</span>swamp update on Windows fails silently when PS7&#39;s PSModulePa</a></aside><div>
 
 <article class="item" id="issue-4852">
 <h2><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4Shell)</h2>
@@ -92,6 +92,30 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-5142">
+<h2><span class="tier A">A</span>worker --label parsing silently drops a __proto__ key</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-26T20:20:00.329Z">2026-11-26T20:20:00.329Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5142" rel="noopener">lab#5142</a></div>
+</article>
+<article class="item" id="issue-5143">
+<h2><span class="tier A">A</span>Give the older-serve refusal on worker token create --label a stable error code</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-26T20:20:00.097Z">2026-11-26T20:20:00.097Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5143" rel="noopener">lab#5143</a></div>
+</article>
+<article class="item" id="issue-5144">
+<h2><span class="tier A">A</span>A serve follower whose copy is restored from the lineage after stepping down with unconfirmed commits keeps its stale read model and loops on &#39;next commit must be seq N&#39;</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-26T20:19:41.722Z">2026-11-26T20:19:41.722Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5144" rel="noopener">lab#5144</a></div>
 </article>
 <article class="item" id="issue-5141">
 <h2><span class="tier A">A</span>serve_federation_gate_rules_test fails on main: pinned request types lack datastore.history.compact</h2>
@@ -141,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/5133" rel="noopener">lab#5133</a></div>
 </article>
-<article class="item" id="issue-5130">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-5130">
 <h2><span class="tier A">A</span>On-demand v3 history compaction: run it now from the CLI or through serve, instead of waiting for the hourly maintenance or a restart</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-11-26T17:51:42.995Z">2026-11-26T17:51:42.995Z</time></span></div>
@@ -165,7 +189,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4466" rel="noopener">lab#4466</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-4910">
+<article class="item" id="issue-4910">
 <h2><span class="tier A">A</span>@swamp/ssh: repin fails on Windows targets - POSIX `true` liveness probe not found in cmd.exe, new pin never persisted</h2>
 <p class="lede">Shipped bug fix</p>
 <div class="meta"><span><time datetime="2026-11-26T17:13:42.242Z">2026-11-26T17:13:42.242Z</time></span></div>
@@ -5453,50 +5477,42 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
-<article class="item" id="issue-5142">
-<h2><span class="tier B">B</span>worker --label parsing silently drops a __proto__ key</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-26T19:56:55.036Z">2026-11-26T19:56:55.036Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5142" rel="noopener">lab#5142</a></div>
-</article>
-<article class="item" id="issue-5143">
-<h2><span class="tier B">B</span>Give the older-serve refusal on worker token create --label a stable error code</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-26T19:56:54.716Z">2026-11-26T19:56:54.716Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5143" rel="noopener">lab#5143</a></div>
-</article>
-<article class="item" id="issue-5144">
-<h2><span class="tier B">B</span>A serve follower whose copy is restored from the lineage after stepping down with unconfirmed commits keeps its stale read model and loops on &#39;next commit must be seq N&#39;</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-26T19:53:45.087Z">2026-11-26T19:53:45.087Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5144" rel="noopener">lab#5144</a></div>
-</article>
-<article class="item" id="issue-5122">
-<h2><span class="tier B">B</span>A returning v3 team member&#39;s first command reaches 30 s: owe metadata and outputs too, and cut the remaining base-load costs</h2>
-<p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-26T19:34:25.117Z">2026-11-26T19:34:25.117Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5122" rel="noopener">lab#5122</a></div>
-</article>
 <article class="item" id="issue-5140">
 <h2><span class="tier B">B</span>Serve federation slice 1, unit 3: the member (join, check-in loop, swamp serve hub, team peer role)</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-26T19:30:32.126Z">2026-11-26T19:30:32.126Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-26T20:59:16.264Z">2026-11-26T20:59:16.264Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/5140" rel="noopener">lab#5140</a></div>
 </article>
+<article class="item" id="issue-5145">
+<h2><span class="tier B">B</span>A serve follower that stepped down with unconfirmed commits follows its new leader from its own head, so the leader&#39;s commits are appended above commits the lineage never had</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-26T20:54:49.904Z">2026-11-26T20:54:49.904Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5145" rel="noopener">lab#5145</a></div>
+</article>
+<article class="item" id="issue-5091">
+<h2><span class="tier B">B</span>API Mongo request pool exhausted: Attio sync uses the request lane, and slow /api/v1/users/:name bursts</h2>
+<p class="lede">Issue triaged</p>
+<div class="meta"><span><time datetime="2026-11-26T20:52:08.482Z">2026-11-26T20:52:08.482Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5091" rel="noopener">lab#5091</a></div>
+</article>
+<article class="item" id="issue-5122">
+<h2><span class="tier B">B</span>A returning v3 team member&#39;s first command reaches 30 s: owe metadata and outputs too, and cut the remaining base-load costs</h2>
+<p class="lede">Issue in_progress</p>
+<div class="meta"><span><time datetime="2026-11-26T20:51:32.927Z">2026-11-26T20:51:32.927Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5122" rel="noopener">lab#5122</a></div>
+</article>
 <article class="item" id="issue-5127">
 <h2><span class="tier B">B</span>repairing one diverged partition after a leader step-down rebuilds the whole read model for minutes while holding the checkout</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-26T18:46:59.221Z">2026-11-26T18:46:59.221Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-26T20:29:54.033Z">2026-11-26T20:29:54.033Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/5127" rel="noopener">lab#5127</a></div>
@@ -5508,14 +5524,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/5136" rel="noopener">lab#5136</a></div>
-</article>
-<article class="item" id="issue-5091">
-<h2><span class="tier B">B</span>API Mongo request pool exhausted: Attio sync uses the request lane, and slow /api/v1/users/:name bursts</h2>
-<p class="lede">Issue triaged</p>
-<div class="meta"><span><time datetime="2026-11-26T17:14:43.323Z">2026-11-26T17:14:43.323Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5091" rel="noopener">lab#5091</a></div>
 </article>
 <article class="item" id="issue-5094">
 <h2><span class="tier B">B</span>v3 writes on team members cost far more CPU per write than v2, so small members queue process startup behind them</h2>
@@ -5621,13 +5629,21 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4374" rel="noopener">lab#4374</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-5145">
-<h2><span class="tier C">C</span>A serve follower that stepped down with unconfirmed commits follows its new leader from its own head, so the leader&#39;s commits are appended above commits the lineage never had</h2>
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-5147">
+<h2><span class="tier C">C</span>GET /api/v1/users/:username takes 2-5 s on ClickHouse reads and has no rate limit</h2>
 <p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-26T19:53:53.912Z">2026-11-26T19:53:53.912Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-26T20:48:38.405Z">2026-11-26T20:48:38.405Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5145" rel="noopener">lab#5145</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5147" rel="noopener">lab#5147</a></div>
+</article>
+<article class="item" id="issue-5146">
+<h2><span class="tier C">C</span>Attio sync and sweep work runs on the request Mongo lane, not the background lane</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-26T20:48:36.925Z">2026-11-26T20:48:36.925Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5146" rel="noopener">lab#5146</a></div>
 </article>
 <article class="item" id="issue-5138">
 <h2><span class="tier C">C</span>Docs: label-bound enrollment tokens and the reserved-worker-labels serve setting</h2>
@@ -6998,13 +7014,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>866 items across 1 source(s) in this window:
-3 critical, 670 notable, 21 routine,
-172 minor.</p>
-<ul><li><strong>issues</strong> — 866</li></ul></section>
+<p>868 items across 1 source(s) in this window:
+3 critical, 673 notable, 19 routine,
+173 minor.</p>
+<ul><li><strong>issues</strong> — 868</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-26T20:05:11.139Z">2026-11-26T20:05:11.139Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-26T21:05:21.149Z">2026-11-26T21:05:21.149Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

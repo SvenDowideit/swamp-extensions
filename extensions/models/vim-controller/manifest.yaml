@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/vim-controller"
-version: "2026.11.23.2"
+version: "2026.11.26.1"
 description: >
   Control the Vim buffer a human is watching: read the buffer, replace exact
   text or line ranges atomically, move the cursor, draw a virtual agent cursor,
@@ -13,8 +13,9 @@ description: >
     cursor, draw text properties and read quickfix. This extension wraps that
     surface as swamp methods: `servers`, `open`, `status`, `read`, `edit`,
     `write`, `cursor`, `annotate`, `command`, `expr`, `keys`, `diagnostics`,
-    `undo` and `close`. `open` starts Vim in a herdr-core terminal so the
-    window stays open for a human to watch; `edit` applies exact-text or
+    `undo`, `focus` and `close`. `open` places Vim in one visible editor tab per
+    Herdr space, created the first time that space needs it and without taking
+    focus from the person; `focus` shows that tab when asked. `edit` applies exact-text or
     line-range changes in one call, rejects an ambiguous match before touching
     the buffer, returns the undo sequence and a unified diff, and never leaves
     a half-applied edit. `annotate` uses Vim text properties for a virtual
@@ -28,7 +29,7 @@ description: >
 
   INSTALL
 
-      swamp extension pull @svendowideit/vim
+      swamp extension pull @svendowideit/vim-controller
 
   DEPENDENCIES
 
@@ -40,35 +41,43 @@ description: >
 
   RUN
 
-      # See which Vim servers exist, then open a new one in a herdr terminal.
-      # The window stays open, so this is the "watch it work" path.
-      swamp model @svendowideit/vim method run servers vim
-      swamp model @svendowideit/vim method run open vim \
-        --input server=swamp-demo --input file=src/index.ts \
-        --input cwd=$PWD
+      # See which Vim servers exist, then open one in this space's editor tab.
+      # The tab is created once per space, without taking focus, so the person
+      # keeps looking at the tab they chose.
+      swamp model @svendowideit/vim-controller method run servers vim
+      swamp model @svendowideit/vim-controller method run open vim \
+        --input file=src/index.ts --input cwd=$PWD
+
+      # Every method reopens this space's editor tab when its Vim is gone, so a
+      # tab the person closed comes back on the next read or edit. `focus` shows
+      # it when they should watch, and `status` reports where it is.
+      swamp model @svendowideit/vim-controller method run focus vim \
+        --input server=swamp-vim-swamp-project
+      swamp model @svendowideit/vim-controller method run status vim \
+        --input server=swamp-vim-swamp-project
 
       # Read what the human sees, then replace one exact sentence. The edit
       # is rejected if the text is missing or occurs more than once.
-      swamp model @svendowideit/vim method run read vim \
+      swamp model @svendowideit/vim-controller method run read vim \
         --input server=swamp-demo --input mode=visible
-      swamp model @svendowideit/vim method run edit vim \
+      swamp model @svendowideit/vim-controller method run edit vim \
         --input server=swamp-demo \
         --input 'edits:json=[{"old":"old sentence","new":"new sentence"}]'
 
       # Show where the agent is looking without moving the human's cursor.
-      swamp model @svendowideit/vim method run annotate vim \
+      swamp model @svendowideit/vim-controller method run annotate vim \
         --input server=swamp-demo \
         --input line=12 --input text="▶ agent"
 
       # Read Vim's quickfix list, or run one Ex command.
-      swamp model @svendowideit/vim method run diagnostics vim \
+      swamp model @svendowideit/vim-controller method run diagnostics vim \
         --input server=swamp-demo
-      swamp model @svendowideit/vim method run command vim \
+      swamp model @svendowideit/vim-controller method run command vim \
         --input server=swamp-demo --input command="set number"
 
       # Check whether tracing is live, then post one test span.
-      swamp model @svendowideit/vim method run otel-status vim
-      swamp model @svendowideit/vim method run otel-status vim \
+      swamp model @svendowideit/vim-controller method run otel-status vim
+      swamp model @svendowideit/vim-controller method run otel-status vim \
         --input test=true
 
   CONFIGURE
@@ -77,8 +86,13 @@ description: >
 
       vimBin                Vim binary                              (vim)
       herdrBin              herdr-core binary used by `open`        (herdr-core)
-      serverPrefix          prefix for a cwd-derived server name    (swamp-vim)
+      herdrAppBin           herdr-app binary used to place the tab  (herdr-app)
+      autoOpen              reopen the editor tab when a method    (true)
+                            needs a Vim that is not running
+      editorTab             name of the per-space editor tab         (Edit)
+      serverPrefix          prefix for a space/cwd-derived server    (swamp-vim)
       defaultServer         server used when a method names none     (empty)
+      open.place            tab (default) or background terminal     (tab)
       defaultCwd            cwd for `open` when the method gives none (empty)
       maxOutputBytes        retained buffer/command output          (200000)
       otelEnabled           export OTLP spans                       (true)
@@ -98,10 +112,12 @@ description: >
 
   WHAT IT INSTALLS
 
-    Nothing on the host — no services, cron triggers, daemons or webhooks. It
-    sources the bundled `swamp_vim.vim` runtime into a Vim server, runs the
-    existing `vim` and `herdr-core` binaries, and writes swamp resources. It
-    never edits `.vimrc` or any other Vim configuration.
+    No services, cron triggers, daemons or webhooks. It runs the existing `vim`,
+    `herdr-core` and `herdr-app` binaries, sources the bundled `swamp_vim.vim`
+    runtime into a Vim server, and writes swamp resources. In a Herdr window it
+    also creates one tab per space named by `editorTab`, which is visible UI
+    state the person can close; `close` closes that tab again when nothing else
+    is in it. It never edits `.vimrc` or any other Vim configuration.
 
 repository: 'https://github.com/svendowideit/swamp-extensions'
 

@@ -29,7 +29,7 @@ import {
 /** The model type. */
 export const EXT_TYPE = "@svendowideit/vim-controller";
 /** The extension version; keep in step with manifest.yaml. */
-export const EXT_VERSION = "2026.11.23.2";
+export const EXT_VERSION = "2026.11.26.1";
 
 // ---------------------------------------------------------------------------
 // Global and method arguments
@@ -39,6 +39,17 @@ const GlobalArgsSchema = z.object({
   vimBin: z.string().default("vim").describe("Vim binary to run."),
   herdrBin: z.string().default("herdr-core").describe(
     "herdr-core binary used by `open` to host Vim in a persistent terminal.",
+  ),
+  herdrAppBin: z.string().default("herdr-app").describe(
+    "Herdr app binary used by `open` to place Vim in a per-space editor tab, " +
+      "and by `focus` to show it.",
+  ),
+  editorTab: z.string().default("Edit").describe(
+    "Name of the per-space tab `open` creates for Vim.",
+  ),
+  autoOpen: z.boolean().default(true).describe(
+    "Reopen this space's editor tab when a method needs a server that is not " +
+      "running, so a tab the person closed comes back on next use.",
   ),
   serverPrefix: z.string().default("swamp-vim").describe(
     "Prefix for a server name derived from the working directory.",
@@ -72,6 +83,11 @@ const OpenArgsSchema = z.object({
   cwd: z.string().default("").describe("Working directory for the server."),
   reuse: z.boolean().default(true).describe(
     "Return an already-running server instead of failing.",
+  ),
+  place: z.enum(["tab", "background"]).default("tab").describe(
+    "`tab` starts Vim in this space's editor tab without taking focus; " +
+      "`background` keeps the old behaviour of a background terminal " +
+      "parented to the calling pane.",
   ),
   waitMs: z.number().int().positive().default(5000).describe(
     "How long to wait for the server to appear.",
@@ -183,6 +199,15 @@ const CloseArgsSchema = ServerArgsSchema.extend({
 
 const DiffArgsSchema = ServerArgsSchema.extend({});
 
+const FocusArgsSchema = ServerArgsSchema.extend({
+  terminal: z.string().default("").describe(
+    "Herdr terminal holding Vim; empty uses the one recorded by `open`.",
+  ),
+  tab: z.string().default("").describe(
+    "Editor tab id to select; empty uses the one recorded by `open`.",
+  ),
+});
+
 const OtelStatusArgsSchema = z.object({
   test: z.boolean().default(false).describe(
     "Also post a test span and report the HTTP result.",
@@ -199,17 +224,62 @@ const ServerResourceSchema = z.object({
   file: z.string().default(""),
   cwd: z.string().default(""),
   reused: z.boolean().default(false),
+  /** Machine the Vim process runs on; empty means this host. */
+  machine: z.string().default(""),
+  /** Herdr space this server belongs to, when it was placed in one. */
+  space: z.string().default(""),
+  spaceName: z.string().default(""),
+  tab: z.string().default(""),
+  tabName: z.string().default(""),
+  pane: z.string().default(""),
+  /** `tab` when Vim runs in a visible editor tab, `background` otherwise. */
+  placed: z.enum(["tab", "background"]).default("background"),
+  /** A stale editor tab was closed to make room for this one. */
+  replaced: z.boolean().default(false),
+  /** Why the requested placement could not be used. */
+  reason: z.string().default(""),
   openedAt: z.string(),
+});
+
+const ServerPlacementSchema = z.object({
+  server: z.string(),
+  machine: z.string().default(""),
+  space: z.string().default(""),
+  spaceName: z.string().default(""),
+  tab: z.string().default(""),
+  tabName: z.string().default(""),
+  terminal: z.string().default(""),
+  placed: z.enum(["tab", "background"]).default("background"),
 });
 
 const ServersResourceSchema = z.object({
   count: z.number(),
   servers: z.array(z.string()),
+  /** Where each server this extension knows about was placed. */
+  placements: z.array(ServerPlacementSchema).default([]),
+  capturedAt: z.string(),
+});
+
+const FocusResultSchema = z.object({
+  server: z.string(),
+  space: z.string().default(""),
+  spaceName: z.string().default(""),
+  tab: z.string().default(""),
+  terminal: z.string().default(""),
+  focused: z.boolean(),
+  reason: z.string().default(""),
   capturedAt: z.string(),
 });
 
 const ServerStatusSchema = z.object({
   server: z.string(),
+  /** Where this server was placed, when the server resource is readable. */
+  machine: z.string().default(""),
+  space: z.string().default(""),
+  spaceName: z.string().default(""),
+  tab: z.string().default(""),
+  tabName: z.string().default(""),
+  placed: z.string().default(""),
   file: z.string().default(""),
   modified: z.boolean().default(false),
   lines: z.number().default(0),
@@ -294,6 +364,8 @@ const CloseResultSchema = z.object({
   server: z.string(),
   force: z.boolean(),
   closed: z.boolean(),
+  /** The editor tab this extension placed the server in was closed too. */
+  tabClosed: z.boolean().default(false),
   capturedAt: z.string(),
 });
 
@@ -335,6 +407,11 @@ export interface MethodContext {
   readModelData?: (
     model: string,
     spec: string,
+  ) => Promise<Array<Record<string, unknown>>>;
+  /** CEL query over every behaviour's data, all versions when version is named. */
+  queryData?: (
+    predicate: string,
+    select?: string,
   ) => Promise<Array<Record<string, unknown>>>;
   vaultService?: {
     get(vault: string, key: string, reason: string): Promise<string>;
@@ -458,11 +535,73 @@ async function remoteSend(
   ]);
 }
 
+/** How a missing server is brought back, from what `open` last recorded. */
+export function autoOpenPlan(
+  stored: { file?: string; cwd?: string } | null,
+  fallbackCwd: string,
+): { file: string; cwd: string; reason: string } {
+  const file = String(stored?.file ?? "");
+  const cwd = String(stored?.cwd ?? "") || fallbackCwd;
+  return {
+    file,
+    cwd,
+    reason: file
+      ? `reopened the editor tab on ${file}`
+      : "reopened the editor tab with no file; call open with a file to load one",
+  };
+}
+
+/**
+ * Make sure a server exists before a method uses it.
+ *
+ * The person can close the editor tab at any time; that ends the Vim in it. The
+ * next call in that space puts the tab back, on the file `open` last recorded,
+ * so a closed tab never leaves the tooling with a dead server.
+ */
+async function ensureServer(
+  ctx: MethodContext,
+  server: string,
+): Promise<void> {
+  const g = ctx.globalArgs;
+  const running = (await listServers(g.vimBin)).some((name) =>
+    name.toLowerCase() === server.toLowerCase()
+  );
+  if (running) return;
+  if (!g.autoOpen) {
+    throw new Error(
+      `Vim server '${server}' is not running and autoOpen is off; run open ` +
+        `for this space first, or set autoOpen=true`,
+    );
+  }
+  const plan = autoOpenPlan(
+    await storedServer(ctx, server),
+    g.defaultCwd || Deno.cwd(),
+  );
+  try {
+    await open({
+      server,
+      file: plan.file,
+      cwd: plan.cwd,
+      reuse: true,
+      place: "tab",
+      waitMs: 5000,
+    }, ctx);
+  } catch (error) {
+    throw new Error(
+      `Vim server '${server}' is not running and could not be reopened: ${
+        errorMessage(error)
+      }`,
+    );
+  }
+  ctx.logger?.info(`vim: ${plan.reason}`, { server, cwd: plan.cwd });
+}
+
 /** Source the bundled Vim runtime into a server when it is not there yet. */
 async function ensureRuntime(
   ctx: MethodContext,
   server: string,
 ): Promise<void> {
+  await ensureServer(ctx, server);
   const has = await remoteExpr(
     ctx.globalArgs.vimBin,
     server,
@@ -522,8 +661,215 @@ function hcName(server: string): string {
 /** Derive a Vim server name from a cwd. */
 export function deriveServerName(prefix: string, cwd: string): string {
   const base = cwd.split(/[\\/]/).filter(Boolean).pop() ?? "vim";
-  const name = `${prefix}-${base}`.toLowerCase().replace(/[^a-z0-9-_]+/g, "-");
-  return (name || prefix).slice(0, 60);
+  return sanitizeServerName(`${prefix}-${base}`, prefix);
+}
+
+/**
+ * Derive a Vim server name from a Herdr space. One server per space is the
+ * rule: the editor tab is a place the person can learn, not one tab per
+ * project.
+ */
+export function spaceServerName(
+  prefix: string,
+  spaceName: string,
+  spaceId: string,
+): string {
+  const base = spaceName.trim() || spaceId.slice(-8) || "vim";
+  return sanitizeServerName(`${prefix}-${base}`, prefix);
+}
+
+function sanitizeServerName(name: string, prefix: string): string {
+  const cleaned = name.toLowerCase().replace(/[^a-z0-9-_]+/g, "-");
+  return (cleaned || prefix).slice(0, 60);
+}
+
+/** The Vim argv placed inside an editor tab. */
+export function vimArgv(
+  vimBin: string,
+  server: string,
+  file: string,
+): string[] {
+  return [
+    vimBin,
+    "--servername",
+    server,
+    "-n",
+    ...(file ? [file] : []),
+  ];
+}
+
+/** Where one Herdr terminal lives. */
+export interface HerdrPlacement {
+  machine: string;
+  space: string;
+  spaceName: string;
+  tab: string;
+  tabName: string;
+  pane: string;
+  terminal: string;
+}
+
+/** One tab of a space and the terminals in it. */
+export interface HerdrTab {
+  tab: string;
+  tabName: string;
+  terminals: Array<{ terminal: string; pane: string; status: string }>;
+}
+
+function record(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object"
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function stringAt(value: unknown, key: string): string {
+  const raw = record(value)[key];
+  return typeof raw === "string" ? raw : "";
+}
+
+function arrayAt(value: unknown, key: string): unknown[] {
+  const raw = record(value)[key];
+  return Array.isArray(raw) ? raw : [];
+}
+
+/**
+ * Find the space, tab and pane holding `terminalId` in `herdr-app ls` output.
+ * This is how a call learns which space it belongs to: a pi pane carries
+ * `HC_TERMINAL_ID`, and the app maps that to its space.
+ */
+export function findTerminalPlacement(
+  lsJson: unknown,
+  terminalId: string,
+): HerdrPlacement | null {
+  const wanted = String(terminalId ?? "").trim();
+  if (!wanted) return null;
+  for (const space of arrayAt(lsJson, "spaces")) {
+    for (const tab of arrayAt(space, "tabs")) {
+      for (const terminal of arrayAt(tab, "terminals")) {
+        if (stringAt(terminal, "terminal") !== wanted) continue;
+        return {
+          machine: stringAt(space, "machine"),
+          space: stringAt(space, "id"),
+          spaceName: stringAt(space, "name"),
+          tab: stringAt(tab, "id"),
+          tabName: stringAt(tab, "name"),
+          pane: stringAt(terminal, "pane"),
+          terminal: wanted,
+        };
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Whether a herdr-core terminal state means the program is still running.
+ *
+ * `herdr-app ls` carries no status for a terminal that is not an agent, so the
+ * window cannot say whether a Vim is alive. `hc ls --all` can: `state` is `live`
+ * while the program runs and `finished` once it has ended.
+ */
+export function coreStateLive(state: string): boolean {
+  const value = String(state ?? "").trim().toLowerCase();
+  return value !== "" && value !== "finished" && value !== "exited";
+}
+
+/** Whether any terminal of a tab is still running, per herdr-core states. */
+export function tabHasLiveTerminal(
+  tab: HerdrTab,
+  states: Map<string, string>,
+): boolean {
+  return tab.terminals.some((terminal) =>
+    coreStateLive(states.get(terminal.terminal) ?? "")
+  );
+}
+
+/** Terminal address to herdr-core state, or an empty map when hc is absent. */
+async function coreStates(g: GlobalArgs): Promise<Map<string, string>> {
+  const states = new Map<string, string>();
+  try {
+    const raw = await hcJson<{
+      terminals?: Array<{ address?: string; state?: string }>;
+    }>(g.herdrBin, ["ls", "--all"]);
+    for (const terminal of raw.terminals ?? []) {
+      states.set(String(terminal.address ?? ""), String(terminal.state ?? ""));
+    }
+  } catch {
+    // No herdr-core: every terminal counts as not live.
+  }
+  return states;
+}
+
+/** Every tab of a space with this name, so a duplicate cannot hide a dead one. */
+export function findTabsInSpace(
+  lsJson: unknown,
+  spaceId: string,
+  tabName: string,
+): HerdrTab[] {
+  const wanted = String(tabName ?? "").trim();
+  if (!spaceId || !wanted) return [];
+  const found: HerdrTab[] = [];
+  for (const space of arrayAt(lsJson, "spaces")) {
+    if (stringAt(space, "id") !== spaceId) continue;
+    for (const tab of arrayAt(space, "tabs")) {
+      if (stringAt(tab, "name") !== wanted) continue;
+      found.push({
+        tab: stringAt(tab, "id"),
+        tabName: wanted,
+        terminals: arrayAt(tab, "terminals").map((terminal) => ({
+          terminal: stringAt(terminal, "terminal"),
+          pane: stringAt(terminal, "pane"),
+          status: stringAt(terminal, "status"),
+        })),
+      });
+    }
+  }
+  return found;
+}
+
+/** Find a tab by name inside one space, with the terminals it holds. */
+export function findTabInSpace(
+  lsJson: unknown,
+  spaceId: string,
+  tabName: string,
+): HerdrTab | null {
+  return findTabsInSpace(lsJson, spaceId, tabName)[0] ?? null;
+}
+
+/** The Herdr app binary, when it answers with JSON. */
+async function herdrAppJson(bin: string, args: string[]): Promise<unknown> {
+  const result = await runProcess(bin, args);
+  if (result.code !== 0) {
+    throw new Error(
+      `herdr-app ${args.join(" ")} failed (${result.code}): ` +
+        (result.stderr.trim() || result.stdout.trim() || "no output"),
+    );
+  }
+  const text = result.stdout.trim();
+  if (!text) return {};
+  return JSON.parse(text);
+}
+
+/** Run one Herdr app command; true when it was accepted. */
+async function herdrAppDo(
+  bin: string,
+  args: string[],
+): Promise<boolean> {
+  try {
+    const result = await runProcess(bin, ["do", ...args]);
+    return result.code === 0;
+  } catch {
+    return false;
+  }
+}
+
+/** The tabs Herdr reports, or null when the app is not answering. */
+async function herdrTabs(bin: string): Promise<unknown | null> {
+  try {
+    return await herdrAppJson(bin, ["ls"]);
+  } catch {
+    return null;
+  }
 }
 
 /** Truncate retained output. */
@@ -569,9 +915,23 @@ function now(): string {
 function statusResource(
   server: string,
   raw: Record<string, unknown>,
+  placement: {
+    machine?: string;
+    space?: string;
+    spaceName?: string;
+    tab?: string;
+    tabName?: string;
+    placed?: string;
+  } = {},
 ): z.infer<typeof ServerStatusSchema> {
   return {
     server,
+    machine: placement.machine ?? "",
+    space: placement.space ?? "",
+    spaceName: placement.spaceName ?? "",
+    tab: placement.tab ?? "",
+    tabName: placement.tabName ?? "",
+    placed: placement.placed ?? "",
     file: String(raw.file ?? ""),
     modified: raw.modified === true || raw.modified === 1,
     lines: Number(raw.lines ?? 0),
@@ -785,12 +1145,190 @@ async function servers(
   ctx: MethodContext,
 ): Promise<{ dataHandles: Array<{ name: string }> }> {
   const list = await listServers(ctx.globalArgs.vimBin);
+  const known = await knownServers(ctx);
   const data: z.infer<typeof ServersResourceSchema> = {
     count: list.length,
     servers: list,
+    placements: list
+      .map((server) => known.get(server.toLowerCase()))
+      .filter((placement): placement is z.infer<typeof ServerPlacementSchema> =>
+        placement !== undefined
+      ),
     capturedAt: now(),
   };
   return { dataHandles: [await save(ctx, "servers", "current", data)] };
+}
+
+/** The placement recorded for each server this model opened, by server name. */
+async function knownServers(
+  ctx: MethodContext,
+): Promise<
+  Map<string, z.infer<typeof ServerPlacementSchema>>
+> {
+  const placements = new Map<string, z.infer<typeof ServerPlacementSchema>>();
+  const stored = (await serverResources(ctx)).sort((a, b) =>
+    b.version - a.version
+  );
+  for (const entry of stored) {
+    const row = entry.payload;
+    const server = String(row.server ?? "");
+    if (!server) continue;
+    const parsed = ServerResourceSchema.safeParse(row);
+    if (!parsed.success) continue;
+    placements.set(server.toLowerCase(), {
+      server,
+      machine: parsed.data.machine,
+      space: parsed.data.space,
+      spaceName: parsed.data.spaceName,
+      tab: parsed.data.tab,
+      tabName: parsed.data.tabName,
+      terminal: parsed.data.terminal,
+      placed: parsed.data.placed,
+    });
+  }
+  return placements;
+}
+
+/**
+ * The data name of one server's placement record.
+ *
+ * It carries a suffix because swamp refuses two data items with the same name
+ * written by different specs in one run, and an auto-open inside `status` or
+ * `edit` writes this record before the method writes its own result.
+ */
+export function placementName(server: string): string {
+  return `${server}-placement`;
+}
+
+/** One stored placement record, with the name and version it was written under. */
+interface StoredPlacement {
+  payload: Record<string, unknown>;
+  name: string;
+  version: number;
+}
+
+/** Every `server` resource this model has written. */
+async function serverResources(
+  ctx: MethodContext,
+): Promise<StoredPlacement[]> {
+  const model = ctx.definition?.name ?? "";
+  if (!model) return [];
+  const payloads = (rows: Array<Record<string, unknown>>) =>
+    rows.map((row): StoredPlacement => {
+      const record = row as {
+        attributes?: Record<string, unknown>;
+        content?: Record<string, unknown>;
+        name?: string;
+        version?: number;
+      };
+      // swamp's SDK puts the parsed payload in `attributes`; the CLI's JSON uses
+      // `content`. Tolerate both, and a bare record.
+      return {
+        payload: record.attributes ?? record.content ??
+          record as unknown as Record<string, unknown>,
+        name: String(record.name ?? ""),
+        version: Number(record.version ?? 0),
+      };
+    }).filter((entry) => entry.payload.server !== undefined);
+  try {
+    // `version` in the predicate asks for every version: the placement record
+    // shares its name with the transient results of other methods, so a
+    // latest-per-name read can see a status snapshot instead of it.
+    if (ctx.queryData) {
+      const rows = await ctx.queryData(
+        `modelName == "${model}" && specName == "server" && version >= 1`,
+      );
+      const found = payloads(rows ?? []);
+      if (found.length > 0) return found;
+    }
+    if (ctx.readModelData) {
+      return payloads(await ctx.readModelData(model, "server") ?? []);
+    }
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+/** The newest stored resource for one server, when it is readable. */
+async function storedServer(
+  ctx: MethodContext,
+  server: string,
+): Promise<z.infer<typeof ServerResourceSchema> | null> {
+  const wanted = server.toLowerCase();
+  const candidates = (await serverResources(ctx)).filter((entry) =>
+    String(entry.payload.server ?? "").toLowerCase() === wanted
+  );
+  if (candidates.length === 0) return null;
+  // Records written before the `-placement` suffix exist under the bare server
+  // name; the suffixed one is the current, unambiguous form.
+  const suffixed = candidates.filter((entry) =>
+    entry.name === `${entry.payload.server}-placement` ||
+    entry.name.endsWith("-placement")
+  );
+  const newest = (suffixed.length > 0 ? suffixed : candidates).reduce(
+    (best, entry) => entry.version >= best.version ? entry : best,
+  );
+  const parsed = ServerResourceSchema.safeParse(newest.payload);
+  return parsed.success ? parsed.data : null;
+}
+
+/** Which space this call belongs to, from `HC_TERMINAL_ID` and `herdr-app ls`. */
+async function callerPlacement(
+  g: GlobalArgs,
+): Promise<HerdrPlacement | null> {
+  const terminal = (Deno.env.get("HC_TERMINAL_ID") ?? "").trim();
+  if (!terminal) return null;
+  const tabs = await herdrTabs(g.herdrAppBin);
+  if (tabs === null) return null;
+  return findTerminalPlacement(tabs, terminal);
+}
+
+/** Every tab of a space with this name, or none when the app is absent. */
+async function tabsInSpace(
+  g: GlobalArgs,
+  spaceId: string,
+  tabName: string,
+): Promise<HerdrTab[]> {
+  const tabs = await herdrTabs(g.herdrAppBin);
+  return tabs === null ? [] : findTabsInSpace(tabs, spaceId, tabName);
+}
+
+/**
+ * The tab `tab.new` just created: the only tab of that name in the space once
+ * the stale ones are gone. Waiting for exactly one avoids recording a tab that
+ * is still closing.
+ */
+async function createdTab(
+  g: GlobalArgs,
+  spaceId: string,
+  tabName: string,
+  waitMs: number,
+): Promise<HerdrTab | null> {
+  const deadline = Date.now() + waitMs;
+  for (;;) {
+    const found = await tabsInSpace(g, spaceId, tabName);
+    if (found.length === 1) return found[0];
+    if (Date.now() >= deadline) return found[found.length - 1] ?? null;
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+}
+
+/** Wait for the Vim server named `server` to answer `--serverlist`. */
+async function waitForServer(
+  g: GlobalArgs,
+  server: string,
+  waitMs: number,
+): Promise<boolean> {
+  const deadline = Date.now() + waitMs;
+  while (Date.now() < deadline) {
+    const found = (await listServers(g.vimBin)).some((name) =>
+      name.toLowerCase() === server.toLowerCase()
+    );
+    if (found) return true;
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  }
+  return false;
 }
 
 async function open(
@@ -799,7 +1337,14 @@ async function open(
 ): Promise<{ dataHandles: Array<{ name: string }> }> {
   const g = ctx.globalArgs;
   const cwd = args.cwd || g.defaultCwd || ".";
-  const server = args.server || deriveServerName(g.serverPrefix, cwd);
+  // A pi pane carries its own terminal address; the app maps it to a space.
+  // With a space we place Vim in that space's editor tab and name the server
+  // after the space, so one space keeps one editor.
+  const placement = args.place === "tab" ? await callerPlacement(g) : null;
+  const server = args.server ||
+    (placement
+      ? spaceServerName(g.serverPrefix, placement.spaceName, placement.space)
+      : deriveServerName(g.serverPrefix, cwd));
   const existing = await listServers(g.vimBin);
   const running = existing.find((name) =>
     name.toLowerCase() === server.toLowerCase()
@@ -808,58 +1353,134 @@ async function open(
     if (!args.reuse) {
       throw new Error(`Vim server '${server}' is already running`);
     }
+    // A space can hold more than one tab with the editor name (an older one
+    // whose Vim died); prefer the tab that really holds this server: a live
+    // terminal first, then the recorded one.
+    const stored = await storedServer(ctx, server);
+    const reuseTabs = placement
+      ? await tabsInSpace(g, placement.space, g.editorTab)
+      : [];
+    const states = await coreStates(g);
+    const located = reuseTabs.find((tab) => tabHasLiveTerminal(tab, states)) ??
+      reuseTabs.find((tab) =>
+        stored?.terminal !== undefined && stored.terminal !== "" &&
+        tab.terminals.some((terminal) => terminal.terminal === stored.terminal)
+      ) ?? null;
     const data: z.infer<typeof ServerResourceSchema> = {
       server,
-      terminal: "",
+      terminal: located?.terminals[0]?.terminal ?? "",
       file: args.file,
       cwd,
       reused: true,
+      machine: placement?.machine ?? "",
+      space: placement?.space ?? "",
+      spaceName: placement?.spaceName ?? "",
+      tab: located?.tab ?? "",
+      tabName: located ? g.editorTab : "",
+      pane: located?.terminals[0]?.pane ?? "",
+      placed: located ? "tab" : "background",
+      replaced: false,
+      reason: "",
       openedAt: now(),
     };
-    return { dataHandles: [await save(ctx, "server", server, data)] };
+    return {
+      dataHandles: [await save(ctx, "server", placementName(server), data)],
+    };
   }
 
-  const hcArgs = [
-    "run",
-    "--bg",
-    "--no-notify",
-    "--name",
-    hcName(server),
-    "--cwd",
-    cwd,
-    "--",
-    g.vimBin,
-    "--servername",
-    server,
-    "-n",
-    ...(args.file ? [args.file] : []),
-  ];
+  let placed: "tab" | "background" = "background";
+  let tab: HerdrTab | null = null;
   let terminal = "";
-  try {
-    const raw = await hcJson(g.herdrBin, hcArgs);
-    terminal = String(raw.address ?? "");
-  } catch (error) {
-    throw new Error(
-      `open needs a working herdr-core (hc) to host Vim: ${
-        errorMessage(error)
-      }. Start Vim yourself with ` +
-        `\`vim --servername ${server}\` and pass server=${server}.`,
-    );
+  let replaced = false;
+  let reason = "";
+
+  if (placement) {
+    // Tabs carrying our name whose Vim has ended are stale: close every one so a
+    // space never accumulates dead editor tabs. A tab that still holds a live
+    // terminal is someone else's editor, and a second tab of the same name would
+    // make the placement ambiguous, so refuse rather than guess.
+    const stored = await storedServer(ctx, server);
+    const states = await coreStates(g);
+    for (
+      const candidate of await tabsInSpace(g, placement.space, g.editorTab)
+    ) {
+      // Our own recorded tab, or a tab whose only terminal has ended, is ours to
+      // replace. Anything else with that name belongs to the person: herdr-core
+      // keeps a shell running in a terminal after Vim exits, so liveness alone
+      // cannot tell our leftover from their editor.
+      const ours = stored?.tab !== undefined && stored.tab !== "" &&
+        candidate.tab === stored.tab;
+      const ended = !tabHasLiveTerminal(candidate, states);
+      if (!ours && !ended) {
+        throw new Error(
+          `the space already has a tab named "${g.editorTab}" holding another ` +
+            `program (terminal ${candidate.terminals[0]?.terminal ?? "?"}); ` +
+            `close it or set the editorTab global argument, then run open again`,
+        );
+      }
+      replaced = await herdrAppDo(g.herdrAppBin, [
+        "tab.close",
+        "--id",
+        candidate.tab,
+        "--confirmed",
+        "true",
+      ]) || replaced;
+    }
+    const created = await herdrAppDo(g.herdrAppBin, [
+      "tab.new",
+      "--space",
+      placement.space,
+      "--name",
+      g.editorTab,
+      "--folder",
+      cwd,
+      "--argv",
+      JSON.stringify(vimArgv(g.vimBin, server, args.file)),
+      "--focus",
+      "false",
+    ]);
+    if (created) {
+      placed = "tab";
+      tab = await createdTab(g, placement.space, g.editorTab, args.waitMs);
+      terminal = tab?.terminals[0]?.terminal ?? "";
+    } else {
+      reason = "herdr-app did not create the editor tab; Vim was started in " +
+        "a background terminal instead";
+    }
   }
 
-  const deadline = Date.now() + args.waitMs;
-  let found = false;
-  while (Date.now() < deadline) {
-    found = (await listServers(g.vimBin)).some((name) =>
-      name.toLowerCase() === server.toLowerCase()
-    );
-    if (found) break;
-    await new Promise((resolve) => setTimeout(resolve, 200));
+  if (placed === "background") {
+    const hcArgs = [
+      "run",
+      "--bg",
+      "--no-notify",
+      "--name",
+      hcName(server),
+      "--cwd",
+      cwd,
+      "--",
+      ...vimArgv(g.vimBin, server, args.file),
+    ];
+    try {
+      const raw = await hcJson(g.herdrBin, hcArgs);
+      terminal = String(raw.address ?? "");
+    } catch (error) {
+      throw new Error(
+        `open needs a working herdr-core (hc) to host Vim: ${
+          errorMessage(error)
+        }. Start Vim yourself with ` +
+          `\`vim --servername ${server}\` and pass server=${server}.`,
+      );
+    }
   }
+
+  const found = await waitForServer(g, server, args.waitMs);
   if (!found) {
     throw new Error(
       `Vim server '${server}' did not appear within ${args.waitMs}ms ` +
-        `(terminal ${terminal || "unknown"})`,
+        `(placed ${placed}${terminal ? `, terminal ${terminal}` : ""}${
+          tab ? `, tab ${tab.tab}` : ""
+        })`,
     );
   }
   const data: z.infer<typeof ServerResourceSchema> = {
@@ -868,9 +1489,109 @@ async function open(
     file: args.file,
     cwd,
     reused: false,
+    machine: placement?.machine ?? "",
+    space: placement?.space ?? "",
+    spaceName: placement?.spaceName ?? "",
+    tab: tab?.tab ?? "",
+    tabName: tab ? g.editorTab : "",
+    pane: tab?.terminals[0]?.pane ?? "",
+    placed,
+    replaced,
+    reason,
     openedAt: now(),
   };
-  return { dataHandles: [await save(ctx, "server", server, data)] };
+  return {
+    dataHandles: [await save(ctx, "server", placementName(server), data)],
+  };
+}
+
+/**
+ * Close the tab this extension placed Vim in, once its Vim has actually gone.
+ * Vim answers `:qa!` before its terminal reports the exit, so a single look is a
+ * race; wait for the terminal to end, then close a tab that holds nothing else.
+ */
+async function closePlacedTab(
+  g: GlobalArgs,
+  stored: { space: string; tab: string; tabName: string; terminal: string },
+  waitMs: number,
+): Promise<boolean> {
+  const deadline = Date.now() + waitMs;
+  for (;;) {
+    const tabs = await herdrTabs(g.herdrAppBin);
+    // The recorded tab id wins: a tab duplicated or renamed by the person must
+    // not make us close the wrong one.
+    const candidates = tabs === null
+      ? []
+      : findTabsInSpace(tabs, stored.space, stored.tabName);
+    const tab = candidates.find((candidate) =>
+      stored.tab ? candidate.tab === stored.tab : true
+    ) ?? null;
+    if (!tab) {
+      return true;
+    }
+    const others = tab.terminals.filter((terminal) =>
+      terminal.terminal !== stored.terminal
+    );
+    if (others.length === 0) {
+      const closed = await herdrAppDo(g.herdrAppBin, [
+        "tab.close",
+        "--id",
+        tab.tab,
+        "--confirmed",
+        "true",
+      ]);
+      if (closed) {
+        return true;
+      }
+    }
+    if (Date.now() >= deadline) {
+      return false;
+    }
+    await new Promise((resolve) =>
+      setTimeout(resolve, 200)
+    );
+  }
+}
+
+/** Put the person in front of this server's editor tab, when they ask. */
+async function focus(
+  args: z.infer<typeof FocusArgsSchema>,
+  ctx: MethodContext,
+): Promise<{ dataHandles: Array<{ name: string }> }> {
+  const g = ctx.globalArgs;
+  const server = serverOf(g, args);
+  const stored = await storedServer(ctx, server);
+  const terminal = args.terminal || stored?.terminal || "";
+  const tab = args.tab || stored?.tab || "";
+  let focused = false;
+  let reason = "";
+  if (terminal) {
+    focused = await herdrAppDo(g.herdrAppBin, [
+      "agent.focus",
+      "--terminal",
+      terminal,
+    ]);
+    if (focused) reason = "focused the terminal holding Vim";
+  }
+  if (!focused && tab) {
+    focused = await herdrAppDo(g.herdrAppBin, ["tab.select", "--id", tab]);
+    if (focused) reason = "selected the editor tab";
+  }
+  if (!focused) {
+    reason = reason ||
+      "no tab or terminal is recorded for this server; run open first";
+  }
+  const data: z.infer<typeof FocusResultSchema> = {
+    server,
+    space: stored?.space ?? "",
+    spaceName: stored?.spaceName ?? "",
+    tab,
+    terminal,
+    focused,
+    reason,
+    capturedAt: now(),
+  };
+  return { dataHandles: [await save(ctx, "focus-result", server, data)] };
 }
 
 async function status(
@@ -880,7 +1601,15 @@ async function status(
   const server = serverOf(ctx.globalArgs, args);
   await ensureRuntime(ctx, server);
   const raw = await vimJson(ctx, server, "SwampVimStatus()");
-  const data = statusResource(server, raw);
+  const stored = await storedServer(ctx, server);
+  const data = statusResource(server, raw, {
+    machine: stored?.machine,
+    space: stored?.space,
+    spaceName: stored?.spaceName,
+    tab: stored?.tab,
+    tabName: stored?.tabName,
+    placed: stored?.placed,
+  });
   return { dataHandles: [await save(ctx, "server-status", server, data)] };
 }
 
@@ -1278,15 +2007,30 @@ async function close(
 ): Promise<{ dataHandles: Array<{ name: string }> }> {
   const g = ctx.globalArgs;
   const server = serverOf(g, args);
+  const stored = await storedServer(ctx, server);
   const result = await remoteSend(
     g.vimBin,
     server,
     args.force ? "\x1b:qa!\r" : "\x1b:qa\r",
   );
+  // Close the editor tab this extension placed Vim in, but only while our
+  // terminal is all it holds: a tab the person added panes to is theirs.
+  // Close the tab even when the server had already gone: a closed tab leaves a
+  // shell behind, and that leftover is our tab to remove.
+  let tabClosed = false;
+  if (stored?.placed === "tab" && stored.tab) {
+    tabClosed = await closePlacedTab(g, {
+      space: stored.space,
+      tab: stored.tab,
+      tabName: stored.tabName,
+      terminal: stored.terminal,
+    }, 3000);
+  }
   const data: z.infer<typeof CloseResultSchema> = {
     server,
     force: args.force,
     closed: result.code === 0,
+    tabClosed,
     capturedAt: now(),
   };
   return { dataHandles: [await save(ctx, "close-result", server, data)] };
@@ -1349,14 +2093,23 @@ async function save(
 
 /** A live Vim server: buffer edits, annotations, diagnostics and commands. */
 export const model = {
-  type: EXT_TYPE,
-  version: EXT_VERSION,
+  // Kept as string literals so the registry catalogue lists this behaviour:
+  // the catalogue only reads literals, not EXT_TYPE/EXT_VERSION constants.
+  // `vim_test.ts` asserts they match the exported constants.
+  type: "@svendowideit/vim-controller",
+  version: "2026.11.26.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
       toVersion: "2026.11.23.2",
       description:
         "Adds the edit-session report, visual select and buffer-vs-file diff, and JSONL activity events for the Herdr panel.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.26.1",
+      description:
+        "`open` now places Vim in one editor tab per Herdr space instead of a background terminal inside the calling pane: it reads HC_TERMINAL_ID to find its space, creates the tab with herdr-app without taking focus, names the server after the space (one editor per space), records machine/space/tab/pane/placed on the server resource, closes a stale editor tab whose Vim died, and falls back to the background terminal when no space or app is available. Adds a `focus` method to show the editor tab when the person asks, and reports placement in `servers` and `status`.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1438,6 +2191,13 @@ export const model = {
     "close-result": {
       description: "The result of closing the Vim server.",
       schema: CloseResultSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    "focus-result": {
+      description:
+        "Whether the person was put in front of the server's editor tab.",
+      schema: FocusResultSchema,
       lifetime: "infinite",
       garbageCollection: 10,
     },
@@ -1639,6 +2399,19 @@ export const model = {
           otelConfig(ctx.globalArgs),
           spanInput("undo", args, { target: args.server }),
           () => undo(args, ctx),
+        ),
+    },
+    focus: {
+      description:
+        "Show a server's editor tab to the person: focus the Herdr terminal " +
+        "holding Vim, or select the tab, when they ask for it.",
+      arguments: FocusArgsSchema,
+      execute: (args: z.infer<typeof FocusArgsSchema>, ctx: MethodContext) =>
+        withOtelSpan(
+          ctx,
+          otelConfig(ctx.globalArgs),
+          spanInput("focus", args, { target: args.server }),
+          () => focus(args, ctx),
         ),
     },
     close: {

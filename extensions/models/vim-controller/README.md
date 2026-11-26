@@ -62,7 +62,10 @@ Without that contract, set `OTEL_EXPORTER_OTLP_ENDPOINT` (and optionally
 | Global argument | Default | Meaning |
 | --- | --- | --- |
 | `vimBin` | `vim` | Vim binary |
-| `herdrBin` | `herdr-core` | Binary used by `open` to host Vim |
+| `herdrBin` | `herdr-core` | Binary used by `open` to host Vim when it falls back to a background terminal |
+| `herdrAppBin` | `herdr-app` | Binary used by `open` to place Vim in an editor tab, and by `focus` to show it |
+| `editorTab` | `Edit` | Name of the per-space tab `open` creates |
+| `autoOpen` | `true` | Reopen the editor tab when a method needs a Vim that is not running |
 | `serverPrefix` | `swamp-vim` | Prefix for a cwd-derived server name |
 | `defaultServer` | `""` | Server used when a method names none |
 | `defaultCwd` | `""` | cwd for `open` when the method gives none |
@@ -84,7 +87,7 @@ Per-call arguments:
 | Method | Arguments |
 | --- | --- |
 | `servers` | none |
-| `open` | `server`, `file`, `cwd`, `reuse`, `waitMs` |
+| `open` | `server`, `file`, `cwd`, `reuse`, `place` (`tab`, `background`), `waitMs` |
 | `status` | `server` |
 | `read` | `server`, `mode` (`all`, `visible`, `selection`), `start`, `end` |
 | `edit` | `server`, `edits`, `save` |
@@ -98,6 +101,7 @@ Per-call arguments:
 | `keys` | `server`, `keys` |
 | `diagnostics` | `server` |
 | `undo` | `server`, `seq` |
+| `focus` | `server`, `terminal`, `tab` |
 | `close` | `server`, `force` |
 | `otel-status` | `test` |
 
@@ -111,17 +115,50 @@ Edits are objects. Use one of:
 
 ## Examples
 
-See which Vim servers exist, then open a new one in a herdr terminal:
+See which Vim servers exist, then open a new one in this space's editor tab:
 
 ```sh
 swamp model @svendowideit/vim-controller method run servers vim
 swamp model @svendowideit/vim-controller method run open vim \
-  --input server=swamp-demo --input file=src/index.ts \
-  --input cwd=$PWD
+  --input file=src/index.ts --input cwd=$PWD
 ```
 
-The second call starts Vim in a herdr-core terminal with a stable
-`--servername`, so the window stays open and a human can watch the edits.
+`open` reads `HC_TERMINAL_ID` to learn which Herdr space it is in, names the Vim
+server after that space (`swamp-vim-swamp-project`) and starts Vim in one tab
+named `Edit` for the space, without taking focus: whichever tab the person is
+looking at stays their choice. Every later `open` in that space reuses the same
+server, so a space keeps one editor. `--input place=background` keeps the old
+behaviour of a background terminal parented to the calling pane, and that is
+what `open` falls back to when there is no Herdr window.
+
+Ask for the editor to be shown when you want the person to look at it, and read
+where a server lives from `status`:
+
+```sh
+swamp model @svendowideit/vim-controller method run focus vim \
+  --input server=swamp-vim-swamp-project
+
+swamp model @svendowideit/vim-controller method run status vim \
+  --input server=swamp-vim-swamp-project
+```
+
+`focus` selects the recorded tab (or focuses its terminal) only when you ask —
+`open` never moves the person. `status` reports `machine`, `space`, `tab` and
+`placed` beside the buffer state, so an agent can say where the editor is
+instead of naming a server nobody can find.
+
+Every method that needs a server reopens the tab if it is gone, so a person can
+close the `Edit` tab whenever they like and the next `read`, `edit` or `status`
+puts it back on the file `open` last recorded (`autoOpen`, on by default). Set
+`autoOpen=false` to make a missing server an error instead.
+
+Closing the tab does not remove it from Herdr's memory: herdr-core keeps a shell
+running in the terminal after Vim exits. The extension therefore treats a tab as
+its own by the **placement record** (`space`, `tab` and `terminal` written by
+`open`) rather than by what is running in it. It closes its own recorded tab
+before creating a new one and in `close`, but refuses to touch a tab of the same
+name that it did not create and that still holds a live program — that one is
+the person's, and the error says to close it or set `editorTab`.
 
 Read what the human sees, then replace one exact sentence:
 
@@ -204,6 +241,7 @@ Model type: `@svendowideit/vim-controller`.
 | `expr` | `expr-result` |
 | `keys` | `keys-result` |
 | `diagnostics` | `diagnostics` |
+| `focus` | `focus-result` |
 | `close` | `close-result` |
 | `otel-status` | `otel-status` |
 
@@ -244,6 +282,13 @@ and bypassed work.
 
 ### Caveats
 
+Placement is local-only for now: a tab in a Herdr space lives on that space's
+machine, while every method here runs `vim --remote-expr` on this host. A Vim
+tab in a remote space would therefore be a tab no method can reach; the fix is
+an `--on` client through `hc exec`, not a bigger placement argument. The
+`server` resource already records `machine`, and `machine` is empty while the
+server is local.
+
 `+clientserver` is X11-bound on Unix. It works on a Wayland desktop through
 XWayland, but not on a headless host with no `DISPLAY`. Vim on macOS is often
 built without `+clientserver`; `vim --version` will say. For a fleet/remote
@@ -261,3 +306,8 @@ swamp extension update
 
 Nothing is installed on the host. The bundled `swamp_vim.vim` is re-sourced
 when a server does not have the runtime yet.
+
+Upgrading from `2026.11.23.2`: a Vim started before the upgrade still runs in a
+background terminal inside the pane that opened it, and keeps working. The next
+`open` in a space creates that space's `Edit` tab; `close` ends the old server
+and closes a tab this extension placed, so no cleanup step is required.

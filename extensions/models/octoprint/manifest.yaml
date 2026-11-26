@@ -1,0 +1,111 @@
+manifestVersion: 1
+name: "@svendowideit/octoprint"
+version: "2026.11.26.1"
+description: >
+  The health-and-versions model for one OctoPrint box: is the printer up, what
+  is it doing, which OctoPrint and plugins are installed, what firmware is on
+  the controller, and does the webcam still return a JPEG.
+
+  WHAT IT DOES
+
+    Answers the questions you ask about a 3D printer that is meant to be
+    working, and keeps one resource per answer so a nightly workflow can read
+    them later: printer state and temperatures, job progress, the selected
+    printer profile (whose `model` is what actually identifies the machine,
+    unlike an IP address), OctoPrint core and API versions, installed plugins
+    with the Software Update plugin's pending updates, the controller firmware
+    string, and a webcam snapshot probe. Prefer it over `curl` against
+    OctoPrint's REST API or over SSHing into the Pi: it is HTTP-only, so it never
+    opens the printer's serial port that OctoPrint owns, and a failure is
+    recorded as data (an `offline` printer, an `errors` list) rather than
+    crashing the run. The endpoint and API key are read from a swamp vault at
+    run time, so a model definition never contains a secret. Nothing here moves
+    the printer, restarts OctoPrint or applies an update - the guarded mutation
+    methods are a later phase.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/octoprint
+
+  DEPENDENCIES
+
+    None. It uses Deno's built-in fetch and swamp's own vault reader, so no
+    curl, no SSH, no extra Deno install, and nothing is written to the OctoPrint
+    host.
+
+  RUN
+
+      # Store the endpoint and API key once. `vault put` prompts for the value,
+      # so nothing lands in your shell history. The key is OctoPrint's
+      # Settings -> API; it stays in the vault and never enters a definition.
+      swamp vault put octoprint-secrets url
+      swamp vault put octoprint-secrets apiKey
+
+      # Create the instance. The vault name is the default, so no arguments are
+      # needed and nothing sensitive is written anywhere.
+      swamp model create @svendowideit/octoprint mk2s
+
+      # Is it up, is it idle, is it hot, and which printer profile answered?
+      # Run this first: `state: offline` means OctoPrint is fine but no printer
+      # is connected, and the profile's `model` proves which machine replied.
+      swamp model mk2s method run status
+
+      # Is OctoPrint itself current? Reports core version, API version and the
+      # host it runs on, so an upgrade is planned rather than guessed.
+      swamp model mk2s method run version
+
+      # What is stale? Installed plugins plus the Software Update plugin's
+      # pending updates, including core. Report-only: nothing is upgraded.
+      swamp model mk2s method run plugins
+
+      # Does the webcam still produce a JPEG? A daemon that died answers 200
+      # with HTML, which is why this checks the content type and the magic
+      # bytes, not just the status code.
+      swamp model mk2s method run webcam
+
+  CONFIGURE
+
+    Every value below is a global argument, set when the model instance is
+    created (or edited later) with `--global-arg key=value`:
+
+      vaultName         Vault holding this printer's endpoint and API key
+                        (default `octoprint-secrets`). Read at run time.
+      urlRef            Vault key for the base URL (default `url`).
+      apiKeyRef         Vault key for the API key (default `apiKey`), sent as
+                        `X-Api-Key`. Never logged, never stored in a resource.
+      baseUrl           Base URL override, `http`/`https` only. Empty (the
+                        default) reads it from the vault, so the endpoint lives
+                        in one place for every consumer.
+      requestTimeoutMs  Per-request timeout (default 30000; the update check
+                        takes seconds on a Pi).
+      maxBodyBytes      Response bytes read per request (default 262144).
+      userAgent         User-Agent sent with every request.
+
+    A second printer is a second instance, pointed at its own vault:
+
+      swamp model create @svendowideit/octoprint mk4s \
+        --global-arg vaultName=mk4s-secrets
+
+  WHAT IT INSTALLS
+
+    Nothing on the host - no services, daemons, cron triggers, udev rules or
+    webhooks. It only makes HTTP requests to the OctoPrint you point it at and
+    writes swamp resources.
+
+repository: https://github.com/svendowideit/swamp-extensions
+
+license: MIT
+
+paths:
+  base: manifest
+
+models:
+  - octoprint.ts
+
+dependencies: []
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+
+platforms: []

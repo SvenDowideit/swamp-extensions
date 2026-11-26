@@ -9425,7 +9425,122 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261110.191731.0-sha.19a81b5b" rel="noopener">release v20261110.191731.0-sha.19a81b5b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/19a81b5b64973fa95fdb1d673df8c20f039f0546" rel="noopener">19a81b5b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3720" rel="noopener">#3720</a>𝗔 <a href="https://swamp-club.com/lab/4600" rel="noopener">lab#4600</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261125-233318-0-sha-4474939c">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261126-005626-0-sha-10637b6e">
+<h2><span class="tier C">C</span>swamp 20261126.005626.0-sha.10637b6e</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-26T01:01:09Z">2026-11-26T01:01:09Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): a step with no queue timeout gives up when no matching worker&#39;s state can be recorded, instead of waiting forever (swamp-club#5105) (#3979)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Fixes swamp-club#5105. Since swamp-club#5087, a dispatch whose busy-status write fails is refused as <code>state_unrecorded</code>, and a step whose only candidate is that worker waits for its queue timeout. A step with <code>queueTimeout: 0</code> has no timeout, so it waited forever, retrying on every poll, and never surfaced the storage error.</p>
+<ul>
+<li>A step with no queue timeout now gives up only when both of these hold:</li>
+<li>every matching worker has refused because its state could not be recorded, for at least <code>MAX_UNRECORDED_REFUSALS</code> (five) refusals;</li>
+<li>those refusals span at least <code>UNRECORDED_GIVE_UP_MS</code> (one minute).</li>
+<li>A brief write failure is ridden out. These keep the step waiting:</li>
+<li>a matching worker that is only busy;</li>
+<li>a dispatch that reaches a worker, whose state was recorded first.</li>
+<li>The error names the placement, the count, the elapsed time and the last worker, and points to the serve log. The write error travels only as the cause, so serve-local paths never reach the client.</li>
+<li>The gateway&#39;s refusal now carries the write error as its cause.</li>
+<li>Steps with a queue timeout are unchanged.</li>
+</ul>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li><code>verify-build</code>, <code>verify-reviews</code> and <code>verify-skills</code> passed on a3ccc1963: 12 steps succeeded and 5 were skipped by their guards. The attestation is posted.</li>
+<li>New dispatch tests:</li>
+<li>a step gives up aft</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261126.005626.0-sha.10637b6e" rel="noopener">release v20261126.005626.0-sha.10637b6e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/10637b6e" rel="noopener">10637b6e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3979" rel="noopener">#3979</a>𝗔 <a href="https://swamp-club.com/lab/5105" rel="noopener">lab#5105</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261126-004444-0-sha-b18f3bbb">
+<h2><span class="tier C">C</span>swamp 20261126.004444.0-sha.b18f3bbb</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-26T00:49:23Z">2026-11-26T00:49:23Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(test): the killed-run test&#39;s workflow child fails if its run ever ends, as the method-run child does (swamp-club#5106) (#3978)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Follow-up to #3975 (swamp-club#5102), from a non-blocking review suggestion.</p>
+<p>Both child programs in <code>integration/datastore_v3_killed_workflow_run_test.ts</code></p>
+<p>now hold a keep-alive interval, so only the parent&#39;s <code>SIGKILL</code> can end them.</p>
+<p>The method-run child already throws if its run ends. The workflow child ended</p>
+<p>with a bare <code>await running;</code>: if the workflow resolved after <code>READY</code>, the child</p>
+<p>would sit idle until the kill, and the killed-signal assertion would pass even</p>
+<p>though the run had ended.</p>
+<p>The workflow child now throws `the workflow run ended; it should block until</p>
+<p>killed` after that await, so the parent reports an early exit with its cause.</p>
+<p>A rejection was already caught: an uncaught rejection ends the child despite</p>
+<p>the keep-alive. Today s2 blocks forever, so a healthy run never reaches the</p>
+<p>throw.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li><strong>Probe (uncommitted, reverted):</strong> s2 made to return after 3s, with the</li>
+</ul>
+<p>  parent&#39;s kill held 8s after <code>READY</code>.</p>
+<ul>
+<li>Without the guard, the child was still alive at the kill, so the</li>
+</ul>
+<p>    killed-signal assertion passed even though the run had ended.</p>
+<ul>
+<li>With the guard, the child exited 1, and the parent&#39;s failure message shows</li>
+</ul>
+<p>    the new error.</p>
+<ul>
+<li><strong>Repeats:</strong> the committed file passes 5/5 under <code>--repeats 3</code>.</li>
+<li><strong>Host verification at 122b2b6:</strong> <code>verify-build</code>, <code>verify-reviews</code> and</li>
+</ul>
+<p>  <code>verify-skills</code> all p</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261126.004444.0-sha.b18f3bbb" rel="noopener">release v20261126.004444.0-sha.b18f3bbb</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/b18f3bbb" rel="noopener">b18f3bbb</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3978" rel="noopener">#3978</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3975" rel="noopener">#3975</a>𝗔 <a href="https://swamp-club.com/lab/5106" rel="noopener">lab#5106</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261126-002810-0-sha-e4529fed">
+<h2><span class="tier C">C</span>swamp 20261126.002810.0-sha.e4529fed</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-26T00:33:05Z">2026-11-26T00:33:05Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(serve): a workspace&#39;s or root&#39;s refusal of a WebSocket reaches the caller through a host with its own status, not 502 (swamp-club#4894) (#3977)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>The host&#39;s router (<code>src/serve/host/workspace_router.ts</code>, <code>relayWebSocket</code>) opens its upstream with Deno&#39;s WebSocket client, which reports a refused handshake only as an error event. Every refusal by a workspace or the root — a refused or expired token (401), an origin refusal (403), a misdirected request (421), a rate limit (429), a child shutting down (503) — reached the caller as <code>502 &quot;The workspace could not be reached.&quot;</code>. The CLI could not tell a refused credential from a crashed child, and its login hint never showed.</p>
+<p>The router now reads the child&#39;s status from Deno&#39;s handshake failure text (<code>Invalid status code: N</code>) — the same text <code>src/cli/remote_run.ts</code> and <code>src/worker/connect.ts</code> already read — and answers a 4xx or 5xx with that status and a body of its own.</p>
+<h4 class="body-h">Decisions</h4>
+<ul>
+<li><strong>Status only, not a raw handshake.</strong> A raw upstream handshake would keep the child&#39;s body and <code>Retry-After</code>, but no Deno or browser WebSocket client can read a refused handshake&#39;s body or headers, and it would put a hand-written frame codec on every relayed socket. The child&#39;s body and headers are dropped; nothing from the child but the status number crosses.</li>
+<li><strong>The child is asked once.</strong> One upstream handshake per caller attempt, so a refused credential is never sent twice (no re-ask, which #4877 tried and revert</li>
+</ul></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261126.002810.0-sha.e4529fed" rel="noopener">release v20261126.002810.0-sha.e4529fed</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/e4529fed" rel="noopener">e4529fed</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3977" rel="noopener">#3977</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4877" rel="noopener">#4877</a>𝗔 <a href="https://swamp-club.com/lab/4894" rel="noopener">lab#4894</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261126-000935-0-sha-279d3b0d">
+<h2><span class="tier C">C</span>swamp 20261126.000935.0-sha.279d3b0d</h2>
+<p class="lede">Change (untyped) · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-26T00:14:44Z">2026-11-26T00:14:44Z</time></span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>fix(http): swamp-club&#39;s issue, quest, token and inbox reads retry a 503, 502, 504, timeout or dropped connection, as whoami does (swamp-club#4881) (#3976)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Lab #4881. #3859 moved <code>SwampClubClient.whoami</code> onto <code>fetchWithTransientRetry</code>, so one 503 or timeout no longer fails push&#39;s registry checks. It left swamp-club&#39;s other requests at a single attempt. This finishes the issue&#39;s scope: the other idempotent reads that a user&#39;s command waits on now take the same path, with the same ceiling, backoff, jitter and 150s budget.</p>
+<ul>
+<li><strong>Now retry 502/503/504, timeouts and dropped connections (GET only):</strong></li>
+<li><code>fetchIssue</code>, <code>searchIssues</code> (issue get, edit, search)</li>
+<li><code>fetchGenesisPass</code>, <code>fetchGhostGenesisPass</code> (quest)</li>
+<li><code>listCollectiveTokens</code> (auth token list)</li>
+<li><code>listInboxMessages</code>, <code>getInboxMessage</code> (inbox list, read and paging)</li>
+<li><strong>Messages:</strong> a 4xx is an answer and is not retried. A 5xx that outlasts the retries keeps its existing message, with <code>after N attempts over T</code> added.</li>
+<li><strong>Unchanged, still single-attempt:</strong> every write (including <code>markInboxRead</code>), the auth gate&#39;s <code>verifyIdentity</code>, startup scope resolution (<code>whoami</code> with <code>retry: false</code>), and the <code>inboxSummary</code> / <code>accountNotices</code> polls that run behind every command.</li>
+<li><strong>Docs:</strong> <code>design/primitives/extensions.md</code> (&quot;Registry retries&quot;) and <code>design/surfaces/inbox.md</code> say which swamp-club reads retry.</li>
+</ul>
+<p>Trade-off: when swamp-club is down, these user-run commands can now wait up to the 150s budget in</p></div>
+
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261126.000935.0-sha.279d3b0d" rel="noopener">release v20261126.000935.0-sha.279d3b0d</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/279d3b0d" rel="noopener">279d3b0d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3976" rel="noopener">#3976</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3859" rel="noopener">#3859</a>𝗔 <a href="https://swamp-club.com/lab/4881" rel="noopener">lab#4881</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261125-233318-0-sha-4474939c">
 <h2><span class="tier C">C</span>swamp 20261125.233318.0-sha.4474939c</h2>
 <p class="lede">Change (untyped) · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-11-25T23:37:27Z">2026-11-25T23:37:27Z</time></span></div>
@@ -9994,13 +10109,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261101.202412.0-sha.0500dc35" rel="noopener">release v20261101.202412.0-sha.0500dc35</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0500dc35534060a870a5998e5dddbcd015dfc2e1" rel="noopener">0500dc35</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3528" rel="noopener">#3528</a>𝗔 <a href="https://swamp-club.com/lab/4250" rel="noopener">lab#4250</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>418 items across 1 source(s) in this window:
+<p>422 items across 1 source(s) in this window:
 2 critical, 369 notable, 25 routine,
-22 minor.</p>
-<ul><li><strong>fix</strong> — 268</li><li><strong>feat</strong> — 103</li><li><strong>perf</strong> — 21</li><li><strong>docs</strong> — 10</li><li><strong>test</strong> — 8</li><li><strong>refactor</strong> — 3</li></ul></section>
+26 minor.</p>
+<ul><li><strong>fix</strong> — 268</li><li><strong>feat</strong> — 103</li><li><strong>perf</strong> — 21</li><li><strong>docs</strong> — 10</li><li><strong>test</strong> — 8</li><li><strong>changes</strong> — 7</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-26T00:03:21.191Z">2026-11-26T00:03:21.191Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-26T01:06:01.218Z">2026-11-26T01:06:01.218Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

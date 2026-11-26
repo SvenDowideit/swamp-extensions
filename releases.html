@@ -144,7 +144,7 @@ footer .ver{color:var(--acc)}
 <li>Turned on only by <code>createModelLock</code> on format 3 filesystem datastores.</li>
 <li>Unchanged: v2, bucket provider locks, serve&#39;s lease path (which already waits in order), the v3 writer lease, global and workflow-run locks, <code>tryAcquire</code>, force release, nested holder tok</li>
 </ul></div>
-
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/access-control.md" rel="noopener">design/enablers/access-control.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261126.175107.0-sha.c9b3d47b" rel="noopener">release v20261126.175107.0-sha.c9b3d47b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/c9b3d47b6963d4c165899c079d9e080f03480858" rel="noopener">c9b3d47b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3994" rel="noopener">#3994</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3995" rel="noopener">#3995</a>𝗔 <a href="https://swamp-club.com/lab/5131" rel="noopener">lab#5131</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261126-171031-0-sha-7f625436">
@@ -185,7 +185,7 @@ footer .ver{color:var(--acc)}
 </ul>
 <p>Guard evaluation is unchanged. The reporter&#39;s runs 3 and 4 (a truthy guard that still ran its step) did not reproduce on main in 31 runs. Their build predates the swamp-club#4826 fix, which most likely explains those two runs.</p>
 <h4 class="body-h">Test</h4></div>
-
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/reference.md" rel="noopener">.claude/skills/swamp/references/workflow/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261126.164606.0-sha.86087d38" rel="noopener">release v20261126.164606.0-sha.86087d38</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/86087d38d1519864f7e01c916331d2ae003cc969" rel="noopener">86087d38</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3991" rel="noopener">#3991</a>𝗔 <a href="https://swamp-club.com/lab/5120" rel="noopener">lab#5120</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261126-164038-0-sha-00d55112">
@@ -246,7 +246,7 @@ footer .ver{color:var(--acc)}
 <li><strong><code>serve.yaml</code> version 2.</strong> It refuses an unknown key in the top level, <code>auth</code>, <code>tls</code>, <code>token-secrets</code>, <code>audit</code>, <code>audit.hmac</code>, <code>audit.sinks[i]</code>, <code>triggers.&lt;workflow&gt;</code>, <code>webhooks[i]</code> and <code>federation</code>. Free-form maps stay open. A version above 2 is refused with &quot;serve.yaml version N needs a newer swamp&quot;, and a non-integer is refused naming <code>version</code>.</li>
 <li><strong>The <code>federation</code> block.</strong> It takes exactly one of <code>role: hub</code> or <code>hub: &lt;url&gt;</code>. The hub URL must be <code>https</code>, or <code>http</code> to loopback only (<code>localhost</code>, <code>127.0.0.0/8</code>, <code>[::1]</code>). Credentials, query strings and fragments are refused, and the URL is never echoed. <code>join-token-file</code> is resolved against the r</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/README.md" rel="noopener">design/README.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/serve-federation.md" rel="noopener">design/enablers/serve-federation.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/README.md" rel="noopener">design/README.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261126.130022.0-sha.70ae0322" rel="noopener">release v20261126.130022.0-sha.70ae0322</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/70ae03226e696d1442ed98e3767d7c8f29017762" rel="noopener">70ae0322</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3989" rel="noopener">#3989</a>𝗔 <a href="https://swamp-club.com/lab/5116" rel="noopener">lab#5116</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261126-102555-0-sha-8c7dde48">
@@ -274,7 +274,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Background:</strong></li>
 <li>Behavior and run locks hydrate the locked partition before the method runs. This is best-effort: an offline checkout still takes its lock</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261126.102555.0-sha.8c7dde48" rel="noopener">release v20261126.102555.0-sha.8c7dde48</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/8c7dde486eaad33792fdc4164b2b3de6a09af6fb" rel="noopener">8c7dde48</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3988" rel="noopener">#3988</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3987" rel="noopener">#3987</a>𝗔 <a href="https://swamp-club.com/lab/5108" rel="noopener">lab#5108</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261126-091947-0-sha-de0d922b">
@@ -323,7 +323,7 @@ footer .ver{color:var(--acc)}
 <ul>
 <li>Unit tests: body-only scoping, init outside the binding, nested binds, a bind feeding a list macro and a bind inside a macro body, field-named binders, a macro binder named <code>cel</code>, malformed shapes still reporting <code>cel</code>, content/at</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/data-query.md" rel="noopener">design/enablers/data-query.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261126.024235.0-sha.f0feb54a" rel="noopener">release v20261126.024235.0-sha.f0feb54a</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/f0feb54aff988ac7b4f03e7f5782858b1d201a62" rel="noopener">f0feb54a</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3986" rel="noopener">#3986</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3984" rel="noopener">#3984</a>𝗔 <a href="https://swamp-club.com/lab/5110" rel="noopener">lab#5110</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261126-022502-0-sha-8e48b97d">
@@ -426,7 +426,7 @@ footer .ver{color:var(--acc)}
 <ul>
 <li><code>verify-build</code>, `verify-</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/remote-execution.md" rel="noopener">design/enablers/remote-execution.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261126.013609.0-sha.16e7eefc" rel="noopener">release v20261126.013609.0-sha.16e7eefc</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/16e7eefc6bb5c54dd38544e1f076e56d88dd4588" rel="noopener">16e7eefc</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3982" rel="noopener">#3982</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3974" rel="noopener">#3974</a>𝗔 <a href="https://swamp-club.com/lab/5087" rel="noopener">lab#5087</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261126-012921-0-sha-652ebaf3">
@@ -445,7 +445,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Refusals are remembered.</strong> A refusal is reused for <code>REFRESH_RETRY_MS</code> (30 seconds), and expired entries are dropped as new ones are added. A marker that moved under the gate is not remembered as a refusal.</li>
 </ul>
 <p>The refresh is reached only after the presented secret matched the vault secret, so this was contention caused by legitima</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/serve.md" rel="noopener">design/primitives/serve.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261126.012921.0-sha.652ebaf3" rel="noopener">release v20261126.012921.0-sha.652ebaf3</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/652ebaf367cb924d12f61233b072cb1ac79883cc" rel="noopener">652ebaf3</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3981" rel="noopener">#3981</a>𝗔 <a href="https://swamp-club.com/lab/5104" rel="noopener">lab#5104</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261126-012337-0-sha-4b0e06ed">
@@ -697,7 +697,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Clearing.</strong> <code>clearEmptyPlacement</code> (<code>src/domain/workflows/placement.ts</code>) drops an empty <code>target</code>, <code>platform</code> or label value and reports which fields it cleared. It runs on authored values in <code>resolvePlacement</code>, and again after the step&#39;s expressions resolve, so values known only when the step runs (a <code>forEach</code> item, for example) clear too. <code>callerPlacement</code> applies it, so a nested child never inherits an empty selector.</li>
 <li><strong>Remote-only.</strong> The existing refusal stays the single enforcement point. When fields were cleared it names them: *&quot;Meth</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/references/remote-execution.md" rel="noopener">.claude/skills/swamp/references/workflow/references/remote-execution.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/workflows.md" rel="noopener">design/primitives/workflows.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261125.174955.0-sha.861c24ef" rel="noopener">release v20261125.174955.0-sha.861c24ef</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/861c24ef3e4206f2418664d85f46df8aa0858af4" rel="noopener">861c24ef</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3972" rel="noopener">#3972</a>𝗔 <a href="https://swamp-club.com/lab/5004" rel="noopener">lab#5004</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261125-163602-0-sha-0f4bc259">
@@ -763,7 +763,7 @@ footer .ver{color:var(--acc)}
 <li>A replay keeps a live writer&#39;s journaled files only for that writer&#39;s own commits.</li>
 <li><strong>Catch-up under locks:</strong> a behavior lock catches</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/access-control.md" rel="noopener">design/enablers/access-control.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261125.143715.0-sha.4ee44d61" rel="noopener">release v20261125.143715.0-sha.4ee44d61</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4ee44d61444785909680a4dc27ed74f3d7bebaac" rel="noopener">4ee44d61</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3969" rel="noopener">#3969</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/5083" rel="noopener">#5083</a>𝗔 <a href="https://swamp-club.com/lab/4993" rel="noopener">lab#4993</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261125-133531-0-sha-75ceedfd">
@@ -785,7 +785,7 @@ footer .ver{color:var(--acc)}
 <li><strong>The behavior name in log refusals.</strong> <code>behavior output logs</code> refusals name the behavior from the log record&#39;s <code>modelName</code> tag (<code>scanner/big.log@v1</code>), and fall back to the model type when the tag is missing.</li>
 <li><strong>A copy-pasteable preview hint.</strong> The <code>data search</code> truncation note prints `swamp da</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/data.md" rel="noopener">design/primitives/data.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261125.133531.0-sha.75ceedfd" rel="noopener">release v20261125.133531.0-sha.75ceedfd</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/75ceedfd58542fbf500c6c88651b2053be53f536" rel="noopener">75ceedfd</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3968" rel="noopener">#3968</a>𝗔 <a href="https://swamp-club.com/lab/5085" rel="noopener">lab#5085</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261125-131630-0-sha-f65276e8">
@@ -1435,7 +1435,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Step outputs</strong> — <code>StepOutputRetention</code> analyses, at run start and on resume, every expression the run can evaluate. That covers the workflow&#39;s own expressions, including guards, inputs and bare assert predicates. It also covers expressions inherited from a parent run, the cached workflow in <code>--last-evaluated</code> mode, and the definitions of every model a step runs, calls through <code>model.method</code>, or adopts by direct execution. A step key named by <code>steps.&lt;name&gt;</code> or <code>steps[&#39;&lt;name&gt;&#39;]</code> keeps its outputs. Every other step keeps only its <code>status</code>, and its resources are not read back. A computed <code>steps</code> key, the map used whole, a model chosen at run time, a missing definition, unparsable text, or a fan-out job keeps everything.</li>
 <li><strong>Merging</strong></li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/model/api.md" rel="noopener">.claude/skills/swamp/references/extension/references/model/api.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/report/report-types.md" rel="noopener">.claude/skills/swamp/references/extension/references/report/report-types.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/primitives/behaviors.md" rel="noopener">design/primitives/behaviors.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/model/api.md" rel="noopener">.claude/skills/swamp/references/extension/references/model/api.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/extension/references/report/report-types.md" rel="noopener">.claude/skills/swamp/references/extension/references/report/report-types.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261124.024057.0-sha.73849fab" rel="noopener">release v20261124.024057.0-sha.73849fab</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/73849fab3972084d88d6dac84ab9ee6cd0e2879e" rel="noopener">73849fab</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3936" rel="noopener">#3936</a>𝗔 <a href="https://swamp-club.com/lab/4477" rel="noopener">lab#4477</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261124-021222-0-sha-b6c0a79e">
@@ -1556,7 +1556,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Serve startup</strong> logs each finding as a warning. It is silent on a hosted workspace with a root address.</li>
 <li><strong><code>serve check-config</code></strong> shows an &quot;Admin warnings:&quot; list in log mode and an <code>adminWarnings</code> field in JSON. The field is left out when empty, like `personalCollectiv</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/serve/guide.md" rel="noopener">.claude/skills/swamp/references/serve/guide.md</a></div>
+
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261123.231152.0-sha.50eb628e" rel="noopener">release v20261123.231152.0-sha.50eb628e</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/50eb628e3bc164a65ef237ccb3b32a27f839407f" rel="noopener">50eb628e</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3930" rel="noopener">#3930</a>𝗔 <a href="https://swamp-club.com/lab/4165" rel="noopener">lab#4165</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261123-224216-0-sha-74da3ca0">
@@ -1611,7 +1611,7 @@ footer .ver{color:var(--acc)}
 <li><strong>Resumes:</strong> the record keeps only the latest <code>resumedAt</code>, so earlier resumes aren&#39;t shown.</li>
 <li><strong>Policy:</strong> <code>offline</code> and <code>minWorkers</code> come from the run&#39;s own evaluated workflow. When that is gone they&#39;re left out, never read from a c</li>
 </ul></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/guide.md" rel="noopener">.claude/skills/swamp/references/workflow/guide.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/reference.md" rel="noopener">.claude/skills/swamp/references/workflow/reference.md</a></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/workflow/guide.md" rel="noopener">.claude/skills/swamp/references/workflow/guide.md</a></div>
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261123.215635.0-sha.a939f9dd" rel="noopener">release v20261123.215635.0-sha.a939f9dd</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/a939f9dd31831a82201841b16cffa71f9b0742c4" rel="noopener">a939f9dd</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3928" rel="noopener">#3928</a>𝗔 <a href="https://swamp-club.com/lab/5021" rel="noopener">lab#5021</a></div>
 </article>
 <article class="item" id="release-swamp-club-swamp-v20261123-203312-0-sha-050cda59">
@@ -10476,7 +10476,7 @@ footer .ver{color:var(--acc)}
 <ul><li><strong>fix</strong> — 286</li><li><strong>feat</strong> — 106</li><li><strong>perf</strong> — 21</li><li><strong>docs</strong> — 10</li><li><strong>test</strong> — 8</li><li><strong>refactor</strong> — 3</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-26T19:02:19.395Z">2026-11-26T19:02:19.395Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-26T20:05:11.139Z">2026-11-26T20:05:11.139Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

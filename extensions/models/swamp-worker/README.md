@@ -74,7 +74,7 @@ Global arguments are set at model creation (`swamp model create
 | `configDir` | string | `~/.config/swamp-worker` | Dir for the identity's `0600` token/env files. |
 | `cacheDirRoot` | string | `~/.local/share/swamp-worker` | Root for per-identity cache dirs (each holds the enrollment machine-id). |
 | `unitDir` | string | `~/.config/systemd/user` | Dir where the unit file is written. |
-| `swampHome` | string | `~/.swamp` | `SWAMP_HOME` exported into the unit. |
+| `swampHome` | string | `~/.swamp` | `SWAMP_HOME` exported into the unit. Any `~/.swamp`-prefixed default (`swampBinPath`, `configDir`, `cacheDirRoot`, `unitDir`) resolves under `SWAMP_HOME` when it is set, so the worker's artifacts stay beside the swamp data the host actually uses. |
 | `swampConfigDir` | string | `~/.config/swamp` | `SWAMP_CONFIG_DIR` exported into the unit. |
 | `concurrency` | string | `auto` | Worker `--concurrency` (`auto` = CPU count). |
 | `enableLinger` | boolean | `true` | Run `loginctl enable-linger` so the worker survives logout/reboot. |

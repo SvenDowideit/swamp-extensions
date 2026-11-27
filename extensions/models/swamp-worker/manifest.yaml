@@ -68,6 +68,11 @@ description: >
         cacheDirRoot    per-identity cache dir root                  (~/.local/share/swamp-worker)
         unitDir         systemd user unit dir                        (~/.config/systemd/user)
         swampHome       SWAMP_HOME in the unit                       (~/.swamp)
+
+    A `~/.swamp`-prefixed default (swampBinPath, token/env dirs, unit paths,
+    cacheDirRoot) resolves under SWAMP_HOME when that variable is set, so a host
+    that pins a different swamp home gets worker artifacts beside the data it
+    actually uses instead of a second `~/.swamp` tree.
         swampConfigDir  SWAMP_CONFIG_DIR in the unit                (~/.config/swamp)
         concurrency     worker --concurrency                        (auto)
         enableLinger    run `loginctl enable-linger`                (true)

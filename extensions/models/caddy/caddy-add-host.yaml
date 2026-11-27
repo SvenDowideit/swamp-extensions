@@ -1,0 +1,152 @@
+id: b7c1d0e2-4f3a-4c59-9d61-2f5c8a91d7e4
+name: '@svendowideit/caddy-add-host'
+description: |
+  Publish one host: its DNS record and — by default — the TLS subject for it.
+  No route, no proxy.
+
+  Use it for a name that must resolve and hold a certificate but serves nothing
+  through Caddy: a NAS, a printer, a NanoKVM/GL.iNet-style device, a database
+  host. addRoute/ensureDnsProxy are for names Caddy *serves* — they create a
+  route. This workflow only declares what the zone should say about the name.
+
+  What it does:
+    1. finds the @svendowideit/caddy model this repo defines (name one with
+       --input model=<name> only when the repo holds several distinct Caddies);
+    2. calls that model's addDnsRecord method, which upserts the record into the
+       model's dnsRecords global — persisted to the model definition, so a later
+       method run keeps it — drops a conflicting dnsRemovals entry, and adds the
+       hostname to the model's TLS subjects unless tls=false;
+    3. re-merges and applies the config, then runs plan to show what Caddy was
+       told to own beside what it actually has. reconcile is on by default, so
+       this is a live whole-zone reconcile, not a surgical insert: every record
+       the merged models declare is applied again.
+
+  Call it from another workflow:
+
+      - name: add-host
+        task:
+          type: workflow
+          workflowIdOrName: '@svendowideit/caddy-add-host'
+          inputs:
+            model: my-caddy
+            hostname: mk2s.example.com
+            ip: 192.0.2.53
+
+  Run it directly:
+
+      swamp workflow run @svendowideit/caddy-add-host \
+        --input model=my-caddy --input hostname=mk2s.example.com \
+        --input ip=192.0.2.53
+
+  A private address is fine: with a DNS provider configured the certificate is
+  issued by DNS-01, which does not need the name to be reachable.
+inputs:
+  properties:
+    model:
+      type: string
+      default: ''
+      description: |
+        The @svendowideit/caddy model to declare the record on. Empty (the default) uses the one Caddy the repo defines; name one only when the repo holds models for several distinct Caddies.
+    hostname:
+      type: string
+      description: |
+        The full name to publish, e.g. mk2s.example.com.
+    ip:
+      type: string
+      default: ''
+      description: |
+        The address for an A/AAAA record. Comma-separate to publish more than one. Required unless type=CNAME.
+    type:
+      type: string
+      default: A
+      description: |
+        Record type: A (IPv4), AAAA (IPv6), or CNAME (point at another hostname with target).
+    target:
+      type: string
+      default: ''
+      description: |
+        For type=CNAME, the hostname this name points at (e.g. myapp.pages.dev). Not used by A/AAAA.
+    zone:
+      type: string
+      default: ''
+      description: |
+        The registered zone that holds the name (e.g. example.com). Empty uses the model's baseDomain. Most providers (Gandi, for one) do not implement libdns.ZoneLister, so this must be right.
+    ttl:
+      type: string
+      default: ''
+      description: |
+        Per-record TTL (e.g. 5m). Empty uses the model's dnsTtl global.
+    tls:
+      type: boolean
+      default: true
+      description: |
+        Also ensure the hostname is a TLS subject so Caddy issues its certificate. Set false for a record that must never be a certificate subject.
+  required:
+    - hostname
+tags:
+  swamp: caddy
+  kind: dns
+jobs:
+  - name: discover
+    description: Find the @svendowideit/caddy model this repo defines and print it, so the record lands on the Caddy the repo actually manages.
+    steps:
+      - name: scan
+        description: Discover and print the caddy model(s) in this repo.
+        task:
+          type: model_method
+          modelType: '@svendowideit/caddy'
+          modelName: caddy-add-host-scan
+          methodName: upgradeTargets
+          inputs:
+            model: ${{ inputs.model }}
+            requireSingle: ${{ inputs.model == "" }}
+          globalArgs:
+            serviceName: caddy-add-host-scan
+            target: caddy-add-host-scan
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+    dependsOn: []
+    weight: 0
+  - name: publish
+    description: Declare the record and (by default) its TLS subject on the model, apply the merged config, then show the desired DNS beside the live dns_records app.
+    steps:
+      - name: declare
+        description: 'Declare the DNS record in the model''s dnsRecords global (persisted to the model definition) and add the hostname to its TLS subjects unless tls=false, then reconcile. Idempotent: declaring the same record twice changes nothing.'
+        guard: ${{ inputs.model == "" && data.latest("caddy-add-host-scan", "targets").?attributes.?targetCount.orValue(0) != 1 }}
+        task:
+          type: model_method
+          modelType: '@svendowideit/caddy'
+          modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-add-host-scan", "targets").?attributes.?upgradeModel.orValue(data.latest("caddy-add-host-scan", "targets").?attributes.?firstModel.orValue("")) }}'
+          methodName: addDnsRecord
+          inputs:
+            hostname: ${{ inputs.hostname }}
+            ip: ${{ inputs.ip }}
+            type: ${{ inputs.type }}
+            target: ${{ inputs.target }}
+            zone: ${{ inputs.zone }}
+            ttl: ${{ inputs.ttl }}
+            tls: ${{ inputs.tls }}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: show
+        description: 'Read-only: print the merged desired config beside the live one, so you can see the dns_records app Caddy was told to own (and what it actually has). Needs the admin API; reports reachable=false instead of claiming success when it cannot read the live config.'
+        guard: ${{ inputs.model == "" && data.latest("caddy-add-host-scan", "targets").?attributes.?targetCount.orValue(0) != 1 }}
+        task:
+          type: model_method
+          modelType: '@svendowideit/caddy'
+          modelName: '${{ inputs.model != "" ? inputs.model : data.latest("caddy-add-host-scan", "targets").?attributes.?upgradeModel.orValue(data.latest("caddy-add-host-scan", "targets").?attributes.?firstModel.orValue("")) }}'
+          methodName: plan
+        dependsOn:
+          - step: declare
+            condition:
+              type: succeeded
+        weight: 0
+        allowFailure: true
+    dependsOn:
+      - job: discover
+        condition:
+          type: succeeded
+    weight: 0
+version: 1

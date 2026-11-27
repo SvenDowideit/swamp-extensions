@@ -44,9 +44,13 @@ methods, and use `addRoute` to add a route. It can:
   embedded device, or `TLS only` for a certificate with no DNS record. A
   **Desired vs live** section lists routes that are desired but missing, live
   but not desired, or hand-added, so drift is visible on the page.
-- **Static DNS records** — declare A/AAAA/CNAME records that Caddy owns and
-  reconciles through any `dns.providers.*` module (via `caddy-host-dns`), reusing
-  the same credential as the TLS DNS-01 challenge.
+- **Static DNS records, including DNS-only hosts** — declare A/AAAA/CNAME
+  records that Caddy owns and reconciles through any `dns.providers.*` module
+  (via `caddy-host-dns`), reusing the same credential as the TLS DNS-01
+  challenge. `addDnsRecord` (and the `@svendowideit/caddy-add-host` workflow)
+  publishes a name in one call — record + TLS subject, **no route and no
+  proxy** — for a host that serves nothing through Caddy: a NAS, a printer, a
+  NanoKVM/GL.iNet-style device, a database.
 - **A health contract** — on status/default hostnames, `/` → 200 (status page),
   `/teapot` → 418 (the teapot module), and any other path → 404, so the three
   cases are trivially testable on every configured host.
@@ -158,7 +162,7 @@ when it is unset.
 | `routeIp` | string | *(unset)* | Comma-separated IP(s) for auto-created route A records. Empty infers from an existing A/AAAA record in this Caddy's `dnsRecords`. |
 | `letsEncryptEmail` | string | *(unset)* | ACME / Let's Encrypt email (`configureTls`). |
 | `plugins` | array | `[]` | Extra module packages to compile into the downloaded binary, each optionally `@version`-pinned. `github.com/SvenDowideit/caddy-host-dns` and `github.com/hairyhenderson/caddy-teapot-module` are always added automatically. |
-| `dnsRecords` | array | `[]` | Static A/AAAA/CNAME records this model wants Caddy to own, e.g. `[{"name":"otel.example.com","type":"A","value":["192.0.2.5"],"zone":"example.com"}]` (optional `ttl`). Set `zone` unless the provider implements `libdns.ZoneLister` (Gandi does not). Requires `tls`'s `dnsProvider`; apply with `applyDnsRecords`. See [Static DNS records](#static-dns-records). |
+| `dnsRecords` | array | `[]` | Static A/AAAA/CNAME records this model wants Caddy to own, e.g. `[{"name":"otel.example.com","type":"A","value":["192.0.2.5"],"zone":"example.com"}]` (optional `ttl`). Set `zone` unless the provider implements `libdns.ZoneLister` (Gandi does not). Requires `tls`'s `dnsProvider`; apply with `applyDnsRecords` — or just use **`addDnsRecord`**, which writes this global and adds the TLS subject. See [Static DNS records](#static-dns-records). |
 | `dnsRemovals` | array | `[]` | Records to delete on every reconcile, e.g. `[{"name":"old.example.com","type":"A","zone":"example.com"}]` (empty `value` removes the whole name+type RRset). Dropping a `dnsRecords` entry does **not** delete it. Apply with `applyDnsRecords`. |
 | `healthRoutes` | boolean | `true` | On status/default hostnames serve `/` → 200 (status page), `/teapot` → 418, any other path → 404. See [Health contract](#health-contract). |
 | `dnsTtl` | string | `5m` | Default TTL for `dnsRecords` (e.g. `5m`/`300s`). Short by default so record changes propagate quickly; a record's own `ttl` overrides it. |
@@ -614,13 +618,15 @@ it exposes, with its per-run arguments:
 | `getConfig` | none | Read the stored config back from the swamp resource. |
 | `configureTls` | `email`, `dnsProvider`, `dnsEnvVar`, `providerConfig` (object), `subjects` (array), `issuer`, `keyType`, `resolvers` | Configure the Caddy TLS app with the ACME email and an optional DNS provider for wildcard / DNS-challenge issuance. Single-field providers use `dnsEnvVar` (rendered as `api_token`); multi-field providers use `providerConfig` (field → env var), e.g. Gandi `{bearer_token: GANDI_TOKEN}`. `issuer=internal` uses Caddy's **local CA** (self-signed) instead of ACME — for non-public names such as `*.example.com`, or tests, where Let's Encrypt cannot issue; `email`/`dnsProvider` are then ignored. `keyType` sets the issued certificate's key type (Caddy's `key_type`): `p256` (default), `rsa2048`, `p384`, `p521` or `ed25519` — use `rsa2048` for a device that only accepts an RSA private key. `resolvers` overrides the `dnsResolvers` global for the DNS-01 propagation check. **An omitted argument keeps the value already configured** (email, provider, subjects, …), so re-running to change one thing never loses the rest. |
 | `applyDnsRecords` | none | Reconcile the desired static DNS records (`dnsRecords`/`dnsRemovals` globals) into Caddy and write a `dnsConfig` resource. The one command to add/update/delete records. Errors clearly if no records are set or no `dnsProvider` is configured. Idempotent. |
+| `addDnsRecord` | `hostname`, `ip`, `type`, `target`, `zone`, `ttl`, `tls` | The one-call way to publish a **DNS-only host**: upsert the A/AAAA/CNAME record into the model's `dnsRecords` global (persisted to the model definition, so a later run keeps it), drop a conflicting `dnsRemovals` entry, add the hostname to the model's TLS subjects (unless `tls=false`), then reconcile. Creates **no route and no proxy**; writes a `dnsHost` resource. Idempotent. |
 | `autoProxySwampServe` | `baseDomain`, `prefix`, `port` | Detect running `swamp serve` systemd user services (prefix `swamp-serve-`), derive hostnames, and reconcile their reverse-proxy routes (adds new, removes stopped). |
 | `upgradeCaddy` | `plugins` (array), `confirm` (string) | Replace the Caddy binary (current release, with module packages) after explicit confirmation (`confirm=upgrade`), then restart the service. Existing configuration is preserved. |
 
 Resources: the model writes a `install` resource (binary status + capabilities),
 `service`, `guidance`, `proxyServices`, `config` (via `syncConfig`), `tlsConfig`,
 `autoProxy`, `upgrade`, `health`, `ensureProxy`, `serveSettings`, `capabilities`,
-`statusPage`, `desired` (what this model wants from its Caddy), and `reconcile`
+`statusPage`, `dnsHost` (a DNS-only host declared by `addDnsRecord`), `desired`
+(what this model wants from its Caddy), and `reconcile`
 (which peer models were merged on the last run).
 
 ### Extra Caddy modules (`plugins`)
@@ -987,16 +993,80 @@ Notes:
   leaves it in DNS), e.g.
   `--global-arg 'dnsRemovals:json=[{"name":"old.example.com","type":"A","zone":"example.com"}]'`
   then `applyDnsRecords`.
-- **Concrete example** (this repo's `my-caddy`, pointing a host at its LAN IP):
-  ```sh
-  swamp model get my-caddy --json \
-    | jq '.globalArguments.dnsRecords=[{"name":"x1yoga.fi.gy","type":"A","value":["192.0.2.10"],"zone":"fi.gy"}] | {name,version,tags,globalArguments}' \
-    | swamp model edit my-caddy --json
-  swamp model method run my-caddy applyDnsRecords
-  dig +short @192.0.2.53 x1yoga.fi.gy A     # -> 192.0.2.10
-  ```
+- **Adding or changing one record:** use `addDnsRecord` — it writes the global
+  for you, so no `swamp model edit` pipeline is needed (see [Publishing a
+  DNS-only host](#publishing-a-dns-only-host-no-route-no-proxy)). The
+  `jq` → `swamp model edit` pipeline is only for a bulk rewrite of the list.
 - A model that declares records **and** `configureTls` for the same provider
   keeps TLS and DNS in one place; see [One command to see what's going on](#one-command-to-see-whats-going-on) — `audit` reports the desired DNS records.
+
+#### Publishing a DNS-only host (no route, no proxy)
+
+A name that must resolve and hold a certificate, but has nothing for Caddy to
+serve — a NAS, a printer, a NanoKVM/GL.iNet-style device, a database, or an
+appliance running its own HTTPS server. `addRoute` / `ensureDnsProxy` are the
+wrong tools here: they create a **route**, so Caddy would proxy the name instead
+of leaving the device alone.
+
+One call declares both halves:
+
+```sh
+# Publish mk2s.example.com -> 192.0.2.53 (A record + DNS-01 certificate).
+swamp model method run my-caddy addDnsRecord --input hostname=mk2s.example.com --input ip=192.0.2.53 --input zone=example.com
+
+# A CNAME instead of an address (e.g. an app platform's own hostname).
+swamp model method run my-caddy addDnsRecord --input hostname=blog.example.com --input type=CNAME --input target=myapp.pages.dev --input zone=example.com
+
+# Read back what was published.
+swamp data get my-caddy dnsHost --json
+```
+
+What it does, and why it is not a `swamp model edit`:
+
+- **It writes the model's `dnsRecords` global for you.** The record has to live
+  in that global argument: `applyDnsRecords` applies only what is declared
+  there, and `dnsRecords` is re-read from the globals on every run, so a record
+  kept only in stored state would be dropped by the next method. The method
+  upserts it keyed on `(name, type)` — re-running is a no-op — and drops a
+  conflicting `dnsRemovals` entry, because a record that is both declared and
+  removed is a reconcile conflict.
+- **It adds the hostname to the model's TLS subjects** (unless `tls=false`) so
+  Caddy issues it a certificate. With a `dnsProvider` configured this already
+  happens at render time (declared record names are folded into the DNS-01
+  challenge policy), so the subject is often a no-op — but it makes the intent
+  visible in `plan`/`audit`, and it is what makes an `issuer=internal` or
+  wildcard setup predictable. A private LAN address is fine: DNS-01 does not
+  need the name to be reachable.
+- **It reconciles, so it is a whole-zone apply, not a surgical insert.**
+  `reconcile` defaults to `true`: every record the merged models declare for
+  this Caddy is applied again, and Caddy replaces each `(name, type)` RRset it
+  owns with exactly the declared values. Nothing outside those RRsets is
+  touched.
+- **It never creates a route**, so the device keeps answering for itself.
+
+From another workflow, call the packaged workflow rather than repeating the
+method step:
+
+```yaml
+- name: add-host
+  task:
+    type: workflow
+    workflowIdOrName: '@svendowideit/caddy-add-host'
+    inputs:
+      model: my-caddy
+      hostname: mk2s.example.com
+      ip: 192.0.2.53
+```
+
+or from the command line:
+
+```sh
+swamp workflow run @svendowideit/caddy-add-host --input model=my-caddy --input hostname=mk2s.example.com --input ip=192.0.2.53
+```
+
+The workflow discovers the model when `model` is empty (so a repo with one
+Caddy needs no name), declares the record, then runs `plan` to print what Caddy
+was told to own beside what it actually has.
 
 #### Diagnosing a record (propagation vs. serving)
 

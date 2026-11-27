@@ -434,6 +434,30 @@ const AddRouteArgsSchema = z.object({
   ),
 });
 
+const AddDnsRecordArgsSchema = z.object({
+  hostname: z.string().min(1).describe(
+    "FQDN to publish, e.g. mk2s.fi.gy",
+  ),
+  ip: z.string().default("").describe(
+    "IP address for an A/AAAA record (comma-separate to publish more than one).",
+  ),
+  type: z.enum(["A", "AAAA", "CNAME"]).default("A").describe(
+    "Record type: A/AAAA take ip; CNAME takes target.",
+  ),
+  target: z.string().default("").describe(
+    "The hostname a CNAME points at (type=CNAME only).",
+  ),
+  zone: z.string().default("").describe(
+    "The registered zone that holds this record (e.g. fi.gy). Defaults to the model's baseDomain.",
+  ),
+  ttl: z.string().default("").describe(
+    "Optional per-record TTL (e.g. 5m); empty uses the model's dnsTtl.",
+  ),
+  tls: z.boolean().default(true).describe(
+    "Also ensure this hostname is a TLS subject so Caddy issues its certificate. It already is automatically when a DNS provider is configured (record names are folded into the DNS-01 policy); set false for a record that must never be a certificate subject.",
+  ),
+});
+
 // ---------------------------------------------------------------------------
 // Global args & method args
 // ---------------------------------------------------------------------------
@@ -764,6 +788,26 @@ const DnsConfigOutputSchema = z.object({
   /** Whether the applied config differed from the live config. */
   changed: z.boolean(),
   appliedAt: z.string(),
+});
+
+const DnsHostOutputSchema = z.object({
+  /** The hostname that was published. */
+  hostname: z.string(),
+  /** A, AAAA, or CNAME. */
+  type: z.string(),
+  /** IPs for A/AAAA, one hostname for CNAME. */
+  value: z.array(z.string()),
+  /** Zone the record belongs to (empty = the provider derives it). */
+  zone: z.string().default(""),
+  /** Per-record TTL (empty = the model's dnsTtl). */
+  ttl: z.string().default(""),
+  /** Whether this call added the hostname to the TLS subjects. */
+  tlsSubject: z.boolean().default(false),
+  /** Whether TLS was configured at all (else the record is DNS-only). */
+  tlsConfigured: z.boolean().default(false),
+  /** Whether the applied config differed from the live config. */
+  changed: z.boolean(),
+  declaredAt: z.string(),
 });
 
 const ServiceOutputSchema = z.object({
@@ -2310,6 +2354,71 @@ function zoneCovers(zone: string, name: string): boolean {
   const z = zone.trim().replace(/\.$/, "").toLowerCase();
   const n = name.trim().replace(/\.$/, "").toLowerCase();
   return !z || n === z || n.endsWith(`.${z}`);
+}
+
+/** Lower-case a DNS name and drop a trailing dot, so comparisons are exact. */
+export function normaliseDnsName(name: string): string {
+  return name.trim().replace(/\.$/, "").toLowerCase();
+}
+
+/**
+ * Whether a TLS subject already covers a hostname: the same name, or a wildcard
+ * whose subtree contains it (`*.example.com` covers `foo.example.com`, but not
+ * `example.com` itself).
+ */
+export function subjectCovers(subject: string, hostname: string): boolean {
+  const s = normaliseDnsName(subject);
+  const h = normaliseDnsName(hostname);
+  if (s === h) return true;
+  if (!s.startsWith("*.")) return false;
+  const suffix = s.slice(1); // ".example.com"
+  return h.endsWith(suffix) && h.length > suffix.length;
+}
+
+/**
+ * Add a hostname to a TLS subject list unless an existing entry already covers
+ * it. Returns the (sorted) list and whether it grew, so a caller reports an
+ * idempotent no-op instead of a change.
+ */
+export function addTlsSubject(
+  subjects: string[],
+  hostname: string,
+): { subjects: string[]; added: boolean } {
+  if (subjects.some((s) => subjectCovers(s, hostname))) {
+    return { subjects, added: false };
+  }
+  return { subjects: [...subjects, hostname].sort(), added: true };
+}
+
+/** The key a DNS record or removal is owned by: one (name, type) RRset. */
+function dnsRecordKey(r: { name: string; type: string }): string {
+  return `${r.type.toUpperCase()}\u0000${normaliseDnsName(r.name)}`;
+}
+
+/**
+ * Declare one static DNS record: replace any existing record for the same
+ * (name, type) — Caddy owns that whole RRset — and drop a matching
+ * `dnsRemovals` entry, because a record that is both declared and removed is a
+ * reconcile conflict. Pure, so the upsert is tested without a model.
+ */
+export function upsertDnsRecord(
+  records: DnsRecord[],
+  removals: DnsRemoval[],
+  record: DnsRecord,
+): { records: DnsRecord[]; removals: DnsRemoval[]; added: boolean } {
+  const key = dnsRecordKey(record);
+  const existing = records.find((r) => dnsRecordKey(r) === key);
+  const added = !existing ||
+    JSON.stringify(existing) !== JSON.stringify(record);
+  const nextRecords = [
+    ...records.filter((r) => dnsRecordKey(r) !== key),
+    record,
+  ]
+    .sort((a, b) =>
+      a.name.localeCompare(b.name) || a.type.localeCompare(b.type)
+    );
+  const nextRemovals = removals.filter((r) => dnsRecordKey(r) !== key);
+  return { records: nextRecords, removals: nextRemovals, added };
 }
 
 /** Validate one model's desired state before it can join a merged Caddy config. */
@@ -6210,7 +6319,7 @@ type CheckContext = {
 /** Model definition for the Caddy reverse-proxy and service manager. */
 export const model = {
   type: "@svendowideit/caddy",
-  version: "2026.11.07.13",
+  version: "2026.11.27.1",
   reports: ["@svendowideit/caddy-status"],
   globalArguments: GlobalArgsSchema,
   checks: {
@@ -6229,6 +6338,7 @@ export const model = {
         "checkHealth",
         "storeConfig",
         "configureTls",
+        "addDnsRecord",
         "addProxyService",
         "removeProxyService",
         "ensureDnsProxy",
@@ -6786,6 +6896,22 @@ export const model = {
         "schema change; existing models upgrade with no changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.27.1",
+      description:
+        "Adds the addDnsRecord method and the @svendowideit/caddy-add-host " +
+        "workflow: publish a DNS-only host — a static A/AAAA/CNAME record " +
+        "with no route and no proxy — in one call, and by default its TLS " +
+        "subject too. addDnsRecord upserts the record into the model's " +
+        "dnsRecords global (persisted to the model definition, so a later " +
+        "method run keeps it), drops a conflicting dnsRemovals entry, adds " +
+        "the hostname to the model's TLS subjects, then reconciles. Until " +
+        "now a DNS-only record could only be added by hand-editing the " +
+        "model's globalArguments, because applyDnsRecords applies only what " +
+        "is already declared there. Adds a dnsHost resource. Schema is " +
+        "additive — existing models upgrade with no changes.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     install: {
@@ -6797,6 +6923,13 @@ export const model = {
     dnsConfig: {
       description: "Applied static DNS records (dns_records) for this model",
       schema: DnsConfigOutputSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    dnsHost: {
+      description:
+        "A DNS-only host declared by addDnsRecord (record + TLS subject)",
+      schema: DnsHostOutputSchema,
       lifetime: "infinite",
       garbageCollection: 10,
     },
@@ -8783,6 +8916,154 @@ export const model = {
           upstream: upstream.dial,
           changed: summary.changed,
           ensuredAt: new Date().toISOString(),
+        });
+        return { dataHandles: [handle] };
+      },
+    },
+
+    addDnsRecord: {
+      description:
+        "The one-call way to publish a DNS-only host: declare a static " +
+        "A/AAAA/CNAME record for a hostname in this model's dnsRecords (no " +
+        "route, no proxy) and, unless tls=false, ensure the hostname is a TLS " +
+        "subject so Caddy issues it a certificate. The record is written back " +
+        "to the model definition, so a later method run keeps it; no Caddyfile " +
+        "edit or caddy invocation is needed or allowed.",
+      arguments: AddDnsRecordArgsSchema,
+      execute: async (
+        args: z.infer<typeof AddDnsRecordArgsSchema>,
+        context: MethodContext,
+      ): Promise<{ dataHandles: [{ name: string }] }> => {
+        const g = context.globalArgs;
+        const hostname = normaliseDnsName(args.hostname);
+        if (!isValidDnsName(hostname)) {
+          throw new Error(
+            `addDnsRecord needs a valid FQDN hostname, got '${args.hostname}'`,
+          );
+        }
+        const type = args.type;
+        let value: string[];
+        if (type === "CNAME") {
+          if (args.ip) {
+            throw new Error(
+              "addDnsRecord type=CNAME takes --input target=<hostname>, not ip",
+            );
+          }
+          const target = normaliseDnsName(args.target);
+          if (!target) {
+            throw new Error(
+              "addDnsRecord type=CNAME requires --input target=<hostname>",
+            );
+          }
+          if (!isValidDnsName(target)) {
+            throw new Error(`'${args.target}' is not a valid CNAME target`);
+          }
+          value = [target];
+        } else {
+          if (args.target) {
+            throw new Error(
+              `addDnsRecord type=${type} takes --input ip=<address>, not target`,
+            );
+          }
+          const ips = args.ip.split(",").map((s) => s.trim())
+            .filter((s) => s.length > 0);
+          if (ips.length === 0) {
+            throw new Error(
+              `addDnsRecord type=${type} requires --input ip=<address>`,
+            );
+          }
+          for (const ip of ips) {
+            if (!isValidIp(ip)) {
+              throw new Error(`'${ip}' is not an IP address`);
+            }
+            if (type === "A" && !isIPv4(ip)) {
+              throw new Error(
+                `'${ip}' is not an IPv4 address (use type=AAAA for IPv6)`,
+              );
+            }
+            if (type === "AAAA" && !isIPv6(ip)) {
+              throw new Error(
+                `'${ip}' is not an IPv6 address (use type=A for IPv4)`,
+              );
+            }
+          }
+          value = ips;
+        }
+        // zone defaults to the model's baseDomain: the zone this model is
+        // authoritative for, the same rule route derivation uses.
+        const zone = normaliseDnsName(args.zone || g.baseDomain || "");
+        if (zone && !zoneCovers(zone, hostname)) {
+          throw new Error(
+            `zone '${zone}' does not contain '${hostname}' — pass the registered zone that holds this name (e.g. --input zone=example.com)`,
+          );
+        }
+        const record: DnsRecord = {
+          name: hostname,
+          type,
+          value,
+          zone,
+          ttl: args.ttl,
+        };
+        const { records, removals } = upsertDnsRecord(
+          g.dnsRecords ?? [],
+          g.dnsRemovals ?? [],
+          record,
+        );
+        // dnsRecords is a global arg that loadOwnDesired re-reads on every run
+        // (so `swamp model edit` of it is never ignored). A method-added record
+        // therefore has to be written to the model definition, not only to the
+        // stored desired state — otherwise the next method run would drop it.
+        await persistGlobalArgs(context, {
+          dnsRecords: records,
+          dnsRemovals: removals,
+        });
+        // context.globalArgs is the snapshot taken before that edit.
+        const gNext: GlobalArgs = {
+          ...g,
+          dnsRecords: records,
+          dnsRemovals: removals,
+        };
+
+        const own = await loadOwnDesired(context, gNext);
+        let tlsAdded = false;
+        let tlsNote = "";
+        if (!args.tls) {
+          tlsNote = "tls=false, so it is not a certificate subject";
+        } else if (!own.tls) {
+          tlsNote = "no TLS is configured on this model, so the record is " +
+            "DNS-only — run configureTls (or @svendowideit/caddy-setup) to " +
+            "get its certificate";
+        } else {
+          const added = addTlsSubject(own.tls.subjects ?? [], hostname);
+          tlsAdded = added.added;
+          own.tls.subjects = added.subjects;
+          if (!tlsAdded) tlsNote = "already covered by a TLS subject";
+        }
+        const { summary } = await saveAndReconcile(context, gNext, own);
+
+        context.logger?.info(
+          "Declared {type} record {hostname} -> {value} (zone {zone}); TLS: {tls}; config changed: {changed}",
+          {
+            type,
+            hostname,
+            value: value.join(", "),
+            zone: zone || "(provider default)",
+            tls: tlsAdded ? "subject added" : tlsNote,
+            changed: summary.changed,
+          },
+        );
+        if (tlsNote) context.logger?.info("TLS: {note}", { note: tlsNote });
+
+        const handle = await context.writeResource("dnsHost", "dnsHost", {
+          hostname,
+          type,
+          value,
+          zone,
+          ttl: args.ttl,
+          tlsSubject: tlsAdded,
+          tlsConfigured: !!own.tls,
+          changed: summary.changed,
+          declaredAt: new Date().toISOString(),
         });
         return { dataHandles: [handle] };
       },

@@ -8,6 +8,7 @@ import {
 
 import {
   addRouteToConfig,
+  addTlsSubject,
   adminApiUrlString,
   automaticHttpsConfig,
   autosavePathFor,
@@ -37,6 +38,8 @@ import {
   dnsProviderFromEnvKeys,
   dnsProviderFromPlugins,
   dnsProviderPlugin,
+  type DnsRecord,
+  type DnsRemoval,
   ensureFileServerRoute,
   ensureRoute,
   ensureServerDefaults,
@@ -62,6 +65,7 @@ import {
   mergeTlsConfig,
   missingPlugins,
   model,
+  normaliseDnsName,
   parseAdminAddr,
   parseCaddyVersion,
   parseCapabilityRootId,
@@ -94,7 +98,9 @@ import {
   stalenessOf,
   statusPageHostnames,
   statusPageLinks,
+  subjectCovers,
   thirdPartyPlugins,
+  upsertDnsRecord,
   validateBaseDomain,
   validateDesiredState,
   validateEmail,
@@ -3495,4 +3501,94 @@ Deno.test("canBindPrivilegedPortsNow is true with the capability or as root", ()
     root = false;
   }
   assertEquals(canBindPrivilegedPortsNow([]), root);
+});
+
+Deno.test("normaliseDnsName lower-cases and drops the trailing dot", () => {
+  assertEquals(normaliseDnsName(" NAS.Example.COM. "), "nas.example.com");
+  assertEquals(normaliseDnsName("a.b"), "a.b");
+});
+
+Deno.test("subjectCovers matches a name and its wildcard subtree only", () => {
+  assertEquals(subjectCovers("app.example.com", "app.example.com"), true);
+  assertEquals(subjectCovers("*.example.com", "app.example.com"), true);
+  assertEquals(subjectCovers("*.example.com", "a.b.example.com"), true);
+  // The apex is not inside its own wildcard, and another zone never matches.
+  assertEquals(subjectCovers("*.example.com", "example.com"), false);
+  assertEquals(subjectCovers("*.example.com", "example.com.evil.net"), false);
+  assertEquals(subjectCovers("other.example.com", "app.example.com"), false);
+});
+
+Deno.test("addTlsSubject adds a name once and lets a wildcard cover it", () => {
+  const first = addTlsSubject([], "mk2s.example.com");
+  assertEquals(first, { subjects: ["mk2s.example.com"], added: true });
+  // Idempotent: the same name is never added twice.
+  const second = addTlsSubject(first.subjects, "mk2s.example.com");
+  assertEquals(second.added, false);
+  assertEquals(second.subjects, ["mk2s.example.com"]);
+  // A wildcard subject already covers the name, so nothing is added.
+  assertEquals(addTlsSubject(["*.example.com"], "nas.example.com"), {
+    subjects: ["*.example.com"],
+    added: false,
+  });
+  // The list stays sorted so a reconcile is stable.
+  assertEquals(addTlsSubject(["z.example.com"], "a.example.com").subjects, [
+    "a.example.com",
+    "z.example.com",
+  ]);
+});
+
+Deno.test(
+  "upsertDnsRecord replaces the (name,type) RRset and clears a matching removal",
+  () => {
+    const app: DnsRecord = {
+      name: "app.example.com",
+      type: "A",
+      value: ["192.0.2.1"],
+      zone: "example.com",
+      ttl: "",
+    };
+    const removals: DnsRemoval[] = [
+      { name: "NAS.example.com.", type: "A", value: [], zone: "example.com" },
+      { name: "old.example.com", type: "A", value: [], zone: "example.com" },
+    ];
+    const record: DnsRecord = {
+      name: "nas.example.com",
+      type: "A",
+      value: ["192.0.2.53"],
+      zone: "example.com",
+      ttl: "5m",
+    };
+    const out = upsertDnsRecord([app], removals, record);
+    assertEquals(out.added, true);
+    // Keyed case-insensitively on (name, type), and sorted by name.
+    assertEquals(out.records, [app, record]);
+    // The removal for the same RRset is dropped (declared + removed is a
+    // reconcile conflict); the unrelated removal is kept.
+    assertEquals(out.removals, [removals[1]]);
+    // Idempotent: re-declaring the same record changes nothing.
+    const again = upsertDnsRecord(out.records, out.removals, record);
+    assertEquals(again.added, false);
+    assertEquals(again.records, out.records);
+  },
+);
+
+Deno.test("addDnsRecord is a one-call DNS-only host method", () => {
+  assertStringIncludes(
+    model.methods.addDnsRecord.description,
+    "DNS-only host",
+  );
+  // hostname is the only required input; ip/type/zone/tls have defaults.
+  const parsed = model.methods.addDnsRecord.arguments.safeParse({
+    hostname: "mk2s.example.com",
+    ip: "192.0.2.53",
+  });
+  assertEquals(parsed.success, true);
+  assertEquals(
+    model.methods.addDnsRecord.arguments.safeParse({}).success,
+    false,
+  );
+  // It declares its own output, so a caller can read what was published.
+  assertStringIncludes(model.resources.dnsHost.description, "DNS-only");
+  // And it is covered by the existing pre-flight config validation.
+  assert(model.checks["valid-config"].appliesTo.includes("addDnsRecord"));
 });

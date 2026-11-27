@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/caddy"
-version: "2026.11.07.13"
+version: "2026.11.27.1"
 description: >
   Caddy reverse-proxy and service management for a Linux host with systemd.
 
@@ -27,6 +27,14 @@ description: >
 
     It runs unprivileged (plain HTTP on high ports) or as a Let's Encrypt TLS
     proxy on 80/443, and routes persist across restarts via autosave + --resume.
+
+    A name that serves nothing through Caddy — a NAS, a printer, a
+    NanoKVM/GL.iNet-style device, a database host — is published with ONE call:
+    `addDnsRecord` (or the `@svendowideit/caddy-add-host` workflow) writes the
+    A/AAAA/CNAME record into the model's dnsRecords and adds the name to the TLS
+    subjects, so it resolves and gets a certificate without a route or a proxy.
+    It is not a route method: use addRoute/ensureDnsProxy only for a name Caddy
+    actually serves.
 
     The config is owned by this extension: nothing else should write a Caddy
     config or run the caddy binary. For a new route, agents should use the
@@ -197,6 +205,25 @@ description: >
       # To delete a record, declare it under dnsRemovals (dropping it from
       # dnsRecords leaves it in DNS), then run applyDnsRecords.
 
+      # --- A DNS-only host: a record + a certificate, no route and no proxy ---
+      # For a name that must resolve but serves nothing through Caddy. This is
+      # the one call: it upserts the record into dnsRecords (written back to the
+      # model definition, so a later method run keeps it), clears a conflicting
+      # dnsRemovals entry, adds the name to the TLS subjects so Caddy issues it a
+      # certificate, and reconciles. A private address is fine: with a DNS
+      # provider configured, DNS-01 issues the certificate without the name
+      # being reachable. reconcile is on by default, so this re-applies every
+      # record the merged models declare — a live whole-zone reconcile.
+      swamp model method run my-caddy addDnsRecord --input hostname=mk2s.example.com --input ip=192.0.2.53 --input zone=example.com
+      # Read back what was published:
+      swamp data get my-caddy dnsHost --json
+      #
+      # The same declaration as a workflow, callable from another workflow with
+      # `type: workflow` / workflowIdOrName: '@svendowideit/caddy-add-host':
+      swamp workflow run @svendowideit/caddy-add-host --input model=my-caddy --input hostname=mk2s.example.com --input ip=192.0.2.53
+      # A CNAME (e.g. to an app platform) instead of an address:
+      swamp model method run my-caddy addDnsRecord --input hostname=blog.example.com --input type=CNAME --input target=myapp.pages.dev --input zone=example.com
+
       # --- Health contract (default on) ---
       # On each status/default hostname Caddy answers '/' -> 200 (status page),
       # '/teapot' -> 418, and any other path -> 404. Verify after a reconcile:
@@ -252,7 +279,10 @@ description: >
                          (type A|AAAA|CNAME; optional ttl). zone is required
                          unless the provider implements libdns.ZoneLister
                          (Gandi does not). Needs tls's dnsProvider set; apply
-                         with `applyDnsRecords`.
+                         with `applyDnsRecords`. Prefer the `addDnsRecord`
+                         method (or @svendowideit/caddy-add-host): it writes
+                         this global for you and adds the TLS subject, so you
+                         never hand-edit the model.
       dnsRemovals        Records to delete each reconcile, e.g.
                          [{"name":"old.example.com","type":"A","zone":"example.com"}]
                          (empty value removes the whole name+type RRset);
@@ -398,6 +428,7 @@ reports:
 workflows:
   - caddy-setup.yaml
   - caddy-upgrade.yaml
+  - caddy-add-host.yaml
 
 dependencies:
   - "@svendowideit/sudo"

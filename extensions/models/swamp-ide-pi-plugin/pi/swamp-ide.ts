@@ -65,6 +65,13 @@ import {
   isBroadScope,
   isShellWrapper,
   leaseAllows,
+  nativeToolRefusal,
+  describeAttempt,
+  HERDR_CORE_TYPE,
+  lockDetailFromError,
+  sessionInstanceName,
+  VIM_CONTROLLER_TYPE,
+  vimWriteInputProblem,
   notRequiredAuthorization,
   vimEditInputs,
   writeInputProblem,
@@ -694,11 +701,124 @@ function serveStatus() {
   };
 }
 
+/** The Herdr space/tab this session runs in, resolved at most every minute. */
+let placeCache: { at: number; value: Record<string, string> } | null = null;
+
+async function sessionPlace(): Promise<Record<string, string>> {
+  if (placeCache && Date.now() - placeCache.at < 60_000) return placeCache.value;
+  const terminal = (process.env.HC_TERMINAL_ID ?? "").trim();
+  const value: Record<string, string> = { terminal };
+  if (terminal) {
+    try {
+      const result = await runProcess(
+        process.env.HERDR_APP_BIN ?? "herdr-app",
+        ["ls"],
+        { timeoutMs: 5000 },
+      );
+      if (result.code === 0) {
+        const spaces = JSON.parse(result.stdout)?.spaces ?? [];
+        for (const space of spaces) {
+          for (const tab of space.tabs ?? []) {
+            const hit = (tab.terminals ?? []).some((entry: { terminal?: string }) =>
+              entry?.terminal === terminal
+            );
+            if (!hit) continue;
+            value.space = String(space.id ?? "");
+            value.spaceName = String(space.name ?? "");
+            value.tab = String(tab.id ?? "");
+            value.tabName = String(tab.name ?? "");
+            value.machine = String(space.machine ?? "");
+          }
+        }
+      }
+    } catch {
+      // The panel shows what it has; a missing space must not break a call.
+    }
+  }
+  placeCache = { at: Date.now(), value };
+  return value;
+}
+
+/** Instances this session has already created (or tried to). */
+const ensuredInstances = new Set();
+
+/**
+ * Make sure this session's own instance exists.
+ *
+ * Swamp's lock is per model instance, so sharing one `herdr-core` instance means
+ * every pi session and every scheduled run queues behind whichever call is in
+ * flight - which is what made a read-only `ps` time out for 60 s. Creating the
+ * instance against the running serve is one CLI call per session, and the name
+ * says which pane and session owns it.
+ */
+async function ensureSessionInstance(
+  type: string,
+  name: string,
+): Promise<boolean> {
+  if (ensuredInstances.has(name)) return true;
+  ensuredInstances.add(name);
+  const served = normalizeServeUrl(SERVE_URL_RAW);
+  const args = ["model", "create", type, name];
+  if (served) args.push("--server", served);
+  try {
+    const result = await runProcess(SWAMP_BIN, args, {
+      timeoutMs: 20_000,
+      env: { ...process.env, SWAMP_LOCK_TIMEOUT_MS: "5000" },
+    });
+    // An instance that already exists is success; anything else is not.
+    if (result.code === 0) return true;
+    const output = `${result.stdout}
+${result.stderr}`;
+    return /already exists|already defined/i.test(output);
+  } catch {
+    return false;
+  }
+}
+
+/** Conventional instance names for a model type used by this addin. */
+function modelCandidates(primary: string, alternatives: string[]): string[] {
+  const names = [primary, ...alternatives].map((name) => String(name ?? "").trim())
+    .filter(Boolean);
+  return [...new Set(names)];
+}
+
+/**
+ * Run a method through serve, retrying under another instance name when the
+ * serve does not know this one. The serve API takes a model *name*, not a type,
+ * so a repo that named its instance differently fails as "Behavior not found".
+ */
+async function runMethodWithFallback(options: {
+  names: string[];
+  method: string;
+  inputs: unknown;
+  info: unknown;
+  timeoutMs: number;
+}): Promise<{ text: string; details: Record<string, unknown> } | null> {
+  let lastError: unknown;
+  for (const name of options.names) {
+    try {
+      return await runMethodViaServe({
+        model: name,
+        method: options.method,
+        inputs: options.inputs,
+        info: options.info,
+        timeoutMs: options.timeoutMs,
+      });
+    } catch (error) {
+      lastError = error;
+      if (!/behavior not found/i.test(String((error as Error)?.message ?? ""))) {
+        throw error;
+      }
+    }
+  }
+  throw lastError;
+}
+
 /** Run a method through swamp serve, collecting its stream and reports. */
 async function runMethodViaServe({ model, method, inputs, info, timeoutMs }) {
   const outputs = [];
   const reports = [];
-  let completed;
+  let completed: any;
   let failure;
 
   const payload: Record<string, unknown> = {
@@ -1772,6 +1892,13 @@ export default function swampIde(pi) {
       if (shellouts.length > 0) {
         await appendShellouts(info, shellouts, ctx);
       }
+      const place = await sessionPlace();
+      const lock = info.success
+        ? null
+        : lockDetailFromError(
+          String(info.error ?? ""),
+          String(info.instance ?? ""),
+        );
       await appendActivity({
         ts: new Date(info.endMs).toISOString(),
         source: "pi",
@@ -1786,11 +1913,27 @@ export default function swampIde(pi) {
         outcome: info.success ? "success" : "error",
         durationMs: Math.max(0, info.endMs - info.startMs),
         model: "pi",
+        // What was attempted, and where this session lives: a blocked call is
+        // only diagnosable if the event says which behaviour, which instance,
+        // and which window asked.
+        attempt: describeAttempt(
+          String(info.system ?? ""),
+          String(info.method ?? ""),
+          info.args ?? {},
+        ),
+        modelType: info.modelType ?? "",
+        space: place.space ?? "",
+        spaceName: place.spaceName ?? "",
+        tab: place.tab ?? "",
+        tabName: place.tabName ?? "",
+        terminal: place.terminal ?? "",
+        lock: lock ?? null,
         detail: truncate(JSON.stringify(info.args ?? {}), 500),
         command: bash,
         error: info.error ?? "",
         session: ctx.sessionId ?? "",
         cwd: ctx.cwd ?? "",
+        instance: info.instance ?? "",
         authStatus: info.authorization?.status ?? "",
         authScope: info.authorization?.scope ?? "",
         authVia: info.authorization?.via ?? "",
@@ -1829,6 +1972,8 @@ export default function swampIde(pi) {
       "Write methods file-write/file-edit/file-edit-lines take input.path (one file); file-read and search take input.paths.",
       "Use swamp_ide system=swamp model=<instance> method=<method> for any swamp model method; do not use a swamp CLI.",
       "When a swamp_ide result starts with an Authorization: line, quote that line verbatim in your response; do not paraphrase or invent an authorization explanation.",
+      "Never use exec/run for grep, rg, find, fd, cat, head, tail, wc, sed or awk: those are refused before approval. Use system=herdr-core method=search (input.pattern plus input.paths) or method=file-read (input.path).",
+      "If a call is refused for having a native method, make the call it names. Do not retry the same command with different flags.",
       "Never use sh -c, bash -c, or another shell wrapper for a swamp_ide exec/run. The approval must show the complete exact argv and your explanation; multi-step work must use a committed named script whose full contents were read and shown.",
     ],
     parameters: Type.Object({
@@ -1917,6 +2062,34 @@ export default function swampIde(pi) {
             "Show the complete exact argv instead, or commit a named script whose full contents you have read and show the script path.",
         );
       }
+      // A shell-out that has a first-class method is refused here, before the
+      // dialog: asking a person to reject grep four times teaches nobody.
+      const native = nativeToolRefusal(params.input?.argv);
+      if (native) {
+        const blocked = blockedAuthorization(
+          `exec:${native.program}`,
+          null,
+          `${native.program} has a native ${native.method} method, so running it through exec is refused`,
+        );
+        if (info) info.authorization = blocked;
+        throw new Error(
+          `${formatAuthorization(blocked)}\n` +
+            `Call the tool instead:\n  ${native.instead}\n` +
+            `(${native.method}: ${native.reason}.)`,
+        );
+      }
+
+      const vimProblem = vimWriteInputProblem(system, params.method, params.input);
+      if (vimProblem) {
+        const blocked = blockedAuthorization(
+          `vim:${params.method}`,
+          null,
+          vimProblem,
+        );
+        if (info) info.authorization = blocked;
+        throw new Error(`${formatAuthorization(blocked)}\n${vimProblem}`);
+      }
+
       const decision = classifyCall({
         system,
         method: params.method,
@@ -2091,10 +2264,27 @@ export default function swampIde(pi) {
       // Decision D: the editor buffer is the only writer of text files. A
       // herdr-core file mutation becomes one `editFile` call on this space's
       // editor, so the thing the person is watching is what changed the file.
-      const routing = vimEditInputs(system, params.method, params.input, cwd);
+      const routing = vimEditInputs(
+        system,
+        params.method,
+        params.input,
+        cwd,
+        process.env.HC_TERMINAL_ID ?? "",
+      );
       if (routing && !routing.fallback) {
-        const viaVim = await runMethodViaServe({
-          model: VIM_MODEL,
+        const vimInstance = sessionInstanceName(
+          VIM_MODEL,
+          process.env.HC_TERMINAL_ID ?? "",
+          currentSessionId(),
+        );
+        const vimReady = await ensureSessionInstance(
+          VIM_CONTROLLER_TYPE,
+          vimInstance,
+        );
+        const viaVim = await runMethodWithFallback({
+          names: vimReady
+            ? modelCandidates(vimInstance, [VIM_MODEL, "vim", "vim-controller"])
+            : modelCandidates(VIM_MODEL, ["vim", "vim-controller"]),
           method: "editFile",
           inputs: routing.inputs,
           info: info ?? { traceId, spanId },
@@ -2137,10 +2327,58 @@ export default function swampIde(pi) {
       // swamp process, extension load, or datastore lock handshake. If the
       // socket cannot be established, fall back to the CLI. Once a request
       // has been sent we never retry: the method may have produced data.
-      const served = await runMethodViaServe({
-        model,
+      // A vim method invoked through serve cannot see this pane's environment,
+      // so pass the terminal when the caller did not name a server.
+      let routedInputs = params.input;
+      if (
+        system === "vim" && routedInputs &&
+        !routedInputs.server && !routedInputs.terminal &&
+        (process.env.HC_TERMINAL_ID ?? "").trim()
+      ) {
+        routedInputs = {
+          ...routedInputs,
+          terminal: String(process.env.HC_TERMINAL_ID).trim(),
+        };
+      }
+      // herdr-core methods run on this session's own instance so a busy
+      // schedule or another session cannot hold our lock.
+      let routedModel = model;
+      if (system === "herdr-core" && model === HERDR_MODEL) {
+        const instance = sessionInstanceName(
+          HERDR_MODEL,
+          process.env.HC_TERMINAL_ID ?? "",
+          currentSessionId(),
+        );
+        if (await ensureSessionInstance(HERDR_CORE_TYPE, instance)) {
+          routedModel = instance;
+          if (info) {
+            info.instance = instance;
+            info.modelType = HERDR_CORE_TYPE;
+          }
+        }
+      } else if (system === "vim") {
+        const instance = sessionInstanceName(
+          model,
+          process.env.HC_TERMINAL_ID ?? "",
+          currentSessionId(),
+        );
+        if (await ensureSessionInstance(VIM_CONTROLLER_TYPE, instance)) {
+          routedModel = instance;
+          if (info) {
+            info.instance = instance;
+            info.modelType = VIM_CONTROLLER_TYPE;
+          }
+        }
+      }
+      const served = await runMethodWithFallback({
+        names: modelCandidates(
+          routedModel,
+          system === "vim"
+            ? [model, "vim", "vim-controller"]
+            : [model],
+        ),
         method: params.method,
-        inputs: params.input,
+        inputs: routedInputs,
         info: info ?? { traceId, spanId },
         timeoutMs,
       });

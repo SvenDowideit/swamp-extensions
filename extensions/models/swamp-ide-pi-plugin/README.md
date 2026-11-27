@@ -63,6 +63,30 @@ swamp extension pull @svendowideit/swamp-ide-pi-plugin
 pi must be on PATH, or a `~/.pi/agent` install must exist. The addin imports
 `typebox` from pi itself; no extra dependency is installed.
 
+## One instance per pi session
+
+Swamp's lock is per model instance, so every session sharing `herdr-core` (or
+`vim-controller`) queues behind whichever call is in flight — including
+read-only ones, which take the same lock. Each pi session therefore gets its own
+instances, created against the running serve the first time it needs one:
+
+```
+herdr-core-pi-<terminal>-<session>      e.g. herdr-core-pi-t2g-01a20665
+vim-controller-pi-<terminal>-<session>  e.g. vim-controller-pi-t2g-01a20665
+```
+
+`<terminal>` is the pane's `HC_TERMINAL_ID` (which `herdr-app ls` maps to a space
+and tab) and `<session>` is the first eight characters of the pi session id — so
+the name answers "which window, which conversation". The instance is recorded in
+every activity event, which means the panel, `swamp run doctor` and
+`swamp model list` all name the same thing when something is stuck.
+
+If the instance cannot be created (a serve that refuses `model create`, a
+read-only repo), the call falls back to the shared instance and the event records
+that instead. The instances live under `models/@svendowideit/<behaviour>/`, one
+file per session and behaviour, and are safe to delete when the session ends
+(`swamp model delete <name>`).
+
 ## One editor, one write path
 
 Text file mutations are not written behind the editor's back. A

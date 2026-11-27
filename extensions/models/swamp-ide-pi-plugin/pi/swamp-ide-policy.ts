@@ -646,6 +646,7 @@ export function vimEditInputs(
   method: string,
   input: Record<string, unknown> | undefined,
   cwd: string,
+  terminal = "",
 ): { inputs: Record<string, unknown>; fallback: string } | null {
   if (system !== "herdr-core") return null;
   if (method !== "file-write" && method !== "file-edit" &&
@@ -658,7 +659,14 @@ export function vimEditInputs(
   }
   const path = String(args.path ?? "").trim();
   if (!path) return null;
-  const base = { file: path, cwd: String(args.cwd ?? "") || cwd, force: true };
+  // The caller's terminal travels with the request: a method run inside swamp
+  // serve has no HC_TERMINAL_ID, so it cannot resolve the caller's space alone.
+  const base = {
+    file: path,
+    cwd: String(args.cwd ?? "") || cwd,
+    force: true,
+    ...(String(terminal ?? "").trim() ? { terminal: String(terminal).trim() } : {}),
+  };
   if (method === "file-write") {
     const content = String(args.content ?? "");
     if (content.includes("\u0000")) {
@@ -702,5 +710,203 @@ export function vimEditInputs(
       }),
     },
     fallback: "",
+  };
+}
+
+/** A shell-out the agent should express as a native method instead. */
+export interface NativeToolRefusal {
+  program: string;
+  system: string;
+  method: string;
+  reason: string;
+  /** The exact swamp_ide call to make instead, arguments filled in. */
+  instead: string;
+}
+
+/** Flags whose following argument is not the pattern or a path. */
+const VALUE_FLAGS = new Set([
+  "-e", "-f", "-m", "-A", "-B", "-C", "-g", "--include", "--exclude", "-t",
+  "--type", "--max-count", "--glob", "--type-add",
+]);
+
+/** The positional arguments of a simple command, skipping flags and values. */
+export function positionalArgs(argv: string[]): string[] {
+  const out: string[] = [];
+  let skipNext = false;
+  for (const arg of argv.slice(1)) {
+    if (skipNext) {
+      skipNext = false;
+      continue;
+    }
+    if (arg.startsWith("-")) {
+      if (VALUE_FLAGS.has(arg) && !arg.includes("=")) skipNext = true;
+      continue;
+    }
+    out.push(arg);
+  }
+  return out;
+}
+
+/** JSON an agent can paste into `input=`, with no placeholders. */
+function inputJson(value: Record<string, string>): string {
+  return JSON.stringify(value);
+}
+
+/**
+ * Refuse a shell-out that has a native method, and say exactly what to call.
+ *
+ * The approval dialog offers this choice too, but that asks a person to reject
+ * the same command over and over; a shell-out with a first-class replacement is
+ * refused before the dialog, so the agent learns the tool rather than the
+ * person learning the refusal.
+ */
+export function nativeToolRefusal(argv: unknown): NativeToolRefusal | null {
+  if (!Array.isArray(argv) || argv.length === 0) return null;
+  const args = argv.map((arg) => String(arg));
+  const program = args[0].split("/").pop() ?? "";
+  const alternative = COMMAND_ALTERNATIVES[program];
+  if (!alternative) return null;
+  const positional = positionalArgs(args);
+  let instead = "";
+  if (program === "grep" || program === "rg") {
+    const pattern = positional[0] ?? "";
+    const paths = positional.slice(1);
+    const input: Record<string, unknown> = { pattern };
+    if (paths.length > 0) input.paths = paths;
+    instead = `swamp_ide system=${alternative.system} method=${alternative.method} ` +
+      `input=${JSON.stringify(input)}`;
+  } else if (program === "find" || program === "fd") {
+    const path = positional[0] || ".";
+    const pattern = positional[1] ?? "";
+    const input: Record<string, unknown> = { pattern: pattern || "." };
+    input.paths = [path];
+    instead = `swamp_ide system=${alternative.system} method=${alternative.method} ` +
+      `input=${JSON.stringify(input)}`;
+  } else if (positional.length > 0) {
+    instead = `swamp_ide system=${alternative.system} method=${alternative.method} ` +
+      `input=${inputJson({ path: positional[positional.length - 1] })}`;
+  } else {
+    instead = `swamp_ide system=${alternative.system} method=${alternative.method}`;
+  }
+  return {
+    program,
+    system: alternative.system,
+    method: alternative.method,
+    reason: alternative.reason,
+    instead,
+  };
+}
+
+/**
+ * What a vim mutation is missing.
+ *
+ * `edit` and `write` act on the loaded buffer, so without a path the request has
+ * no file to be about: it becomes a broad scope, which the policy refuses. Say
+ * what is missing instead of letting it surface as "too broad".
+ */
+export function vimWriteInputProblem(
+  system: string,
+  method: string,
+  input: Record<string, unknown> | undefined,
+): string {
+  if (system !== "vim") return "";
+  if (method !== "edit" && method !== "write" && method !== "undo") return "";
+  const args = input ?? {};
+  if (String(args.path ?? "").trim()) return "";
+  return `a vim ${method} needs input.path: the buffer is the writer, so name ` +
+    `the file it is for (or use system=herdr-core method=file-edit, which ` +
+    `loads the path through this space's editor)`;
+}
+
+/** Model types this addin drives by name. */
+export const HERDR_CORE_TYPE = "@svendowideit/herdr-core";
+export const VIM_CONTROLLER_TYPE = "@svendowideit/vim-controller";
+
+/**
+ * The per-session instance name for a shared behaviour.
+ *
+ * One instance per pi session keeps each session's calls off everyone else's
+ * lock; the name says which pane and which session it belongs to, so a person or
+ * agent reading `swamp run doctor` or `swamp model list` can see who is holding
+ * what: `<behaviour>-pi-<terminal>-<session>` (e.g. `herdr-core-pi-t2g-01a206`).
+ */
+export function sessionInstanceName(
+  base: string,
+  terminal: string,
+  session: string,
+): string {
+  const clean = (value: string) =>
+    String(value ?? "").toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(
+      /^-+|-+$/g,
+      "",
+    );
+  const parts = [
+    clean(base) || "model",
+    "pi",
+    clean(terminal).slice(0, 12) || "local",
+    clean(session).slice(0, 8) || "anon",
+  ];
+  return parts.join("-").slice(0, 60).replace(/-+$/, "");
+}
+
+/** What a call was trying to do, in one readable phrase. */
+export function describeAttempt(
+  system: string,
+  method: string,
+  input: Record<string, unknown> | undefined,
+): string {
+  const args = input ?? {};
+  if (system === "herdr-core") {
+    if ((method === "exec" || method === "run") && Array.isArray(args.argv)) {
+      return `${method} ${(args.argv as unknown[]).map(String).join(" ")}`;
+    }
+    if (String(args.path ?? "").trim()) {
+      return `${method} ${String(args.path)}`;
+    }
+    if (String(args.pattern ?? "").trim()) {
+      return `${method} ${JSON.stringify(String(args.pattern))}`;
+    }
+    return method;
+  }
+  if (system === "vim") {
+    const path = String(args.path ?? args.file ?? "").trim();
+    const server = String(args.server ?? "").trim();
+    return [method, path, server ? `on ${server}` : ""].filter(Boolean).join(" ");
+  }
+  const model = String(args.model ?? "").trim();
+  return [model, method].filter(Boolean).join(".") || method;
+}
+
+/** A swamp lock timeout, split into the parts a reader needs. */
+export interface LockDetail {
+  /** The lock that was contended: a model instance name. */
+  waiting: string;
+  /** The process the error names as the holder. */
+  holderPid: string;
+  /** The swamp error code, when the message carried one. */
+  code: string;
+}
+
+/**
+ * Pull the lock facts out of a swamp error message.
+ *
+ * A lock timeout is only useful if it says what was contended and who held it;
+ * swamp's message names the holder pid, and the caller knows which instance it
+ * was asking for, so both end up on the event.
+ */
+export function lockDetailFromError(
+  text: string,
+  waiting = "",
+): LockDetail | null {
+  const message = String(text ?? "");
+  const isLock = /lock_timeout|holds the (model|behaviour|behavior) lock|model lock/i
+    .test(message);
+  if (!isLock) return null;
+  const pid = message.match(/pid[\s:=]+(\d{2,})/i);
+  const code = message.match(/lock_timeout/i) ? "lock_timeout" : "lock_held";
+  return {
+    waiting: String(waiting ?? "").trim(),
+    holderPid: pid ? pid[1] : "",
+    code,
   };
 }

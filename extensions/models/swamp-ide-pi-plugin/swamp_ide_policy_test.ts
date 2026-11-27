@@ -8,6 +8,7 @@ import {
   blockedAuthorization,
   classifyCall,
   commandAlternatives,
+  describeAttempt,
   formatActivityLine,
   formatActivitySummary,
   formatAuthorization,
@@ -16,10 +17,14 @@ import {
   isProtectedPath,
   isShellWrapper,
   leaseAllows,
+  lockDetailFromError,
   matchingFeature,
+  nativeToolRefusal,
   notRequiredAuthorization,
   scopeCovers,
+  sessionInstanceName,
   vimEditInputs,
+  vimWriteInputProblem,
   writeInputProblem,
 } from "./pi/swamp-ide-policy.ts";
 
@@ -534,4 +539,122 @@ Deno.test("vimEditInputs leaves binary, remote and non-edit calls on herdr-core"
     );
   }
   assertEquals(vimEditInputs("vim", "edit", { path: "a.ts" }, "/r"), null);
+});
+
+Deno.test("vimEditInputs carries the caller's terminal to the model", () => {
+  // The method runs inside swamp serve, which has no HC_TERMINAL_ID, so the
+  // terminal has to travel as an argument.
+  const mapped = vimEditInputs(
+    "herdr-core",
+    "file-edit",
+    { path: "a.ts", edits: [{ old: "a", new: "b" }] },
+    "/repo",
+    "t2g",
+  );
+  assertEquals(mapped?.inputs.terminal, "t2g");
+  // An empty terminal is simply absent, never an empty string argument.
+  const bare = vimEditInputs(
+    "herdr-core",
+    "file-edit",
+    { path: "a.ts", edits: [{ old: "a", new: "b" }] },
+    "/repo",
+    "",
+  );
+  assertEquals("terminal" in (bare?.inputs ?? {}), false);
+});
+
+Deno.test("nativeToolRefusal names the native call, arguments filled in", () => {
+  assertEquals(
+    nativeToolRefusal(["grep", "-n", "Objective", "context.md"])?.instead,
+    'swamp_ide system=herdr-core method=search input={"pattern":"Objective","paths":["context.md"]}',
+  );
+  // A flag with a value must not swallow the pattern.
+  assertEquals(
+    nativeToolRefusal(["rg", "-g", "*.md", "TODO", "src"])?.instead,
+    'swamp_ide system=herdr-core method=search input={"pattern":"TODO","paths":["src"]}',
+  );
+  assertEquals(
+    nativeToolRefusal(["cat", "README.md"])?.instead,
+    'swamp_ide system=herdr-core method=file-read input={"path":"README.md"}',
+  );
+  // Commands without a native method are left to the approval path.
+  assertEquals(nativeToolRefusal(["ls", "-l"]), null);
+  assertEquals(nativeToolRefusal([]), null);
+  assertEquals(nativeToolRefusal(undefined), null);
+});
+
+Deno.test("vimWriteInputProblem asks for the path a vim write needs", () => {
+  assert(vimWriteInputProblem("vim", "edit", {}).includes("input.path"));
+  assert(
+    vimWriteInputProblem("vim", "write", { server: "S" }).includes(
+      "input.path",
+    ),
+  );
+  assertEquals(vimWriteInputProblem("vim", "edit", { path: "a.ts" }), "");
+  // Reads and other systems are untouched.
+  assertEquals(vimWriteInputProblem("vim", "read", {}), "");
+  assertEquals(vimWriteInputProblem("herdr-core", "file-edit", {}), "");
+});
+
+Deno.test("sessionInstanceName says which pane and session owns an instance", () => {
+  assertEquals(
+    sessionInstanceName("herdr-core", "t2g", "01a20665-38d8-757a-9c82"),
+    "herdr-core-pi-t2g-01a20665",
+  );
+  assertEquals(
+    sessionInstanceName("vim-controller", "T2G", "01A2"),
+    "vim-controller-pi-t2g-01a2",
+  );
+  // A session with no terminal or id still gets a stable, readable name.
+  assertEquals(
+    sessionInstanceName("herdr-core", "", ""),
+    "herdr-core-pi-local-anon",
+  );
+  // Names stay shell- and path-safe and bounded.
+  const long = sessionInstanceName(
+    "herdr-core",
+    "t2g extra/stuff",
+    "../weird id",
+  );
+  assert(/^[a-z0-9-]+$/.test(long), long);
+  assert(long.length <= 60, String(long.length));
+});
+
+Deno.test("describeAttempt says what the call was trying to do", () => {
+  assertEquals(
+    describeAttempt("herdr-core", "exec", {
+      argv: ["grep", "-n", "x", "a.md"],
+    }),
+    "exec grep -n x a.md",
+  );
+  assertEquals(
+    describeAttempt("herdr-core", "file-edit", { path: "src/a.ts" }),
+    "file-edit src/a.ts",
+  );
+  assertEquals(
+    describeAttempt("vim", "edit", { path: "a.ts", server: "S1" }),
+    "edit a.ts on S1",
+  );
+  assertEquals(
+    describeAttempt("swamp", "set", { model: "ide-pi" }),
+    "ide-pi.set",
+  );
+  assertEquals(describeAttempt("herdr-core", "status", {}), "status");
+});
+
+Deno.test("lockDetailFromError names what was contended and who held it", () => {
+  assertEquals(
+    lockDetailFromError(
+      "lock_timeout: another invocation holds the model lock (pid 3864156)",
+      "herdr-core-pi-t2g-01a20665",
+    ),
+    {
+      waiting: "herdr-core-pi-t2g-01a20665",
+      holderPid: "3864156",
+      code: "lock_timeout",
+    },
+  );
+  // A non-lock failure is not dressed up as one.
+  assertEquals(lockDetailFromError("old text not found"), null);
+  assertEquals(lockDetailFromError(""), null);
 });

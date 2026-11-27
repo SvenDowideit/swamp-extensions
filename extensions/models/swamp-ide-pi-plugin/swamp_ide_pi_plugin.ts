@@ -633,7 +633,7 @@ async function set(
 /** The pi plugin installer/gate. */
 export const model = {
   type: "@svendowideit/swamp-ide-pi-plugin",
-  version: "2026.11.27.1",
+  version: "2026.11.29.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -682,6 +682,18 @@ export const model = {
       toVersion: "2026.11.27.1",
       description:
         "Routes every text file mutation through this space's editor: herdr-core file-write/file-edit/file-edit-lines become one editFile call on vim-controller, which creates or reuses the Edit tab, loads the path into the buffer, applies the edits with expectedLines/expectedHash preconditions and saves. Binary content, binary file types and remote machines stay on herdr-core, and each fallback records its reason.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.28.1",
+      description:
+        "Each pi session now drives its own model instances, named <behaviour>-pi-<terminal>-<session> (e.g. herdr-core-pi-t2g-01a20665) and created against the running serve on first use. Swamp's lock is per instance, so a session no longer queues behind a scheduled run or another session for the shared herdr-core lock - which is what made even a read-only ps wait 60 s. The instance name is recorded in every activity event; if creation is refused the call falls back to the shared instance and says so.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.29.1",
+      description:
+        "Activity events now carry what the call attempted (attempt), the behaviour type, the Herdr space/tab/terminal it came from, and on a lock timeout the contended instance plus the pid swamp names as the holder. The panel's one-line row shows the attempt and the expanded row shows attempt, where and locked-by, so a blocked call says which behaviour, which instance and which window asked.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

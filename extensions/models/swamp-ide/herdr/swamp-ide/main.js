@@ -879,7 +879,9 @@ export default class SwampIde extends View {
             .child(
               div().flex_grow(1).flex_basis(24).flex_shrink(1).min_w(24)
                 .truncate().text_size(12).text_color(t.foreground)
-                .child(targetOfEvent(event)),
+                .child(
+                  String(event.attempt || targetOfEvent(event)).slice(0, 120),
+                ),
             )
             .child(
               div().flex_none().text_size(10)
@@ -926,6 +928,28 @@ export default class SwampIde extends View {
                 child.child(
                   div().text_size(10).text_color(t.muted).child(
                     String(event.command).slice(0, 400),
+                  ),
+                ))
+              .when(Boolean(event.attempt), (child) =>
+                child.child(
+                  div().text_size(10).text_color(t.foreground).child(
+                    `attempt  ${String(event.attempt).slice(0, 200)}`,
+                  ),
+                ))
+              .when(Boolean(event.space || event.tab), (child) =>
+                child.child(
+                  div().text_size(10).text_color(t.muted).child(
+                    `where    ${String(event.spaceName || event.space || "-")} / ${
+                      String(event.tabName || event.tab || "-")
+                    }${event.terminal ? ` · ${String(event.terminal)}` : ""}`,
+                  ),
+                ))
+              .when(Boolean(event.lock), (child) =>
+                child.child(
+                  div().text_size(10).text_color(t.blocked).child(
+                    `locked   ${
+                      String(event.lock?.waiting || "?")
+                    } held by pid ${String(event.lock?.holderPid || "?")}`,
                   ),
                 ))
               .when(Boolean(event.authScope), (child) =>

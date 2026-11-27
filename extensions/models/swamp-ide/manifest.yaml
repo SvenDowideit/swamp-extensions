@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/swamp-ide"
-version: "2026.11.27.1"
+version: "2026.11.27.2"
 description: >
   The single front door for the agent IDE: install, enable and disable the
   herdr-core/vim-controller routing, the pi addin and the resizable Herdr

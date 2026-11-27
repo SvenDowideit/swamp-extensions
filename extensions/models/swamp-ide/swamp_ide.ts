@@ -570,7 +570,7 @@ async function ensureVim(
 /** The swamp-ide setup model. */
 export const model = {
   type: "@svendowideit/swamp-ide",
-  version: "2026.11.27.1",
+  version: "2026.11.27.2",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -607,6 +607,12 @@ export const model = {
       toVersion: "2026.11.27.1",
       description:
         "Adds ensureVim: the enable workflow checks for the addin's default vim-controller model instance and creates it when missing, so enabling Swamp IDE also makes every Vim write path resolvable.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.27.2",
+      description:
+        "The Activity row shows what each call attempted (the argv, path or pattern) instead of only the route, and the expanded row adds attempt, where (space / tab / terminal) and, for a lock timeout, the contended instance and the pid swamp names as the holder.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

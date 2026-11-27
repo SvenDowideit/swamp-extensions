@@ -40,6 +40,12 @@ const HostSchema = z.object({
   ),
   tier: z.string().default("").describe("Device tier (T0–T4)"),
   os: z.string().default("").describe("Operating system / family"),
+  sshUser: z.string().optional().describe(
+    "SSH user for THIS host; overrides the model global, and is itself overridden by a run-level sshUser. Omit to inherit",
+  ),
+  sshPort: z.number().int().min(0).max(65535).optional().describe(
+    "SSH port for THIS host; omit to inherit the model global, which falls back to ssh's own default of 22",
+  ),
   notes: z.string().default("").describe("Free-form notes"),
 });
 
@@ -70,7 +76,10 @@ const ProbeArgsSchema = z.object({
     "Host names/IPs to probe over SSH; empty probes every inventoried host that has not already been probed",
   ),
   sshUser: z.string().default("").describe(
-    "SSH user (defaults to the global sshUser)",
+    "SSH user for EVERY host in this run: overrides each host's own sshUser and the model global. Empty keeps the host's, then the global's",
+  ),
+  sshPort: z.number().int().min(0).max(65535).optional().describe(
+    "SSH port for EVERY host in this run: overrides each host's own sshPort and the model global. Omit to keep the host's, then the global's, then 22",
   ),
   timeoutMs: z.number().int().positive().default(10000).describe(
     "SSH connect timeout in milliseconds",
@@ -122,7 +131,10 @@ const EnrichArgsSchema = z.object({
 
 const GlobalArgsSchema = z.object({
   sshUser: z.string().default("").describe(
-    "Default SSH user for probe (e.g. root or admin)",
+    "Default SSH user for hosts that record no sshUser of their own (e.g. root or admin). Leave it empty to require every host to carry its own",
+  ),
+  sshPort: z.number().int().min(0).max(65535).optional().describe(
+    "Default SSH port for hosts that record no sshPort of their own; omit to leave the choice to ssh (port 22)",
   ),
   defaultTier: z.string().default("T1").describe(
     "Tier assigned when probing cannot infer one",
@@ -187,6 +199,10 @@ const InventoryHostSchema = z.object({
   source: z.string(),
   tier: z.string(),
   os: z.string(),
+  /** SSH user to use for this host; empty falls back to the model global. */
+  sshUser: z.string().default(""),
+  /** SSH port to use for this host; 0 falls back to the global, then 22. */
+  sshPort: z.number().int().min(0).max(65535).default(0),
   /** Device class from fingerprinting (e.g. unifi, esphome, nanokvm) or "". */
   deviceClass: z.string().default(""),
   /** Vendor from fingerprinting (e.g. Ubiquiti, Espressif) or "". */
@@ -213,6 +229,8 @@ const ObservedHostSchema = InventoryHostSchema.pick({
   source: true,
   tier: true,
   os: true,
+  sshUser: true,
+  sshPort: true,
   lastSeen: true,
 });
 
@@ -234,6 +252,8 @@ const ProbedHostSchema = InventoryHostSchema.pick({
   source: true,
   tier: true,
   os: true,
+  sshUser: true,
+  sshPort: true,
   probed: true,
   lastSeen: true,
 });
@@ -410,6 +430,10 @@ export interface InventoryHost {
   tier: string;
   /** Operating system / family. */
   os: string;
+  /** SSH user recorded for this host (empty = fall back to the model global). */
+  sshUser?: string;
+  /** SSH port recorded for this host (0 = fall back to the global, then 22). */
+  sshPort?: number;
   /** Device class from fingerprinting (e.g. unifi, esphome, nanokvm) or "". */
   deviceClass: string;
   /** Vendor from fingerprinting (e.g. Ubiquiti, Espressif) or "". */
@@ -446,6 +470,10 @@ export interface HostInput {
   tier: string;
   /** Operating system / family. */
   os: string;
+  /** SSH user recorded FOR THIS HOST (empty = fall back to the model global). */
+  sshUser?: string;
+  /** SSH port recorded FOR THIS HOST (0 = fall back to the global, then 22). */
+  sshPort?: number;
   /** Device class from fingerprinting (e.g. unifi, esphome, nanokvm) or "". */
   deviceClass?: string;
   /** Vendor from fingerprinting (e.g. Ubiquiti, Espressif) or "". */
@@ -725,6 +753,11 @@ export function mergeHosts(
       source: sources.join("+"),
       tier: pick(hs.map((h) => h.tier)),
       os: pick(hs.map((h) => h.os)),
+      // A per-host identity survives every merge: the first non-empty user
+      // wins, and the first non-zero port, so a scan record can never wipe
+      // the user a human set on the named record it merged with.
+      sshUser: pick(hs.map((h) => h.sshUser ?? "")),
+      sshPort: hs.map((h) => h.sshPort ?? 0).find((p) => p > 0) ?? 0,
       deviceClass: pick(hs.map((h) => h.deviceClass ?? "")),
       vendor: pick(hs.map((h) => h.vendor ?? "")),
       notes: uniq(hs.map((h) => h.notes)).join("; "),
@@ -1623,7 +1656,7 @@ async function resolveNames(
 /** The swamp model definition for `@svendowideit/fleet-inventory`. */
 export const model = {
   type: "@svendowideit/fleet-inventory",
-  version: "2026.11.21.1",
+  version: "2026.11.27.1",
   globalArguments: GlobalArgsSchema,
   checks: {
     "valid-config": {
@@ -1736,6 +1769,17 @@ export const model = {
         "from the addresses the host reports. report gains those counts. Schema is additive.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.27.1",
+      description:
+        "Per-host SSH identity. A host record can now carry its own sshUser and " +
+        "sshPort, accepted by `discover` feeds and preserved across merges; " +
+        "`probe` resolves the run input first, then the host, then the global " +
+        "sshUser/sshPort, then ssh's own default, and passes -p. An empty global " +
+        "sshUser stays legal and means every host must carry its own. Schema is " +
+        "additive.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     discovery: {
@@ -1798,6 +1842,8 @@ export const model = {
           source: f.source || "feed",
           tier: f.tier,
           os: f.os,
+          sshUser: f.sshUser ?? "",
+          sshPort: f.sshPort ?? 0,
           notes: f.notes,
         }));
 
@@ -1874,7 +1920,6 @@ export const model = {
         },
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const g = context.globalArgs;
-        const user = args.sshUser || g.sshUser;
         const timestamp = new Date().toISOString();
         // With no explicit hosts, probe everything already inventoried (from the
         // latest discovery, else the last inventory) that has NOT already been
@@ -1952,11 +1997,18 @@ export const model = {
           targets,
           16,
           async (target) => {
-            const candidates = candidatesFor(
-              knownHosts.get(target.toLowerCase()) ?? {},
-              target,
+            const known = knownHosts.get(target.toLowerCase()) ?? {};
+            const candidates = candidatesFor(known, target);
+            // Precedence is deliberate: a value set for this RUN wins (an
+            // operator asking for `root` means it), then the host's own record,
+            // then the model global, then ssh's own default.
+            const ssh = resolveSsh(known, args, g);
+            const probe = await sshProbe(
+              candidates,
+              ssh.user,
+              ssh.port,
+              args.timeoutMs,
             );
-            const probe = await sshProbe(candidates, user, args.timeoutMs);
             const facts = probe?.facts ?? null;
             // Record the probed hostname and address together, and the machine
             // id as first-class identity (not buried in notes) so it can merge
@@ -1983,6 +2035,11 @@ export const model = {
               source: "probe",
               tier: facts ? inferTier(facts, g.defaultTier) : g.defaultTier,
               os: facts?.os ?? "",
+              // Record the host's OWN identity, never the run-level override, so
+              // a one-off `sshUser=root` sweep cannot be laundered into the
+              // inventory as that host's permanent user.
+              sshUser: known.sshUser ?? "",
+              sshPort: known.sshPort ?? 0,
               deviceClass: "",
               vendor: "",
               notes: "",
@@ -2485,6 +2542,8 @@ function toInput(
     source: h.source || source,
     tier: h.tier ?? "",
     os: h.os ?? "",
+    sshUser: h.sshUser ?? "",
+    sshPort: h.sshPort ?? 0,
     deviceClass: h.deviceClass ?? "",
     vendor: h.vendor ?? "",
     notes: h.notes ?? "",
@@ -2601,14 +2660,45 @@ function scanHosts(
   }).then((results) => results.filter((ip): ip is string => ip !== null));
 }
 
+/**
+ * The SSH identity to use for one host.
+ *
+ * Precedence is the whole point, and it is the same in every extension that
+ * SSHes to an inventoried host:
+ *
+ *   1. the value set for THIS RUN  (`sshUser`/`sshPort` method input)
+ *   2. the value recorded on the HOST
+ *   3. the MODEL GLOBAL
+ *   4. empty/0 - and then ssh decides (current user, port 22)
+ *
+ * A run-level value wins so an operator can sweep a fleet as another user; the
+ * host value wins over the global so one appliance image (an OctoPi whose only
+ * login is `pi`) does not need its own model instance. Empty at every level is
+ * legal: with a global `sshUser: ""` an operator is choosing to require every
+ * host to carry its own, and a host that does not is simply not reachable by
+ * probe - which the inventory reports honestly instead of guessing a user.
+ */
+export function resolveSsh(
+  host: { sshUser?: string; sshPort?: number } | undefined,
+  args: { sshUser?: string; sshPort?: number } | undefined,
+  global: { sshUser?: string; sshPort?: number } | undefined,
+): { user: string; port: number } {
+  const user = (args?.sshUser ?? "").trim() || (host?.sshUser ?? "").trim() ||
+    (global?.sshUser ?? "").trim();
+  const port = (args?.sshPort ?? 0) || (host?.sshPort ?? 0) ||
+    (global?.sshPort ?? 0);
+  return { user, port };
+}
+
 /** SSH into a host and run the probe script, returning facts or null. */
 async function sshProbe(
   candidates: string[],
   user: string,
+  port: number,
   timeoutMs: number,
 ): Promise<{ facts: ReturnType<typeof parseProbeFacts>; via: string } | null> {
   for (const target of candidates) {
-    const facts = await sshProbeOne(target, user, timeoutMs);
+    const facts = await sshProbeOne(target, user, port, timeoutMs);
     if (facts) return { facts, via: target };
   }
   return null;
@@ -2617,6 +2707,7 @@ async function sshProbe(
 async function sshProbeOne(
   target: string,
   user: string,
+  port: number,
   timeoutMs: number,
 ): Promise<ReturnType<typeof parseProbeFacts> | null> {
   const dest = user ? `${user}@${target}` : target;
@@ -2625,6 +2716,7 @@ async function sshProbeOne(
     // swamp-quality-ignore deno-command: SSH is this model's transport (it is the
     const proc = new Deno.Command("ssh", {
       args: [
+        ...(port > 0 ? ["-p", String(port)] : []),
         "-o",
         "BatchMode=yes",
         "-o",

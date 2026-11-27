@@ -1,4 +1,58 @@
 import { assert, assertEquals } from "jsr:@std/assert@1";
+import { resolveSsh } from "./fleet_inventory.ts";
+
+Deno.test("resolveSsh puts the run input first, then the host, then the global", () => {
+  const global = { sshUser: "sven", sshPort: 0 };
+  const host = { sshUser: "pi", sshPort: 2222 };
+  // An operator sweeping as another user means it, even over a host that
+  // declares its own.
+  assertEquals(resolveSsh(host, { sshUser: "root", sshPort: 2022 }, global), {
+    user: "root",
+    port: 2022,
+  });
+  // Otherwise the host's own identity beats the model global.
+  assertEquals(resolveSsh(host, {}, global), { user: "pi", port: 2222 });
+  // A host that declares nothing inherits the global.
+  assertEquals(resolveSsh({}, {}, global), { user: "sven", port: 0 });
+  // An EMPTY global is a deliberate choice to require every host to carry its
+  // own user: a host without one is left to ssh, never guessed.
+  assertEquals(resolveSsh({}, {}, { sshUser: "", sshPort: 0 }), {
+    user: "",
+    port: 0,
+  });
+  assertEquals(resolveSsh(undefined, undefined, undefined), {
+    user: "",
+    port: 0,
+  });
+});
+
+Deno.test("a per-host ssh identity survives the merge with a scan record", () => {
+  const merged = mergeHosts([
+    {
+      name: "mk2s",
+      address: "10.10.3.253",
+      mac: "",
+      source: "manual",
+      tier: "T1",
+      os: "raspbian",
+      notes: "",
+      sshUser: "pi",
+      sshPort: 2222,
+    },
+    {
+      name: "10.10.3.253",
+      address: "10.10.3.253",
+      mac: "",
+      source: "scan",
+      tier: "",
+      os: "",
+      notes: "",
+    },
+  ], "2026-01-01T00:00:00.000Z");
+  assertEquals(merged.length, 1);
+  assertEquals(merged[0].sshUser, "pi");
+  assertEquals(merged[0].sshPort, 2222);
+});
 
 import {
   addressKindFor,

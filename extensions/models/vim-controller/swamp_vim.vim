@@ -6,7 +6,7 @@
 " file only touches the buffer, cursor, annotations and quickfix list.
 
 function! SwampVimRuntime() abort
-  return 4
+  return 6
 endfunction
 
 function! SwampVimStatus() abort
@@ -48,6 +48,48 @@ function! SwampVimRead(mode) abort
         \ 'cursor': getpos('.'),
         \ 'mode': mode(),
         \ 'filetype': &filetype,
+        \ })
+endfunction
+
+" Replace the buffer from a file on disk.
+"
+" Whole-file writes used to go through `--remote-expr` as one huge JSON
+" expression, which fails for a real source file (a few hundred lines is tens of
+" kilobytes of expression) and is invisible when it does. Reading the lines from
+" a file keeps the expression tiny at any size.
+" Write the buffer's lines to a file.
+"
+" The read direction needs this for the same reason the write direction does: a
+" real source file is tens of kilobytes of JSON, and a response that size does
+" not survive the client-server round trip (the caller then sees an empty
+" buffer, which surfaces as "the buffer has no file").
+function! SwampVimDumpBuffer(path) abort
+  call writefile(getline(1, '$'), a:path)
+  return json_encode({
+        \ 'file': expand('%:p'),
+        \ 'modified': &modified,
+        \ 'lines': line('$'),
+        \ 'cursor': getpos('.'),
+        \ 'mode': mode(),
+        \ 'filetype': &filetype,
+        \ })
+endfunction
+
+function! SwampVimLoadFile(path) abort
+  if !filereadable(a:path)
+    throw 'not readable: ' . a:path
+  endif
+  silent %delete _
+  execute 'silent 0read ' . fnameescape(a:path)
+  " `%delete _` leaves one empty line; `0read` puts the file above it.
+  if line('$') > 1 && getline(line('$')) ==# ''
+    silent $delete _
+  endif
+  redraw!
+  return json_encode({
+        \ 'changed': 1,
+        \ 'undo_seq': undotree().seq_cur,
+        \ 'lines': line('$'),
         \ })
 endfunction
 

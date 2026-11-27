@@ -17,6 +17,7 @@
  * @module
  */
 import { z } from "npm:zod@4";
+import { realpath } from "node:fs/promises";
 import {
   emitSpan,
   errorMessage,
@@ -25,6 +26,12 @@ import {
   otelStatus,
   withOtelSpan,
 } from "./vim_otel.ts";
+
+/** Above this many bytes of JSON, a whole-buffer write goes via a temp file. */
+const LARGE_EDIT_BYTES = 12_000;
+
+/** The bundled Vim runtime's version; bump with swamp_vim.vim. */
+export const RUNTIME_VERSION = 6;
 
 /** The model type. */
 export const EXT_TYPE = "@svendowideit/vim-controller";
@@ -70,12 +77,23 @@ const GlobalArgsSchema = z.object({
 export type GlobalArgs = z.infer<typeof GlobalArgsSchema>;
 
 const ServerArgsSchema = z.object({
+  terminal: z.string().default("").describe(
+    "The caller's Herdr terminal id (a pane's HC_TERMINAL_ID). A method called " +
+      "through swamp serve runs in the server's process, which has no such " +
+      "variable, so pass it to let the method resolve the caller's space.",
+  ),
+
   server: z.string().default("").describe(
     "Vim server name (`vim --servername`); empty uses defaultServer.",
   ),
 });
 
 const OpenArgsSchema = z.object({
+  terminal: z.string().default("").describe(
+    "The caller's Herdr terminal id (a pane's HC_TERMINAL_ID). Methods called " +
+      "through swamp serve run in the server's process, which has no such " +
+      "variable, so pass it here to let the method resolve the caller's space.",
+  ),
   server: z.string().default("").describe(
     "Server name to create or reuse; empty derives one from the cwd.",
   ),
@@ -129,6 +147,10 @@ const EditOperationSchema = z.object({
 });
 
 const EditArgsSchema = ServerArgsSchema.extend({
+  path: z.string().default("").describe(
+    "The file this edit is for. When given it must be the buffer's file; use " +
+      "`editFile` to load a path into the buffer first.",
+  ),
   expectedHash: z.string().default("").describe(
     "Optional SHA-256 of the buffer the caller saw; refuse if it changed.",
   ),
@@ -141,12 +163,21 @@ const EditArgsSchema = ServerArgsSchema.extend({
 });
 
 const WriteArgsSchema = ServerArgsSchema.extend({
+  path: z.string().default("").describe(
+    "The file this write is for. When given it must be the buffer's file, so a " +
+      "write cannot land in whatever buffer happens to be loaded.",
+  ),
   force: z.boolean().default(false).describe(
     "Use `write!`; only when intentionally overwriting.",
   ),
 });
 
 const OpenFileArgsSchema = ServerArgsSchema.extend({
+  terminal: z.string().default("").describe(
+    "The caller's Herdr terminal id (a pane's HC_TERMINAL_ID). Methods called " +
+      "through swamp serve run in the server's process, which has no such " +
+      "variable, so pass it here to let the method resolve the caller's space.",
+  ),
   file: z.string().min(1).describe(
     "Path to load into the running server; a path that does not exist yet " +
       "opens as an empty buffer that `write` creates.",
@@ -161,6 +192,11 @@ const OpenFileArgsSchema = ServerArgsSchema.extend({
 });
 
 const EditFileArgsSchema = z.object({
+  terminal: z.string().default("").describe(
+    "The caller's Herdr terminal id (a pane's HC_TERMINAL_ID). Methods called " +
+      "through swamp serve run in the server's process, which has no such " +
+      "variable, so pass it here to let the method resolve the caller's space.",
+  ),
   server: z.string().default("").describe(
     "Server to use; empty derives one from this space, opening the editor tab " +
       "when it is not running yet.",
@@ -550,6 +586,70 @@ export async function listServers(vimBin: string): Promise<string[]> {
   );
 }
 
+/**
+ * One read of the buffer: its lines and the metadata the callers need.
+ *
+ * The whole buffer goes through a file, not a `--remote-expr` response: a real
+ * source file is tens of kilobytes of JSON and a response that size does not
+ * survive the round trip, which used to show up as an empty buffer ("the buffer
+ * has no file"). Small slices (visible/selection) still travel as expressions.
+ */
+export async function bufferRead(
+  readExpr: (expr: string) => Promise<string>,
+  mode: "all" | "visible" | "selection",
+): Promise<{
+  file: string;
+  modified: boolean;
+  start: number;
+  end: number;
+  hasSelection: boolean;
+  lines: string[];
+  cursor: number[];
+  mode: string;
+  filetype: string;
+}> {
+  if (mode !== "all") {
+    const raw = JSON.parse(
+      await readExpr(`SwampVimRead(${JSON.stringify(mode)})`),
+    ) as Record<string, unknown>;
+    return {
+      file: String(raw.file ?? ""),
+      modified: raw.modified === true || raw.modified === 1,
+      start: Number(raw.start ?? 1),
+      end: Number(raw.end ?? 0),
+      hasSelection: raw.has_selection === true || raw.has_selection === 1,
+      lines: Array.isArray(raw.lines)
+        ? raw.lines.map((line) => String(line))
+        : [],
+      cursor: Array.isArray(raw.cursor) ? raw.cursor.map(Number) : [],
+      mode: String(raw.mode ?? ""),
+      filetype: String(raw.filetype ?? ""),
+    };
+  }
+  const temp = await Deno.makeTempFile({ suffix: ".swamp-vim-dump" });
+  try {
+    const raw = JSON.parse(
+      await readExpr("SwampVimDumpBuffer(" + JSON.stringify(temp) + ")"),
+    ) as Record<string, unknown>;
+    const text = await Deno.readTextFile(temp);
+    // writefile() terminates the last line; a buffer's last line has none.
+    const lines = text.length === 0 ? [] : text.replace(/\n$/, "").split("\n");
+    return {
+      file: String(raw.file ?? ""),
+      modified: raw.modified === true || raw.modified === 1,
+      start: 1,
+      end: lines.length,
+      hasSelection: false,
+      lines,
+      cursor: Array.isArray(raw.cursor) ? raw.cursor.map(Number) : [],
+      mode: String(raw.mode ?? ""),
+      filetype: String(raw.filetype ?? ""),
+    };
+  } finally {
+    await Deno.remove(temp).catch(() => {});
+  }
+}
+
 /** Run one `--remote-expr` and return its stdout. */
 async function remoteExpr(
   vimBin: string,
@@ -613,6 +713,7 @@ export function autoOpenPlan(
 async function ensureServer(
   ctx: MethodContext,
   server: string,
+  terminal = "",
 ): Promise<void> {
   const g = ctx.globalArgs;
   const running = (await listServers(g.vimBin)).some((name) =>
@@ -632,6 +733,7 @@ async function ensureServer(
   try {
     await open({
       server,
+      terminal,
       file: plan.file,
       cwd: plan.cwd,
       reuse: true,
@@ -652,14 +754,15 @@ async function ensureServer(
 async function ensureRuntime(
   ctx: MethodContext,
   server: string,
+  terminal = "",
 ): Promise<void> {
-  await ensureServer(ctx, server);
+  await ensureServer(ctx, server, terminal);
   const has = await remoteExpr(
     ctx.globalArgs.vimBin,
     server,
     'exists("*SwampVimRuntime") ? SwampVimRuntime() : 0',
   );
-  if (Number(has) >= 4) return;
+  if (Number(has) >= RUNTIME_VERSION) return;
   if (!ctx.extensionFile) {
     throw new Error(
       "cannot source swamp_vim.vim: this swamp build does not expose " +
@@ -892,7 +995,9 @@ export function findTabInSpace(
 export function resolveFilePath(file: string, cwd: string): string {
   const raw = String(file ?? "").trim();
   if (!raw) return "";
-  const base = String(cwd ?? "").trim();
+  // A relative path is resolved against the caller's cwd, or the process's:
+  // Vim resolves against its own, and comparing the two as strings fails.
+  const base = String(cwd ?? "").trim() || Deno.cwd();
   if (raw.startsWith("~")) {
     const home = Deno.env.get("HOME") ?? "";
     return `${home}${raw.slice(1)}`;
@@ -983,6 +1088,12 @@ function safeName(value: string): string {
 }
 
 /** ISO timestamp. */
+/** A short hex suffix, for a terminal name that is already taken. */
+function shortSuffix(bytes = 2): string {
+  const data = crypto.getRandomValues(new Uint8Array(bytes));
+  return Array.from(data, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 function now(): string {
   return new Date().toISOString();
 }
@@ -1375,8 +1486,13 @@ async function storedServer(
 /** Which space this call belongs to, from `HC_TERMINAL_ID` and `herdr-app ls`. */
 async function callerPlacement(
   g: GlobalArgs,
+  explicit = "",
 ): Promise<HerdrPlacement | null> {
-  const terminal = (Deno.env.get("HC_TERMINAL_ID") ?? "").trim();
+  // A call over swamp serve runs in the server's process, which has no
+  // HC_TERMINAL_ID, so the caller's terminal has to arrive as an argument. The
+  // environment stays as a fallback for a method run straight from a pane.
+  const terminal = String(explicit ?? "").trim() ||
+    (Deno.env.get("HC_TERMINAL_ID") ?? "").trim();
   if (!terminal) return null;
   const tabs = await herdrTabs(g.herdrAppBin);
   if (tabs === null) return null;
@@ -1439,7 +1555,9 @@ async function open(
   // A pi pane carries its own terminal address; the app maps it to a space.
   // With a space we place Vim in that space's editor tab and name the server
   // after the space, so one space keeps one editor.
-  const placement = args.place === "tab" ? await callerPlacement(g) : null;
+  const placement = args.place === "tab"
+    ? await callerPlacement(g, args.terminal)
+    : null;
   const server = args.server ||
     (placement
       ? spaceServerName(g.serverPrefix, placement.spaceName, placement.space)
@@ -1564,12 +1682,33 @@ async function open(
       const raw = await hcJson(g.herdrBin, hcArgs);
       terminal = String(raw.address ?? "");
     } catch (error) {
-      throw new Error(
-        `open needs a working herdr-core (hc) to host Vim: ${
-          errorMessage(error)
-        }. Start Vim yourself with ` +
-          `\`vim --servername ${server}\` and pass server=${server}.`,
-      );
+      // A terminal with this name already exists (its Vim has ended, or it is a
+      // leftover shell). Start under a unique name rather than refusing: the
+      // person's editor must come back even if the old terminal lingers.
+      const message = errorMessage(error);
+      if (/name_taken|already named|already exists/i.test(message)) {
+        const unique = `${hcName(server)}-${shortSuffix(2)}`;
+        try {
+          const raw = await hcJson(g.herdrBin, [
+            ...hcArgs.slice(0, hcArgs.indexOf("--name") + 2).map((arg, index) =>
+              index === hcArgs.indexOf("--name") + 1 ? unique : arg
+            ),
+            ...hcArgs.slice(hcArgs.indexOf("--name") + 2),
+          ]);
+          terminal = String(raw.address ?? "");
+        } catch (retry) {
+          throw new Error(
+            `open could not start a terminal for Vim (${message}), and a ` +
+              `retry as '${unique}' failed too: ${errorMessage(retry)}`,
+          );
+        }
+      } else {
+        throw new Error(
+          `open needs a working herdr-core (hc) to host Vim: ${message}. ` +
+            `Start Vim yourself with \`vim --servername ${server}\` and pass ` +
+            `server=${server}.`,
+        );
+      }
     }
   }
 
@@ -1698,7 +1837,7 @@ async function status(
   ctx: MethodContext,
 ): Promise<{ dataHandles: Array<{ name: string }> }> {
   const server = serverOf(ctx.globalArgs, args);
-  await ensureRuntime(ctx, server);
+  await ensureRuntime(ctx, server, args.terminal ?? "");
   const raw = await vimJson(ctx, server, "SwampVimStatus()");
   const stored = await storedServer(ctx, server);
   const data = statusResource(server, raw, {
@@ -1717,20 +1856,19 @@ async function read(
   ctx: MethodContext,
 ): Promise<{ dataHandles: Array<{ name: string }> }> {
   const server = serverOf(ctx.globalArgs, args);
-  await ensureRuntime(ctx, server);
+  await ensureRuntime(ctx, server, args.terminal ?? "");
   const mode = args.mode === "selection"
     ? "selection"
     : args.mode === "visible"
     ? "visible"
     : "all";
-  const raw = await vimJson<Record<string, unknown>>(
-    ctx,
-    server,
-    `SwampVimRead("${mode}")`,
+  const raw = await bufferRead(
+    (expr) => remoteExpr(ctx.globalArgs.vimBin, server, expr),
+    mode,
   );
-  let start = Number(raw.start ?? 1);
-  const rawEnd = Number(raw.end ?? 0);
-  let lines = Array.isArray(raw.lines) ? raw.lines.map((v) => String(v)) : [];
+  let start = raw.start;
+  const rawEnd = raw.end;
+  let lines = raw.lines;
   if (typeof args.start === "number" || typeof args.end === "number") {
     const from = Math.max(start, args.start ?? start);
     const to = Math.min(rawEnd, args.end ?? rawEnd);
@@ -1740,17 +1878,17 @@ async function read(
   }
   const data: z.infer<typeof BufferSchema> = {
     server,
-    file: String(raw.file ?? ""),
-    modified: raw.modified === true || raw.modified === 1,
+    file: raw.file,
+    modified: raw.modified,
     start,
     end: typeof args.start === "number" || typeof args.end === "number"
       ? start + lines.length - 1
       : rawEnd,
-    hasSelection: raw.has_selection === true || raw.has_selection === 1,
+    hasSelection: raw.hasSelection,
     lines,
-    cursor: Array.isArray(raw.cursor) ? raw.cursor.map((v) => Number(v)) : [],
-    mode: String(raw.mode ?? ""),
-    filetype: String(raw.filetype ?? ""),
+    cursor: raw.cursor,
+    mode: raw.mode,
+    filetype: raw.filetype,
     capturedAt: now(),
   };
   return {
@@ -1771,15 +1909,12 @@ async function edit(
 ): Promise<{ dataHandles: Array<{ name: string }> }> {
   const g = ctx.globalArgs;
   const server = serverOf(g, args);
-  await ensureRuntime(ctx, server);
-  const beforeRaw = await vimJson<Record<string, unknown>>(
-    ctx,
-    server,
-    'SwampVimRead("all")',
+  await ensureRuntime(ctx, server, args.terminal ?? "");
+  const beforeRaw = await bufferRead(
+    (expr) => remoteExpr(g.vimBin, server, expr),
+    "all",
   );
-  const beforeLines = Array.isArray(beforeRaw.lines)
-    ? beforeRaw.lines.map((v) => String(v))
-    : [];
+  const beforeLines = beforeRaw.lines;
   if (args.expectedHash) {
     const current = await sha256Hex(beforeLines.join("\n"));
     if (current !== args.expectedHash) {
@@ -1789,10 +1924,49 @@ async function edit(
       );
     }
   }
+  await requireBufferFile(String(beforeRaw.file ?? ""), args.path);
   const afterLines = applyEdits(beforeLines, args.edits);
   const changed = beforeLines.join("\n") !== afterLines.join("\n");
   let undoSeq = 0;
   if (changed) {
+    // A whole-buffer write of a real source file is tens of kilobytes of JSON;
+    // sending that as one `--remote-expr` is where "Vim reported no change"
+    // came from. Above the threshold, hand Vim a file to read instead.
+    const payload = JSON.stringify(afterLines);
+    if (payload.length > LARGE_EDIT_BYTES) {
+      const temp = await Deno.makeTempFile({ suffix: ".swamp-vim" });
+      try {
+        await Deno.writeTextFile(temp, afterLines.join("\n") + "\n");
+        const loaded = await vimJson<Record<string, unknown>>(
+          ctx,
+          server,
+          "SwampVimLoadFile(" + JSON.stringify(temp) + ")",
+        );
+        undoSeq = Number(loaded.undo_seq ?? 0);
+      } finally {
+        await Deno.remove(temp).catch(() => {});
+      }
+      if (args.save) {
+        await remoteExpr(g.vimBin, server, 'execute("write")');
+      }
+      const file = String(beforeRaw.file ?? "");
+      const data: z.infer<typeof EditResultSchema> = {
+        server,
+        file,
+        changed: true,
+        saved: args.save,
+        undoSeq,
+        beforeHash: await sha256Hex(beforeLines.join("\n")),
+        afterHash: await sha256Hex(afterLines.join("\n")),
+        beforeLineCount: beforeLines.length,
+        afterLineCount: afterLines.length,
+        diff: unifiedDiff(beforeLines, afterLines, file),
+        capturedAt: now(),
+      };
+      return {
+        dataHandles: [await save(ctx, "edit-result", server, data)],
+      };
+    }
     const applied = await vimJson<Record<string, unknown>>(
       ctx,
       server,
@@ -1800,7 +1974,28 @@ async function edit(
     );
     undoSeq = Number(applied.undo_seq ?? 0);
     if (Number(applied.changed ?? 0) !== 1) {
-      throw new Error("Vim reported no change for a non-identical buffer");
+      // Vim saw the buffer already holding our target: something reloaded it
+      // between the read and the set (another writer, or autoread). Accept that
+      // when the content matches, otherwise set it once more.
+      const nowRaw = await bufferRead(
+        (expr) => remoteExpr(g.vimBin, server, expr),
+        "all",
+      );
+      const nowLines = nowRaw.lines;
+      if (nowLines.join("\n") !== afterLines.join("\n")) {
+        const again = await vimJson<Record<string, unknown>>(
+          ctx,
+          server,
+          "SwampVimSetLines(" + JSON.stringify(afterLines) + ")",
+        );
+        if (Number(again.changed ?? 0) !== 1) {
+          throw new Error(
+            "the buffer changed under this edit and could not be set twice; " +
+              "re-read it and try again",
+          );
+        }
+        undoSeq = Number(again.undo_seq ?? 0);
+      }
     }
   }
   if (args.save && changed) {
@@ -1838,7 +2033,7 @@ async function write(
 ): Promise<{ dataHandles: Array<{ name: string }> }> {
   const g = ctx.globalArgs;
   const server = serverOf(g, args);
-  await ensureRuntime(ctx, server);
+  await ensureRuntime(ctx, server, args.terminal ?? "");
   const output = await remoteExpr(
     g.vimBin,
     server,
@@ -1859,7 +2054,7 @@ async function cursor(
 ): Promise<{ dataHandles: Array<{ name: string }> }> {
   const g = ctx.globalArgs;
   const server = serverOf(g, args);
-  await ensureRuntime(ctx, server);
+  await ensureRuntime(ctx, server, args.terminal ?? "");
   await remoteExpr(g.vimBin, server, `cursor(${args.line}, ${args.col})`);
   const raw = await vimJson<Record<string, unknown>>(
     ctx,
@@ -1876,7 +2071,7 @@ async function select(
 ): Promise<{ dataHandles: Array<{ name: string }> }> {
   const g = ctx.globalArgs;
   const server = serverOf(g, args);
-  await ensureRuntime(ctx, server);
+  await ensureRuntime(ctx, server, args.terminal ?? "");
   const raw = await vimJson<Record<string, unknown>>(
     ctx,
     server,
@@ -1908,7 +2103,7 @@ async function diff(
 ): Promise<{ dataHandles: Array<{ name: string }> }> {
   const g = ctx.globalArgs;
   const server = serverOf(g, args);
-  await ensureRuntime(ctx, server);
+  await ensureRuntime(ctx, server, args.terminal ?? "");
   const raw = await vimJson<Record<string, unknown>>(
     ctx,
     server,
@@ -1952,7 +2147,7 @@ async function annotate(
 ): Promise<{ dataHandles: Array<{ name: string }> }> {
   const g = ctx.globalArgs;
   const server = serverOf(g, args);
-  await ensureRuntime(ctx, server);
+  await ensureRuntime(ctx, server, args.terminal ?? "");
   const line = args.clear ? 0 : args.line;
   const raw = await vimJson<Record<string, unknown>>(
     ctx,
@@ -1981,7 +2176,7 @@ async function command(
 ): Promise<{ dataHandles: Array<{ name: string }> }> {
   const g = ctx.globalArgs;
   const server = serverOf(g, args);
-  await ensureRuntime(ctx, server);
+  await ensureRuntime(ctx, server, args.terminal ?? "");
   if (!args.allowShell) {
     if (/!/.test(args.command)) {
       throw new Error(
@@ -2025,7 +2220,7 @@ async function expr(
 ): Promise<{ dataHandles: Array<{ name: string }> }> {
   const g = ctx.globalArgs;
   const server = serverOf(g, args);
-  await ensureRuntime(ctx, server);
+  await ensureRuntime(ctx, server, args.terminal ?? "");
   if (!args.allowUnsafe) {
     if (
       /\b(writefile|delete|rename|system|systemlist|job_start|term_start|feedkeys|execute|source|setline|append|deletebufline|call)\b/
@@ -2053,7 +2248,7 @@ async function keys(
 ): Promise<{ dataHandles: Array<{ name: string }> }> {
   const g = ctx.globalArgs;
   const server = serverOf(g, args);
-  await ensureRuntime(ctx, server);
+  await ensureRuntime(ctx, server, args.terminal ?? "");
   const result = await remoteSend(g.vimBin, server, args.keys);
   if (result.code !== 0) {
     throw new Error(
@@ -2074,7 +2269,7 @@ async function diagnostics(
 ): Promise<{ dataHandles: Array<{ name: string }> }> {
   const g = ctx.globalArgs;
   const server = serverOf(g, args);
-  await ensureRuntime(ctx, server);
+  await ensureRuntime(ctx, server, args.terminal ?? "");
   const raw = await vimJson<Record<string, unknown>>(
     ctx,
     server,
@@ -2099,7 +2294,7 @@ async function undo(
 ): Promise<{ dataHandles: Array<{ name: string }> }> {
   const g = ctx.globalArgs;
   const server = serverOf(g, args);
-  await ensureRuntime(ctx, server);
+  await ensureRuntime(ctx, server, args.terminal ?? "");
   const raw = await vimJson<Record<string, unknown>>(
     ctx,
     server,
@@ -2145,6 +2340,41 @@ async function close(
 }
 
 /**
+ * Refuse when the caller named a file the buffer is not showing.
+ *
+ * `edit` and `write` act on the buffer, so a call naming a path must mean that
+ * buffer's file: otherwise the write lands wherever the buffer happens to be,
+ * which is what the prusa test hit.
+ */
+async function requireBufferFile(
+  bufferFile: string,
+  path: string,
+): Promise<void> {
+  const wanted = String(path ?? "").trim();
+  if (!wanted) return;
+  const actual = String(bufferFile ?? "").trim();
+  if (!actual) {
+    throw new Error(
+      `the buffer has no file, so it cannot be ${wanted}; use editFile to load ` +
+        `that path into the buffer first`,
+    );
+  }
+  const same = async (value: string) => {
+    try {
+      return await realpath(value);
+    } catch {
+      return value;
+    }
+  };
+  if (await same(actual) !== await same(wanted)) {
+    throw new Error(
+      `the buffer is showing ${actual}, not ${wanted}; use editFile (which ` +
+        `loads the path first) instead of editing whatever buffer is open`,
+    );
+  }
+}
+
+/**
  * The single write path: make sure the space's editor is running, load the
  * path into its buffer, apply the edits and save.
  *
@@ -2162,11 +2392,12 @@ async function editFile(
     // One editor per Herdr space: derive the server from the space this call
     // belongs to, the same way `open` does, so a write cannot land in another
     // space's editor.
-    const placement = await callerPlacement(g);
+    const placement = await callerPlacement(g, args.terminal);
     if (!placement) {
       throw new Error(
-        "this call is not inside a Herdr space, so there is no editor tab to " +
-          "write through; run open with a server first and pass server=<name>",
+        "this call could not be tied to a Herdr space, so there is no editor " +
+          "tab to write through; pass terminal=<the pane's HC_TERMINAL_ID>, or " +
+          "run open first and pass server=<name>",
       );
     }
     server = spaceServerName(
@@ -2179,6 +2410,7 @@ async function editFile(
   // and the file the same thing before changing it.
   await open({
     server,
+    terminal: args.terminal,
     file: args.file,
     cwd: args.cwd,
     reuse: true,
@@ -2187,12 +2419,15 @@ async function editFile(
   }, ctx);
   await openFile({
     server,
+    terminal: args.terminal,
     file: args.file,
     cwd: args.cwd,
     force: args.force,
   }, ctx);
   return await edit({
     server,
+    terminal: args.terminal,
+    path: resolveFilePath(args.file, args.cwd),
     edits: args.edits,
     expectedHash: args.expectedHash,
     save: true,
@@ -2209,7 +2444,7 @@ async function openFile(
 ): Promise<{ dataHandles: Array<{ name: string }> }> {
   const g = ctx.globalArgs;
   const server = serverOf(g, args);
-  await ensureRuntime(ctx, server);
+  await ensureRuntime(ctx, server, args.terminal ?? "");
   const path = resolveFilePath(args.file, args.cwd);
   const before = await vimJson<Record<string, unknown>>(
     ctx,
@@ -2232,7 +2467,14 @@ async function openFile(
     "SwampVimStatus()",
   );
   const loaded = String(after.file ?? "");
-  if (loaded && loaded !== path) {
+  const samePath = async (value: string) => {
+    try {
+      return await realpath(value);
+    } catch {
+      return value;
+    }
+  };
+  if (loaded && await samePath(loaded) !== await samePath(path)) {
     throw new Error(
       `Vim loaded '${loaded}' instead of '${path}'; the buffer was not switched`,
     );
@@ -2244,7 +2486,11 @@ async function openFile(
     previous: String(before.file ?? ""),
     capturedAt: now(),
   };
-  return { dataHandles: [await save(ctx, "open-file", server, data)] };
+  // A distinct data name: `editFile` writes the open-file and edit-result
+  // resources in one run, and swamp refuses two names that collide.
+  return {
+    dataHandles: [await save(ctx, "open-file", `${server}-open`, data)],
+  };
 }
 
 /** Whether a path exists, without following a permission error into a throw. */

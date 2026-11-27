@@ -437,3 +437,25 @@ Deno.test("applyEdits refuses a line range whose expected lines changed", () => 
     ["a", "B", "c"],
   );
 });
+
+Deno.test("vim methods accept the caller's terminal", () => {
+  // The terminal travels as an argument because a method run inside swamp serve
+  // has no HC_TERMINAL_ID to resolve the caller's space from.
+  assertEquals(model.methods.open.arguments.parse({}).terminal, "");
+  assertEquals(
+    model.methods.open.arguments.parse({ terminal: "t2g" }).terminal,
+    "t2g",
+  );
+  assertEquals(
+    model.methods.editFile.arguments.parse({
+      terminal: "t2g",
+      file: "a.ts",
+      edits: [{ setLines: ["x"] }],
+    }).terminal,
+    "t2g",
+  );
+  assertEquals(
+    model.methods.status.arguments.parse({ terminal: "t2g" }).terminal,
+    "t2g",
+  );
+});

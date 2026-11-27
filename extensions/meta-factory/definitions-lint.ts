@@ -24,7 +24,7 @@
  *
  * @module
  */
-import { join, relative } from "jsr:@std/path@1";
+import { join, relative } from "jsr:@std/path@1.1.6";
 
 /** The kind of swamp config a YAML file is. */
 export type DefinitionKind =

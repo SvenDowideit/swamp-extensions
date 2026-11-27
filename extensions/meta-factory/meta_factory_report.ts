@@ -579,7 +579,7 @@ export function renderSummary(s: SummaryData): string {
   lines.push("```sh");
   for (const row of sorted) {
     lines.push(
-      `swamp model @svendowideit/meta-factory method run check meta-factory \\\n` +
+      `swamp behavior run @svendowideit/meta-factory check meta-factory \\\n` +
         `  --input manifest=${row.manifest}   # ${row.name}`,
     );
   }

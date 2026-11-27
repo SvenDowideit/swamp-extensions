@@ -135,7 +135,7 @@ tool's skill directory, so agents pick up the contract automatically. To refresh
 the skill after editing the extension:
 
 ```sh
-swamp model @svendowideit/meta-factory method run installSkill meta-factory \
+swamp behavior run @svendowideit/meta-factory installSkill meta-factory \
   --input target=both
 ```
 
@@ -186,7 +186,7 @@ swamp report get @svendowideit/meta-factory-scoreboard \
 Run the model directly and read the report:
 
 ```sh
-swamp model @svendowideit/meta-factory method run check meta-factory \
+swamp behavior run @svendowideit/meta-factory check meta-factory \
   --input manifest=extensions/models/caddy/manifest.yaml
 
 swamp report get @svendowideit/meta-factory-report \
@@ -203,7 +203,7 @@ swamp workflow run @svendowideit/meta-factory \
 Scaffold a contract-conformant README for a new extension:
 
 ```sh
-swamp model @svendowideit/meta-factory method run scaffold meta-factory \
+swamp behavior run @svendowideit/meta-factory scaffold meta-factory \
   --input manifest=extensions/models/my-extension/manifest.yaml
 ```
 
@@ -213,10 +213,10 @@ narrowed for a fast check or widened to look further back:
 
 ```sh
 # Default: confirm against the last 168h of `swamp audit` history.
-swamp model @svendowideit/meta-factory method run lintDefinitions meta-factory
+swamp behavior run @svendowideit/meta-factory lintDefinitions meta-factory
 
 # Look back two weeks instead.
-swamp model @svendowideit/meta-factory method run lintDefinitions meta-factory \
+swamp behavior run @svendowideit/meta-factory lintDefinitions meta-factory \
   --input auditHours=336
 
 swap report get @svendowideit/meta-factory-report \
@@ -361,6 +361,19 @@ fails the 5-point `user-guidance` check. HTML tags, TypeScript generics,
 comparisons, plain prose, `.describe()` documentation, and `--input`/`--global-arg`
 values the user supplies are ignored. A legitimate case is exempted with
 `// meta-factory-ignore user-guidance: <reason>` (or the `#` equivalent in YAML).
+
+The same check also reads the commands a reader copies out of the manifest
+`description:` and the README, through `lintCommandText`:
+
+| rule | severity | what it means |
+| --- | --- | --- |
+| `invalid-argv` | error | `swamp model <name> …` cannot run — `model` takes a subcommand, so the name belongs after `method run` (`swamp behavior run <name> <method>`); also a stray `method` in `swamp behavior run <name> method …` |
+| `broken-continuation` | error | the line does not end in a backslash but the next line continues its arguments, so the wrap is not a legal continuation |
+| `split-quote` | error | an unbalanced single quote with no trailing backslash: a backslash-newline inside single quotes is literal, so the value is corrupted |
+| `unpasteable-line` | warning | the command is past 72 characters; a wrapping terminal hands the reader a broken command. Break BETWEEN arguments with a trailing backslash, or pass the value from a file (`--input-file`) |
+
+Prose that merely begins with the word "swamp" is not linted: a comma-space or
+a trailing full stop marks a sentence.
 
 ### Code metrics (CRAP)
 

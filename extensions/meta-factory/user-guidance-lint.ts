@@ -411,6 +411,157 @@ export function lintUserGuidance(
   return lintText(code, path, ignored, ignoreAll, yamlRuntimeMask(lines));
 }
 
+/**
+ * Command-hygiene rules for DOCUMENTATION text (a manifest `description:`
+ * block or a README) — the commands a reader is told to paste.
+ *
+ * A command that cannot be pasted is as broken as a wrong one:
+ *
+ *   - `invalid-argv`  `swamp model <name> …`: `model` takes a subcommand, so a
+ *                     model name there never runs — the name goes after
+ *                     `method run`. Also catches a stray `method` in
+ *                     `swamp behavior run <name> method …`.
+ *   - `broken-continuation`  a command line that does not end in a backslash
+ *                     but is followed by a line continuing its arguments
+ *                     (`-…`), so the wrap is not a legal continuation.
+ *   - `split-quote`   an unbalanced single quote with no trailing backslash: a
+ *                     backslash-newline inside single quotes is literal, so
+ *                     the value is corrupted rather than continued.
+ *   - `unpasteable-line`  a command line longer than MAX_COMMAND_LINE. A
+ *                     wrapping terminal hands the reader a broken command.
+ *                     Warning, not an error: it still runs when unwrapped.
+ *
+ * Pure with respect to its input, so it is cheap to unit test.
+ */
+export type CommandRule =
+  | "invalid-argv"
+  | "broken-continuation"
+  | "split-quote"
+  | "unpasteable-line";
+
+/** One documentation command-hygiene problem. */
+export interface CommandIssue {
+  /** `error` fails the guidance check; `warning` is reported only. */
+  severity: "error" | "warning";
+  /** Which rule. */
+  rule: CommandRule;
+  /** Human-readable description, including the fix. */
+  message: string;
+  /** 1-based line number of the offending command. */
+  line: number;
+  /** The offending command line, trimmed. */
+  command: string;
+  /** Path of the offending document, when known. */
+  path?: string;
+}
+
+/** Longest command line that survives being wrapped and copied. */
+export const MAX_COMMAND_LINE = 72;
+
+/** `swamp model` subcommands; anything else in that position is a name. */
+const MODEL_SUBCOMMANDS: ReadonlySet<string> = new Set([
+  "cancel",
+  "create",
+  "delete",
+  "edit",
+  "evaluate",
+  "get",
+  "lease",
+  "list",
+  "method",
+  "output",
+  "search",
+  "type",
+  "upgrade",
+  "validate",
+]);
+
+/** Why a `swamp …` invocation can never run, or "" when it is fine. */
+export function invalidArgv(command: string): string {
+  const token = command.split(/\s+/);
+  if (token[1] === "model") {
+    const sub = token[2] ?? "";
+    if (sub !== "" && !sub.startsWith("-") && !MODEL_SUBCOMMANDS.has(sub)) {
+      return `swamp model ${sub} cannot run: "model" takes a subcommand, not a ` +
+        `name. Use "swamp behavior run ${sub} <method>" or the legacy ` +
+        `"swamp model method run ${sub} <method>".`;
+    }
+  }
+  if (token[1] === "behavior" || token[1] === "behaviour") {
+    if (token[2] === "run" && token[4] === "method") {
+      return `stray "method" in "swamp behavior run <name> method": the form ` +
+        `is "swamp behavior run <name> <method>".`;
+    }
+  }
+  return "";
+}
+
+/**
+ * Lint one documentation text for command-hygiene problems.
+ *
+ * Only lines that invoke `swamp` are judged, so prose and other tools'
+ * examples are untouched.
+ */
+export function lintCommandText(
+  text: string,
+  path?: string,
+): CommandIssue[] {
+  const issues: CommandIssue[] = [];
+  const lines = text.split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i];
+    const trimmed = raw.replace(/^\s*\$\s+/, "").trimStart();
+    if (!/^swamp\s/.test(trimmed)) continue;
+    const command = trimmed.trimEnd();
+    // Prose that merely begins with the word "swamp" ("swamp vault at run
+    // time through `ctx.vaultService`, not interpolated…") is not a command: a
+    // comma-space or a trailing full stop marks a sentence.
+    if (/, /.test(command) || /\.$/.test(command)) continue;
+    const continues = command.endsWith("\\");
+    const add = (
+      severity: "error" | "warning",
+      rule: CommandRule,
+      message: string,
+    ) => issues.push({ severity, rule, message, line: i + 1, command, path });
+
+    if (raw.length > MAX_COMMAND_LINE) {
+      add(
+        "warning",
+        "unpasteable-line",
+        `${raw.length} characters is past ${MAX_COMMAND_LINE}: a wrapping ` +
+          `terminal hands the reader a broken command. Break it BETWEEN ` +
+          `arguments with a trailing backslash, or pass the value from a ` +
+          `file (--input-file) instead of inline.`,
+      );
+    }
+    if (!continues) {
+      const next = (lines[i + 1] ?? "").trim();
+      if (/^--?[A-Za-z0-9]/.test(next)) {
+        add(
+          "error",
+          "broken-continuation",
+          `this line does not end in a backslash but the next line continues ` +
+            `its arguments, so the wrap is not a legal continuation: the ` +
+            `reader gets two broken commands.`,
+        );
+      }
+    }
+    const quotes = (command.match(/'/g) ?? []).length;
+    if (quotes % 2 === 1 && !continues) {
+      add(
+        "error",
+        "split-quote",
+        `unbalanced single quote: a quoted value is broken across lines, and ` +
+          `a backslash-newline inside single quotes is literal, so the value ` +
+          `is corrupted rather than continued.`,
+      );
+    }
+    const argvProblem = invalidArgv(command);
+    if (argvProblem !== "") add("error", "invalid-argv", argvProblem);
+  }
+  return issues;
+}
+
 /** Lint every file; the issues carry each file's path. */
 export function lintUserGuidances(
   files: UserGuidanceFile[],

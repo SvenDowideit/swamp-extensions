@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/meta-factory"
-version: "2026.11.09.1"
+version: "2026.11.27.1"
 description: >
   The documentation quality gate for swamp extensions. Enforces one guiding
   principle — the published manifest plus README must be enough for a user or
@@ -51,7 +51,12 @@ description: >
     placeholder such as `systemctl --user status <serve-unit>` — the extension
     knows the real value and must print it (`user-guidance-lint.ts`, the scored
     `user-guidance` check; `// meta-factory-ignore user-guidance: <reason>`
-    exempts a legitimate case). A second workflow
+    exempts a legitimate case). The same check judges the commands a reader
+    copies out of the manifest description and the README: an argument order
+    that cannot run (a model name where a subcommand belongs), a quoted value
+    broken across lines, or a wrap with no trailing backslash are errors, and a
+    command line past 72 characters — which a wrapping terminal turns into two
+    broken ones — is reported. A second workflow
     prints a scoreboard — a text
     table of every git-tracked extension with the reasons each is not 100/100.
     Each score can also carry test-factory coverage: how many of an extension's
@@ -86,13 +91,13 @@ description: >
       swamp workflow run @svendowideit/meta-factory --input root=extensions
 
       # Score one manifest without the gate, when you just want the number.
-      swamp model @svendowideit/meta-factory method run check meta-factory \
+      swamp behavior run @svendowideit/meta-factory check meta-factory \
         --input manifest=extensions/models/caddy/manifest.yaml
 
       # Lint every model/workflow/vault definition for hand-written or copied
       # configs — a definition must be created by its swamp creation command,
       # which the `swamp audit` timeline is cross-referenced to confirm.
-      swamp model @svendowideit/meta-factory method run lintDefinitions meta-factory
+      swamp behavior run @svendowideit/meta-factory lintDefinitions meta-factory
 
       # Score every git-tracked extension and print a text table of each score
       # with the reasons it is not 100/100 — excludes pulled/generated copies.

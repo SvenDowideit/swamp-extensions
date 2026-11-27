@@ -255,7 +255,7 @@ export function renderScoreboard(rows: ScoreboardRow[]): string {
   lines.push("```sh");
   for (const r of rows) {
     lines.push(
-      `swamp model @svendowideit/meta-factory method run check meta-factory \\\n` +
+      `swamp behavior run @svendowideit/meta-factory check meta-factory \\\n` +
         `  --input manifest=${r.manifest}   # ${r.name}`,
     );
   }

@@ -19,7 +19,7 @@
  * @module
  */
 
-import { parse as parseYaml } from "jsr:@std/yaml@1";
+import { parse as parseYaml } from "jsr:@std/yaml@1.3.0";
 
 // ---------------------------------------------------------------------------
 // Canonical section model
@@ -2249,23 +2249,40 @@ export function checkUserGuidance(
       earned: max,
       max,
       status: "pass",
-      note: "no command tells the user to substitute an angle-bracket value",
+      note:
+        "no command needs a substitution, and every documented command can " +
+        "be copied and pasted as shown",
     };
   }
   const errors = issues.filter((i) => i.severity === "error");
+  const warnings = issues.filter((i) => i.severity === "warning");
   const detail = errors.slice(0, 3).map((i) =>
-    `${i.path ? `${i.path}:${i.line ?? "?"} ` : ""}${i.placeholder ?? "<…>"}`
+    `${i.path ? `${i.path}:${i.line ?? "?"} ` : ""}${i.rule}` +
+    (i.command
+      ? ` (${
+        i.command.length > 60 ? `${i.command.slice(0, 57)}...` : i.command
+      })`
+      : "")
   ).join("; ");
+  const warnNote = warnings.length > 0
+    ? ` Also ${warnings.length} command line(s) past the pasteable width — ` +
+      `break them BETWEEN arguments with a trailing backslash, or pass the ` +
+      `value from a file.`
+    : "";
   return {
     id: "user-guidance",
     label: "User-facing commands are copy-paste ready",
-    earned: 0,
+    earned: errors.length === 0 ? max : 0,
     max,
-    status: "fail",
-    note: `${errors.length} user-substitution placeholder(s): ${detail} — ` +
-      `print the real value the extension already knows instead, so the ` +
-      `command can be copied and pasted exactly as shown (or add ` +
-      `\`// meta-factory-ignore user-guidance: <reason>\`)`,
+    status: errors.length === 0 ? "pass" : "fail",
+    note: `${errors.length} unpasteable command issue(s) ` +
+      `(${
+        [...new Set(errors.map((i) => i.rule))].join(", ")
+      }): ${detail} — a ` +
+      `command that cannot be pasted is as broken as a wrong one: print the ` +
+      `real value instead of a placeholder, use the CLI's own argument order ` +
+      `(\`swamp behavior run <name> <method>\`), and break lines BETWEEN ` +
+      `arguments.${warnNote}`,
   };
 }
 

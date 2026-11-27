@@ -7,7 +7,7 @@
  *
  * @module
  */
-import { dirname, join, relative } from "jsr:@std/path@1";
+import { dirname, join, relative } from "jsr:@std/path@1.1.6";
 
 /** A discovered extension manifest. */
 export interface ManifestEntry {

@@ -29,7 +29,7 @@
  * @module
  */
 import { z } from "npm:zod@4";
-import { dirname, extname, join, resolve } from "jsr:@std/path@1";
+import { dirname, extname, join, resolve } from "jsr:@std/path@1.1.6";
 import {
   type Manifest,
   parseManifest,
@@ -64,7 +64,7 @@ import {
   lintReportRealities,
   type ReportRealityFile,
 } from "./report-reality-lint.ts";
-import { lintUserGuidances } from "./user-guidance-lint.ts";
+import { lintCommandText, lintUserGuidances } from "./user-guidance-lint.ts";
 
 export type { AuditEvidence, CreationCommand };
 
@@ -425,6 +425,7 @@ export async function run(
   timeoutMs: number = CMD_TIMEOUT_MS,
 ): Promise<CmdResult> {
   try {
+    // swamp-quality-ignore deno-command: the swamp CLI and the bundled deno binary are this extension's transports, the argv is typed (never a shell string), and the result is parsed rather than trusted to have succeeded.
     const proc = new Deno.Command(bin, {
       args,
       cwd,
@@ -1348,7 +1349,14 @@ async function scoreManifest(
     ...(await workflowSourcesFor(manifest, manifestDir)),
   ];
   const reportRealityIssues = lintReportRealities(realityFiles);
-  const userGuidanceIssues = lintUserGuidances(realityFiles);
+  const userGuidanceIssues = [
+    ...lintUserGuidances(realityFiles),
+    // The manifest description and the README are what a reader copies
+    // commands from, so they get the command-hygiene rules too: an unrunnable
+    // or unpasteable example teaches a command that does not work.
+    ...lintCommandText(text, path),
+    ...(readme ? lintCommandText(readme, "README.md") : []),
+  ];
   const codeMetrics = await collectCodeMetrics(deps, manifest, manifestDir);
 
   const result = scoreExtension({
@@ -1429,7 +1437,7 @@ type ExecContext = {
 /** Model definition for the extension documentation meta-factory. */
 export const model = {
   type: "@svendowideit/meta-factory",
-  version: "2026.11.09.1",
+  version: "2026.11.27.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1552,6 +1560,20 @@ export const model = {
         "exemption). `install` goes 13 → 10 and `upgrade` 5 → 3 so the " +
         "maximum stays 100. Additive: no global arguments or resource shapes " +
         "change, existing models upgrade with no action beyond re-scoring.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.27.1",
+      description:
+        "The guidance gate now also judges the commands a reader copies out " +
+        "of the manifest description and the README. New documentation rules " +
+        "in `user-guidance-lint.ts` (`lintCommandText`): `invalid-argv`, " +
+        "`broken-continuation` and `split-quote` are errors, and " +
+        "`unpasteable-line` (a command past 72 characters, which a wrapping " +
+        "terminal turns into a broken command) is a warning. They are reported " +
+        "through the existing `user-guidance` check, so no weight changes and " +
+        "the maximum stays 100. Additive: no global arguments or resource " +
+        "shapes change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

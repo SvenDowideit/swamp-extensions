@@ -269,6 +269,8 @@ jobs:
           modelType: "@svendowideit/ollama"
           modelName: ollama
           methodName: plan
+          globalArgs:
+            manageService: ${{ inputs.manageService }}
           inputs:
             os: ${{ inputs.os }}
             arch: ${{ inputs.arch }}
@@ -444,10 +446,10 @@ jobs:
             instanceKey: ${{ inputs.sudoInstanceKey }}
             allowedOperations: ${{ inputs.sudoAllowedOperations }}
             operation: installFile
-            args:json: >-
-              {"src": "${{ steps.stage.outputs.?binaryPath.orValue("") }}",
-              "dest": "${{ steps.plan.outputs.?installDir.orValue("") }}/ollama",
-              "mode": "0755"}
+            args:
+              src: ${{ steps.stage.outputs.?binaryPath.orValue("") }}
+              dest: ${{ steps.plan.outputs.?installDir.orValue("") }}/ollama
+              mode: "0755"
         dependsOn:
           - step: stage
             condition:
@@ -473,9 +475,9 @@ jobs:
             instanceKey: ${{ inputs.sudoInstanceKey }}
             allowedOperations: ${{ inputs.sudoAllowedOperations }}
             operation: copyDirectory
-            args:json: >-
-              {"src": "${{ steps.stage.outputs.?libDir.orValue("") }}",
-              "dest": "${{ steps.plan.outputs.?libDir.orValue("") }}"}
+            args:
+              src: ${{ steps.stage.outputs.?libDir.orValue("") }}
+              dest: ${{ steps.plan.outputs.?libDir.orValue("") }}
         dependsOn:
           - step: place-binary
             condition:
@@ -499,9 +501,9 @@ jobs:
             instanceKey: ${{ inputs.sudoInstanceKey }}
             allowedOperations: ${{ inputs.sudoAllowedOperations }}
             operation: createUser
-            args:json: >-
-              {"user": "${{ inputs.serviceUser }}",
-              "comment": "Ollama service user"}
+            args:
+              user: ${{ inputs.serviceUser }}
+              comment: Ollama service user
         dependsOn:
           - step: place-binary
             condition:
@@ -560,10 +562,10 @@ jobs:
             instanceKey: ${{ inputs.sudoInstanceKey }}
             allowedOperations: ${{ inputs.sudoAllowedOperations }}
             operation: installFile
-            args:json: >-
-              {"src": "${{ steps["stage-service"].outputs.?unitStagedPath.orValue("") }}",
-              "dest": "${{ steps["stage-service"].outputs.?unitPath.orValue("") }}",
-              "mode": "0644"}
+            args:
+              src: ${{ steps["stage-service"].outputs.?unitStagedPath.orValue("") }}
+              dest: ${{ steps["stage-service"].outputs.?unitPath.orValue("") }}
+              mode: "0644"
         dependsOn:
           - step: stage-service
             condition:
@@ -586,10 +588,10 @@ jobs:
             instanceKey: ${{ inputs.sudoInstanceKey }}
             allowedOperations: ${{ inputs.sudoAllowedOperations }}
             operation: installFile
-            args:json: >-
-              {"src": "${{ steps["stage-service"].outputs.?dropInStagedPath.orValue("") }}",
-              "dest": "${{ steps["stage-service"].outputs.?dropInPath.orValue("") }}",
-              "mode": "0644"}
+            args:
+              src: ${{ steps["stage-service"].outputs.?dropInStagedPath.orValue("") }}
+              dest: ${{ steps["stage-service"].outputs.?dropInPath.orValue("") }}
+              mode: "0644"
         dependsOn:
           - step: place-service
             condition:
@@ -612,7 +614,7 @@ jobs:
             instanceKey: ${{ inputs.sudoInstanceKey }}
             allowedOperations: ${{ inputs.sudoAllowedOperations }}
             operation: daemonReload
-            args:json: "{}"
+            args: {}
         dependsOn:
           - step: place-dropin
             condition:
@@ -663,9 +665,9 @@ jobs:
               ${{ inputs.sudoAllowedOperations + ["runScript"] }}
             containerNetwork: host
             operation: runScript
-            args:json: >-
-              {"script": "${{ steps["fetch-script"].outputs.?scriptPath.orValue("") }}",
-              "args": []}
+            args:
+              script: ${{ steps["fetch-script"].outputs.?scriptPath.orValue("") }}
+              args: []
         dependsOn:
           - step: fetch-script
             condition:
@@ -692,9 +694,9 @@ jobs:
             instanceKey: ${{ inputs.sudoInstanceKey }}
             allowedOperations: ${{ inputs.sudoAllowedOperations }}
             operation: manageService
-            args:json: >-
-              {"unit": "${{ inputs.serviceName }}",
-              "action": "${{ steps.plan.outputs.?serviceScope.orValue("system") == "user" ? "restart" : "restart" }}"}
+            args:
+              unit: ${{ inputs.serviceName }}
+              action: '${{ steps.plan.outputs.?serviceScope.orValue("system") == "user" ? "restart" : "restart" }}'
         dependsOn:
           - step: daemon-reload
             condition:
@@ -717,8 +719,8 @@ jobs:
             instanceKey: ${{ inputs.sudoInstanceKey }}
             allowedOperations: ${{ inputs.sudoAllowedOperations }}
             operation: removePath
-            args:json: >-
-              {"path": "${{ data.latest("ollama", "installed").?attributes.?path.orValue("/usr/local/bin/ollama") }}"}
+            args:
+              path: ${{ data.latest("ollama", "installed").?attributes.?path.orValue("/usr/local/bin/ollama") }}
         dependsOn:
           - step: plan
             condition:
@@ -739,8 +741,9 @@ jobs:
             instanceKey: ${{ inputs.sudoInstanceKey }}
             allowedOperations: ${{ inputs.sudoAllowedOperations }}
             operation: manageService
-            args:json: >-
-              {"unit": "${{ inputs.serviceName }}", "action": "stop"}
+            args:
+              unit: ${{ inputs.serviceName }}
+              action: "stop"
         dependsOn:
           - step: uninstall-step
             condition:

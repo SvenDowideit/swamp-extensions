@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/ollama"
-version: "2026.10.04.3"
+version: "2026.11.27.1"
 description: >
   Install, upgrade and configure Ollama on a machine with systemd — the whole
   loop from "which version is installed" to "the daemon is running the new

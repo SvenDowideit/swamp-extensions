@@ -1795,7 +1795,7 @@ async function ensureUserGroup(
 /** Installs and manages Ollama and its systemd service on this machine. */
 export const model = {
   type: "@svendowideit/ollama",
-  version: "2026.10.04.3",
+  version: "2026.11.27.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1807,6 +1807,21 @@ export const model = {
         "bundled workflow places it via @svendowideit/sudo. New " +
         "--input installScript=true branch runs the official install.sh " +
         "through the sudo elevation ladder.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.27.1",
+      description:
+        "The install workflow now uses its own inputs. `plan` is called with " +
+        "`globalArgs: {manageService: ${{ inputs.manageService }}}` and " +
+        "`inputs: {serviceScope: ${{ inputs.serviceScope }}}`, so " +
+        "`--input manageService=true` plans a service instead of inheriting the " +
+        "model global (auto), which on a host with no existing unit skipped " +
+        "every service step by guard. The sudo-run placement steps pass `args` " +
+        "as a typed object instead of `args:json`, because a `:json` argument is " +
+        "dropped when the workflow runs as a nested child — the operation " +
+        "received `args: {}` and failed on missing src/dest. No model behaviour " +
+        "changed; the workflow now does what its documentation says.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

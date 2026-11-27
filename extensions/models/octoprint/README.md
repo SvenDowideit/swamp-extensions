@@ -81,22 +81,23 @@ at the `vault put` prompt. For `url`, give the printer's base URL, e.g.
 ```sh
 # Is it up, what is it doing, and which printer is this? Run first; the
 # profile's `model` is what proves which machine answered.
-swamp model mk2s method run status
+swamp behavior run mk2s status
 
 # Is OctoPrint itself current? Compare `octoprintVersion` against the release
 # notes before planning an upgrade.
-swamp model mk2s method run version
+swamp behavior run mk2s version
 
 # What is stale? Installed plugins plus the Software Update plugin's pending
 # updates, core included. Report-only, so it is safe to run while idle.
-swamp model mk2s method run plugins
+swamp behavior run mk2s plugins
 
 # Does the webcam still work? A dead daemon answers 200 with HTML, so this
 # checks the content type and the JPEG magic, not just the status code.
-swamp model mk2s method run webcam
+swamp behavior run mk2s webcam
 
 # Read the answers back out of the resources, e.g. in a report or workflow:
-swamp data query 'modelName == "mk2s" && name == "status"' --select content
+swamp data query 'modelName == "mk2s" && name == "status"' \
+  --select content
 ```
 
 A second printer is a second instance with its own vault — never a second copy

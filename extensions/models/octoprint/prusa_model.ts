@@ -272,7 +272,7 @@ interface MethodContext {
 
 export const model = {
   type: "@svendowideit/prusa",
-  version: "2026.11.26.2",
+  version: "2026.11.27.1",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -288,6 +288,15 @@ export const model = {
         "webcam frame without decoding pixels, so a black or frozen camera is " +
         "visible even though HTTP returns 200. webcamConfig reports which " +
         "daemon really runs, at what resolution, fps and device.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.27.1",
+      description:
+        "Documentation only: every command in the manifest and README now uses " +
+        "the CLI's real argument order (`swamp behavior run <name> <method>`) " +
+        "and fits a pasteable line, so the examples run as shown. No schema, " +
+        "argument or resource change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

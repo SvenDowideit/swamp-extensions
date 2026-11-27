@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/octoprint"
-version: "2026.11.26.2"
+version: "2026.11.27.1"
 description: >
   The health-and-versions model for one OctoPrint box: is the printer up, what
   is it doing, which OctoPrint and plugins are installed, what firmware is on
@@ -48,20 +48,20 @@ description: >
       # Is it up, is it idle, is it hot, and which printer profile answered?
       # Run this first: `state: offline` means OctoPrint is fine but no printer
       # is connected, and the profile's `model` proves which machine replied.
-      swamp model mk2s method run status
+      swamp behavior run mk2s status
 
       # Is OctoPrint itself current? Reports core version, API version and the
       # host it runs on, so an upgrade is planned rather than guessed.
-      swamp model mk2s method run version
+      swamp behavior run mk2s version
 
       # What is stale? Installed plugins plus the Software Update plugin's
       # pending updates, including core. Report-only: nothing is upgraded.
-      swamp model mk2s method run plugins
+      swamp behavior run mk2s plugins
 
       # Does the webcam still produce a JPEG? A daemon that died answers 200
       # with HTML, which is why this checks the content type and the magic
       # bytes, not just the status code.
-      swamp model mk2s method run webcam
+      swamp behavior run mk2s webcam
 
   CONFIGURE
 

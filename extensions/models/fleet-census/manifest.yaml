@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/fleet-census"
-version: "2026.11.27.1"
+version: "2026.11.28.2"
 description: >
   What is on this host that the OS package manager does not own — and who owns
   it?

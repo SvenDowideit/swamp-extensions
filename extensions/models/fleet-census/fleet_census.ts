@@ -66,6 +66,12 @@ const GlobalArgsSchema = z.object({
     "Wall-clock budget for the whole scan. The scanner stops early and reports " +
       "`truncated` rather than hanging.",
   ),
+  fallbackUsers: z.array(z.string()).default(["pi"]).describe(
+    "SSH logins tried in order after the host's own user is refused — the " +
+      "appliance accounts a fleet actually has. Mirrors " +
+      "@svendowideit/fleet-inventory, so a host it can probe is a host the census " +
+      "can scan.",
+  ),
   hashMaxBytes: z.number().int().positive().default(33_554_432).describe(
     'Hash files up to this size (SHA-256). Larger files record `sha256: ""`.',
   ),
@@ -106,6 +112,12 @@ const CensusArgsSchema = z.object({
   fleetModel: z.string().default("fleet").describe(
     "The @svendowideit/fleet-inventory model whose host list supplies the targets " +
       "when `hosts` is empty.",
+  ),
+  fallbackUsers: z.array(z.string()).default([]).describe(
+    "Extra SSH users to try, in order, when the resolved user is refused " +
+      "(empty uses the model global `fallbackUsers`). A fleet image whose only " +
+      "account is `pi` is otherwise reachable by fleet-inventory's probe and " +
+      "invisible to the census.",
   ),
   sshUser: z.string().default("").describe(
     "SSH user for EVERY host in this run: overrides each host's own sshUser " +
@@ -1961,6 +1973,38 @@ export function resolveSsh(
   return { user, port };
 }
 
+/** Logins tried after the fleet's own user, when no list is configured. */
+export const DEFAULT_FALLBACK_USERS = ["pi"];
+
+/**
+ * The SSH users to try for one target, in order: the resolved user (run → host),
+ * then the fallback logins. Mirrors @svendowideit/fleet-inventory's rule, so a
+ * sweep means the same thing in both: the census used to try only the recorded
+ * identity, and an appliance that accepts only `pi` was reachable by the
+ * inventory's probe but permanently "unreachable" here.
+ */
+export function sshUserCandidates(
+  host: { sshUser?: string } | undefined,
+  args: { sshUser?: string; fallbackUsers?: string[] },
+  global?: { fallbackUsers?: string[] },
+): string[] {
+  const primary = resolveSsh(host, args).user.trim();
+  const configured = (args.fallbackUsers && args.fallbackUsers.length > 0)
+    ? args.fallbackUsers
+    : (global?.fallbackUsers ?? []);
+  // The built-in default is the appliance login a bare fleet almost always has.
+  const extra = configured.length > 0 ? configured : DEFAULT_FALLBACK_USERS;
+  // The primary is kept even when it is empty: "" means "let ssh decide" (the
+  // invoking user), which is a legitimate first attempt. Filtering it out made
+  // every host be tried as the fallback login instead of the operator's own.
+  const out: string[] = [primary];
+  for (const u of extra) {
+    const t = (u ?? "").trim();
+    if (t !== "" && !out.includes(t)) out.push(t);
+  }
+  return out;
+}
+
 /**
  * The scan targets: every host the fleet model knows (addresses first, then
  * names, because a name that resolves elsewhere must not make a reachable host
@@ -2068,13 +2112,52 @@ export async function resolveTargets(
     sshUser: string;
     sshPort: number;
   }> = [];
+  const used = new Set<string>();
   for (const h of selected) {
     const label = String(h.name || h.address || "");
     if (!label || seen.has(label.toLowerCase())) continue;
+    const candidates = candidatesFor(h);
+    // The inventory and the probe resource each carry a record for the same
+    // machine, and their labels can differ (a name in one, an address in the
+    // other). Scanning both wrote two `host` resources under the hostname the
+    // scan reports, which fails the run on duplicate data names.
+    if (candidates.some((c) => used.has(c.toLowerCase()))) continue;
     seen.add(label.toLowerCase());
-    out.push({ label, candidates: candidatesFor(h), ...identityOf(h) });
+    for (const c of candidates) used.add(c.toLowerCase());
+    out.push({ label, candidates, ...identityOf(h) });
   }
   return out.filter((t) => t.candidates.length > 0);
+}
+
+/**
+ * Collapse census results that name the same host. Two targets can reach one
+ * machine (an inventory name and a probe address, or an alias that resolves to
+ * the same box); the scan names each result after the host, so the loser would
+ * be a duplicate data instance and fail the whole run. The result with the most
+ * items wins — a partial scan (truncated, timed out) must not replace a complete
+ * one — and the count is returned so the run can say it happened.
+ */
+export function collapseCensusResults<
+  T extends {
+    meta: { host: string; ok: boolean; items: number };
+    items: unknown[];
+  },
+>(results: T[]): { results: T[]; dropped: number } {
+  const chosen = new Map<string, T>();
+  const order: string[] = [];
+  results.forEach((r, i) => {
+    // an unnamed result cannot collide with anything, so give it a unique key
+    const key = (r.meta.host || "").toLowerCase() || `\u0000${i}`;
+    const existing = chosen.get(key);
+    if (!existing) {
+      chosen.set(key, r);
+      order.push(key);
+    } else if (r.items.length > existing.items.length) {
+      chosen.set(key, r);
+    }
+  });
+  const out = order.map((k) => chosen.get(k)).filter((r): r is T => !!r);
+  return { results: out, dropped: results.length - out.length };
 }
 
 /** The first version a probe's ordered patterns find in its output. */
@@ -2280,7 +2363,7 @@ interface MethodContext {
 /** A model that censuses the software this host's OS package manager does not own. */
 export const model = {
   type: "@svendowideit/fleet-census",
-  version: "2026.11.27.1",
+  version: "2026.11.28.2",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -2430,6 +2513,33 @@ export const model = {
         "behave exactly as before.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.28.1",
+      description:
+        "A scheduled census no longer fails when two targets reach one machine. " +
+        "`resolveTargets` now skips a host whose candidates are already covered by " +
+        "another target (the inventory and the probe resource each carry a record " +
+        "for the same machine, and their labels can differ), and results are " +
+        "collapsed by the hostname the scan actually reports before any resource " +
+        "is written - a duplicate `host`/`<name>` write failed the entire run with " +
+        "'Duplicate data instance name', which is why several scheduled sweeps " +
+        "produced no new data at all. The fuller scan wins when both reached the " +
+        "host, and the run logs how many were collapsed. Additive.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.28.2",
+      description:
+        "The census now tries the same fallback SSH logins as the inventory " +
+        "probe: a host whose own user is refused is retried with the global " +
+        '`fallbackUsers` (default ["pi"]), and the run says when a fallback ' +
+        "answered. Before this, an appliance that accepts only `pi` was probed " +
+        "into the inventory by @svendowideit/fleet-inventory and then reported " +
+        "unreachable by every census run - so it appeared on the status and cve " +
+        "pages but never in the census. Additive; the resolved user is still " +
+        "tried first and an explicit run-level list wins.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
 
   resources: {
@@ -2545,28 +2655,42 @@ export const model = {
             const started = Date.now();
             let ok = false;
             let via = "";
+            let viaUser = "";
             let error = "";
             let records: ScanRecord[] = [];
-            // Precedence: a value set for this RUN wins, then the host's own
-            // recorded identity (from @svendowideit/fleet-inventory), then ssh.
+            // Precedence: a value set for THIS RUN wins, then the host's own
+            // recorded identity (from @svendowideit/fleet-inventory), then the
+            // fallback logins — an appliance whose only account is `pi` is
+            // reachable by fleet-inventory's probe, so it must be reachable here.
             const ssh = resolveSsh(target, args);
-            for (const candidate of target.candidates) {
-              const dest = ssh.user ? `${ssh.user}@${candidate}` : candidate;
-              const run = await runRemoteScan(
-                script,
-                dest,
-                ssh.port,
-                args.timeoutSec * 1000,
-              );
-              if (run.code === 0 && run.stdout.trim() !== "") {
-                records = parseScan(run.stdout);
-                ok = true;
-                via = candidate;
-                break;
+            const users = sshUserCandidates(target, args, g);
+            for (const user of users) {
+              for (const candidate of target.candidates) {
+                const dest = user ? `${user}@${candidate}` : candidate;
+                const run = await runRemoteScan(
+                  script,
+                  dest,
+                  ssh.port,
+                  args.timeoutSec * 1000,
+                );
+                if (run.code === 0 && run.stdout.trim() !== "") {
+                  records = parseScan(run.stdout);
+                  ok = true;
+                  via = candidate;
+                  viaUser = user;
+                  break;
+                }
+                error = run.timedOut
+                  ? `timed out after ${args.timeoutSec}s`
+                  : `exit ${run.code}: ${run.stderr.trim().slice(0, 200)}`;
               }
-              error = run.timedOut
-                ? `timed out after ${args.timeoutSec}s`
-                : `exit ${run.code}: ${run.stderr.trim().slice(0, 200)}`;
+              if (ok) break;
+            }
+            if (ok && viaUser !== "" && viaUser !== ssh.user) {
+              ctx.logger?.info?.(
+                "census on {host}: authenticated as {user} (fallback login)",
+                { host: target.label, user: viaUser },
+              );
             }
             if (!ok) {
               results[i] = {
@@ -2674,10 +2798,23 @@ export const model = {
           ),
         );
 
+        // Two targets can resolve to the same machine (a name and an address),
+        // and the scan names the result after the host itself — so collapse by
+        // hostname before writing, or the second write is a duplicate data
+        // instance and the whole run fails.
+        const collapsed = collapseCensusResults(results);
+        if (collapsed.dropped > 0) {
+          ctx.logger?.warn?.(
+            "{dropped} duplicate host result(s) collapsed: two targets resolved to the same machine",
+            { dropped: collapsed.dropped },
+          );
+        }
+        const unique = collapsed.results;
+
         // Write after the fan-out: one writer, no lock contention, and each host
         // gets its own data names so per-host data is queryable by host.
         const handles: Array<{ name: string }> = [];
-        for (const r of results) {
+        for (const r of unique) {
           if (!r.host || !r.meta.ok) continue;
           handles.push(
             await ctx.writeResource(
@@ -2693,13 +2830,13 @@ export const model = {
           );
         }
         const software = buildSoftwareIndex(
-          results.map((r) => ({
+          unique.map((r) => ({
             host: r.meta.host,
             ok: r.meta.ok,
             items: r.items,
           })),
         );
-        const fleet = buildFleet(results.map((r) => r.meta), software, stamp);
+        const fleet = buildFleet(unique.map((r) => r.meta), software, stamp);
         handles.push(
           await ctx.writeResource(
             "fleet",

@@ -79,6 +79,7 @@ import {
   buildSoftwareIndex,
   buildSummary,
   classifyChannel,
+  collapseCensusResults,
   collapseToolchains,
   compareSemver,
   countItems,
@@ -96,6 +97,7 @@ import {
   renderProbeScript,
   renderScanScript,
   resolveTargets,
+  sshUserCandidates,
   SWAMP_CATALOG,
   versionOf,
 } from "./fleet_census.ts";
@@ -1922,4 +1924,103 @@ Deno.test("an app bundle's capitalised binary is the same product as the CLI", (
   assertEquals(entry?.extension, "@svendowideit/ollama");
   assertEquals(catalogEntryFor("OLLAMA")?.extension, "@svendowideit/ollama");
   assertEquals(catalogEntryFor("ollama")?.extension, "@svendowideit/ollama");
+});
+
+// ---------------------------------------------------------------------------
+// Two targets, one machine: the run must not fail on a duplicate data name
+// ---------------------------------------------------------------------------
+
+Deno.test("collapseCensusResults keeps one result per hostname", () => {
+  const r = (host: string, items: number) => ({
+    meta: { host, ok: true, items },
+    items: Array.from({ length: items }, () => ({})),
+    tag: host,
+  });
+  const out = collapseCensusResults([r("x1yoga", 10), r("x1yoga", 4)]);
+  assertEquals(out.results.length, 1);
+  assertEquals(out.dropped, 1);
+  assertEquals(out.results[0].items.length, 10, "the fuller scan wins");
+});
+
+Deno.test("collapseCensusResults is case-insensitive and keeps distinct hosts", () => {
+  const r = (host: string, items: number) => ({
+    meta: { host, ok: true, items },
+    items: Array.from({ length: items }, () => ({})),
+  });
+  const out = collapseCensusResults([
+    r("X1yoga", 3),
+    r("x1YOGA", 9),
+    r("xeon", 2),
+  ]);
+  assertEquals(out.results.map((x) => x.meta.host), ["x1YOGA", "xeon"]);
+  assertEquals(out.dropped, 1);
+});
+
+Deno.test("collapseCensusResults leaves unnamed results alone", () => {
+  const r = { meta: { host: "", ok: false, items: 0 }, items: [] };
+  const out = collapseCensusResults([r, { ...r }]);
+  assertEquals(out.results.length, 2);
+  assertEquals(out.dropped, 0);
+});
+
+Deno.test("resolveTargets scans one machine once even when inventory and probe both list it", async () => {
+  const inventory = {
+    hosts: [{
+      name: "x1yoga",
+      address: "10.10.13.208",
+      hostnames: ["x1yoga"],
+      addresses: ["10.10.13.208"],
+      probed: true,
+      machineId: "7569d778",
+    }],
+  };
+  const probe = {
+    hosts: [{
+      name: "10.10.13.208",
+      address: "10.10.13.208",
+      hostnames: [],
+      addresses: ["10.10.13.208"],
+      probed: true,
+      machineId: "",
+    }],
+  };
+  const targets = await resolveTargets(
+    { hosts: [], fleetModel: "fleet" },
+    {
+      readModelData: (_model: string, spec?: string) =>
+        Promise.resolve([{
+          content: spec === "inventory" ? inventory : probe,
+          version: 1,
+        }]),
+    },
+  );
+  assertEquals(targets.length, 1, "the address record is the same machine");
+  assertEquals(targets[0].label, "x1yoga");
+});
+
+Deno.test("the census tries the same fallback logins as the inventory probe", () => {
+  // a host with no recorded identity: run user, then the fallback
+  assertEquals(
+    sshUserCandidates({}, { sshUser: "sven", fallbackUsers: [] }, {
+      fallbackUsers: ["pi"],
+    }),
+    ["sven", "pi"],
+  );
+  // a host that records `pi` is tried first and not repeated
+  assertEquals(
+    sshUserCandidates({ sshUser: "pi" }, { fallbackUsers: [] }, {
+      fallbackUsers: ["pi"],
+    }),
+    ["pi"],
+  );
+  // nothing configured anywhere still tries the built-in appliance login
+  // an empty primary is "let ssh decide", still the first attempt
+  assertEquals(sshUserCandidates({}, {}), ["", "pi"]);
+  // a run-level list wins over the global one
+  assertEquals(
+    sshUserCandidates({}, { fallbackUsers: ["admin"] }, {
+      fallbackUsers: ["pi"],
+    }),
+    ["", "admin"],
+  );
 });

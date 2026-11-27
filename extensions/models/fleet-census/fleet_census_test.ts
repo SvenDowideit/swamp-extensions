@@ -7,6 +7,69 @@
  */
 
 import { assert, assertEquals } from "jsr:@std/assert@1";
+import { resolveSsh } from "./fleet_census.ts";
+
+Deno.test("census resolveSsh prefers the run input, then the host's own", () => {
+  assertEquals(resolveSsh({ sshUser: "pi", sshPort: 2222 }, {}), {
+    user: "pi",
+    port: 2222,
+  });
+  assertEquals(
+    resolveSsh({ sshUser: "pi", sshPort: 2222 }, {
+      sshUser: "root",
+      sshPort: 2022,
+    }),
+    { user: "root", port: 2022 },
+  );
+  assertEquals(resolveSsh({}, {}), { user: "", port: 0 });
+  assertEquals(resolveSsh(undefined, undefined), { user: "", port: 0 });
+});
+
+Deno.test("resolveTargets carries each host's own ssh identity", async () => {
+  const targets = await resolveTargets(
+    { hosts: [], fleetModel: "fleet" },
+    {
+      readModelData: (_model: string, spec?: string) =>
+        Promise.resolve(
+          spec === "inventory"
+            ? [{
+              version: 1,
+              content: {
+                hosts: [
+                  {
+                    name: "mk2s",
+                    address: "10.10.3.253",
+                    addresses: ["10.10.3.253"],
+                    hostnames: ["mk2s.fi.gy"],
+                    probed: true,
+                    sshUser: "pi",
+                    sshPort: 2222,
+                  },
+                  {
+                    name: "xeon",
+                    address: "10.10.0.5",
+                    addresses: ["10.10.0.5"],
+                    hostnames: [],
+                    probed: true,
+                  },
+                ],
+              },
+            }]
+            : [],
+        ),
+    },
+  );
+  const mk2s = targets.find((t) => t.label === "mk2s");
+  // The address is tried first, so a name that does not resolve cannot make a
+  // reachable host look down.
+  assertEquals(mk2s?.candidates[0], "10.10.3.253");
+  assertEquals(mk2s?.sshUser, "pi");
+  assertEquals(mk2s?.sshPort, 2222);
+  // A host that records no identity says so, rather than inventing one.
+  const xeon = targets.find((t) => t.label === "xeon");
+  assertEquals(xeon?.sshUser, "");
+  assertEquals(xeon?.sshPort, 0);
+});
 import {
   applyProbeResults,
   buildFleet,

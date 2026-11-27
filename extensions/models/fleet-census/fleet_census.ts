@@ -108,7 +108,13 @@ const CensusArgsSchema = z.object({
       "when `hosts` is empty.",
   ),
   sshUser: z.string().default("").describe(
-    "SSH user for the scan. Empty uses the current user.",
+    "SSH user for EVERY host in this run: overrides each host's own sshUser " +
+      "recorded by @svendowideit/fleet-inventory. Empty keeps the host's own " +
+      "user, then the current user.",
+  ),
+  sshPort: z.number().int().min(0).max(65535).default(0).describe(
+    "SSH port for EVERY host in this run: overrides each host's own sshPort. " +
+      "0 keeps the host's own port, then ssh's default of 22.",
   ),
   timeoutSec: z.number().int().positive().max(1800).default(180).describe(
     "Per-host budget for the SSH scan.",
@@ -1889,6 +1895,7 @@ export function scanTruncated(records: ScanRecord[]): boolean {
 export async function runRemoteScan(
   script: string,
   dest: string,
+  port: number,
   timeoutMs: number,
 ): Promise<
   { code: number; stdout: string; stderr: string; timedOut: boolean }
@@ -1897,6 +1904,7 @@ export async function runRemoteScan(
   // swamp-quality-ignore deno-command: the remote scanner transport; fixed
   const child = new Deno.Command("ssh", {
     args: [
+      ...(port > 0 ? ["-p", String(port)] : []),
       "-o",
       "BatchMode=yes",
       "-o",
@@ -1936,6 +1944,24 @@ export async function runRemoteScan(
 }
 
 /**
+ * The SSH identity to use for one target.
+ *
+ * A value set for THIS RUN wins (an operator asking for `root` means it), then
+ * the identity the host carries in @svendowideit/fleet-inventory, then ssh's
+ * own default. The census has no model-level sshUser of its own, so the chain
+ * is two levels here, not three - but the run-first order is the same one
+ * @svendowideit/fleet-inventory uses, so a sweep means the same thing in both.
+ */
+export function resolveSsh(
+  host: { sshUser?: string; sshPort?: number } | undefined,
+  args: { sshUser?: string; sshPort?: number } | undefined,
+): { user: string; port: number } {
+  const user = (args?.sshUser ?? "").trim() || (host?.sshUser ?? "").trim();
+  const port = (args?.sshPort ?? 0) || (host?.sshPort ?? 0);
+  return { user, port };
+}
+
+/**
  * The scan targets: every host the fleet model knows (addresses first, then
  * names, because a name that resolves elsewhere must not make a reachable host
  * look down), or the explicit list.
@@ -1948,7 +1974,14 @@ export async function resolveTargets(
       specName?: string,
     ) => Promise<Array<{ content?: unknown; version?: number }>>;
   },
-): Promise<Array<{ label: string; candidates: string[] }>> {
+): Promise<
+  Array<{
+    label: string;
+    candidates: string[];
+    sshUser: string;
+    sshPort: number;
+  }>
+> {
   const latest = async (
     spec: string,
   ): Promise<Array<Record<string, unknown>>> => {
@@ -1990,6 +2023,13 @@ export async function resolveTargets(
     );
     return [...new Set([...addrs, ...names, fallback])].filter(Boolean);
   };
+  // The identity the host itself carries; empty/0 means "fall back".
+  const identityOf = (
+    h: Record<string, unknown> | undefined,
+  ): { sshUser: string; sshPort: number } => ({
+    sshUser: typeof h?.sshUser === "string" ? h.sshUser : "",
+    sshPort: typeof h?.sshPort === "number" ? h.sshPort : 0,
+  });
 
   if (args.hosts.length > 0) {
     return args.hosts.map((h) => {
@@ -2007,8 +2047,9 @@ export async function resolveTargets(
         ? {
           label: String(known.name || h),
           candidates: candidatesFor(known, h),
+          ...identityOf(known),
         }
-        : { label: h, candidates: [h] };
+        : { label: h, candidates: [h], sshUser: "", sshPort: 0 };
     });
   }
 
@@ -2021,12 +2062,17 @@ export async function resolveTargets(
   );
   const selected = probed.length > 0 ? probed : fleetHosts;
   const seen = new Set<string>();
-  const out: Array<{ label: string; candidates: string[] }> = [];
+  const out: Array<{
+    label: string;
+    candidates: string[];
+    sshUser: string;
+    sshPort: number;
+  }> = [];
   for (const h of selected) {
     const label = String(h.name || h.address || "");
     if (!label || seen.has(label.toLowerCase())) continue;
     seen.add(label.toLowerCase());
-    out.push({ label, candidates: candidatesFor(h) });
+    out.push({ label, candidates: candidatesFor(h), ...identityOf(h) });
   }
   return out.filter((t) => t.candidates.length > 0);
 }
@@ -2234,7 +2280,7 @@ interface MethodContext {
 /** A model that censuses the software this host's OS package manager does not own. */
 export const model = {
   type: "@svendowideit/fleet-census",
-  version: "2026.11.21.11",
+  version: "2026.11.27.1",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -2374,6 +2420,16 @@ export const model = {
         "version, an owner or a probe.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.27.1",
+      description:
+        "Per-host SSH identity: the census reads each host's own sshUser and " +
+        "sshPort from @svendowideit/fleet-inventory and passes them to ssh " +
+        "(including -p), instead of applying one user to every host. A run-level " +
+        "sshUser/sshPort still overrides both. Hosts with no recorded identity " +
+        "behave exactly as before.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
 
   resources: {
@@ -2491,13 +2547,15 @@ export const model = {
             let via = "";
             let error = "";
             let records: ScanRecord[] = [];
+            // Precedence: a value set for this RUN wins, then the host's own
+            // recorded identity (from @svendowideit/fleet-inventory), then ssh.
+            const ssh = resolveSsh(target, args);
             for (const candidate of target.candidates) {
-              const dest = args.sshUser
-                ? `${args.sshUser}@${candidate}`
-                : candidate;
+              const dest = ssh.user ? `${ssh.user}@${candidate}` : candidate;
               const run = await runRemoteScan(
                 script,
                 dest,
+                ssh.port,
                 args.timeoutSec * 1000,
               );
               if (run.code === 0 && run.stdout.trim() !== "") {
@@ -2553,10 +2611,11 @@ export const model = {
               const candidates = probeCandidates(items);
               const probeScript = renderProbeScript(candidates);
               if (probeScript !== "") {
-                const probeDest = args.sshUser ? `${args.sshUser}@${via}` : via;
+                const probeDest = ssh.user ? `${ssh.user}@${via}` : via;
                 const probed = await runRemoteScan(
                   probeScript,
                   probeDest,
+                  ssh.port,
                   args.timeoutSec * 1000,
                 );
                 if (probed.code === 0) {

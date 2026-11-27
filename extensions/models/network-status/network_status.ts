@@ -4,7 +4,10 @@ const HostSpecSchema = z.object({
   name: z.string().min(1),
   address: z.string().min(1),
   user: z.string().default(""),
-  port: z.number().int().positive().default(22),
+  // 0 means "not recorded": the ssh call falls back to 22, so an inventory
+  // host that records no sshPort passes through unchanged instead of failing
+  // validation for not being positive.
+  port: z.number().int().min(0).max(65535).default(0),
   os: z.string().default(""),
   local: z.boolean().default(false),
 }).strict();
@@ -1336,7 +1339,7 @@ function deriveSiteDir(g: GlobalArgs): string {
 
 export const model = {
   type: "@svendowideit/network-status",
-  version: "2026.11.12.1",
+  version: "2026.11.27.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -1364,6 +1367,15 @@ export const model = {
       toVersion: "2026.11.12.1",
       description:
         "Render the generated time and each host's checked time as <time> elements and localise them in the viewer's browser timezone and locale instead of the orchestrator's timezone. No schema or argument change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.27.1",
+      description:
+        "Per-host SSH identity: the audit takes each inventoried host's own ssh " +
+        "user and port instead of one user for the whole page, probes the " +
+        "host's address when it has one, and treats a recorded port of 0 as " +
+        "unset (ssh gets 22).",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

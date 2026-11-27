@@ -57,7 +57,7 @@ jobs:
           methodName: audit
           inputs:
             hosts: >-
-              ${{ data.latest("fleet", "inventory").?attributes.?hosts.orValue([]).filter(h, h.probed == true).map(h, {"name": h.name, "address": h.name, "os": h.os}) }}
+              ${{ data.latest("fleet", "inventory").?attributes.?hosts.orValue([]).filter(h, h.probed == true).map(h, {"name": h.name, "address": h.address != "" ? h.address : h.name, "os": h.os, "user": has(h.sshUser) ? h.sshUser : "", "port": has(h.sshPort) ? h.sshPort : 0}) }}
         dependsOn: []
         weight: 0
         allowFailure: false

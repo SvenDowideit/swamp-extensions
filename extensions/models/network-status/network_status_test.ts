@@ -1,4 +1,23 @@
 import { assert, assertEquals } from "jsr:@std/assert@1";
+
+Deno.test("an inventoried host's own ssh user and unset port survive normalization", () => {
+  const [host] = normalizeHosts([
+    {
+      name: "mk2s",
+      address: "10.10.3.253",
+      user: "pi",
+      port: 0,
+      os: "raspbian",
+      local: false,
+    },
+  ], "sven");
+  // The host's own user beats the default, so one appliance image does not
+  // need the whole audit to run as that user.
+  assertEquals(host.user, "pi");
+  // 0 means "not recorded": ssh is asked for the default port, not port 0.
+  assertEquals(host.port, 22);
+  assertEquals(host.address, "10.10.3.253");
+});
 import {
   buildHtml,
   buildRemoteScript,

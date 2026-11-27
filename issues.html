@@ -67,7 +67,7 @@ footer .ver{color:var(--acc)}
 </style>
 </head><body>
 <header class="top"><h1>SWAMP PULSE</h1><nav class="pages"><a href="index.html">Summary</a><a href="leaderboard.html">Leaderboard</a><a href="extensions.html">Extensions</a><a href="changes.html">Changes</a><a href="releases.html">Releases</a><a href="issues.html" class="active">Issues</a></nav></header>
-<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-5127"><span class="tier A">A</span>repairing one diverged partition after a leader step-down re</a><a href="#issue-5160"><span class="tier A">A</span>A team member&#39;s batched write exits 0 when the leader landed</a><a href="#issue-5154"><span class="tier A">A</span>swamp app list crashes with a raw EACCES stack trace when a </a><a href="#issue-5153"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-5156"><span class="tier A">A</span>Serve federation hardening: version-tolerant records, join r</a><a href="#issue-5151"><span class="tier A">A</span>swamp extension source add refuses an extension that ships o</a><a href="#issue-5152"><span class="tier A">A</span>serve.yaml version 2 refuses unknown keys in the remaining a</a><a href="#issue-5136"><span class="tier A">A</span>v3 base load: cut the per-file serial work before each write</a><a href="#issue-5149"><span class="tier A">A</span>Serve federation F10: idempotent join, so a lost join reply </a></aside><div>
+<main><div class="layout"><aside class="toc"><h3>ON THIS PAGE</h3><a href="#issue-4852"><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4</a><a href="#issue-4845"><span class="tier S">S</span>@swamp/cve/http2shell: old mainline RHEL 9 libbrotli z-strea</a><a href="#issue-4239"><span class="tier S">S</span>swamp issue: file bugs, features and security reports agains</a><a href="#issue-5166"><span class="tier A">A</span>swamp serve reload stops reporting a setting that still need</a><a href="#issue-5165"><span class="tier A">A</span>Serve federation: a hub accepts fingerprint values it does n</a><a href="#issue-5127"><span class="tier A">A</span>repairing one diverged partition after a leader step-down re</a><a href="#issue-5160"><span class="tier A">A</span>A team member&#39;s batched write exits 0 when the leader landed</a><a href="#issue-5154"><span class="tier A">A</span>swamp app list crashes with a raw EACCES stack trace when a </a><a href="#issue-5153"><span class="tier A">A</span>Scheduled flaky-test detection is failing</a><a href="#issue-5156"><span class="tier A">A</span>Serve federation hardening: version-tolerant records, join r</a><a href="#issue-5151"><span class="tier A">A</span>swamp extension source add refuses an extension that ships o</a><a href="#issue-5152"><span class="tier A">A</span>serve.yaml version 2 refuses unknown keys in the remaining a</a></aside><div>
 
 <article class="item" id="issue-4852">
 <h2><span class="tier S">S</span>Add @swamp/cve/java4shell scanner for CVE-2026-114938 (Java4Shell)</h2>
@@ -92,6 +92,22 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4239" rel="noopener">lab#4239</a></div>
+</article>
+<article class="item" id="issue-5166">
+<h2><span class="tier A">A</span>swamp serve reload stops reporting a setting that still needs a restart</h2>
+<p class="lede">Shipped bug fix</p>
+<div class="meta"><span><time datetime="2026-11-27T21:09:47.405Z">2026-11-27T21:09:47.405Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5166" rel="noopener">lab#5166</a></div>
+</article>
+<article class="item" id="issue-5165">
+<h2><span class="tier A">A</span>Serve federation: a hub accepts fingerprint values it does not know yet</h2>
+<p class="lede">Shipped feature</p>
+<div class="meta"><span><time datetime="2026-11-27T21:09:47.168Z">2026-11-27T21:09:47.168Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5165" rel="noopener">lab#5165</a></div>
 </article>
 <article class="item" id="issue-5127">
 <h2><span class="tier A">A</span>repairing one diverged partition after a leader step-down rebuilds the whole read model for minutes while holding the checkout</h2>
@@ -149,7 +165,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/5152" rel="noopener">lab#5152</a></div>
 </article>
-<article class="item" id="issue-5136">
+<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-5136">
 <h2><span class="tier A">A</span>v3 base load: cut the per-file serial work before each write (existence cache and batched target/guard probes)</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-11-27T01:51:56.659Z">2026-11-27T01:51:56.659Z</time></span></div>
@@ -165,7 +181,7 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/5149" rel="noopener">lab#5149</a></div>
 </article>
-<section class="tail"><h2>Other notable changes</h2><article class="item" id="issue-5148">
+<article class="item" id="issue-5148">
 <h2><span class="tier A">A</span>Serve federation slice 1, unit 4.1: live member view and the federation:read app capability</h2>
 <p class="lede">Shipped feature</p>
 <div class="meta"><span><time datetime="2026-11-26T23:22:01.528Z">2026-11-26T23:22:01.528Z</time></span></div>
@@ -5589,21 +5605,21 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4207" rel="noopener">lab#4207</a></div>
 </article>
-<article class="item" id="issue-5165">
-<h2><span class="tier B">B</span>Serve federation: a hub accepts fingerprint values it does not know yet</h2>
+<article class="item" id="issue-5172">
+<h2><span class="tier B">B</span>swamp serve member counts stopped instances as live</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-27T20:54:15.093Z">2026-11-27T20:54:15.093Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-27T22:18:40.414Z">2026-11-27T22:18:40.414Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5165" rel="noopener">lab#5165</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5172" rel="noopener">lab#5172</a></div>
 </article>
-<article class="item" id="issue-5166">
-<h2><span class="tier B">B</span>swamp serve reload stops reporting a setting that still needs a restart</h2>
+<article class="item" id="issue-5173">
+<h2><span class="tier B">B</span>Two CLI errors say app approvals and schedule pauses are kept in a datastore&#39;s control-plane store, when they may not be</h2>
 <p class="lede">Issue in_progress</p>
-<div class="meta"><span><time datetime="2026-11-27T20:51:37.102Z">2026-11-27T20:51:37.102Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-27T22:11:54.316Z">2026-11-27T22:11:54.316Z</time></span></div>
 
 
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5166" rel="noopener">lab#5166</a></div>
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5173" rel="noopener">lab#5173</a></div>
 </article>
 <article class="item" id="issue-5145">
 <h2><span class="tier B">B</span>A serve follower that stepped down with unconfirmed commits follows its new leader from its own head, so the leader&#39;s commits are appended above commits the lineage never had</h2>
@@ -5725,13 +5741,29 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4374" rel="noopener">lab#4374</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-5169">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="issue-5138">
+<h2><span class="tier C">C</span>Docs: label-bound enrollment tokens and the reserved-worker-labels serve setting</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-27T22:21:42.173Z">2026-11-27T22:21:42.173Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5138" rel="noopener">lab#5138</a></div>
+</article>
+<article class="item" id="issue-5169">
 <h2><span class="tier C">C</span>Docs: serve manual pages for steps-require-explicit-grant and the workflow-as-unit grant rule</h2>
 <p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-27T20:25:33.218Z">2026-11-27T20:25:33.218Z</time></span></div>
+<div class="meta"><span><time datetime="2026-11-27T22:21:34.231Z">2026-11-27T22:21:34.231Z</time></span></div>
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/5169" rel="noopener">lab#5169</a></div>
+</article>
+<article class="item" id="issue-5174">
+<h2><span class="tier C">C</span>Docs: :json input suffix is command-line only; nested workflow input keys are checked</h2>
+<p class="lede">Open issue</p>
+<div class="meta"><span><time datetime="2026-11-27T22:21:29.506Z">2026-11-27T22:21:29.506Z</time></span></div>
+
+
+<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5174" rel="noopener">lab#5174</a></div>
 </article>
 <article class="item" id="issue-5168">
 <h2><span class="tier C">C</span>software-factory: a work item whose slug prefixes another&#39;s sees the other&#39;s records</h2>
@@ -5804,14 +5836,6 @@ footer .ver{color:var(--acc)}
 
 
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/5147" rel="noopener">lab#5147</a></div>
-</article>
-<article class="item" id="issue-5138">
-<h2><span class="tier C">C</span>Docs: label-bound enrollment tokens and the reserved-worker-labels serve setting</h2>
-<p class="lede">Open issue</p>
-<div class="meta"><span><time datetime="2026-11-26T18:37:06.076Z">2026-11-26T18:37:06.076Z</time></span></div>
-
-
-<div class="refs">𝗔 <a href="https://swamp-club.com/lab/5138" rel="noopener">lab#5138</a></div>
 </article>
 <article class="item" id="issue-5137">
 <h2><span class="tier C">C</span>Docs: the data reference&#39;s Tag Resolution Chain shows modelName as overridable, but swamp now stamps it after every source</h2>
@@ -7158,13 +7182,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗔 <a href="https://swamp-club.com/lab/4233" rel="noopener">lab#4233</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>886 items across 1 source(s) in this window:
-3 critical, 687 notable, 17 routine,
-179 minor.</p>
-<ul><li><strong>issues</strong> — 886</li></ul></section>
+<p>889 items across 1 source(s) in this window:
+3 critical, 689 notable, 17 routine,
+180 minor.</p>
+<ul><li><strong>issues</strong> — 889</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-27T21:03:55.743Z">2026-11-27T21:03:55.743Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-27T22:27:24.910Z">2026-11-27T22:27:24.910Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

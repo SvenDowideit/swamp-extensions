@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/fleet-inventory"
-version: "2026.11.27.1"
+version: "2026.11.27.2"
 description: >
   A live inventory of the machines on a network — and which of them have gone
   silent.
@@ -110,6 +110,7 @@ description: >
     Set as global args at model creation:
 
       sshUser        default SSH user for probe
+      fallbackUsers  logins tried after it, in order (["pi"])
       defaultTier    tier assigned when probing cannot infer one (default T1)
       outputDir      where inventory.json is written
 

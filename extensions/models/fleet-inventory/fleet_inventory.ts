@@ -71,6 +71,30 @@ const DiscoverArgsSchema = z.object({
   ),
 });
 
+/**
+ * One feed entry as a merge input. Every identity field the feed declares is
+ * carried: dropping `machineId`, `hostnames` or `addresses` here made a feed
+ * unable to correct a record discovery had already stored, so an operator could
+ * not say "this entry is that machine" (nor record the hostname the box reports,
+ * nor the login it accepts).
+ */
+export function feedHost(f: z.infer<typeof HostSchema>): HostInput {
+  return {
+    name: f.name,
+    address: f.address,
+    mac: f.mac,
+    machineId: f.machineId ?? "",
+    hostnames: f.hostnames ?? [],
+    addresses: f.addresses ?? [],
+    source: f.source || "feed",
+    tier: f.tier,
+    os: f.os,
+    sshUser: f.sshUser ?? "",
+    sshPort: f.sshPort ?? 0,
+    notes: f.notes,
+  };
+}
+
 const ProbeArgsSchema = z.object({
   hosts: z.array(z.string()).default([]).describe(
     "Host names/IPs to probe over SSH; empty probes every inventoried host that has not already been probed",
@@ -86,6 +110,9 @@ const ProbeArgsSchema = z.object({
   ),
   refresh: z.boolean().default(false).describe(
     "Re-probe hosts that already probed successfully (only meaningful without an explicit hosts list)",
+  ),
+  fallbackUsers: z.array(z.string()).default([]).describe(
+    "Extra SSH users to try, in order, when the resolved user is refused (empty uses the model global `fallbackUsers`). The user that works is recorded on the host",
   ),
 });
 
@@ -141,6 +168,9 @@ const GlobalArgsSchema = z.object({
   ),
   outputDir: z.string().default("~/.local/share/fleet-inventory").describe(
     "Directory where the inventory JSON is written",
+  ),
+  fallbackUsers: z.array(z.string()).default(["pi"]).describe(
+    "SSH users tried in order when the resolved user is refused — the appliance logins a fleet actually has (a Raspberry Pi that only accepts `pi`, an image whose only account is `admin`). The user that answers is recorded on the host, so later runs try it first",
   ),
 }).strict();
 
@@ -1656,7 +1686,7 @@ async function resolveNames(
 /** The swamp model definition for `@svendowideit/fleet-inventory`. */
 export const model = {
   type: "@svendowideit/fleet-inventory",
-  version: "2026.11.27.1",
+  version: "2026.11.27.2",
   globalArguments: GlobalArgsSchema,
   checks: {
     "valid-config": {
@@ -1780,6 +1810,22 @@ export const model = {
         "additive.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.27.2",
+      description:
+        "Two fixes found while a Raspberry Pi sat in the inventory but never on " +
+        "the status page. `discover` now carries the identity fields a feed " +
+        "declares (machineId, hostnames, addresses) into the merge, so a feed can " +
+        "correct a record discovery already stored: previously those fields were " +
+        "dropped, and a feed entry could never join the record the probe created " +
+        "under the box's own hostname. `probe` now tries fallback logins in order " +
+        "when the resolved user is refused (global `fallbackUsers`, default `pi`), " +
+        "and records the user that answered on the host so later runs try it " +
+        "first - a fleet has appliance images whose only account is `pi`. Additive: " +
+        "existing hosts keep their recorded user, and a run-level sshUser is still " +
+        "never recorded as a host's own.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     discovery: {
@@ -1835,17 +1881,7 @@ export const model = {
         },
       ): Promise<{ dataHandles: [{ name: string }] }> => {
         const timestamp = new Date().toISOString();
-        const feed: HostInput[] = args.feeds.map((f) => ({
-          name: f.name,
-          address: f.address,
-          mac: f.mac,
-          source: f.source || "feed",
-          tier: f.tier,
-          os: f.os,
-          sshUser: f.sshUser ?? "",
-          sshPort: f.sshPort ?? 0,
-          notes: f.notes,
-        }));
+        const feed: HostInput[] = args.feeds.map(feedHost);
 
         let scanned = 0;
         let truncated = false;
@@ -2003,9 +2039,10 @@ export const model = {
             // operator asking for `root` means it), then the host's own record,
             // then the model global, then ssh's own default.
             const ssh = resolveSsh(known, args, g);
+            const users = sshUserCandidates(known, args, g);
             const probe = await sshProbe(
               candidates,
-              ssh.user,
+              users,
               ssh.port,
               args.timeoutMs,
             );
@@ -2037,8 +2074,13 @@ export const model = {
               os: facts?.os ?? "",
               // Record the host's OWN identity, never the run-level override, so
               // a one-off `sshUser=root` sweep cannot be laundered into the
-              // inventory as that host's permanent user.
-              sshUser: known.sshUser ?? "",
+              // inventory as that host's permanent user. A fallback user that
+              // answered IS the host's own login, so it is recorded when neither
+              // the run nor the host already named one.
+              sshUser: known.sshUser ||
+                (args.sshUser.trim() === "" && facts
+                  ? (probe?.user ?? "")
+                  : ""),
               sshPort: known.sshPort ?? 0,
               deviceClass: "",
               vendor: "",
@@ -2471,11 +2513,18 @@ function projectObserved(h: InventoryHost): Record<string, unknown> {
     address: h.address,
     mac: h.mac,
     macs: h.macs,
+    // machineId is identity, not a probe fact: dropping it here broke the join
+    // between a discovered/feed record and the record the probe stored under the
+    // box's own hostname, so the two never became one host.
+    machineId: h.machineId,
     hostnames: h.hostnames,
     addresses: h.addresses,
     source: h.source,
     tier: h.tier,
     os: h.os,
+    // A feed is how an operator records the login an appliance actually accepts.
+    sshUser: h.sshUser,
+    sshPort: h.sshPort,
     lastSeen: h.lastSeen,
   };
 }
@@ -2690,16 +2739,48 @@ export function resolveSsh(
   return { user, port };
 }
 
+/** Logins tried after the fleet's own user, when no list is configured. */
+export const DEFAULT_FALLBACK_USERS = ["pi"];
+
+/**
+ * The SSH users to try for one host, in order: the resolved user (run → host →
+ * global), then the fallback logins. A fleet has appliance images that accept
+ * exactly one account (`pi` on a Pi, `admin` on a router), and requiring the
+ * operator to record it per host before the first probe means the first probe
+ * never happens. The user that answers is recorded on the host afterwards, so
+ * the fallback costs one refused connection once, not every run.
+ */
+export function sshUserCandidates(
+  host: { sshUser?: string } | undefined,
+  args: { sshUser?: string; fallbackUsers?: string[] },
+  global: { sshUser?: string; fallbackUsers?: string[] },
+): string[] {
+  const primary = resolveSsh(host, args, global).user;
+  const configured = (args.fallbackUsers && args.fallbackUsers.length > 0)
+    ? args.fallbackUsers
+    : (global.fallbackUsers ?? []);
+  // The built-in default is the appliance login a bare fleet almost always has.
+  const extra = configured.length > 0 ? configured : DEFAULT_FALLBACK_USERS;
+  return [primary, ...extra]
+    .map((u) => (u ?? "").trim())
+    .filter((u, i, a) => u !== "" && a.indexOf(u) === i);
+}
+
 /** SSH into a host and run the probe script, returning facts or null. */
 async function sshProbe(
   candidates: string[],
-  user: string,
+  users: string[],
   port: number,
   timeoutMs: number,
-): Promise<{ facts: ReturnType<typeof parseProbeFacts>; via: string } | null> {
-  for (const target of candidates) {
-    const facts = await sshProbeOne(target, user, port, timeoutMs);
-    if (facts) return { facts, via: target };
+): Promise<
+  | { facts: ReturnType<typeof parseProbeFacts>; via: string; user: string }
+  | null
+> {
+  for (const user of users) {
+    for (const target of candidates) {
+      const facts = await sshProbeOne(target, user, port, timeoutMs);
+      if (facts) return { facts, via: target, user };
+    }
   }
   return null;
 }

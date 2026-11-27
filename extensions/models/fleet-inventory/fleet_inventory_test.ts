@@ -1,5 +1,5 @@
 import { assert, assertEquals } from "jsr:@std/assert@1";
-import { resolveSsh } from "./fleet_inventory.ts";
+import { feedHost, resolveSsh, sshUserCandidates } from "./fleet_inventory.ts";
 
 Deno.test("resolveSsh puts the run input first, then the host, then the global", () => {
   const global = { sshUser: "sven", sshPort: 0 };
@@ -398,7 +398,13 @@ Deno.test("coveragePercent rounds and guards divide-by-zero", () => {
 Deno.test("discover merges feeds and records a resource", async () => {
   let captured: Record<string, unknown> = {};
   const ctx = {
-    globalArgs: { sshUser: "", defaultTier: "T1", outputDir: "/tmp/fi" },
+    globalArgs: {
+      sshUser: "",
+      sshPort: 0,
+      defaultTier: "T1",
+      outputDir: "/tmp/fi",
+      fallbackUsers: [],
+    },
     writeResource: (
       _spec: string,
       _name: string,
@@ -440,7 +446,13 @@ Deno.test("discover merges feeds and records a resource", async () => {
 Deno.test("probe records a host even when SSH fails", async () => {
   let captured: Record<string, unknown> = {};
   const ctx = {
-    globalArgs: { sshUser: "", defaultTier: "T2", outputDir: "/tmp/fi" },
+    globalArgs: {
+      sshUser: "",
+      sshPort: 0,
+      defaultTier: "T2",
+      outputDir: "/tmp/fi",
+      fallbackUsers: [],
+    },
     writeResource: (
       _spec: string,
       _name: string,
@@ -451,7 +463,13 @@ Deno.test("probe records a host even when SSH fails", async () => {
     },
   };
   await model.methods.probe.execute(
-    { hosts: ["127.0.0.1"], sshUser: "nobody", timeoutMs: 500, refresh: false },
+    {
+      hosts: ["127.0.0.1"],
+      sshUser: "nobody",
+      timeoutMs: 500,
+      refresh: false,
+      fallbackUsers: [],
+    },
     ctx,
   );
   assertEquals(captured.probed, 0);
@@ -468,7 +486,13 @@ Deno.test("probe with empty hosts probes the inventoried hosts", async () => {
     mk("127.0.0.2", false),
   ];
   const ctx = {
-    globalArgs: { sshUser: "", defaultTier: "T1", outputDir: "/tmp/fi" },
+    globalArgs: {
+      sshUser: "",
+      sshPort: 0,
+      defaultTier: "T1",
+      outputDir: "/tmp/fi",
+      fallbackUsers: [],
+    },
     readResource: (name: string) =>
       Promise.resolve(name === "discovery" ? { discovered } : null),
     writeResource: (
@@ -481,7 +505,13 @@ Deno.test("probe with empty hosts probes the inventoried hosts", async () => {
     },
   };
   await model.methods.probe.execute(
-    { hosts: [], sshUser: "nobody", timeoutMs: 200, refresh: false },
+    {
+      hosts: [],
+      sshUser: "nobody",
+      timeoutMs: 200,
+      refresh: false,
+      fallbackUsers: [],
+    },
     ctx,
   );
   const hosts = captured.hosts as Array<{ address: string }>;
@@ -502,7 +532,13 @@ Deno.test("report reads the on-disk inventory and computes coverage", async () =
     );
     let captured: Record<string, unknown> = {};
     const ctx = {
-      globalArgs: { sshUser: "", defaultTier: "T1", outputDir: tmp },
+      globalArgs: {
+        sshUser: "",
+        sshPort: 0,
+        defaultTier: "T1",
+        outputDir: tmp,
+        fallbackUsers: [],
+      },
       writeResource: (
         _spec: string,
         _name: string,
@@ -564,7 +600,13 @@ Deno.test("correlate preserves probed facts from the probe resource", async () =
       },
     ];
     const ctx = {
-      globalArgs: { sshUser: "", defaultTier: "T1", outputDir: tmp },
+      globalArgs: {
+        sshUser: "",
+        sshPort: 0,
+        defaultTier: "T1",
+        outputDir: tmp,
+        fallbackUsers: [],
+      },
       readResource: (name: string) =>
         Promise.resolve(
           name === "probe" ? { hosts: probed } : { discovered: [] },
@@ -594,7 +636,13 @@ Deno.test("discover accumulates previously discovered hosts", async () => {
   let captured: { discovered?: Array<{ name: string }> } = {};
   const previous = [mk("old-host", false)];
   const ctx = {
-    globalArgs: { sshUser: "", defaultTier: "T1", outputDir: "/tmp/fi" },
+    globalArgs: {
+      sshUser: "",
+      sshPort: 0,
+      defaultTier: "T1",
+      outputDir: "/tmp/fi",
+      fallbackUsers: [],
+    },
     readResource: (name: string) =>
       Promise.resolve(name === "discovery" ? { discovered: previous } : null),
     writeResource: (
@@ -643,7 +691,13 @@ Deno.test("probe accumulates previously probed hosts", async () => {
     { ...mk("old-probed", true), probed: true, machineId: "mid-old" },
   ];
   const ctx = {
-    globalArgs: { sshUser: "", defaultTier: "T1", outputDir: "/tmp/fi" },
+    globalArgs: {
+      sshUser: "",
+      sshPort: 0,
+      defaultTier: "T1",
+      outputDir: "/tmp/fi",
+      fallbackUsers: [],
+    },
     readResource: (name: string) =>
       Promise.resolve(name === "probe" ? { hosts: previous } : null),
     writeResource: (
@@ -656,7 +710,13 @@ Deno.test("probe accumulates previously probed hosts", async () => {
     },
   };
   await model.methods.probe.execute(
-    { hosts: ["127.0.0.1"], sshUser: "nobody", timeoutMs: 300, refresh: false },
+    {
+      hosts: ["127.0.0.1"],
+      sshUser: "nobody",
+      timeoutMs: 300,
+      refresh: false,
+      fallbackUsers: [],
+    },
     ctx,
   );
   // The previously-probed host must survive a new (here: unreachable) probe run.
@@ -675,7 +735,13 @@ Deno.test("probe skips already-probed hosts unless refresh is set", async () => 
         return captured;
       },
       ctx: {
-        globalArgs: { sshUser: "", defaultTier: "T1", outputDir: "/tmp/fi" },
+        globalArgs: {
+          sshUser: "",
+          sshPort: 0,
+          defaultTier: "T1",
+          outputDir: "/tmp/fi",
+          fallbackUsers: [],
+        },
         readResource: (name: string) =>
           Promise.resolve(
             name === "probe" ? { hosts: [prevProbed] } : {
@@ -696,14 +762,26 @@ Deno.test("probe skips already-probed hosts unless refresh is set", async () => 
   // Without refresh: 127.0.0.1 is already probed, so only .2 is attempted.
   const a = mkCtx();
   await model.methods.probe.execute(
-    { hosts: [], sshUser: "nobody", timeoutMs: 200, refresh: false },
+    {
+      hosts: [],
+      sshUser: "nobody",
+      timeoutMs: 200,
+      refresh: false,
+      fallbackUsers: [],
+    },
     a.ctx,
   );
   assertEquals(a.captured.attempted, 1, "already-probed host must be skipped");
   // With refresh: both hosts are (re)probed.
   const b = mkCtx();
   await model.methods.probe.execute(
-    { hosts: [], sshUser: "nobody", timeoutMs: 200, refresh: true },
+    {
+      hosts: [],
+      sshUser: "nobody",
+      timeoutMs: 200,
+      refresh: true,
+      fallbackUsers: [],
+    },
     b.ctx,
   );
   assertEquals(b.captured.attempted, 2, "refresh must re-probe the known host");
@@ -1203,4 +1281,108 @@ Deno.test("buildNetwork does not call a rotating IPv6 privacy address dynamic", 
     second.addresses.find((a) => a.address === "fd35::2222")!.kind,
     "dhcp",
   );
+});
+
+// ---------------------------------------------------------------------------
+// A feed must be able to correct a record discovery already stored, and an
+// appliance login must not have to be known before the first probe.
+// ---------------------------------------------------------------------------
+
+Deno.test("a feed entry keeps the identity fields that let it join a probed host", () => {
+  const host = feedHost({
+    name: "mk2s",
+    address: "10.10.3.253",
+    mac: "",
+    machineId: "803f4ab7",
+    hostnames: ["mk2s", "raspberrypi"],
+    addresses: ["10.10.3.253"],
+    source: "",
+    tier: "T1",
+    os: "raspbian",
+    sshUser: "pi",
+    sshPort: 0,
+    notes: "",
+  });
+  // machineId is what merges this entry with the record the probe stored under
+  // the box's own hostname; hostnames is what lets a later merge find it by name
+  assertEquals(host.machineId, "803f4ab7");
+  assertEquals(host.hostnames, ["mk2s", "raspberrypi"]);
+  assertEquals(host.addresses, ["10.10.3.253"]);
+  assertEquals(host.sshUser, "pi");
+  assertEquals(host.source, "feed", "an empty source is labelled feed");
+});
+
+Deno.test("a feed entry with a machineId merges with the probed record of the same machine", () => {
+  const feed = feedHost({
+    name: "mk2s",
+    address: "10.10.3.253",
+    mac: "",
+    machineId: "803f4ab7",
+    hostnames: ["mk2s"],
+    addresses: [],
+    source: "manual",
+    tier: "T1",
+    os: "raspbian",
+    sshUser: "pi",
+    sshPort: 0,
+    notes: "",
+  });
+  const probed = {
+    name: "raspberrypi",
+    address: "10.10.3.253",
+    mac: "",
+    machineId: "803f4ab7",
+    hostnames: ["raspberrypi"],
+    addresses: ["10.10.3.253"],
+    source: "probe",
+    tier: "T1",
+    os: "raspbian",
+    sshUser: "",
+    sshPort: 0,
+    probed: true,
+    lastSeen: "2026-11-27T09:00:00Z",
+  };
+  const [merged, ...rest] = mergeHosts(
+    [feed, probed] as never,
+    "2026-11-27T10:00:00Z",
+  );
+  assertEquals(rest.length, 0, "one machine, one record");
+  assertEquals([...merged.hostnames].sort(), ["mk2s", "raspberrypi"]);
+  assertEquals(merged.sshUser, "pi", "the feed's login survives the merge");
+  assertEquals(merged.probed, true, "the probe's facts survive the merge");
+});
+
+Deno.test("sshUserCandidates tries the resolved user first, then the fallbacks", () => {
+  // the global fleet login, then the appliance login when it is refused
+  assertEquals(
+    sshUserCandidates({}, {}, { sshUser: "sven", fallbackUsers: ["pi"] }),
+    ["sven", "pi"],
+  );
+  // a host that already records its own login is tried first, and the fallback
+  // list is not repeated when it names the same user
+  assertEquals(
+    sshUserCandidates({ sshUser: "pi" }, {}, {
+      sshUser: "sven",
+      fallbackUsers: ["pi"],
+    }),
+    ["pi"],
+  );
+  // a run-level user wins as the primary, and the built-in `pi` still follows
+  assertEquals(
+    sshUserCandidates({ sshUser: "pi" }, { sshUser: "root" }, {
+      sshUser: "sven",
+    }),
+    ["root", "pi"],
+  );
+});
+
+Deno.test("sshUserCandidates dedupes and honours a run-level fallback list", () => {
+  assertEquals(
+    sshUserCandidates({}, { fallbackUsers: ["pi", "sven", "pi"] }, {
+      sshUser: "sven",
+    }),
+    ["sven", "pi"],
+  );
+  // nothing configured anywhere: the built-in appliance login is still tried
+  assertEquals(sshUserCandidates({}, {}, {}), ["pi"]);
 });

@@ -1383,6 +1383,6 @@ Deno.test("sshUserCandidates dedupes and honours a run-level fallback list", () 
     }),
     ["sven", "pi"],
   );
-  // nothing configured anywhere: the built-in appliance login is still tried
-  assertEquals(sshUserCandidates({}, {}, {}), ["pi"]);
+  // nothing configured anywhere: ssh's own default, then the built-in login
+  assertEquals(sshUserCandidates({}, {}, {}), ["", "pi"]);
 });

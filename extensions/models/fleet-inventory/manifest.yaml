@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/fleet-inventory"
-version: "2026.11.27.2"
+version: "2026.11.28.1"
 description: >
   A live inventory of the machines on a network — and which of them have gone
   silent.

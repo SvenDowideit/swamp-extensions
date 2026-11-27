@@ -1686,7 +1686,7 @@ async function resolveNames(
 /** The swamp model definition for `@svendowideit/fleet-inventory`. */
 export const model = {
   type: "@svendowideit/fleet-inventory",
-  version: "2026.11.27.2",
+  version: "2026.11.28.1",
   globalArguments: GlobalArgsSchema,
   checks: {
     "valid-config": {
@@ -1824,6 +1824,18 @@ export const model = {
         "first - a fleet has appliance images whose only account is `pi`. Additive: " +
         "existing hosts keep their recorded user, and a run-level sshUser is still " +
         "never recorded as a host's own.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.28.1",
+      description:
+        "The SSH user chain keeps an empty resolved user as the first attempt. " +
+        "`sshUserCandidates` filtered empty strings out of the whole list, so a " +
+        "fleet with no configured sshUser (or a host with none recorded) tried " +
+        "only the fallback login - on a Pi fleet that meant every host was probed " +
+        'as `pi`. The primary is now kept even when empty, where it means "let ' +
+        'ssh decide" (the invoking user), and only the extras are filtered and ' +
+        "deduped. Found while giving @svendowideit/fleet-census the same chain.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -2753,17 +2765,23 @@ export const DEFAULT_FALLBACK_USERS = ["pi"];
 export function sshUserCandidates(
   host: { sshUser?: string } | undefined,
   args: { sshUser?: string; fallbackUsers?: string[] },
-  global: { sshUser?: string; fallbackUsers?: string[] },
+  global?: { sshUser?: string; sshPort?: number; fallbackUsers?: string[] },
 ): string[] {
-  const primary = resolveSsh(host, args, global).user;
+  const primary = resolveSsh(host, args, global).user.trim();
   const configured = (args.fallbackUsers && args.fallbackUsers.length > 0)
     ? args.fallbackUsers
-    : (global.fallbackUsers ?? []);
+    : (global?.fallbackUsers ?? []);
   // The built-in default is the appliance login a bare fleet almost always has.
   const extra = configured.length > 0 ? configured : DEFAULT_FALLBACK_USERS;
-  return [primary, ...extra]
-    .map((u) => (u ?? "").trim())
-    .filter((u, i, a) => u !== "" && a.indexOf(u) === i);
+  // The primary is kept even when it is empty: "" means "let ssh decide" (the
+  // invoking user), which is a legitimate first attempt. Filtering it out made
+  // every host be tried as the fallback login instead of the operator's own.
+  const out: string[] = [primary];
+  for (const u of extra) {
+    const t = (u ?? "").trim();
+    if (t !== "" && !out.includes(t)) out.push(t);
+  }
+  return out;
 }
 
 /** SSH into a host and run the probe script, returning facts or null. */

@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/octoprint"
-version: "2026.11.26.1"
+version: "2026.11.26.2"
 description: >
   The health-and-versions model for one OctoPrint box: is the printer up, what
   is it doing, which OctoPrint and plugins are installed, what firmware is on
@@ -101,6 +101,7 @@ paths:
 
 models:
   - octoprint.ts
+  - prusa_model.ts
 
 dependencies: []
 

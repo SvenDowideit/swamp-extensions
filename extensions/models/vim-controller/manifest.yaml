@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/vim-controller"
-version: "2026.11.26.1"
+version: "2026.11.26.2"
 description: >
   Control the Vim buffer a human is watching: read the buffer, replace exact
   text or line ranges atomically, move the cursor, draw a virtual agent cursor,
@@ -13,7 +13,10 @@ description: >
     cursor, draw text properties and read quickfix. This extension wraps that
     surface as swamp methods: `servers`, `open`, `status`, `read`, `edit`,
     `write`, `cursor`, `annotate`, `command`, `expr`, `keys`, `diagnostics`,
-    `undo`, `focus` and `close`. `open` places Vim in one visible editor tab per
+    `undo`, `openFile`, `focus` and `close`. `editFile` loads a path, edits and saves it through that same buffer, so
+    every text write is visible where the person is looking; `openFile` loads any path into the
+    editor the person is already watching, so an agent's file changes land in the
+    same visible buffer every time. `open` places Vim in one visible editor tab per
     Herdr space, created the first time that space needs it and without taking
     focus from the person; `focus` shows that tab when asked. `edit` applies exact-text or
     line-range changes in one call, rejects an ambiguous match before touching

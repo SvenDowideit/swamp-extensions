@@ -39,6 +39,17 @@ const SetHerdrArgsSchema = z.object({
 
 const StatusArgsSchema = z.object({});
 
+const EnsureVimArgsSchema = z.object({});
+
+const VimOutputSchema = z.object({
+  action: z.enum(["created", "exists", "failed"]),
+  instance: z.string(),
+  type: z.string(),
+  message: z.string(),
+  output: z.string().default(""),
+  updatedAt: z.string(),
+});
+
 const ModCheckSchema = z.object({
   name: z.string(),
   dir: z.string(),
@@ -79,6 +90,9 @@ interface MethodContext {
   ) => Promise<{ name: string }>;
   extensionFile?: (relative: string) => string;
 }
+
+const VIM_TYPE = "@svendowideit/vim-controller";
+const VIM_INSTANCE = "vim-controller";
 
 function home(): string {
   try {
@@ -508,10 +522,55 @@ async function status(
   return { dataHandles: [await ctx.writeResource("herdr", "swamp-ide", data)] };
 }
 
+/** Ensure the addin's default vim-controller instance exists. */
+async function ensureVim(
+  _args: z.infer<typeof EnsureVimArgsSchema>,
+  ctx: MethodContext,
+): Promise<{ dataHandles: Array<{ name: string }> }> {
+  const get = await run("swamp", ["model", "get", VIM_INSTANCE, "--json"]);
+  let action: "created" | "exists" | "failed" = "exists";
+  let message = `using existing ${VIM_INSTANCE}`;
+  let output = get.stdout.trim();
+
+  if (get.code !== 0) {
+    const created = await run("swamp", [
+      "model",
+      "create",
+      VIM_TYPE,
+      VIM_INSTANCE,
+    ]);
+    output = `${created.stdout}${created.stderr}`.trim();
+    if (created.code === 0) {
+      action = "created";
+      message = `created ${VIM_INSTANCE} (${VIM_TYPE})`;
+    } else if (/already exists|already created/i.test(output)) {
+      action = "exists";
+      message = `${VIM_INSTANCE} already exists`;
+    } else {
+      action = "failed";
+      message = `could not create ${VIM_INSTANCE}`;
+      throw new Error(`${message}: ${output}`);
+    }
+  }
+
+  const data: z.infer<typeof VimOutputSchema> = {
+    action,
+    instance: VIM_INSTANCE,
+    type: VIM_TYPE,
+    message,
+    output: output.slice(0, 4000),
+    updatedAt: new Date().toISOString(),
+  };
+  ctx.logger?.info?.(message);
+  return {
+    dataHandles: [await ctx.writeResource("vim", "vim-controller", data)],
+  };
+}
+
 /** The swamp-ide setup model. */
 export const model = {
   type: "@svendowideit/swamp-ide",
-  version: "2026.11.25.1",
+  version: "2026.11.27.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -538,6 +597,18 @@ export const model = {
         "The approval dialog offers Grant directory for protected single-file requests as well as ordinary files; the policy authorizes a dir: lease for protected descendants and the approval lock, window claim and waiting queue are bounded and observable.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.26.1",
+      description:
+        "Activity is one line per call: time, the route it took (ws for the swamp serve socket, cli for a spawned swamp process, plus herdr-core, vim, guard and bypass), what was called, outcome and duration, expanding to the full record on click. Chips filter ws, cli, vim+herdr and errors, and the header counts ws against cli with the reasons a call had to shell out.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.27.1",
+      description:
+        "Adds ensureVim: the enable workflow checks for the addin's default vim-controller model instance and creates it when missing, so enabling Swamp IDE also makes every Vim write path resolvable.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     herdr: {
@@ -546,9 +617,25 @@ export const model = {
       lifetime: "infinite",
       garbageCollection: 10,
     },
+    vim: {
+      description:
+        "The vim-controller model instance ensured by the front door",
+      schema: VimOutputSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
   },
 
   methods: {
+    ensureVim: {
+      description:
+        "Ensure the addin's default vim-controller model instance exists, creating it if needed.",
+      arguments: EnsureVimArgsSchema,
+      execute: (
+        args: z.infer<typeof EnsureVimArgsSchema>,
+        ctx: MethodContext,
+      ) => ensureVim(args, ctx),
+    },
     setHerdr: {
       description:
         "Install and select the Herdr activity panel/layout, or remove it and return to the base layout.",

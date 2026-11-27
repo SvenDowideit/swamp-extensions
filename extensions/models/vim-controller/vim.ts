@@ -29,7 +29,7 @@ import {
 /** The model type. */
 export const EXT_TYPE = "@svendowideit/vim-controller";
 /** The extension version; keep in step with manifest.yaml. */
-export const EXT_VERSION = "2026.11.26.1";
+export const EXT_VERSION = "2026.11.26.2";
 
 // ---------------------------------------------------------------------------
 // Global and method arguments
@@ -123,9 +123,15 @@ const EditOperationSchema = z.object({
   setLines: z.array(z.string()).optional().describe(
     "Replace the whole buffer with these lines.",
   ),
+  expectedLines: z.array(z.string()).optional().describe(
+    "The lines the caller saw at this range; refuse if they no longer match.",
+  ),
 });
 
 const EditArgsSchema = ServerArgsSchema.extend({
+  expectedHash: z.string().default("").describe(
+    "Optional SHA-256 of the buffer the caller saw; refuse if it changed.",
+  ),
   edits: z.array(EditOperationSchema).min(1).describe(
     "Applied in order; the whole call is rejected if any edit is ambiguous.",
   ),
@@ -137,6 +143,42 @@ const EditArgsSchema = ServerArgsSchema.extend({
 const WriteArgsSchema = ServerArgsSchema.extend({
   force: z.boolean().default(false).describe(
     "Use `write!`; only when intentionally overwriting.",
+  ),
+});
+
+const OpenFileArgsSchema = ServerArgsSchema.extend({
+  file: z.string().min(1).describe(
+    "Path to load into the running server; a path that does not exist yet " +
+      "opens as an empty buffer that `write` creates.",
+  ),
+  cwd: z.string().default("").describe(
+    "Directory a relative `file` is resolved against; empty uses the process " +
+      "working directory.",
+  ),
+  force: z.boolean().default(false).describe(
+    "Discard unsaved changes in the current buffer instead of refusing.",
+  ),
+});
+
+const EditFileArgsSchema = z.object({
+  server: z.string().default("").describe(
+    "Server to use; empty derives one from this space, opening the editor tab " +
+      "when it is not running yet.",
+  ),
+  file: z.string().min(1).describe("Path to load, edit and save."),
+  cwd: z.string().default("").describe(
+    "Directory a relative `file` resolves against; empty uses the process " +
+      "working directory.",
+  ),
+  edits: z.array(EditOperationSchema).min(1).describe(
+    "Applied to the buffer, bottom-up for line ranges; all or none.",
+  ),
+  expectedHash: z.string().default("").describe(
+    "Optional SHA-256 of the buffer the caller saw; refuse if it changed.",
+  ),
+  force: z.boolean().default(true).describe(
+    "Replace a buffer with unsaved changes instead of refusing (this is the " +
+      "single-writer path: the file on disk is the buffer).",
   ),
 });
 
@@ -314,6 +356,16 @@ const EditResultSchema = z.object({
   beforeLineCount: z.number(),
   afterLineCount: z.number(),
   diff: z.string(),
+  capturedAt: z.string(),
+});
+
+const OpenFileResultSchema = z.object({
+  server: z.string(),
+  file: z.string(),
+  /** True when the path existed before this call; false means it will be created. */
+  existed: z.boolean(),
+  /** The buffer that was showing before this call, when it had one. */
+  previous: z.string().default(""),
   capturedAt: z.string(),
 });
 
@@ -836,6 +888,30 @@ export function findTabInSpace(
   return findTabsInSpace(lsJson, spaceId, tabName)[0] ?? null;
 }
 
+/** Resolve `file` against `cwd` without touching the filesystem. */
+export function resolveFilePath(file: string, cwd: string): string {
+  const raw = String(file ?? "").trim();
+  if (!raw) return "";
+  const base = String(cwd ?? "").trim();
+  if (raw.startsWith("~")) {
+    const home = Deno.env.get("HOME") ?? "";
+    return `${home}${raw.slice(1)}`;
+  }
+  if (raw.startsWith("/")) return raw;
+  return base ? `${base.replace(/\/+$/, "")}/${raw}` : raw;
+}
+
+/**
+ * The Ex command that loads `path` into the buffer.
+ *
+ * `:edit` replaces the buffer, and on a path that does not exist it opens an
+ * empty buffer under that name, so `write` creates the file. Vim's
+ * `fnameescape()` keeps spaces, quotes and `%`/`#` literal.
+ */
+export function vimEditCommand(path: string): string {
+  return `execute("edit " . fnameescape(${JSON.stringify(path)}))`;
+}
+
 /** The Herdr app binary, when it answers with JSON. */
 async function herdrAppJson(bin: string, args: string[]): Promise<unknown> {
   const result = await runProcess(bin, args);
@@ -995,6 +1071,8 @@ export interface EditOperation {
   endLine?: number;
   lines?: string[];
   setLines?: string[];
+  /** The lines the caller saw at this range; refuse if they no longer match. */
+  expectedLines?: string[];
 }
 
 /** Apply edit operations to buffer lines, rejecting ambiguity. */
@@ -1003,7 +1081,14 @@ export function applyEdits(
   edits: EditOperation[],
 ): string[] {
   let current = [...lines];
-  for (const edit of edits) {
+  // A list made only of line ranges is applied bottom-up, the contract
+  // herdr-core's file-edit-lines documents: editing a lower range cannot then
+  // shift the line numbers of a range above it. Mixed lists keep their order.
+  const ordered =
+    edits.every((edit) => typeof edit.startLine === "number" && !edit.setLines)
+      ? [...edits].sort((a, b) => (b.startLine ?? 0) - (a.startLine ?? 0))
+      : edits;
+  for (const edit of ordered) {
     if (edit.setLines) {
       current = edit.setLines.length > 0 ? [...edit.setLines] : [""];
       continue;
@@ -1023,6 +1108,20 @@ export function applyEdits(
         throw new Error(
           `line range ${start}..${end} ends past the buffer (${current.length} lines)`,
         );
+      }
+      if (edit.expectedLines) {
+        const seen = current.slice(start - 1, end);
+        if (
+          seen.length !== edit.expectedLines.length ||
+          seen.some((line, index) => line !== edit.expectedLines![index])
+        ) {
+          throw new Error(
+            `lines ${start}..${end} changed since they were read; ` +
+              `expected ${JSON.stringify(edit.expectedLines)}, found ${
+                JSON.stringify(seen)
+              }`,
+          );
+        }
       }
       current.splice(start - 1, end - start + 1, ...(edit.lines ?? []));
       continue;
@@ -1681,6 +1780,15 @@ async function edit(
   const beforeLines = Array.isArray(beforeRaw.lines)
     ? beforeRaw.lines.map((v) => String(v))
     : [];
+  if (args.expectedHash) {
+    const current = await sha256Hex(beforeLines.join("\n"));
+    if (current !== args.expectedHash) {
+      throw new Error(
+        `buffer changed since it was read: expected hash ${args.expectedHash}, ` +
+          `found ${current}; read it again before editing`,
+      );
+    }
+  }
   const afterLines = applyEdits(beforeLines, args.edits);
   const changed = beforeLines.join("\n") !== afterLines.join("\n");
   let undoSeq = 0;
@@ -2036,6 +2144,119 @@ async function close(
   return { dataHandles: [await save(ctx, "close-result", server, data)] };
 }
 
+/**
+ * The single write path: make sure the space's editor is running, load the
+ * path into its buffer, apply the edits and save.
+ *
+ * This is what the addin routes every text create/edit through, so the buffer
+ * the person is watching is the one that wrote the file. Line-range edits are
+ * applied bottom-up by `applyEdits`; a failed edit changes nothing on disk.
+ */
+async function editFile(
+  args: z.infer<typeof EditFileArgsSchema>,
+  ctx: MethodContext,
+): Promise<{ dataHandles: Array<{ name: string }> }> {
+  const g = ctx.globalArgs;
+  let server = args.server.trim();
+  if (!server) {
+    // One editor per Herdr space: derive the server from the space this call
+    // belongs to, the same way `open` does, so a write cannot land in another
+    // space's editor.
+    const placement = await callerPlacement(g);
+    if (!placement) {
+      throw new Error(
+        "this call is not inside a Herdr space, so there is no editor tab to " +
+          "write through; run open with a server first and pass server=<name>",
+      );
+    }
+    server = spaceServerName(
+      g.serverPrefix,
+      placement.spaceName,
+      placement.space,
+    );
+  }
+  // Create or reuse the editor tab (never taking focus), then make the buffer
+  // and the file the same thing before changing it.
+  await open({
+    server,
+    file: args.file,
+    cwd: args.cwd,
+    reuse: true,
+    place: "tab",
+    waitMs: 5000,
+  }, ctx);
+  await openFile({
+    server,
+    file: args.file,
+    cwd: args.cwd,
+    force: args.force,
+  }, ctx);
+  return await edit({
+    server,
+    edits: args.edits,
+    expectedHash: args.expectedHash,
+    save: true,
+  }, ctx);
+}
+
+/**
+ * Load a path into the running server, so the person watching the editor sees
+ * the file the agent is about to change. Refuses to throw away unsaved work.
+ */
+async function openFile(
+  args: z.infer<typeof OpenFileArgsSchema>,
+  ctx: MethodContext,
+): Promise<{ dataHandles: Array<{ name: string }> }> {
+  const g = ctx.globalArgs;
+  const server = serverOf(g, args);
+  await ensureRuntime(ctx, server);
+  const path = resolveFilePath(args.file, args.cwd);
+  const before = await vimJson<Record<string, unknown>>(
+    ctx,
+    server,
+    "SwampVimStatus()",
+  );
+  if (before.modified === true && !args.force) {
+    throw new Error(
+      `buffer '${
+        String(before.file ?? "") || "untitled"
+      }' has unsaved changes; ` +
+        `save them with the \`write\` method or pass force=true to discard them`,
+    );
+  }
+  const existed = await pathExists(path);
+  await remoteExpr(g.vimBin, server, vimEditCommand(path));
+  const after = await vimJson<Record<string, unknown>>(
+    ctx,
+    server,
+    "SwampVimStatus()",
+  );
+  const loaded = String(after.file ?? "");
+  if (loaded && loaded !== path) {
+    throw new Error(
+      `Vim loaded '${loaded}' instead of '${path}'; the buffer was not switched`,
+    );
+  }
+  const data: z.infer<typeof OpenFileResultSchema> = {
+    server,
+    file: path,
+    existed,
+    previous: String(before.file ?? ""),
+    capturedAt: now(),
+  };
+  return { dataHandles: [await save(ctx, "open-file", server, data)] };
+}
+
+/** Whether a path exists, without following a permission error into a throw. */
+async function pathExists(path: string): Promise<boolean> {
+  try {
+    await Deno.stat(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function otelStatusMethod(
   args: z.infer<typeof OtelStatusArgsSchema>,
   ctx: MethodContext,
@@ -2097,7 +2318,7 @@ export const model = {
   // the catalogue only reads literals, not EXT_TYPE/EXT_VERSION constants.
   // `vim_test.ts` asserts they match the exported constants.
   type: "@svendowideit/vim-controller",
-  version: "2026.11.26.1",
+  version: "2026.11.26.2",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -2110,6 +2331,12 @@ export const model = {
       toVersion: "2026.11.26.1",
       description:
         "`open` now places Vim in one editor tab per Herdr space instead of a background terminal inside the calling pane: it reads HC_TERMINAL_ID to find its space, creates the tab with herdr-app without taking focus, names the server after the space (one editor per space), records machine/space/tab/pane/placed on the server resource, closes a stale editor tab whose Vim died, and falls back to the background terminal when no space or app is available. Adds a `focus` method to show the editor tab when the person asks, and reports placement in `servers` and `status`.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.26.2",
+      description:
+        "Adds `openFile`: load any path into the running server's buffer, creating the file on `write` when it does not exist yet, and refusing to discard unsaved changes unless force=true. This is what lets every create and edit land in the one editor the person is watching.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -2149,6 +2376,12 @@ export const model = {
     "edit-result": {
       description: "One atomic buffer edit, its undo sequence and its diff.",
       schema: EditResultSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    "open-file": {
+      description: "The path loaded into the buffer, and whether it existed.",
+      schema: OpenFileResultSchema,
       lifetime: "infinite",
       garbageCollection: 10,
     },
@@ -2399,6 +2632,37 @@ export const model = {
           otelConfig(ctx.globalArgs),
           spanInput("undo", args, { target: args.server }),
           () => undo(args, ctx),
+        ),
+    },
+    editFile: {
+      description:
+        "Make sure this space's editor is running, load the path into its " +
+        "buffer, apply the edits bottom-up and save: the single write path, so " +
+        "the buffer the person is watching is the one that wrote the file.",
+      arguments: EditFileArgsSchema,
+      execute: (args: z.infer<typeof EditFileArgsSchema>, ctx: MethodContext) =>
+        withOtelSpan(
+          ctx,
+          otelConfig(ctx.globalArgs),
+          spanInput("editFile", args, {
+            target: args.file,
+            attributes: { "swamp.edit_count": args.edits.length },
+          }),
+          () => editFile(args, ctx),
+        ),
+    },
+    openFile: {
+      description:
+        "Load a path into the running server so the person watching the editor " +
+        "sees the file being changed; a path that does not exist opens an empty " +
+        "buffer that `write` creates.",
+      arguments: OpenFileArgsSchema,
+      execute: (args: z.infer<typeof OpenFileArgsSchema>, ctx: MethodContext) =>
+        withOtelSpan(
+          ctx,
+          otelConfig(ctx.globalArgs),
+          spanInput("openFile", args, { target: args.file }),
+          () => openFile(args, ctx),
         ),
     },
     focus: {

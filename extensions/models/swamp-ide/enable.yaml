@@ -19,6 +19,18 @@ inputs:
 jobs:
   - name: main
     steps:
+      - name: ensure-vim
+        description: Ensure the addin's vim-controller model instance exists.
+        task:
+          type: model_method
+          modelType: '@svendowideit/swamp-ide'
+          modelName: ide
+          methodName: ensureVim
+          inputs: {}
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+
       - name: enable-pi
         description: Install the managed addin and enable this pi session.
         task:

@@ -101,6 +101,8 @@ Per-call arguments:
 | `keys` | `server`, `keys` |
 | `diagnostics` | `server` |
 | `undo` | `server`, `seq` |
+| `openFile` | `server`, `file`, `cwd`, `force` |
+| `editFile` | `server`, `file`, `cwd`, `edits`, `expectedHash`, `force` |
 | `focus` | `server`, `terminal`, `tab` |
 | `close` | `server`, `force` |
 | `otel-status` | `test` |
@@ -130,6 +132,33 @@ looking at stays their choice. Every later `open` in that space reuses the same
 server, so a space keeps one editor. `--input place=background` keeps the old
 behaviour of a background terminal parented to the calling pane, and that is
 what `open` falls back to when there is no Herdr window.
+
+Make the editor the writer: one call loads the path, applies the edits and saves,
+creating the file when it does not exist yet. This is the method to use when a
+file change must be visible in the buffer the person is watching:
+
+```sh
+swamp model @svendowideit/vim-controller method run editFile vim \
+  --input file=src/other.ts \
+  --input 'edits:json=[{"old":"old sentence","new":"new sentence"}]'
+```
+
+With no `server`, it derives this space's editor, creates the `Edit` tab if it is
+not running (never taking focus), and applies line ranges bottom-up. `force`
+defaults to true: on this path the buffer is the file, so an unsaved buffer is
+replaced rather than refused.
+
+Load a different file into the same editor, so the buffer the person is watching
+follows the work (a path that does not exist yet opens empty, and `write`
+creates it):
+
+```sh
+swamp model @svendowideit/vim-controller method run openFile vim \
+  --input server=swamp-vim-swamp-project --input file=src/other.ts
+```
+
+`openFile` refuses to replace a buffer that has unsaved changes unless
+`--input force=true`, and reports whether the path existed.
 
 Ask for the editor to be shown when you want the person to look at it, and read
 where a server lives from `status`:
@@ -241,6 +270,8 @@ Model type: `@svendowideit/vim-controller`.
 | `expr` | `expr-result` |
 | `keys` | `keys-result` |
 | `diagnostics` | `diagnostics` |
+| `openFile` | `open-file` |
+| `editFile` | `edit-result` |
 | `focus` | `focus-result` |
 | `close` | `close-result` |
 | `otel-status` | `otel-status` |

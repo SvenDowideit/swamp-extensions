@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/swamp-ide"
-version: "2026.11.25.1"
+version: "2026.11.27.1"
 description: >
   The single front door for the agent IDE: install, enable and disable the
   herdr-core/vim-controller routing, the pi addin and the resizable Herdr
@@ -11,9 +11,14 @@ description: >
     One extension pulls the pieces together and gives you one pair of commands:
     `@svendowideit/swamp-ide-enable` and `@svendowideit/swamp-ide-disable`.
     Enable installs and selects the resizable right-hand Swamp IDE panel and
-    layout, installs and gates the pi addin when pi is available, and creates
-    or updates the OpenObserve dashboard when OpenObserve is installed and
-    healthy. The panel has three independently resizable sections (Activity,
+    layout, installs and gates the pi addin when pi is available, ensures the
+    addin's default `vim-controller` model instance exists (creating it if
+    missing), and creates or updates the OpenObserve dashboard when OpenObserve
+    is installed and healthy. Activity is one line per call — time, `via` (ws/cli/herdr-core/
+    vim), what was called, outcome and duration — expanding to the full record
+    on click, with filter chips for ws, cli, vim+herdr and errors and a header
+    count of ws against cli. The panel has three independently resizable
+    sections (Activity,
     Command histogram and Leases) and a component-health indicator that reads
     the addin/guard heartbeats and says all active, degraded, or tracking off.
     The histogram lists programs with counts and expands to the top 10 commands
@@ -73,6 +78,9 @@ description: >
 
       # Inspect what is installed without changing it.
       swamp model @svendowideit/swamp-ide method run status ide
+
+      # Ensure the addin's Vim model instance exists, creating it if needed.
+      swamp model @svendowideit/swamp-ide method run ensureVim ide
 
   CONFIGURE
 

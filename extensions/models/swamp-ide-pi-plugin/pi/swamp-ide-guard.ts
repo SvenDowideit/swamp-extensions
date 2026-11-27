@@ -119,6 +119,13 @@ async function writeHeartbeat(values: Record<string, unknown>) {
 
 /** Only block bypass tools while swamp_ide is actually the active tool. */
 let enforcing = false;
+let lastHeartbeatValues = {
+  hasSwampIde: false,
+  activeTools: [],
+  allTools: [],
+  enforced: false,
+  reason: "guard loaded; not applied yet",
+};
 
 /** Apply the guard and report whether it is enforcing. A missing tracker
  * degrades to the baseline tool set; it never locks the person out. */
@@ -146,13 +153,14 @@ function apply(pi: any) {
   const activeTools = typeof pi.getActiveTools === "function"
     ? pi.getActiveTools()
     : [];
-  void writeHeartbeat({
+  lastHeartbeatValues = {
     hasSwampIde: plan.hasSwampIde,
     activeTools,
     allTools: all,
     enforced: enforcing,
     reason,
-  });
+  };
+  void writeHeartbeat(lastHeartbeatValues);
   return { ok: enforcing, hasSwampIde: plan.hasSwampIde, reason };
 }
 
@@ -167,9 +175,12 @@ export default function swampIdeGuard(pi: any) {
   });
   if (!enabled()) return;
   const heartbeatTimer = setInterval(() => {
-    apply(pi);
+    void writeHeartbeat(lastHeartbeatValues);
   }, 30_000);
   heartbeatTimer.unref?.();
+  pi.on("session_shutdown", () => {
+    clearInterval(heartbeatTimer);
+  });
 
   pi.on("before_agent_start", async (_event: any, ctx: any) => {
     const result = apply(pi);

@@ -63,6 +63,25 @@ swamp extension pull @svendowideit/swamp-ide-pi-plugin
 pi must be on PATH, or a `~/.pi/agent` install must exist. The addin imports
 `typebox` from pi itself; no extra dependency is installed.
 
+## One editor, one write path
+
+Text file mutations are not written behind the editor's back. A
+`system=herdr-core` call to `file-write`, `file-edit` or `file-edit-lines` is
+mapped to a single `editFile` call on `@svendowideit/vim-controller`, which makes
+sure this space's `Edit` tab is running, loads the path into its buffer, applies
+the edits (line ranges bottom-up, with `expectedLines`/`expectedHash`
+preconditions) and saves. The person watching the editor sees exactly the change
+the file received, and the activity event records `via: "vim"` with the path as
+its target.
+
+Three cases deliberately stay on herdr-core, each recorded with its reason in the
+event (`via: "herdr-core"`): a call naming a remote `machine`, content containing
+a NUL byte, and a binary file extension. If the editor cannot be reached at all,
+the write falls back to herdr-core with `reason: "editor unavailable"` rather than
+failing the turn. `file-read` and `search` keep reading the disk: after a save the
+buffer and the file hold the same bytes, and a search has to span files no buffer
+has opened.
+
 ## Permission policy
 
 The addin is not allowed to change the live setup by itself. A human-only lease
@@ -72,7 +91,15 @@ is required for every mutating call. The human runs this in pi:
 /swamp-ide approve <scope> [minutes]
 /swamp-ide revoke
 /swamp-ide lease
+/swamp-ide log [n]
 ```
+
+`/swamp-ide log` prints one line per recent activity event — time, `via`, what
+was called, outcome and duration — plus a summary count of `ws` against `cli`,
+so the question "which calls still need a shell" is answerable from a terminal.
+`via` is `ws` for the serve socket, `cli` for a spawned `swamp` process (with the
+reason it fell back), `herdr-core`/`vim`/`guard`/`bypass` for those routes, and
+`none` for an event written before the field existed.
 
 Scopes are exact strings, for example:
 

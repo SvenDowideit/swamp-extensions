@@ -20,11 +20,13 @@ import {
   findTabsInSpace,
   findTerminalPlacement,
   model,
+  resolveFilePath,
   sha256Hex,
   spaceServerName,
   tabHasLiveTerminal,
   unifiedDiff,
   vimArgv,
+  vimEditCommand,
 } from "./vim.ts";
 
 /** A trimmed `herdr-app ls` snapshot: two spaces, one has the pi pane. */
@@ -380,4 +382,58 @@ Deno.test("findTabsInSpace returns every duplicate so a dead one is not hidden",
     !tabHasLiveTerminal(tab, states)
   );
   assertEquals(dead.map((tab) => tab.tab), ["t-old"]);
+});
+
+Deno.test("resolveFilePath resolves relative paths against a cwd", () => {
+  assertEquals(resolveFilePath("src/a.ts", "/repo"), "/repo/src/a.ts");
+  assertEquals(resolveFilePath("/abs/a.ts", "/repo"), "/abs/a.ts");
+  assertEquals(resolveFilePath("a.ts", "/repo/"), "/repo/a.ts");
+  assertEquals(resolveFilePath("", "/repo"), "");
+});
+
+Deno.test("vimEditCommand escapes the path for Vim", () => {
+  assertEquals(
+    vimEditCommand("/repo/a.ts"),
+    'execute("edit " . fnameescape("/repo/a.ts"))',
+  );
+  // Spaces and Vim's special characters must survive as literals.
+  assertEquals(
+    vimEditCommand("/repo/my file #1 %x.ts"),
+    'execute("edit " . fnameescape("/repo/my file #1 %x.ts"))',
+  );
+});
+
+Deno.test("the model exposes openFile and its resource", () => {
+  assert(Object.keys(model.methods).includes("openFile"));
+  assert(Object.keys(model.resources).includes("open-file"));
+});
+
+Deno.test("applyEdits applies line ranges bottom-up, so numbers stay valid", () => {
+  // The caller may pass ranges in any order; editing the lower one first would
+  // shift the upper one's line numbers.
+  assertEquals(
+    applyEdits(["a", "b", "c", "d", "e"], [
+      { startLine: 2, endLine: 2, lines: ["B"] },
+      { startLine: 4, endLine: 4, lines: ["D"] },
+    ]),
+    ["a", "B", "c", "D", "e"],
+  );
+});
+
+Deno.test("applyEdits refuses a line range whose expected lines changed", () => {
+  assertThrows(
+    () =>
+      applyEdits(["a", "changed", "c"], [
+        { startLine: 2, expectedLines: ["b"], lines: ["B"] },
+      ]),
+    Error,
+    "changed since they were read",
+  );
+  // The matching case is accepted and replaced.
+  assertEquals(
+    applyEdits(["a", "b", "c"], [
+      { startLine: 2, expectedLines: ["b"], lines: ["B"] },
+    ]),
+    ["a", "B", "c"],
+  );
 });

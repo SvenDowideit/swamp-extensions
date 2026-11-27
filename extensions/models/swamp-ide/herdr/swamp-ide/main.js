@@ -8,8 +8,10 @@
 import { View, div } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
 import {
+  exec,
   home,
   nextCommand as nextModCommand,
+  panes,
   props,
   readTextFile,
   writeTextFile,
@@ -17,6 +19,7 @@ import {
   setShared,
   shared,
   theme,
+  watchFolder,
 } from "herdr";
 
 const EVENT_LOG = home() + "/.local/state/swamp-agent-ide/events.jsonl";
@@ -25,7 +28,11 @@ const ADDIN_HEARTBEAT = home() + "/.local/state/swamp-agent-ide/addin.json";
 const GUARD_HEARTBEAT = home() + "/.local/state/swamp-agent-ide/guard.json";
 const LEASE = home() + "/.local/state/swamp-agent-ide/lease.json";
 const LIMIT = 80;
-const POLL_MS = 1000;
+/** Everything this panel shows lives here; Herdr tells us when it changes. */
+const STATE_DIR = home() + "/.local/state/swamp-agent-ide";
+/** Safety net only: it acts when the watch died or the panel went quiet. */
+const WATCHDOG_MS = 30_000;
+const STALE_REFRESH_MS = 120_000;
 const STALE_MS = 5 * 60 * 1000;
 const EXPANDED_PX = 420;
 const COLLAPSED_PX = 40;
@@ -49,6 +56,13 @@ function parseObject(text) {
   }
 }
 
+function heartbeatFresh(health) {
+  return Boolean(
+    health && health.updatedAt &&
+      Date.now() - Date.parse(health.updatedAt) < STALE_MS,
+  );
+}
+
 function ago(ts) {
   const seconds = Math.max(0, (Date.now() - Date.parse(ts)) / 1000);
   if (!isFinite(seconds)) return "";
@@ -57,6 +71,17 @@ function ago(ts) {
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
   return `${Math.floor(seconds / 3600)}h ago`;
 }
+
+function timeOf(ts) {
+  const text = String(ts ?? "");
+  const clock = text.slice(11, 19);
+  return /^\d{2}:\d{2}:\d{2}$/.test(clock) ? clock : "--:--:--";
+}
+
+
+/** Narrow enough that the seconds and the full route no longer fit. */
+
+
 
 function dur(ms) {
   if (ms == null || !isFinite(ms)) return "";
@@ -174,6 +199,78 @@ function barRow(t, label, count, max, color, index) {
     );
 }
 
+/** How a call reached swamp, matching the addin's `via` (older events lack it). */
+/** Counts the panel shows, computed once per refresh rather than per render. */
+function countEvents(events) {
+  let routed = 0;
+  let bypass = 0;
+  let errors = 0;
+  for (const event of events ?? []) {
+    if (event.route === "herdr-core" || event.route === "vim") routed += 1;
+    if (event.route === "bypass") bypass += 1;
+    if (event.outcome === "error") errors += 1;
+  }
+  return { routed, bypass, errors };
+}
+
+function viaOf(event) {
+  const via = String(event?.via ?? "").trim().toLowerCase();
+  if (via) return via;
+  const route = String(event?.route ?? "").trim().toLowerCase();
+  if (route === "herdr-core" || route === "vim" || route === "guard" || route === "bypass") {
+    return route;
+  }
+  return "none";
+}
+
+/** The route as it fits the route column; the expanded row shows the full name. */
+function viaLabel(event) {
+  switch (viaOf(event)) {
+    case "herdr-core":
+      return "herdr";
+    case "none":
+      // An em dash renders almost invisibly in this theme; `none` reads.
+      return "none";
+    default:
+      return viaOf(event);
+  }
+}
+
+/** What the call was: `model.method`, a tool and its method, or a plain name. */
+function targetOfEvent(event) {
+  const model = String(event?.model ?? "").trim();
+  const method = String(event?.method ?? "").trim();
+  const name = String(event?.name ?? "").trim();
+  if (model && model !== "pi" && method) return `${model}.${method}`;
+  if (name && method && name !== method) return `${name} ${method}`;
+  if (name) return name;
+  return String(event?.target ?? "").trim() || "?";
+}
+
+/** `activity 42 · ws 38 · cli 4 (extension.fmt, workflow.validate)` */
+function lineSummary(events) {
+  let ws = 0;
+  let cli = 0;
+  const reasons = new Set();
+  for (const event of events) {
+    const via = viaOf(event);
+    if (via === "ws") ws += 1;
+    else if (via === "cli") {
+      cli += 1;
+      if (event.reason) reasons.add(String(event.reason));
+    }
+  }
+  const named = [...reasons].sort();
+  return `activity ${events.length} · ws ${ws} · cli ${cli}${
+    named.length ? ` (${named.join(", ")})` : ""
+  }`;
+}
+
+/** A stable key for "this row is expanded", so a refresh cannot move it. */
+function eventKey(event) {
+  return `${event?.ts ?? ""}|${event?.name ?? ""}|${event?.method ?? ""}`;
+}
+
 export default class SwampIde extends View {
   init(_props, cx) {
     this.section = props()?.section || "";
@@ -182,6 +279,10 @@ export default class SwampIde extends View {
     this.shellouts = [];
     this.addinHealth = null;
     this.guardHealth = null;
+    this.pidAlive = null;
+    this.pidCheckedAt = 0;
+    this.piFocused = false;
+    this.focusEventPending = false;
     this.lease = null;
     this.leaseError = "";
     this.hoverLease = "";
@@ -190,9 +291,12 @@ export default class SwampIde extends View {
     this.confirmLease = "";
     this.hoverProgram = "";
     this.selectedProgram = "";
+    this.openEvent = "";
     this.loading = true;
     this.error = "";
     this.filter = "all";
+    this.watching = false;
+    this.lastRefreshAt = 0;
     this.tab = ["activity", "histogram", "leases"].includes(
         shared("swamp-ide.tab"),
       )
@@ -204,7 +308,8 @@ export default class SwampIde extends View {
     if (this.collapsed && !this.section) {
       run("layout.resize", { id: this.blockId, px: COLLAPSED_PX });
     }
-    cx.timer.every(POLL_MS, (cx) => this.refresh(cx));
+    this.startWatching(cx);
+    cx.timer.every(WATCHDOG_MS, (cx) => this.watchdog(cx));
     if (!this.section) {
       cx.spawn(async (cx) => {
         for (;;) {
@@ -219,16 +324,79 @@ export default class SwampIde extends View {
     this.refresh(cx);
   }
 
+  /**
+   * Event-driven: Herdr resolves `watchFolder` when anything under the state
+   * directory changes, so a quiet panel does no work at all. No polling of
+   * unchanged files, and no in-flight guard: a refresh that cannot finish must
+   * never stop the next one.
+   */
+  startWatching(cx) {
+    if (this.watching) return;
+    this.watching = true;
+    cx.spawn(async (cx) => {
+      for (;;) {
+        try {
+          await watchFolder(STATE_DIR);
+        } catch {
+          // Too many watches or the directory is gone: stop, and let the
+          // watchdog re-arm rather than spinning on a rejected promise.
+          this.watching = false;
+          return;
+        }
+        this.refresh(cx);
+      }
+    });
+  }
+
+  /** Cheap safety net: re-arm the watch, force a refresh if it went quiet. */
+  watchdog(cx) {
+    if (!this.watching) this.startWatching(cx);
+    if (Date.now() - (this.lastRefreshAt ?? 0) > STALE_REFRESH_MS) {
+      this.refresh(cx);
+    }
+  }
+
   refresh(cx) {
     cx.spawn(async (cx) => {
+      await this.refreshNow(cx);
+    });
+  }
+
+  async refreshNow(cx) {
       try {
-        const [eventsText, shelloutText, addinText, guardText, leaseText] = await Promise.all([
-          readTextFile(EVENT_LOG).catch(() => ""),
-          readTextFile(SHELLOUT_LOG).catch(() => ""),
-          readTextFile(ADDIN_HEARTBEAT).catch(() => ""),
-          readTextFile(GUARD_HEARTBEAT).catch(() => ""),
-          readTextFile(LEASE).catch(() => ""),
-        ]);
+        // Each copy reads only what it draws; the two heartbeat files are tiny
+        // and every section shows the health line.
+        const section = this.section;
+        const wants = (name) => !section || section === name;
+        const [eventsText, shelloutText, addinText, guardText, leaseText] =
+          await Promise.all([
+            wants("activity")
+              ? readTextFile(EVENT_LOG).catch(() => this.eventsText ?? "")
+              : Promise.resolve(this.eventsText ?? ""),
+            wants("histogram")
+              ? readTextFile(SHELLOUT_LOG).catch(() => this.shelloutText ?? "")
+              : Promise.resolve(this.shelloutText ?? ""),
+            readTextFile(ADDIN_HEARTBEAT).catch(() => ""),
+            readTextFile(GUARD_HEARTBEAT).catch(() => ""),
+            wants("leases")
+              ? readTextFile(LEASE).catch(() => this.leaseText ?? "")
+              : Promise.resolve(this.leaseText ?? ""),
+          ]);
+        if (wants("activity")) this.eventsText = eventsText;
+        if (wants("histogram")) this.shelloutText = shelloutText;
+        if (wants("leases")) this.leaseText = leaseText;
+
+        // Skip parsing and the notify entirely when nothing we display moved:
+        // a notify redraws the whole window.
+        const signature = [
+          eventsText.length, eventsText.slice(-160),
+          shelloutText.length, shelloutText.slice(-160),
+          addinText, guardText, leaseText.length, leaseText.slice(-160),
+        ].join("|");
+        if (signature === this.signature && !this.loading && !this.error) {
+          return;
+        }
+        this.signature = signature;
 
         const events = String(eventsText ?? "")
           .split(/\r?\n/)
@@ -237,6 +405,12 @@ export default class SwampIde extends View {
           .map(parse)
           .filter(Boolean);
         this.events = events.reverse().slice(0, LIMIT);
+        // Computed once per change: three copies re-scanned every shell-out and
+        // every lease on every frame for numbers that had not moved.
+        this.counts = countEvents(this.events);
+        this.hist = shelloutSummary(this.shellouts);
+        this.leaseRowsCache = this.leaseRows();
+
 
         this.shellouts = String(shelloutText ?? "")
           .split(/\r?\n/)
@@ -249,6 +423,8 @@ export default class SwampIde extends View {
         this.guardHealth = parseObject(String(guardText ?? ""));
         this.lease = parseObject(String(leaseText ?? ""));
         this.leaseError = this.lease ? this.leaseError : "no active lease file";
+        await this.checkLiveness();
+        await this.trackPiFocus();
 
         this.error = "";
       } catch (error) {
@@ -256,10 +432,10 @@ export default class SwampIde extends View {
         this.shellouts = [];
         this.error = String(error?.message ?? error);
       } finally {
+        this.lastRefreshAt = Date.now();
         this.loading = false;
         cx.notify();
       }
-    });
   }
 
   toggleCollapsed(cx) {
@@ -282,32 +458,123 @@ export default class SwampIde extends View {
     cx.notify();
   }
 
+  async checkLiveness() {
+    const addinStale = !heartbeatFresh(this.addinHealth);
+    const guardStale = !heartbeatFresh(this.guardHealth);
+    if (!addinStale && !guardStale) {
+      this.pidAlive = true;
+      return;
+    }
+    if (Date.now() - this.pidCheckedAt < 10_000) return;
+    this.pidCheckedAt = Date.now();
+    const pid = Number(this.addinHealth?.pid ?? this.guardHealth?.pid ?? 0);
+    if (!pid) {
+      this.pidAlive = null;
+      return;
+    }
+    try {
+      const result = await exec("kill", ["-0", String(pid)]);
+      this.pidAlive = result.code === 0;
+    } catch {
+      this.pidAlive = null;
+    }
+  }
+
+  async appendFocusEvent(focused) {
+    const event = {
+      ts: new Date().toISOString(),
+      source: "herdr",
+      kind: "focus",
+      name: "pi tab focus",
+      method: "",
+      target: focused.title ?? "",
+      machine: "",
+      route: "other",
+      outcome: "success",
+      durationMs: 0,
+      model: "herdr",
+      detail: "user returned to the pi tab",
+      command: "",
+      error: "",
+      session: "",
+      cwd: focused.cwd ?? "",
+      blocked: false,
+    };
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const current = await readTextFile(EVENT_LOG).catch(() => "");
+      try {
+        await writeTextFile(
+          EVENT_LOG,
+          `${current ?? ""}${JSON.stringify(event)}\n`,
+          current,
+        );
+        return;
+      } catch {
+        // Another writer won the CAS; retry with the new snapshot.
+      }
+    }
+  }
+
+  async trackPiFocus() {
+    if (this.section && this.section !== "activity") return;
+    let focused;
+    try {
+      focused = panes().find((pane) => pane.focused);
+    } catch {
+      return;
+    }
+    const isPi = Boolean(
+      focused &&
+        (focused.app === "pi" || focused.program?.key === "pi" ||
+          focused.program?.name?.toLowerCase() === "pi"),
+    );
+    if (!isPi) {
+      this.piFocused = false;
+      return;
+    }
+    if (this.piFocused || this.focusEventPending) return;
+    this.piFocused = true;
+    this.focusEventPending = true;
+    try {
+      await this.appendFocusEvent(focused);
+    } finally {
+      this.focusEventPending = false;
+    }
+  }
+
   healthSummary() {
-    const now = Date.now();
-    const fresh = (health) =>
-      Boolean(
-        health && health.updatedAt &&
-          now - Date.parse(health.updatedAt) < STALE_MS,
-      );
-    const addinFresh = fresh(this.addinHealth);
-    const guardFresh = fresh(this.guardHealth) &&
-      this.guardHealth?.enforced === true;
+    const addinFresh = heartbeatFresh(this.addinHealth);
+    const guardFresh = heartbeatFresh(this.guardHealth);
+    const guardEnforced = this.guardHealth?.enforced === true;
+    const guardOff = this.guardHealth?.enforced === false ||
+      this.guardHealth?.hasSwampIde === false;
     const activeTools = Array.isArray(this.addinHealth?.activeTools)
       ? this.addinHealth.activeTools
       : [];
     const toolActive = activeTools.length === 1 &&
       activeTools[0] === "swamp_ide";
     const serveConnected = this.addinHealth?.serveConnected === true;
-    const allActive = addinFresh && guardFresh && toolActive &&
-      serveConnected;
+    const stale = !addinFresh || !guardFresh;
+    const processGone = stale && this.pidAlive === false;
+    const off = guardOff || processGone;
+    const allActive = addinFresh && guardFresh && guardEnforced &&
+      toolActive && serveConnected;
     return {
       addinFresh,
       guardFresh,
+      guardEnforced,
+      guardOff,
       toolActive,
       serveConnected,
+      stale,
+      processGone,
+      pidAlive: this.pidAlive,
+      off,
       allActive,
-      label: !addinFresh
+      label: off
         ? "tracking off"
+        : stale
+        ? "heartbeat stale"
         : allActive
         ? "all active"
         : "degraded",
@@ -316,17 +583,28 @@ export default class SwampIde extends View {
 
   renderHealth(t) {
     const health = this.healthSummary();
-    const color = !health.addinFresh
+    const color = health.off
       ? t.blocked
       : health.allActive
       ? t.working
       : t.ansi3;
     const parts = [
-      `guard ${health.guardFresh ? "on" : "off"}`,
-      `addin ${health.addinFresh ? "on" : "off"}`,
+      `guard ${health.guardOff ? "off" : health.guardFresh ? "on" : "stale"}`,
+      `addin ${health.addinFresh ? "on" : "stale"}`,
       `tool ${health.toolActive ? "active" : "inactive"}`,
       `serve ${health.serveConnected ? "connected" : "down"}`,
     ];
+    if (health.stale) {
+      parts.push(
+        `pid ${
+          health.pidAlive === true
+            ? "alive"
+            : health.pidAlive === false
+            ? "gone"
+            : "unknown"
+        }`,
+      );
+    }
     const age = this.addinHealth?.updatedAt
       ? ago(this.addinHealth.updatedAt)
       : "never";
@@ -503,10 +781,12 @@ export default class SwampIde extends View {
 
   renderActivity(t, cx) {
     const shown = this.events.filter((event) => {
+      const via = viaOf(event);
+      if (this.filter === "ws") return via === "ws";
+      if (this.filter === "cli") return via === "cli";
       if (this.filter === "routed") {
-        return event.route === "herdr-core" || event.route === "vim";
+        return via === "herdr-core" || via === "vim";
       }
-      if (this.filter === "bypass") return event.route === "bypass";
       if (this.filter === "errors") return event.outcome === "error";
       return true;
     });
@@ -515,8 +795,8 @@ export default class SwampIde extends View {
       stop(
         h_flex()
           .id(`swamp-ide-filter-${id}`)
-          .h(22)
-          .px(8)
+          .h(20)
+          .px(6)
           .items_center()
           .rounded(11)
           .text_size(11)
@@ -531,77 +811,141 @@ export default class SwampIde extends View {
       );
 
     const row = (event, index) => {
-      const route = event.route === "herdr-core" || event.route === "vim"
-        ? event.route
-        : event.route === "bypass" || event.route === "blocked"
-        ? event.route
-        : "other";
-      const color = event.outcome === "error" || route === "blocked"
+      const via = viaOf(event);
+      const key = eventKey(event);
+      const open = this.openEvent === key;
+      const failed = event.outcome === "error";
+      const color = failed || via === "bypass"
         ? t.blocked
-        : route === "bypass"
-        ? t.blocked
-        : route === "other"
+        : via === "ws"
+        ? t.ansi2
+        : via === "cli"
+        ? t.ansi3
+        : via === "none"
         ? t.muted
         : t.ansi2;
-      const detail = event.command || event.target || event.detail || "";
-      const name = event.method
-        ? `${event.name} → ${event.method}`
-        : event.name;
+      const duration = typeof event.durationMs === "number" && event.durationMs > 0
+        ? `${(event.durationMs / 1000).toFixed(1)}s`
+        : "-";
+      const note = failed
+        ? String(event.error ?? "").split("\n")[0]
+        : via === "cli"
+        ? String(event.reason ?? "")
+        : "";
+
+      const pair = (label, value) =>
+        v_flex().gap(1).child(
+          div().text_size(9).text_color(t.dim).child(label),
+        ).child(
+          div().text_size(11).text_color(t.foreground).child(String(value)),
+        );
 
       return v_flex()
         .id(`swamp-ide-activity-${index}`)
         .px(8)
-        .py(6)
-        .gap(3)
+        .py(4)
+        
+        .min_w(0)
+        .gap(4)
         .rounded(6)
         .bg(t.chrome)
         .border_1()
-        .border_color(t.chrome)
+        .border_color(open ? t.accent : t.chrome)
+        .on_mouse_down("left", (_event, cx) => {
+          cx.stop_propagation();
+          this.openEvent = open ? "" : key;
+          cx.notify();
+        })
         .child(
           h_flex()
-            .gap(6)
+            .gap(4)
             .items_center()
+            
+            .min_w(0)
             .child(div().w(7).h(7).rounded(4).flex_none().bg(color))
             .child(
-              div()
-                .flex_1()
-                .truncate()
-                .text_size(12)
-                .text_color(t.foreground)
-                .child(String(name ?? "?")),
+              // Narrow: hour and minute only, so the target keeps the seconds'
+              // width. Wide: the full HH:MM:SS.
+              div().flex_none().text_size(10).text_color(t.dim)
+                .child(timeOf(event.ts)),
             )
             .child(
-              div()
-                .flex_none()
-                .text_size(10)
-                .text_color(t.dim)
-                .child(ago(event.ts)),
-            ),
-        )
-        .child(
-          div()
-            .pl(13)
-            .truncate()
-            .text_size(11)
-            .text_color(t.muted)
+              // Short labels only, in a wide-enough cell for `bypass`; the text
+              // clips rather than wraps, and the expanded row names the full route.
+              div().flex_none().truncate().text_size(10)
+                .text_color(via === "cli" ? t.ansi3 : t.muted)
+                .child(viaLabel(event)),
+            )
             .child(
-              `${route}${
-                event.outcome === "error" ? " · error" : ""
-              }${event.durationMs != null ? ` · ${dur(event.durationMs)}` : ""}`,
+              div().flex_grow(1).flex_basis(24).flex_shrink(1).min_w(24)
+                .truncate().text_size(12).text_color(t.foreground)
+                .child(targetOfEvent(event)),
+            )
+            .child(
+              div().flex_none().text_size(10)
+                .text_color(failed ? t.blocked : t.muted)
+                .child(failed ? "error" : "ok"),
+            )
+            .child(
+              div().flex_none().w(30).truncate().text_size(10).text_color(t.dim)
+                .child(duration),
+            )
+            .child(
+              div().flex_none().text_size(10).text_color(t.muted)
+                .child(open ? "▾" : "▸"),
             ),
         )
-        .when(Boolean(detail), (el) =>
+        .when(Boolean(note), (el) =>
           el.child(
-            div()
+            div().pl(13).truncate().text_size(10).text_color(t.dim)
+              .child(note),
+          ))
+        .when(open, (el) =>
+          el.child(
+            v_flex()
               .pl(13)
-              .truncate()
-              .text_size(11)
-              .text_color(t.dim)
-              .child(short(detail)),
+              .pt(4)
+              .gap(4)
+              .border_t_1()
+              .border_color(t.chrome)
+              .child(
+                h_flex().gap(10).items_start()
+                  .child(pair("model", event.model || "-"))
+                  .child(pair("method", event.method || "-"))
+                  .child(pair("target", event.target || "-"))
+                  .child(pair("outcome", failed ? "error" : "ok")),
+              )
+              .child(
+                h_flex().gap(10).items_start()
+                  .child(pair("via", via))
+                  .child(pair("reason", event.reason || "-"))
+                  .child(pair("session", event.session || "-"))
+                  .child(pair("cwd", event.cwd || "-")),
+              )
+              .when(Boolean(event.command), (child) =>
+                child.child(
+                  div().text_size(10).text_color(t.muted).child(
+                    String(event.command).slice(0, 400),
+                  ),
+                ))
+              .when(Boolean(event.authScope), (child) =>
+                child.child(
+                  div().text_size(10).text_color(t.muted).child(
+                    `auth ${event.authStatus || "?"} · ${
+                      event.authScope || "-"
+                    } · ${event.authApproval || "-"}`,
+                  ),
+                ))
+              .when(Boolean(failed && event.error), (child) =>
+                child.child(
+                  div().text_size(10).text_color(t.blocked).child(
+                    String(event.error).slice(0, 800),
+                  ),
+                )),
           ));
     };
 
-    const body = v_flex().gap(2);
+    const body = v_flex().gap(2).min_w(0);
     if (this.loading) {
       body.child(
         div()
@@ -620,7 +964,7 @@ export default class SwampIde extends View {
           .text_color(t.blocked)
           .child(`Cannot read ${EVENT_LOG}: ${this.error}`),
       );
-    } else if (!this.healthSummary().addinFresh) {
+    } else if (this.healthSummary().off) {
       body.child(
         div()
           .p(8)
@@ -629,7 +973,19 @@ export default class SwampIde extends View {
           .text_size(11)
           .text_color(t.blocked)
           .child(
-            "pi addin is not running; tracking is off. This list is stale, not empty.",
+            "pi addin is not running; tracking is off. This list is stale.",
+          ),
+      );
+    } else if (this.healthSummary().stale) {
+      body.child(
+        div()
+          .p(8)
+          .rounded(6)
+          .bg(t.raised)
+          .text_size(11)
+          .text_color(t.ansi3)
+          .child(
+            "pi addin heartbeat is stale; this list may be stale. The process is still running.",
           ),
       );
     } else if (!shown.length) {
@@ -641,12 +997,24 @@ export default class SwampIde extends View {
           .child("No activity yet. Run a tool or a swamp method."),
       );
     }
-    body.children(shown.map(row));
+    body.children(shown.map((event, index) => {
+      try {
+        return row(event, index);
+      } catch (error) {
+        return div().px(8).py(4).text_size(10).text_color(t.blocked).child(
+          `row error: ${String(error?.message ?? error)}`,
+        );
+      }
+    }));
 
     return v_flex()
       .gap(4)
+      
+      .min_w(0)
       .child(
         h_flex()
+          
+          .min_w(0)
           .px(8)
           .py(6)
           .flex_none()
@@ -659,38 +1027,61 @@ export default class SwampIde extends View {
             }),
           )
           .child(
-            chip("routed", "routed", this.filter === "routed", (_event, cx) => {
+            chip("ws", "ws", this.filter === "ws", (_event, cx) => {
+              this.filter = "ws";
+              cx.notify();
+            }),
+          )
+          .child(
+            chip("cli", "cli", this.filter === "cli", (_event, cx) => {
+              this.filter = "cli";
+              cx.notify();
+            }),
+          )
+          .child(
+            chip("routed", "vim", this.filter === "routed", (_event, cx) => {
               this.filter = "routed";
               cx.notify();
             }),
           )
           .child(
-            chip("bypass", "bypass", this.filter === "bypass", (_event, cx) => {
-              this.filter = "bypass";
-              cx.notify();
-            }),
-          )
-          .child(
-            chip("errors", "errors", this.filter === "errors", (_event, cx) => {
+            chip("errors", "err", this.filter === "errors", (_event, cx) => {
               this.filter = "errors";
               cx.notify();
             }),
-          ),
+          )
+          .child(div().flex_grow(1).flex_basis(0).min_w(0)),
+      )
+      .child(
+        div().px(8).pt(6).truncate().text_size(10).text_color(t.dim)
+          .child(lineSummary(this.events)),
       )
       .child(body);
   }
 
   renderHistogram(t) {
-    const summary = shelloutSummary(this.shellouts);
+    const summary = this.hist ?? shelloutSummary(this.shellouts);
 
-    if (!this.healthSummary().addinFresh) {
+    if (this.healthSummary().off) {
       return v_flex().p(8).child(
         div()
           .py(20)
           .text_size(12)
           .text_color(t.blocked)
           .child(
-            "pi addin is not running; the histogram is stale, not empty.",
+            "pi addin is not running; the histogram is stale.",
+          ),
+      );
+    }
+
+    if (this.healthSummary().stale) {
+      return v_flex().p(8).child(
+        div()
+          .py(20)
+          .text_size(12)
+          .text_color(t.ansi3)
+          .child(
+            "pi addin heartbeat is stale; the histogram may be stale. The process is still running.",
           ),
       );
     }
@@ -730,12 +1121,12 @@ export default class SwampIde extends View {
     );
 
     const programRow = (name, count, index) => {
-      const detail = this.hoverProgram === name ||
-        this.selectedProgram === name;
+      const detail = this.selectedProgram === name;
       const commands = summary.programCommands?.[name] ?? [];
       return v_flex()
         .id(`swamp-ide-program-${index}`)
-        .px(8)
+        .pl(8)
+        .pr(14)
         .py(5)
         .gap(2)
         .rounded(6)
@@ -744,12 +1135,7 @@ export default class SwampIde extends View {
         .border_color(detail ? t.accent : t.chrome)
         .on_mouse_down("left", (_event, cx) => {
           cx.stop_propagation();
-          this.selectedProgram = name;
-          cx.notify();
-        })
-        .on_hover((hovered, cx) => {
-          if (hovered) this.hoverProgram = name;
-          else if (this.hoverProgram === name) this.hoverProgram = "";
+          this.selectedProgram = this.selectedProgram === name ? "" : name;
           cx.notify();
         })
         .child(
@@ -758,6 +1144,9 @@ export default class SwampIde extends View {
               div().flex_1().truncate().text_size(12).text_color(t.foreground)
                 .child(name),
             )
+            .child(div().text_size(10).text_color(t.muted).child(
+              detail ? "▾" : "▸",
+            ))
             .child(div().text_size(11).text_color(t.muted).child(`×${count}`)),
         )
         .when(detail, (el) =>
@@ -1009,7 +1398,7 @@ export default class SwampIde extends View {
   }
 
   renderLeases(t, cx) {
-    const rows = this.leaseRows();
+    const rows = this.leaseRowsCache ?? this.leaseRows();
     const body = v_flex().gap(4);
     body.child(
       div().h(14).px(8).text_size(10).text_color(t.blocked).child(
@@ -1024,8 +1413,7 @@ export default class SwampIde extends View {
       );
     }
     body.children(rows.map((row, index) => {
-      const detail = this.hoverLease === row.key ||
-        this.selectedLease === row.key;
+      const detail = this.selectedLease === row.key;
       const color = row.kind === "feature" ? t.working : t.ansi2;
       const actions = h_flex().pt(3).gap(4)
         .when(!row.until, (el) =>
@@ -1071,7 +1459,8 @@ export default class SwampIde extends View {
         );
       return v_flex()
         .id(`swamp-ide-lease-${index}`)
-        .px(8)
+        .pl(8)
+        .pr(14)
         .py(6)
         .gap(3)
         .rounded(6)
@@ -1082,21 +1471,10 @@ export default class SwampIde extends View {
           cx.stop_propagation();
           if (this.selectedLease === row.key) {
             this.selectedLease = "";
-            this.hoverLease = "";
-            this.hoverSuppressed = row.key;
             this.confirmLease = "";
           } else {
             this.selectedLease = row.key;
             this.confirmLease = "";
-          }
-          cx.notify();
-        })
-        .on_hover((hovered, cx) => {
-          if (hovered) {
-            if (this.hoverSuppressed !== row.key) this.hoverLease = row.key;
-          } else {
-            if (this.hoverLease === row.key) this.hoverLease = "";
-            if (this.hoverSuppressed === row.key) this.hoverSuppressed = "";
           }
           cx.notify();
         })
@@ -1118,6 +1496,23 @@ export default class SwampIde extends View {
                   .text_size(12)
                   .text_color(t.foreground)
                   .child(short(row.label, 60)),
+            )
+            .child(
+              stop(
+                div()
+                  .id(`swamp-ide-lease-${index}-toggle`)
+                  .text_size(10)
+                  .text_color(t.muted)
+                  .cursor_pointer()
+                  .on_click((_event, cx) => {
+                    this.selectedLease = this.selectedLease === row.key
+                      ? ""
+                      : row.key;
+                    this.confirmLease = "";
+                    cx.notify();
+                  })
+                  .child(detail ? "▾" : "▸"),
+              ),
             )
             .child(
               div().text_size(10).text_color(t.muted).child(
@@ -1172,14 +1567,11 @@ export default class SwampIde extends View {
       : health.allActive
       ? t.working
       : t.ansi3;
-    const routed = this.events.filter((event) =>
-      event.route === "herdr-core" || event.route === "vim"
-    ).length;
-    const bypass = this.events.filter((event) =>
-      event.route === "bypass"
-    ).length;
-    const leases = this.leaseRows().length;
-    const histogram = shelloutSummary(this.shellouts).total;
+    const counts = this.counts ?? countEvents(this.events);
+    const routed = counts.routed;
+    const bypass = counts.bypass;
+    const leases = (this.leaseRowsCache ?? []).length;
+    const histogram = (this.hist ?? shelloutSummary(this.shellouts)).total;
     const title = section === "activity"
       ? "Activity"
       : section === "histogram"
@@ -1222,6 +1614,7 @@ export default class SwampIde extends View {
       )
       .child(
         div()
+          .id(`swamp-ide-section-scroll-${section}`)
           .flex_1()
           .min_h(0)
           .overflow_y_scrollbar()
@@ -1233,6 +1626,21 @@ export default class SwampIde extends View {
   }
 
   render(cx) {
+    // A render that throws must say why. Herdr otherwise freezes the last frame
+    // and shows "this view could not be re-rendered", which hides the cause.
+    try {
+      return this.renderPanel(cx);
+    } catch (error) {
+      const t = theme();
+      const stack = String(error?.stack ?? "").split("\n")[1] ?? "";
+      return v_flex().p(8).gap(4).bg(t.chrome).child(
+        div().text_size(11).text_color(t.blocked)
+          .child(`panel error: ${String(error?.message ?? error)}`),
+      ).child(div().text_size(9).text_color(t.muted).child(stack));
+    }
+  }
+
+  renderPanel(cx) {
     if (this.section) return this.renderSection(this.section, cx);
     const t = theme();
     if (this.collapsed) return this.renderRail(t, cx);

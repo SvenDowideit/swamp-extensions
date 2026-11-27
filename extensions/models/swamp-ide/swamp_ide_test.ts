@@ -31,9 +31,14 @@ Deno.test("herdrHomeOf prefers the explicit global argument", () => {
   );
 });
 
-Deno.test("model exposes setHerdr and status", () => {
+Deno.test("model exposes ensureVim, setHerdr and status", () => {
   assert(model.type === "@svendowideit/swamp-ide");
-  assertEquals(Object.keys(model.methods).sort(), ["setHerdr", "status"]);
+  assertEquals(Object.keys(model.methods).sort(), [
+    "ensureVim",
+    "setHerdr",
+    "status",
+  ]);
+  assert(Boolean(model.resources.vim));
 });
 
 // ---------------------------------------------------------------------------

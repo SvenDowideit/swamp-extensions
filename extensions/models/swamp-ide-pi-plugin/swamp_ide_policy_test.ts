@@ -1,10 +1,15 @@
 /** Tests for the swamp-ide capability policy. */
 import { assert, assertEquals } from "jsr:@std/assert@1";
 import {
+  activitySummary,
+  activityTarget,
+  activityVia,
   authorizationFromLease,
   blockedAuthorization,
   classifyCall,
   commandAlternatives,
+  formatActivityLine,
+  formatActivitySummary,
   formatAuthorization,
   guardPlan,
   isBroadScope,
@@ -14,6 +19,7 @@ import {
   matchingFeature,
   notRequiredAuthorization,
   scopeCovers,
+  vimEditInputs,
   writeInputProblem,
 } from "./pi/swamp-ide-policy.ts";
 
@@ -383,4 +389,149 @@ Deno.test("leases are scoped, session-bound and expiring", () => {
     ),
   );
   assert(!leaseAllows(broad, "exec", "s1", now));
+});
+
+Deno.test("activityVia tells the socket from the spawned process", () => {
+  assertEquals(activityVia({ via: "ws" }), "ws");
+  assertEquals(activityVia({ via: "cli" }), "cli");
+  // Events written before `via` existed fall back to their route, and a swamp
+  // route without `via` cannot be trusted either way.
+  assertEquals(activityVia({ route: "herdr-core" }), "herdr-core");
+  assertEquals(activityVia({ route: "vim" }), "vim");
+  assertEquals(activityVia({ route: "swamp" }), "none");
+  assertEquals(activityVia({}), "none");
+});
+
+Deno.test("activityTarget names what was called", () => {
+  assertEquals(
+    activityTarget({ model: "ide-pi", method: "set", name: "swamp_ide" }),
+    "ide-pi.set",
+  );
+  assertEquals(
+    activityTarget({ model: "pi", method: "exec", name: "swamp_ide" }),
+    "swamp_ide exec",
+  );
+  assertEquals(
+    activityTarget({ name: "herdr-core.exec", model: "herdr-core" }),
+    "herdr-core.exec",
+  );
+  assertEquals(activityTarget({ target: "t3g" }), "t3g");
+  assertEquals(activityTarget({}), "?");
+});
+
+Deno.test("formatActivityLine is one line, with the cli reason on it", () => {
+  const line = formatActivityLine({
+    ts: "2026-11-26T12:47:40.123Z",
+    via: "cli",
+    reason: "no ws message",
+    name: "swamp_ide",
+    method: "fmt",
+    outcome: "success",
+    durationMs: 1400,
+  });
+  assert(!line.includes("\n"), "must be a single line");
+  assert(line.startsWith("12:47:40"));
+  assert(line.includes("cli"));
+  assert(line.includes("swamp_ide fmt"));
+  assert(line.includes("1.4s"));
+  assert(line.includes("no ws message"));
+});
+
+Deno.test("formatActivityLine reports an error instead of a reason", () => {
+  const line = formatActivityLine({
+    ts: "2026-11-26T12:48:02.000Z",
+    via: "ws",
+    outcome: "error",
+    name: "data.query",
+    error: "model not found\nsecond line",
+  });
+  assertEquals(line.includes("error"), true);
+  assertEquals(line.includes("model not found"), true);
+  assertEquals(line.includes("second line"), false);
+});
+
+Deno.test("formatActivitySummary counts ws against cli and names the reasons", () => {
+  const events = [
+    { via: "ws" },
+    { via: "ws" },
+    { via: "cli", reason: "no ws message" },
+    { via: "cli", reason: "serve unavailable" },
+    { via: "herdr-core" },
+  ];
+  const summary = activitySummary(events);
+  assertEquals(summary.total, 5);
+  assertEquals(summary.ws, 2);
+  assertEquals(summary.cli, 2);
+  assertEquals(summary.other, 1);
+  assertEquals(summary.reasons, ["no ws message", "serve unavailable"]);
+  assertEquals(
+    formatActivitySummary(events),
+    "activity 5 · ws 2 · cli 2 (no ws message, serve unavailable)",
+  );
+  assertEquals(formatActivitySummary([]), "activity 0 · ws 0 · cli 0");
+});
+
+Deno.test("vimEditInputs maps a whole-file write to one editFile call", () => {
+  const mapped = vimEditInputs("herdr-core", "file-write", {
+    path: "src/a.ts",
+    content: "one\ntwo",
+  }, "/repo");
+  assertEquals(mapped?.inputs.file, "src/a.ts");
+  assertEquals(mapped?.inputs.cwd, "/repo");
+  assertEquals(mapped?.inputs.force, true);
+  assertEquals(mapped?.inputs.edits, [{ setLines: ["one", "two"] }]);
+});
+
+Deno.test("vimEditInputs keeps exact-text and line preconditions", () => {
+  const text = vimEditInputs("herdr-core", "file-edit", {
+    path: "/repo/a.ts",
+    edits: [{ old: "a", new: "b" }],
+  }, "/repo");
+  assertEquals(text?.inputs.edits, [{ old: "a", new: "b" }]);
+  assertEquals(text?.inputs.file, "/repo/a.ts");
+
+  const lines = vimEditInputs("herdr-core", "file-edit-lines", {
+    path: "a.ts",
+    expectedHash: "abc",
+    edits: [{ startLine: 2, endLine: 2, lines: ["B"], expectedLines: ["b"] }],
+  }, "/repo");
+  assertEquals(lines?.inputs.expectedHash, "abc");
+  assertEquals(lines?.inputs.edits, [
+    { startLine: 2, endLine: 2, lines: ["B"], expectedLines: ["b"] },
+  ]);
+});
+
+Deno.test("vimEditInputs leaves binary, remote and non-edit calls on herdr-core", () => {
+  // A remote machine's file cannot be written through this host's editor.
+  assert(
+    vimEditInputs("herdr-core", "file-edit", {
+      path: "a.ts",
+      machine: "xeon",
+      edits: [{ old: "a", new: "b" }],
+    }, "/repo") === null,
+  );
+  // Binary content and binary file types stay off the buffer.
+  assertEquals(
+    vimEditInputs("herdr-core", "file-write", {
+      path: "a.txt",
+      content: "a\u0000b",
+    }, "/repo")?.fallback,
+    "binary content",
+  );
+  assertEquals(
+    vimEditInputs("herdr-core", "file-write", {
+      path: "logo.png",
+      content: "x",
+    }, "/repo")?.fallback,
+    "binary file type",
+  );
+  // Reads, searches and exec are not writes.
+  for (const method of ["file-read", "search", "exec", "run", "file-write"]) {
+    if (method === "file-write") continue;
+    assertEquals(
+      vimEditInputs("herdr-core", method, { path: "a.ts" }, "/r"),
+      null,
+    );
+  }
+  assertEquals(vimEditInputs("vim", "edit", { path: "a.ts" }, "/r"), null);
 });

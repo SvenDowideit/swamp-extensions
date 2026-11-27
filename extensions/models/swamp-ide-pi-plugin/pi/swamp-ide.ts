@@ -52,16 +52,21 @@ import { basename, dirname, isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Type } from "typebox";
 import {
+  activityTarget,
+  activityVia,
   authorizationFromLease,
   blockedAuthorization,
   classifyCall,
   commandAlternatives,
+  formatActivityLine,
+  formatActivitySummary,
   formatAuthorization,
   guardPlan,
   isBroadScope,
   isShellWrapper,
   leaseAllows,
   notRequiredAuthorization,
+  vimEditInputs,
   writeInputProblem,
 } from "./swamp-ide-policy.ts";
 import { acquireApprovalLock } from "./swamp-ide-lock.ts";
@@ -111,6 +116,13 @@ const BYPASS_BASH =
 
 /** A finalized tool call, keyed by toolCallId. */
 const calls = new Map();
+
+/** Last tool snapshot is safe to write after a pi reload; never touch pi from a timer. */
+let lastAddinTools = {
+  activeTools: [],
+  allTools: [],
+  swampIdeRegistered: false,
+};
 
 /** Resolve once per session. `undefined` means "not tried yet". */
 let otelCache;
@@ -359,6 +371,17 @@ async function requestHerdrApprovalUnlocked({
 /** Write proof that the addin loaded and knows its active tool set. */
 async function writeAddinHeartbeat(pi, extra = {}) {
   try {
+    if (pi && typeof pi.getAllTools === "function") {
+      lastAddinTools = {
+        activeTools: typeof pi.getActiveTools === "function"
+          ? pi.getActiveTools()
+          : [],
+        allTools: pi.getAllTools().map((tool) => tool.name),
+        swampIdeRegistered: pi.getAllTools().some((tool) =>
+          tool.name === "swamp_ide"
+        ),
+      };
+    }
     await mkdir(dirname(ADDIN_HEARTBEAT), { recursive: true });
     await writeFile(
       ADDIN_HEARTBEAT,
@@ -369,15 +392,9 @@ async function writeAddinHeartbeat(pi, extra = {}) {
         pid: process.pid,
         session: currentSessionId(),
         mode: MODE,
-        activeTools: typeof pi.getAllTools === "function"
-          ? pi.getActiveTools?.() ?? []
-          : [],
-        allTools: typeof pi.getAllTools === "function"
-          ? pi.getAllTools().map((tool) => tool.name)
-          : [],
-        swampIdeRegistered: typeof pi.getAllTools === "function"
-          ? pi.getAllTools().some((tool) => tool.name === "swamp_ide")
-          : false,
+        activeTools: lastAddinTools.activeTools,
+        allTools: lastAddinTools.allTools,
+        swampIdeRegistered: lastAddinTools.swampIdeRegistered,
         serveEnabled: SERVE_ENABLED,
         serveConnected: Boolean(
           serveClient && serveClient.ws?.readyState === 1,
@@ -411,6 +428,39 @@ async function appendJsonl(path, event) {
     }
   } catch {
     // The event log is best-effort.
+  }
+}
+
+/** The `via` of a call that never touched swamp: the route it took instead. */
+function viaFromRoute(route: string): string {
+  const value = String(route ?? "").trim();
+  if (
+    value === "herdr-core" || value === "vim" || value === "guard" ||
+    value === "bypass"
+  ) {
+    return value;
+  }
+  return "none";
+}
+
+/** The last `limit` activity events, oldest first. */
+async function readActivityTail(limit: number) {
+  try {
+    const text = await readFile(EVENT_LOG, "utf8");
+    return text
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .slice(-limit)
+      .map((line) => {
+        try {
+          return JSON.parse(line);
+        } catch {
+          return null;
+        }
+      })
+      .filter(Boolean);
+  } catch {
+    return [];
   }
 }
 
@@ -782,11 +832,35 @@ async function swampData(model, spec) {
     }
   }
 
+  const startedAt = Date.now();
   const result = await runProcess(
     SWAMP_BIN,
     ["data", "get", model, spec, "--json"],
     { cwd: process.cwd(), timeoutMs: 5000 },
   );
+  // The socket could not answer, so this became a spawned swamp process. Say
+  // so: a silent CLI fallback is exactly what the activity log exists to show.
+  void appendActivity({
+    ts: new Date().toISOString(),
+    source: "pi",
+    kind: "api",
+    name: "swamp data get",
+    method: "data.get",
+    target: `${model}.${spec}`,
+    machine: "",
+    route: "swamp",
+    via: "cli",
+    reason: SERVE_ENABLED ? "serve unavailable or denied" : "serve disabled",
+    outcome: result.code === 0 ? "success" : "error",
+    durationMs: Math.max(0, Date.now() - startedAt),
+    model,
+    detail: JSON.stringify({ model, spec }),
+    command: "",
+    error: result.code === 0 ? "" : result.stderr.trim().slice(0, 200),
+    session: currentSessionId(),
+    cwd: process.cwd(),
+    blocked: false,
+  });
   if (result.code !== 0) return null;
   try {
     const parsed = JSON.parse(result.stdout);
@@ -1501,9 +1575,12 @@ export default function swampIde(pi) {
 
   void writeAddinHeartbeat(pi);
   const heartbeatTimer = setInterval(() => {
-    void writeAddinHeartbeat(pi);
+    void writeAddinHeartbeat();
   }, 30_000);
   heartbeatTimer.unref?.();
+  pi.on("session_shutdown", () => {
+    clearInterval(heartbeatTimer);
+  });
   void connectServe().then(() => writeAddinHeartbeat(pi));
   void appendActivity({
     ts: ADDIN_LOADED_AT,
@@ -1514,6 +1591,8 @@ export default function swampIde(pi) {
     target: "",
     machine: "",
     route: "other",
+    via: "none",
+    reason: "",
     outcome: "success",
     durationMs: 0,
     model: "pi",
@@ -1702,6 +1781,8 @@ export default function swampIde(pi) {
         target: info.target ?? "",
         machine: "",
         route: info.route,
+        via: info.via ?? viaFromRoute(info.route),
+        reason: info.reason ?? "",
         outcome: info.success ? "success" : "error",
         durationMs: Math.max(0, info.endMs - info.startMs),
         model: "pi",
@@ -2007,6 +2088,51 @@ export default function swampIde(pi) {
       }
       if (info) info.authorization = authorization;
 
+      // Decision D: the editor buffer is the only writer of text files. A
+      // herdr-core file mutation becomes one `editFile` call on this space's
+      // editor, so the thing the person is watching is what changed the file.
+      const routing = vimEditInputs(system, params.method, params.input, cwd);
+      if (routing && !routing.fallback) {
+        const viaVim = await runMethodViaServe({
+          model: VIM_MODEL,
+          method: "editFile",
+          inputs: routing.inputs,
+          info: info ?? { traceId, spanId },
+          timeoutMs,
+        });
+        if (viaVim) {
+          if (info) {
+            info.via = "vim";
+            info.reason = "";
+            info.target = String(routing.inputs.file ?? "");
+          }
+          return {
+            content: [{
+              type: "text",
+              text: `${formatAuthorization(authorization)}\n\n${viaVim.text}\n\n` +
+                `Written through this space's editor buffer.`,
+            }],
+            details: {
+              ...viaVim.details,
+              system,
+              method: params.method,
+              model,
+              authorization,
+            },
+          };
+        }
+        // The editor is out of reach: fall back to herdr-core and say so.
+        if (info) {
+          info.via = "herdr-core";
+          info.reason = "editor unavailable";
+          info.editorFallback = true;
+        }
+      } else if (routing?.fallback && info) {
+        info.via = "herdr-core";
+        info.reason = routing.fallback;
+        info.editorFallback = true;
+      }
+
       // The serve fast path runs in the server's warm repo, so no per-call
       // swamp process, extension load, or datastore lock handshake. If the
       // socket cannot be established, fall back to the CLI. Once a request
@@ -2018,6 +2144,14 @@ export default function swampIde(pi) {
         info: info ?? { traceId, spanId },
         timeoutMs,
       });
+      if (info && !info.editorFallback) {
+        info.via = served ? "ws" : "cli";
+        info.reason = served
+          ? ""
+          : SERVE_ENABLED
+          ? "serve unavailable"
+          : "serve disabled";
+      }
       if (served) {
         return {
           content: [{
@@ -2277,6 +2411,25 @@ export default function swampIde(pi) {
         const lease = await readLease();
         ctx.ui.notify(
           lease ? JSON.stringify(lease, null, 2) : "no swamp-ide lease",
+          "info",
+        );
+        return;
+      }
+      if (verb === "log") {
+        // The same one-line view the Herdr panel shows, so the question "what
+        // still needs a shell" can be answered from a terminal too.
+        const wanted = Number(rest[0] ?? 20);
+        const limit = Number.isFinite(wanted) && wanted > 0
+          ? Math.min(200, Math.trunc(wanted))
+          : 20;
+        const events = await readActivityTail(200);
+        const shown = events.slice(-limit);
+        ctx.ui.notify(
+          [
+            formatActivitySummary(events),
+            "",
+            ...shown.map((event) => formatActivityLine(event)),
+          ].join("\n"),
           "info",
         );
         return;

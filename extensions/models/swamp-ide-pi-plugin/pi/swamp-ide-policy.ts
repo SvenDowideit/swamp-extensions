@@ -514,3 +514,193 @@ export function leaseAllows(
 export default function swampIdePolicyLibrary(): void {
   // Intentionally empty. The addin and the guard import named helpers.
 }
+
+/** The minimum of an activity event these helpers read. */
+export interface ActivityEvent {
+  ts?: string;
+  via?: string;
+  reason?: string;
+  route?: string;
+  outcome?: string;
+  durationMs?: number;
+  name?: string;
+  model?: string;
+  method?: string;
+  target?: string;
+  kind?: string;
+  error?: string;
+}
+
+/**
+ * How a call reached swamp: `ws` for the serve socket, `cli` for a spawned
+ * swamp process, `herdr-core`/`vim`/`guard`/`bypass` for the other routes, and
+ * `none` for an event with neither field — the shape written before `via`
+ * existed, where `route: "swamp"` cannot tell the two apart.
+ */
+export function activityVia(event: ActivityEvent): string {
+  const via = String(event?.via ?? "").trim().toLowerCase();
+  if (via) return via;
+  const route = String(event?.route ?? "").trim().toLowerCase();
+  if (
+    route === "herdr-core" || route === "vim" || route === "guard" ||
+    route === "bypass"
+  ) {
+    return route;
+  }
+  return "none";
+}
+
+/** What the call was: `model.method`, a tool and its method, or a plain name. */
+export function activityTarget(event: ActivityEvent): string {
+  const model = String(event?.model ?? "").trim();
+  const method = String(event?.method ?? "").trim();
+  const name = String(event?.name ?? "").trim();
+  if (model && model !== "pi" && method) return `${model}.${method}`;
+  if (name && method && name !== method) return `${name} ${method}`;
+  if (name) return name;
+  return String(event?.target ?? "").trim() || "?";
+}
+
+/**
+ * One line per activity event, for the panel and `/swamp-ide log`:
+ * `12:47:31  ws   data.query  ok     0.8s`. A `cli` line carries the reason it
+ * could not use the socket; an `error` line carries the error.
+ */
+export function formatActivityLine(event: ActivityEvent): string {
+  const time = String(event?.ts ?? "").slice(11, 19) || "--:--:--";
+  const via = activityVia(event);
+  const target = activityTarget(event).slice(0, 28).padEnd(28);
+  const failed = String(event?.outcome ?? "").trim() === "error";
+  const outcome = (failed ? "error" : "ok").padEnd(5);
+  const ms = Number(event?.durationMs ?? 0);
+  const duration = (ms > 0 ? `${(ms / 1000).toFixed(1)}s` : "-").padStart(6);
+  const note = failed
+    ? String(event?.error ?? "").split("\n")[0].slice(0, 40)
+    : via === "cli"
+    ? String(event?.reason ?? "").slice(0, 40)
+    : "";
+  return [time, via.padEnd(10), target, outcome, duration, note]
+    .filter((part) => part.trim() !== "")
+    .join(" ");
+}
+
+/** Count `ws` against `cli` over the events, collecting why the cli ones fell back. */
+export function activitySummary(events: ActivityEvent[]): {
+  total: number;
+  ws: number;
+  cli: number;
+  other: number;
+  reasons: string[];
+} {
+  let ws = 0;
+  let cli = 0;
+  let other = 0;
+  const reasons = new Set<string>();
+  for (const event of events ?? []) {
+    const via = activityVia(event);
+    if (via === "ws") {
+      ws += 1;
+    } else if (via === "cli") {
+      cli += 1;
+      const reason = String(event?.reason ?? "").trim();
+      if (reason) reasons.add(reason);
+    } else {
+      other += 1;
+    }
+  }
+  return {
+    total: (events ?? []).length,
+    ws,
+    cli,
+    other,
+    reasons: [...reasons].sort(),
+  };
+}
+
+/** `activity 42 · ws 38 · cli 4 (extension.fmt, workflow.validate)` */
+export function formatActivitySummary(events: ActivityEvent[]): string {
+  const summary = activitySummary(events);
+  const reasons = summary.reasons.length
+    ? ` (${summary.reasons.join(", ")})`
+    : "";
+  return `activity ${summary.total} · ws ${summary.ws} · cli ${summary.cli}${reasons}`;
+}
+
+/** Extensions Vim should not be asked to open: binary buffers mangle. */
+const BINARY_EXTENSIONS = new Set([
+  "png", "jpg", "jpeg", "gif", "webp", "bmp", "ico", "pdf", "zip", "gz", "tgz",
+  "bz2", "xz", "7z", "tar", "jar", "wasm", "so", "dylib", "dll", "exe", "o", "a",
+  "pyc", "class", "mp3", "mp4", "mov", "mkv", "wav", "flac", "ogg", "woff",
+  "woff2", "ttf", "otf", "db", "sqlite", "sqlite3",
+]);
+
+/**
+ * Map a herdr-core file mutation to one `editFile` call on this space's editor.
+ *
+ * Returns null when the call must stay on herdr-core: a remote `machine`, a
+ * binary-ish path, content holding a NUL byte, or a method that is not a text
+ * write. Null is not a silent pass-through - the caller records why.
+ */
+export function vimEditInputs(
+  system: string,
+  method: string,
+  input: Record<string, unknown> | undefined,
+  cwd: string,
+): { inputs: Record<string, unknown>; fallback: string } | null {
+  if (system !== "herdr-core") return null;
+  if (method !== "file-write" && method !== "file-edit" &&
+    method !== "file-edit-lines") {
+    return null;
+  }
+  const args = input ?? {};
+  if (String(args.machine ?? "").trim()) {
+    return null;
+  }
+  const path = String(args.path ?? "").trim();
+  if (!path) return null;
+  const base = { file: path, cwd: String(args.cwd ?? "") || cwd, force: true };
+  if (method === "file-write") {
+    const content = String(args.content ?? "");
+    if (content.includes("\u0000")) {
+      return { inputs: {}, fallback: "binary content" };
+    }
+    const extension = path.split(".").pop()?.toLowerCase() ?? "";
+    if (BINARY_EXTENSIONS.has(extension)) {
+      return { inputs: {}, fallback: "binary file type" };
+    }
+    return {
+      inputs: { ...base, edits: [{ setLines: content.split("\n") }] },
+      fallback: "",
+    };
+  }
+  const edits = Array.isArray(args.edits) ? args.edits : [];
+  if (edits.length === 0) return null;
+  if (method === "file-edit") {
+    return {
+      inputs: {
+        ...base,
+        edits: edits.map((edit) => {
+          const row = edit as Record<string, unknown>;
+          return { old: row.old, new: row.new };
+        }),
+      },
+      fallback: "",
+    };
+  }
+  return {
+    inputs: {
+      ...base,
+      expectedHash: String(args.expectedHash ?? ""),
+      edits: edits.map((edit) => {
+        const row = edit as Record<string, unknown>;
+        return {
+          startLine: row.startLine,
+          endLine: row.endLine,
+          lines: row.lines,
+          expectedLines: row.expectedLines,
+        };
+      }),
+    },
+    fallback: "",
+  };
+}

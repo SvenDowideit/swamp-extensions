@@ -633,7 +633,7 @@ async function set(
 /** The pi plugin installer/gate. */
 export const model = {
   type: "@svendowideit/swamp-ide-pi-plugin",
-  version: "2026.11.25.2",
+  version: "2026.11.27.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -670,6 +670,18 @@ export const model = {
       toVersion: "2026.11.25.2",
       description:
         "Fixes pi failing to load the extension with 'Extension does not export a valid factory function: swamp-ide-lock.ts': the extracted lock library now exports an inert default factory, like the policy library, so pi's auto-discovery accepts every file it installs beside the addin.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.26.1",
+      description:
+        "Every activity event now records how the call reached swamp: `via` is ws for the serve socket, cli for a spawned swamp process, or the route it took instead, with a `reason` when a cli fallback happened (including the previously silent data.get fallback). `/swamp-ide log [n]` prints one line per event and a ws-versus-cli summary.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.27.1",
+      description:
+        "Routes every text file mutation through this space's editor: herdr-core file-write/file-edit/file-edit-lines become one editFile call on vim-controller, which creates or reuses the Edit tab, loads the path into the buffer, applies the edits with expectedLines/expectedHash preconditions and saves. Binary content, binary file types and remote machines stay on herdr-core, and each fallback records its reason.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

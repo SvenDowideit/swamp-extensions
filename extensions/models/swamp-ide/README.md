@@ -8,11 +8,7 @@ Swamp IDE panel.
 
 One extension pulls the pieces together and gives you one pair of commands:
 
-- `@svendowideit/swamp-ide-enable` — installs and selects the resizable
-  right-hand Swamp IDE panel/layout with three stacked sections (Activity,
-  Command histogram and Leases), installs and gates the pi addin when pi is
-  available, and creates or updates the OpenObserve dashboard when OpenObserve
-  is installed and healthy.
+- `@svendowideit/swamp-ide-enable` — ensures the `vim-controller` model instance exists, installs and selects the resizable right-hand Swamp IDE panel/layout, installs and gates the pi addin when pi is available, and creates or updates the OpenObserve dashboard when OpenObserve is installed and healthy.
 - `@svendowideit/swamp-ide-disable` — removes the pi session gate and the
   Herdr panel/layout, returning to the base layout. OpenObserve history is left
   alone.
@@ -73,8 +69,14 @@ so `PI_SESSION_ID` does not need to be passed. Use
 This installs/selects the Herdr Swamp IDE layout, installs the managed pi
 addin and writes this session's marker, and creates/updates the OpenObserve
 dashboard if the store is reachable. The panel has three independently
-resizable sections: Activity, Command histogram and Leases. The histogram
-lists programs with counts and expands to the top 10 commands per program.
+resizable sections: Activity, Command histogram and Leases. Activity renders one
+line per call — time, `via` (`ws` for the swamp serve socket, `cli` for a spawned
+swamp process, plus `herdr-core`, `vim`, `guard`, `bypass`, `none`), what was
+called, outcome and duration — and expands to the full record (model, method,
+target, command, session, cwd, authorization, error) on click. Its chips filter
+`all`, `ws`, `cli`, `vim+herdr` and `errors`, and the header counts `ws` against
+`cli` with the reasons a call had to shell out. The histogram lists programs with
+counts and expands to the top 10 commands per program.
 The Leases section is human-only: click a lease to extend it by 5m/30m/1h or
 revoke it with confirmation. Run `/reload` in pi (or restart it) to load the
 addin.
@@ -84,6 +86,15 @@ Inspect what is installed without changing anything:
 ```sh
 swamp model @svendowideit/swamp-ide method run status ide
 ```
+
+Ensure the addin's default Vim model instance exists (idempotent):
+
+```sh
+swamp model @svendowideit/swamp-ide method run ensureVim ide
+```
+
+This is already run by the enable workflow; use it alone when repairing a
+project that has the behavior but no `vim-controller` instance.
 
 Disable the session gate and remove the Herdr panel/layout:
 
@@ -110,13 +121,15 @@ Model type: `@svendowideit/swamp-ide`.
 
 | Method | Data written |
 | --- | --- |
+| `ensureVim` | `vim` (instance `vim-controller`) |
 | `setHerdr` | `herdr` (instance `swamp-ide`) |
 | `status` | `herdr` (instance `swamp-ide`) |
 
 Workflows:
 
-- `@svendowideit/swamp-ide-enable` — pi addin `set`, Herdr `setHerdr`, optional
-  OpenObserve `dashboard`; the optional steps are allowed to fail.
+- `@svendowideit/swamp-ide-enable` — `ensureVim`, pi addin `set`, Herdr
+  `setHerdr`, optional OpenObserve `dashboard`; the optional steps are allowed
+  to fail.
 - `@svendowideit/swamp-ide-disable` — pi addin `set enabled=false`, Herdr
   `setHerdr enabled=false`.
 

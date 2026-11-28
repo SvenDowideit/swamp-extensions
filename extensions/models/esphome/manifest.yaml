@@ -1,0 +1,117 @@
+manifestVersion: 1
+name: "@svendowideit/esphome"
+version: "2026.11.28.1"
+description: >
+  Know what ESPHome boards you have, what firmware they run, and what each one
+  can actually do - even the ones that hide from mDNS.
+
+  WHAT IT DOES
+
+    Answers "what ESPHome devices do I own, what are they running, and which
+    need work?" from every channel a device offers, because no single one sees
+    all of them. Measured on a real /20: mDNS found 8 devices, a TCP sweep of
+    port 6053 found 8, and the two overlapped on only 6 - the true count was 10.
+    Devices with the mdns component removed are invisible to name-based
+    discovery; devices with the api component disabled never answer on 6053.
+    This extension unions mDNS TXT records (version, board, platform, MAC,
+    config_hash, api_encryption), a TCP sweep of the native API and web_server
+    ports, and the ARP table, then reads each web_server's event stream to
+    record its sensors and actuators with their domains, units and effects.
+
+    Identity is the MAC address, never the IP or the name: these devices take
+    DHCP leases and their hostnames get renamed, so keying on either forks one
+    device into several. A device that moves or is renamed updates its existing
+    entry. Results become one self-contained HTML page served over HTTPS.
+
+    Prefer it over a per-device dashboard when you want the fleet-wide answer:
+    it reports the firmware spread, the boards in use, which devices cannot be
+    read at all, and which run an unencrypted native API - the list of things to
+    work on, not just a list of devices.
+
+  INSTALL
+
+      swamp extension pull @svendowideit/esphome
+
+  DEPENDENCIES
+
+    avahi-utils for mDNS browse (avahi-browse) and iproute2 for the neighbour
+    table (ip neigh); both are standard on Debian-family hosts. The TCP sweep
+    uses the runtime's own sockets, so it needs no nmap. @svendowideit/caddy is
+    an optional dependency used only to serve the page; without it the
+    ensure-caddy-serve step skips with a log and everything else still works.
+
+  RUN
+
+      # The whole pipeline in one call: discover, interrogate every device with
+      # a web_server, and write the HTML page. Prefer this over running the
+      # methods separately, which contend on the model lock.
+      swamp behavior run @svendowideit/esphome sync esphome
+
+      # The hourly workflow: refresh the inventory, then idempotently declare
+      # the Caddy route. The first run is also the setup path, because Caddy
+      # derives the A record and TLS subject from the route itself.
+      swamp workflow run @svendowideit/esphome-hourly
+
+      # Discovery only, when you want to check for new nodes without reading
+      # every device's event stream. Reports how many are invisible to mDNS.
+      swamp behavior run @svendowideit/esphome discover esphome
+
+      # Re-render the page from the stored summary, after an argument change.
+      swamp behavior run @svendowideit/esphome render esphome
+
+      # Read the fleet without opening the page: which boards, which firmware.
+      swamp data query 'modelName == "esphome" && name == "current"' --select content
+
+  CONFIGURE
+
+    Set as global args at model creation:
+
+      scanCidr            IPv4 CIDR to sweep (default 10.10.0.0/20); empty
+                          disables the sweep and relies on mDNS alone
+      apiPorts            ports proving an API listener (default [6053])
+      webPorts            ports to try for web_server (default [80])
+      scanTimeoutMs       per-connection sweep timeout (default 400). WiFi
+                          devices need several hundred ms; a value that is too
+                          low silently under-reports the fleet
+      scanConcurrency     parallel sweep connections (default 128)
+      mdnsPasses          mDNS browse passes to union (default 3). One pass is
+                          lossy: devices drop in and out between passes
+      interrogateTimeoutMs  how long to read a device's event stream (3000)
+      outputDir           where the page is written
+                          (default ~/.local/share/esphome)
+      pageTitle           heading on the page
+      pageHostname        hostname it is served at
+                          (default esphome.x1yoga.fi.gy)
+      caddyModelName      source caddy model; empty auto-discovers the one
+                          that owns this machine
+      caddyServeModel     dedicated model carrying the route
+                          (default esphome-caddy)
+
+  WHAT IT INSTALLS
+
+    Nothing on any device. Discovery is read-only: mDNS browse, TCP connects,
+    the neighbour table, and an HTTP read of each web_server's event stream. On
+    the swamp host it writes the HTML page under outputDir and writes swamp
+    resources. Serving is Caddy's existing file_server route declared by
+    ensure-caddy-serve; this extension starts no second web server, daemon or
+    webhook. The hourly schedule is the bundled workflow trigger evaluated by
+    swamp serve.
+repository: https://github.com/svendowideit/swamp-extensions
+license: MIT
+paths:
+  base: manifest
+models:
+  - esphome.ts
+workflows:
+  - esphome-hourly.yaml
+dependencies: []
+optionalDependencies:
+  - "@svendowideit/caddy"
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+  - esphome_test.ts
+platforms:
+  - linux-x86_64
+  - linux-aarch64
+

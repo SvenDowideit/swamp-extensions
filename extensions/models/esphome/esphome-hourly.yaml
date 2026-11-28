@@ -1,0 +1,79 @@
+id: 5c9f1f4e-3b1a-4a1e-9a1c-7d2e6b8a4f01
+name: "@svendowideit/esphome-hourly"
+description: |
+  Refresh the ESPHome fleet inventory every hour and keep the page served.
+
+  The sync step discovers devices from every source that answers (mDNS,
+  a TCP sweep of the native API and web_server ports, and the ARP table),
+  merges them by MAC address, reads each web_server's event stream to
+  capture its sensors and actuators, and rewrites the HTML page. The serve
+  step then idempotently declares the Caddy file_server route, letting
+  Caddy derive the TLS subject and A record, so the first run is also the
+  setup path.
+
+  Safe to run hourly: device identity is the MAC address, so a DHCP move or
+  a renamed hostname updates the existing entry instead of forking a new one.
+trigger:
+  schedule: "0 * * * *"
+  inputs: {}
+inputs:
+  properties:
+    esphomeModel:
+      type: string
+      default: esphome
+      description: The @svendowideit/esphome model holding the fleet.
+    caddyModelName:
+      type: string
+      default: ""
+      description: >-
+        Source @svendowideit/caddy model to read baseDomain/serviceName from.
+        Empty auto-discovers the model that owns this machine.
+    pageHostname:
+      type: string
+      default: ""
+      description: >-
+        Override the served hostname. Empty uses the model's pageHostname
+        global (default esphome.x1yoga.fi.gy).
+    caddyServeModel:
+      type: string
+      default: esphome-caddy
+      description: Dedicated @svendowideit/caddy model that carries the route.
+  required: []
+jobs:
+  - name: sync-and-serve
+    description: Refresh the inventory, then idempotently declare the route.
+    steps:
+      - name: sync
+        description: Discover, interrogate, and render the page.
+        task:
+          type: model_method
+          modelType: "@svendowideit/esphome"
+          modelName: ${{ inputs.esphomeModel }}
+          methodName: sync
+        dependsOn: []
+        weight: 0
+        allowFailure: false
+      - name: serve
+        description: >-
+          Declare the Caddy file_server route and let caddy derive DNS/TLS.
+          Skips with a log when caddy is absent. Idempotent, so this is both
+          setup and hourly refresh.
+        task:
+          type: model_method
+          modelType: "@svendowideit/esphome"
+          modelName: ${{ inputs.esphomeModel }}
+          methodName: ensure-caddy-serve
+          inputs:
+            model: ${{ inputs.caddyModelName }}
+            hostname: ${{ inputs.pageHostname }}
+            serveModel: ${{ inputs.caddyServeModel }}
+        dependsOn:
+          - step: sync
+            condition:
+              type: always
+        weight: 0
+        allowFailure: true
+    dependsOn: []
+    weight: 0
+version: 1
+

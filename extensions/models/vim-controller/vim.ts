@@ -36,7 +36,7 @@ export const RUNTIME_VERSION = 6;
 /** The model type. */
 export const EXT_TYPE = "@svendowideit/vim-controller";
 /** The extension version; keep in step with manifest.yaml. */
-export const EXT_VERSION = "2026.11.26.2";
+export const EXT_VERSION = "2026.11.28.1";
 
 // ---------------------------------------------------------------------------
 // Global and method arguments
@@ -1998,10 +1998,28 @@ async function edit(
       }
     }
   }
-  if (args.save && changed) {
-    await remoteExpr(g.vimBin, server, 'execute("write")');
-  }
   const file = String(beforeRaw.file ?? "");
+  if (args.save && changed) {
+    // A buffer whose file sits in a folder that does not exist cannot be
+    // written: `:write` fails with E212 and `execute("write")` reports
+    // nothing, which is how a failed save used to look like a good one.
+    if (file) {
+      const slash = file.lastIndexOf("/");
+      if (slash > 0) {
+        await Deno.mkdir(file.slice(0, slash), { recursive: true });
+      }
+    }
+    await remoteExpr(g.vimBin, server, 'execute("write")');
+    if (file) {
+      const written = await Deno.stat(file).then((entry) => entry.isFile)
+        .catch(() => false);
+      if (!written) {
+        throw new Error(
+          `the buffer's file was not written: ${file} — the edit is in the buffer only; fix the path or its permissions, then run the write method`,
+        );
+      }
+    }
+  }
   const data: z.infer<typeof EditResultSchema> = {
     server,
     file,
@@ -2564,7 +2582,7 @@ export const model = {
   // the catalogue only reads literals, not EXT_TYPE/EXT_VERSION constants.
   // `vim_test.ts` asserts they match the exported constants.
   type: "@svendowideit/vim-controller",
-  version: "2026.11.26.2",
+  version: "2026.11.28.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -2583,6 +2601,12 @@ export const model = {
       toVersion: "2026.11.26.2",
       description:
         "Adds `openFile`: load any path into the running server's buffer, creating the file on `write` when it does not exist yet, and refusing to discard unsaved changes unless force=true. This is what lets every create and edit land in the one editor the person is watching.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.28.1",
+      description:
+        'editFile now creates the buffer file\'s parent directory before writing, and throws naming the path when the file is still not on disk. Previously `execute("write")` failed silently on a missing directory and the result still reported saved:true, so a whole buffer could be edited and lost.',
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

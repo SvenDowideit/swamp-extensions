@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/vim-controller"
-version: "2026.11.26.2"
+version: "2026.11.28.1"
 description: >
   Control the Vim buffer a human is watching: read the buffer, replace exact
   text or line ranges atomically, move the cursor, draw a virtual agent cursor,
@@ -47,40 +47,40 @@ description: >
       # See which Vim servers exist, then open one in this space's editor tab.
       # The tab is created once per space, without taking focus, so the person
       # keeps looking at the tab they chose.
-      swamp model @svendowideit/vim-controller method run servers vim
-      swamp model @svendowideit/vim-controller method run open vim \
+      swamp behavior run vim servers
+      swamp behavior run vim open \
         --input file=src/index.ts --input cwd=$PWD
 
       # Every method reopens this space's editor tab when its Vim is gone, so a
       # tab the person closed comes back on the next read or edit. `focus` shows
       # it when they should watch, and `status` reports where it is.
-      swamp model @svendowideit/vim-controller method run focus vim \
+      swamp behavior run vim focus \
         --input server=swamp-vim-swamp-project
-      swamp model @svendowideit/vim-controller method run status vim \
+      swamp behavior run vim status \
         --input server=swamp-vim-swamp-project
 
       # Read what the human sees, then replace one exact sentence. The edit
       # is rejected if the text is missing or occurs more than once.
-      swamp model @svendowideit/vim-controller method run read vim \
+      swamp behavior run vim read \
         --input server=swamp-demo --input mode=visible
-      swamp model @svendowideit/vim-controller method run edit vim \
+      swamp behavior run vim edit \
         --input server=swamp-demo \
         --input 'edits:json=[{"old":"old sentence","new":"new sentence"}]'
 
       # Show where the agent is looking without moving the human's cursor.
-      swamp model @svendowideit/vim-controller method run annotate vim \
+      swamp behavior run vim annotate \
         --input server=swamp-demo \
         --input line=12 --input text="▶ agent"
 
       # Read Vim's quickfix list, or run one Ex command.
-      swamp model @svendowideit/vim-controller method run diagnostics vim \
+      swamp behavior run vim diagnostics \
         --input server=swamp-demo
-      swamp model @svendowideit/vim-controller method run command vim \
+      swamp behavior run vim command \
         --input server=swamp-demo --input command="set number"
 
       # Check whether tracing is live, then post one test span.
-      swamp model @svendowideit/vim-controller method run otel-status vim
-      swamp model @svendowideit/vim-controller method run otel-status vim \
+      swamp behavior run vim otel-status
+      swamp behavior run vim otel-status \
         --input test=true
 
   CONFIGURE

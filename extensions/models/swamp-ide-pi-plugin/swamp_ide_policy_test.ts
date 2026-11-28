@@ -476,6 +476,38 @@ Deno.test("formatActivitySummary counts ws against cli and names the reasons", (
   assertEquals(formatActivitySummary([]), "activity 0 · ws 0 · cli 0");
 });
 
+Deno.test("vimEditInputs leaves a write whose folder is missing on herdr-core", () => {
+  const routed = vimEditInputs(
+    "herdr-core",
+    "file-write",
+    {
+      path: "/repo/extensions/models/esphome/esphome.ts",
+      content: "export {};\n",
+    },
+    "/repo",
+    "",
+    () => false,
+  );
+  assertEquals(routed?.fallback, "parent directory missing");
+  assertEquals(routed?.inputs, {});
+
+  // A folder that exists still goes through the buffer, which is the point of
+  // routing text writes there in the first place.
+  const inPlace = vimEditInputs(
+    "herdr-core",
+    "file-write",
+    { path: "/repo/esphome.ts", content: "export {};\n" },
+    "/repo",
+    "",
+    () => true,
+  );
+  assertEquals(inPlace?.fallback, "");
+  assertEquals(
+    Array.isArray(inPlace?.inputs.edits),
+    true,
+  );
+});
+
 Deno.test("vimEditInputs maps a whole-file write to one editFile call", () => {
   const mapped = vimEditInputs("herdr-core", "file-write", {
     path: "src/a.ts",

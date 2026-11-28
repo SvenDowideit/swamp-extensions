@@ -633,7 +633,7 @@ async function set(
 /** The pi plugin installer/gate. */
 export const model = {
   type: "@svendowideit/swamp-ide-pi-plugin",
-  version: "2026.11.29.1",
+  version: "2026.11.29.2",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -694,6 +694,12 @@ export const model = {
       toVersion: "2026.11.29.1",
       description:
         "Activity events now carry what the call attempted (attempt), the behaviour type, the Herdr space/tab/terminal it came from, and on a lock timeout the contended instance plus the pid swamp names as the holder. The panel's one-line row shows the attempt and the expanded row shows attempt, where and locked-by, so a blocked call says which behaviour, which instance and which window asked.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.29.2",
+      description:
+        "A pi session now records itself on the terminals it runs in, so a restart puts it back where it was: session_start labels its herdr-core terminal pi.session=<id> and pi.state=running through the herdr-core label method, and a deliberate quit writes pi.state=exited with the reason. herdr-core's pi-resume then brings back the sessions a host restart killed, in their own space and tab, and leaves the ones a person quit or killed alone.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

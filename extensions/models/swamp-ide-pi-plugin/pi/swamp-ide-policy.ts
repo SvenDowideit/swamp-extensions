@@ -647,6 +647,7 @@ export function vimEditInputs(
   input: Record<string, unknown> | undefined,
   cwd: string,
   terminal = "",
+  parentExists: (folder: string) => boolean = () => true,
 ): { inputs: Record<string, unknown>; fallback: string } | null {
   if (system !== "herdr-core") return null;
   if (method !== "file-write" && method !== "file-edit" &&
@@ -659,6 +660,20 @@ export function vimEditInputs(
   }
   const path = String(args.path ?? "").trim();
   if (!path) return null;
+  // The editor buffer cannot create a folder: with a missing directory the
+  // write fails, and herdr-core's file-write makes missing folders. The check
+  // is injected so this stays pure and a regression is testable.
+  const baseDir = String(args.cwd ?? "") || cwd;
+  const cut = path.lastIndexOf("/");
+  const parent = cut > 0 ? path.slice(0, cut) : "";
+  const folder = !parent
+    ? baseDir
+    : parent.startsWith("/")
+    ? parent
+    : `${baseDir}/${parent}`;
+  if (folder && !parentExists(folder)) {
+    return { inputs: {}, fallback: "parent directory missing" };
+  }
   // The caller's terminal travels with the request: a method run inside swamp
   // serve has no HC_TERMINAL_ID, so it cannot resolve the caller's space alone.
   const base = {

@@ -228,7 +228,9 @@ async function acquireLeaseLock() {
 }
 
 function herdrRunning() {
-  return existsSync(join(HERDR_HOME, "herdr-app.sock"));
+  // view.json is written whenever a window runs; the socket lives in the
+  // runtime dir, not in HERDR_APP_HOME, so testing for it here was always false.
+  return existsSync(join(HERDR_HOME, "view.json"));
 }
 
 function effectFor(system, model, method, input) {
@@ -1698,8 +1700,52 @@ export default function swampIde(pi) {
     void writeAddinHeartbeat();
   }, 30_000);
   heartbeatTimer.unref?.();
-  pi.on("session_shutdown", () => {
+  /**
+   * Mark this terminal as a pi session so a restart can put it back.
+   *
+   * The terminal's labels are the record: herdr-app reads herdr.space and
+   * herdr.tab to place it, and pi.state lets herdr-core tell a session a person
+   * quit from one the host killed. Nothing here throws: a missing herdr model
+   * only means no record, never a broken session.
+   */
+  async function recordPiSession(
+    state: "running" | "exited",
+    reason = "",
+  ): Promise<void> {
+    const terminal = (process.env.HC_TERMINAL_ID ?? "").trim();
+    const session = String(currentSessionId() ?? "");
+    if (!terminal || !session) return;
+    const labels: Record<string, string> = {
+      "pi.session": session,
+      "pi.state": state,
+    };
+    if (reason) labels["pi.end"] = reason;
+    try {
+      await runProcess(
+        SWAMP_BIN,
+        [
+          "behavior",
+          "run",
+          HERDR_MODEL,
+          "label",
+          "--input",
+          `target=${terminal}`,
+          "--input",
+          `labels:json=${JSON.stringify(labels)}`,
+        ],
+        { timeoutMs: 20_000 },
+      );
+    } catch {
+      // The terminal may already be gone; that is not this session's problem.
+    }
+  }
+
+  pi.on("session_shutdown", (event: any) => {
     clearInterval(heartbeatTimer);
+    // A reload, /new, /resume or fork hands over to a fresh session; only a
+    // quit is a person deliberately leaving this one.
+    const reason = String(event?.reason ?? "quit");
+    if (reason === "quit") void recordPiSession("exited", reason);
   });
   void connectServe().then(() => writeAddinHeartbeat(pi));
   void appendActivity({
@@ -1726,6 +1772,7 @@ export default function swampIde(pi) {
 
   pi.on("session_start", async () => {
     await writeAddinHeartbeat(pi);
+    void recordPiSession("running");
   });
 
   pi.on("before_agent_start", async (event) => {
@@ -2270,7 +2317,25 @@ export default function swampIde(pi) {
         params.input,
         cwd,
         process.env.HC_TERMINAL_ID ?? "",
+        (folder) => existsSync(folder),
       );
+      if (routing && !routing.fallback) {
+        // The buffer cannot create a folder: with a missing directory Vim's
+        // `:write` fails, and that used to be reported as a save. herdr-core's
+        // file-write makes missing folders, so a new file goes there instead.
+        const target = String(routing.inputs.file ?? "");
+        const base = String(routing.inputs.cwd ?? cwd);
+        const cut = target.lastIndexOf("/");
+        const parent = cut > 0 ? target.slice(0, cut) : "";
+        const folder = !parent
+          ? base
+          : parent.startsWith("/")
+          ? parent
+          : join(base, parent);
+        if (folder && !existsSync(folder)) {
+          routing.fallback = "parent directory missing";
+        }
+      }
       if (routing && !routing.fallback) {
         const vimInstance = sessionInstanceName(
           VIM_MODEL,

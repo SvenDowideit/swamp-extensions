@@ -1,11 +1,17 @@
 manifestVersion: 1
 name: "@svendowideit/swamp-ide-pi-plugin"
-version: "2026.11.29.1"
+version: "2026.11.29.2"
 description: >
   Install, enable and disable the pi addin that routes tool calls through
   @svendowideit/swamp-ide, and record every routed and bypassed call.
 
   WHAT IT DOES
+
+    Each pi session records itself on the herdr-core terminal it runs in —
+    `pi.session=<id>`, `pi.state=running` — and marks a deliberate quit, so a
+    host restart can tell a session it killed from one the person left. Nothing
+    is resumed by the addin itself: herdr-core's `pi-resume` does that, in each
+    session's own space and tab.
 
     Owns the pi addin as a managed file. It bundles the addin source, writes it
     into a project (`<project>/.pi/extensions/swamp-ide.ts`) or the global pi
@@ -71,20 +77,20 @@ description: >
 
       # Install the managed addin globally (so project trust cannot leave it
       # unloaded) and write the fail-closed guard.
-      swamp model @svendowideit/swamp-ide-pi-plugin method run install ide-pi \
+      swamp behavior run ide-pi install \
         --input scope=global
 
       # Enable it for the current pi session (PI_SESSION_ID), then restart pi.
-      swamp model @svendowideit/swamp-ide-pi-plugin method run set ide-pi \
+      swamp behavior run ide-pi set \
         --input enabled=true --input scope=global \
         --input sessionId="$PI_SESSION_ID"
 
       # Disable it for every session without removing the file.
-      swamp model @svendowideit/swamp-ide-pi-plugin method run set ide-pi \
+      swamp behavior run ide-pi set \
         --input enabled=false
 
       # Report the install path, pi availability and enabled sessions.
-      swamp model @svendowideit/swamp-ide-pi-plugin method run status ide-pi
+      swamp behavior run ide-pi status
 
     In pi, `/swamp-ide` shows the mode, serve connection and the top shell-outs;
     `/swamp-ide histogram` shows the top 20, which is the build-priority list.

@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/swamp-serve"
-version: "2026.11.09.1"
+version: "2026.11.28.1"
 description: >
   Run a swamp repository as a long-lived, always-on `swamp serve` service —
   binary, systemd user unit, HTTPS reverse proxy, and OTLP telemetry in one
@@ -48,7 +48,11 @@ description: >
       swamp behavior list --json \
         | jq -r '.results[] | select(.type == "@svendowideit/caddy") | .name'
 
-      swamp model edit swamp-serve --global-arg caddyModelName=my-caddy
+      swamp model get swamp-serve --json \
+        | jq --arg v my-caddy '
+            {name, version, tags, globalArguments}
+            | .globalArguments.caddyModelName = $v' \
+        | swamp model edit swamp-serve --json
       swamp workflow run @svendowideit/swamp-serve-setup
 
     If no Caddy model exists, create and configure one, then re-run:
@@ -62,7 +66,11 @@ description: >
     models, and the exact command for each:
 
       swamp model method run swamp-serve guidance
-      swamp model edit swamp-serve --global-arg port=9091
+      swamp model get swamp-serve --json \
+        | jq '
+            {name, version, tags, globalArguments}
+            | .globalArguments.port = 9091' \
+        | swamp model edit swamp-serve --json
       swamp workflow run @svendowideit/swamp-serve-setup
 
   CONFIGURE
@@ -77,6 +85,7 @@ description: >
 
         caddyModelName     the @svendowideit/caddy model to read    (empty = auto-select)
         otelSettingsModel  the @svendowideit/otel-settings model    (empty = no telemetry)
+        repoDir            repo the server runs                     (default .; unit-first, relative = repo root)
         serviceName        systemd unit name                         (default swamp-serve)
         port               port swamp serve listens on              (default 9090)
         serviceHardening   apply PrivateTmp/ProtectSystem            (default true)
@@ -87,7 +96,16 @@ description: >
         autoTrustedHosts   trust the derived hostnames for WebSockets (default true)
 
     `authMode=none` binds loopback only; going off-loopback requires TLS and
-    token/oauth, which swamp serve enforces at startup. Per-run overrides:
+    token/oauth, which swamp serve enforces at startup. `repoDir` is resolved
+    unit-first: an existing unit's `WorkingDirectory` is kept when it is a
+    valid swamp repo, so upgrading several units from one workflow never moves
+    them by accident. A per-call `repoDir` input or a non-default model
+    `repoDir` is the explicit override. With no usable unit the resolution
+    falls back to the swamp repo root (never the process cwd), `SWAMP_REPO_DIR`,
+    then the nearest swamp repo above cwd. Every candidate must have
+    `.swamp.yaml`; `ensureService`/`ensureTelemetry` also refuse a unit whose
+    `--config` is missing instead of creating one that crash-loops. Per-run
+    overrides:
     `version`/`force` on `installBinary`, `endpoint` on `ensureTelemetry`.
 
     `configure` merges into an existing `.swamp/serve.yaml` instead of

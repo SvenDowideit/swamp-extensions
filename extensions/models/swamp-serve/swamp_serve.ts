@@ -44,7 +44,10 @@ import { parseDocument } from "npm:yaml@2.9.1";
 
 const GlobalArgsSchema = z.object({
   repoDir: z.string().default(".").describe(
-    "Repository the server runs (systemd WorkingDirectory and --repo-dir)",
+    "Repository the server runs (systemd WorkingDirectory and --repo-dir). " +
+      "The default '.' keeps the existing unit's repo on later runs; set an " +
+      "absolute path (or pass the per-call repoDir input) to move it. A " +
+      "relative path resolves against the swamp repo root, never the process cwd.",
   ),
   swampBinPath: z.string().default("~/.local/bin/swamp").describe(
     "Path to the swamp binary the service executes",
@@ -153,11 +156,18 @@ const InstallArgsSchema = z.object({
   ),
   force: z.boolean().default(false).describe("Reinstall even when present"),
 });
-const ConfigureArgsSchema = z.object({});
-const EnsureServiceArgsSchema = z.object({
+const RepoOverrideSchema = z.object({
+  repoDir: z.string().default("").describe(
+    "One-off repo override: the repo this service runs, replacing the " +
+      "existing unit's repo. Empty keeps the existing unit's repo when it is " +
+      "a valid swamp repository.",
+  ),
+});
+const ConfigureArgsSchema = RepoOverrideSchema;
+const EnsureServiceArgsSchema = RepoOverrideSchema.extend({
   restart: z.boolean().default(true).describe("Restart when the unit changed"),
 });
-const EnsureTelemetryArgsSchema = z.object({
+const EnsureTelemetryArgsSchema = RepoOverrideSchema.extend({
   endpoint: z.string().default("").describe(
     "Override the OTLP endpoint (empty reads the settings contract)",
   ),
@@ -390,6 +400,24 @@ export function absoluteRepoDir(repoDir: string, cwd?: string): string {
     else stack.push(part);
   }
   return `/${stack.join("/")}`;
+}
+
+/**
+ * Resolve the repo the server runs. A relative `repoDir` is resolved against
+ * the swamp repo root (`context.repoDir`), never the process cwd: any method
+ * (notably `ensureService`) may run from a herdr home shell, a tool call, or a
+ * scheduled run whose cwd is not the repo. Baking that cwd into
+ * `--repo-dir`/`WorkingDirectory` points the unit at a directory with no
+ * `.swamp/serve.yaml`, and the service crash-loops at boot.
+ */
+export function resolveRepoDir(
+  repoDir: string,
+  repoRoot?: string,
+): string {
+  return absoluteRepoDir(
+    repoDir,
+    repoRoot || Deno.env.get("SWAMP_REPO_DIR") || Deno.cwd(),
+  );
 }
 
 /**
@@ -884,6 +912,27 @@ function quoteArg(value: string): string {
 }
 
 /**
+ * The current CLI edits a definition from stdin — `--global-arg` exists only on
+ * `create`. Build a copy-pasteable one-setting edit, one argument per line so a
+ * wrapped terminal cannot corrupt it.
+ */
+export function modelEditCommand(
+  modelName: string,
+  key: string,
+  value: string,
+  json = false,
+): string {
+  const flag = json ? "--argjson" : "--arg";
+  return [
+    `swamp model get ${modelName} --json \\`,
+    `  | jq ${flag} v ${quoteArg(value)} '`,
+    `      {name, version, tags, globalArguments}`,
+    `      | .globalArguments.${key} = $v' \\`,
+    `  | swamp model edit ${modelName} --json`,
+  ].join("\n");
+}
+
+/**
  * Every global argument, its default, and the exact command that changes it on
  * this model instance. `modelName` is the real instance name (from
  * `context.definition.name`), so the output is copy-pasteable and never says
@@ -895,8 +944,15 @@ export function describeOptions(
   modelName = "swamp-serve",
   caddyModelNames: string[] = [],
 ): OptionDoc[] {
-  const persist = (arg: string): string =>
-    `swamp model edit ${modelName} --global-arg ${quoteArg(arg)}`;
+  const persist = (arg: string): string => {
+    const match = /^([A-Za-z0-9_]+)(:json)?=(.*)$/s.exec(arg);
+    if (!match) {
+      return `swamp model get ${modelName} --json | ` +
+        `swamp model edit ${modelName} --json`;
+    }
+    const [, key, json, value] = match;
+    return modelEditCommand(modelName, key, value, Boolean(json));
+  };
   // Prefer the value already on the model, so copying the line is a no-op
   // rather than an accidental switch to an alphabetically earlier Caddy.
   const caddyExample = g.caddyModelName || caddyModelNames[0] || "";
@@ -946,7 +1002,7 @@ export function describeOptions(
       String(g.port),
       "9090",
       "Port swamp serve listens on",
-      `port=${g.port}`,
+      `port:json=${g.port}`,
     ],
     [
       "configPath",
@@ -960,35 +1016,35 @@ export function describeOptions(
       String(g.dashboard),
       "true",
       "Enable the web dashboard at /dashboard",
-      `dashboard=${g.dashboard}`,
+      `dashboard:json=${g.dashboard}`,
     ],
     [
       "hotReload",
       String(g.hotReload),
       "true",
       "Enable SIGHUP hot-reload of extension bundles",
-      `hotReload=${g.hotReload}`,
+      `hotReload:json=${g.hotReload}`,
     ],
     [
       "autoResume",
       String(g.autoResume),
       "true",
       "Resume suspended runs once approvals are decided",
-      `autoResume=${g.autoResume}`,
+      `autoResume:json=${g.autoResume}`,
     ],
     [
       "schedule",
       String(g.schedule),
       "true",
       "Run scheduled workflows",
-      `schedule=${g.schedule}`,
+      `schedule:json=${g.schedule}`,
     ],
     [
       "serviceHardening",
       String(g.serviceHardening),
       "true",
       "Apply systemd PrivateTmp/ProtectSystem (false when workflows SSH)",
-      `serviceHardening=${g.serviceHardening}`,
+      `serviceHardening:json=${g.serviceHardening}`,
     ],
     [
       "authMode",
@@ -1030,7 +1086,7 @@ export function describeOptions(
       String(g.trustProxy),
       "true",
       "Trust X-Forwarded-For behind a proxy",
-      `trustProxy=${g.trustProxy}`,
+      `trustProxy:json=${g.trustProxy}`,
     ],
     [
       "trustedHosts",
@@ -1044,7 +1100,7 @@ export function describeOptions(
       String(g.autoTrustedHosts),
       "true",
       "Add the derived serve/dashboard hostnames to --trusted-hosts",
-      `autoTrustedHosts=${g.autoTrustedHosts}`,
+      `autoTrustedHosts:json=${g.autoTrustedHosts}`,
     ],
     [
       "swampHome",
@@ -1137,6 +1193,8 @@ export function describeOptions(
 /** The subset of the method context this model uses (structural, for tests). */
 export type ResourceContext = {
   globalArgs: ServeGlobals;
+  /** Swamp repo root; the base for a relative `repoDir` (never cwd). */
+  repoDir?: string;
   logger?: {
     info: (msg: string, props?: Record<string, unknown>) => void;
     warn?: (msg: string, props?: Record<string, unknown>) => void;
@@ -1146,7 +1204,10 @@ export type ResourceContext = {
     name: string,
     data: Record<string, unknown>,
   ) => Promise<{ name: string }>;
-  readResource?: (specName: string, name?: string) => Promise<unknown>;
+  readResource?: (
+    instanceName: string,
+    version?: number,
+  ) => Promise<unknown>;
   queryData?: (predicate: string, select?: string) => Promise<unknown[]>;
   readModelData?: (
     modelName: string,
@@ -1255,8 +1316,11 @@ export async function discoverCaddyModels(
       baseDomain,
       target,
       hostIp,
-      selectCommand: `swamp model edit ${serveModelName} ` +
-        `--global-arg caddyModelName=${name}`,
+      selectCommand: modelEditCommand(
+        serveModelName,
+        "caddyModelName",
+        name,
+      ),
     });
   }
   return choices;
@@ -1322,8 +1386,11 @@ export function renderCaddyGuidance(
     ),
     "  Select one, then re-run:",
     ...choices.map((c) =>
-      `    swamp model edit ${serveModelName} ` +
-      `--global-arg caddyModelName=${c.name}`
+      `    ${
+        (c.selectCommand ||
+          modelEditCommand(serveModelName, "caddyModelName", c.name))
+          .replace(/\n/g, "\n    ")
+      }`
     ),
     "    swamp workflow run @svendowideit/swamp-serve-setup",
   ];
@@ -1397,6 +1464,137 @@ export async function pathExists(path: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/** True when `dir` is the root of a swamp repository (its marker file). */
+export async function isSwampRepo(dir: string): Promise<boolean> {
+  const root = String(dir ?? "").trim().replace(/\/+$/, "");
+  if (!root) return false;
+  return await pathExists(`${root}/.swamp.yaml`);
+}
+
+/** Nearest ancestor of `start` that is a swamp repository, or null. */
+export async function findSwampRepo(start: string): Promise<string | null> {
+  let dir = String(start ?? "").trim().replace(/\/+$/, "") || "/";
+  while (true) {
+    if (await isSwampRepo(dir)) return dir;
+    if (dir === "/") return null;
+    const slash = dir.lastIndexOf("/");
+    dir = slash <= 0 ? "/" : dir.slice(0, slash);
+  }
+}
+
+/** Where the repo a service should keep running came from. */
+export type RepoSource =
+  | "override"
+  | "global"
+  | "unit"
+  | "context"
+  | "env"
+  | "cwd";
+
+export type RepoResolution = {
+  /** Absolute repo directory the service runs. */
+  path: string;
+  /** Which input won, for logs and guidance. */
+  source: RepoSource;
+};
+
+/**
+ * Resolve the repo a `swamp-serve` unit should run, unit-first.
+ *
+ * 1. A per-call `repoDir` override wins.
+ * 2. A non-default model `repoDir` is an explicit move and wins.
+ * 3. The existing unit's `WorkingDirectory` is kept when it is a valid swamp
+ *    repo, so a workflow upgrading several units from one repo never moves
+ *    them by accident.
+ * 4. `context.repoDir` (the repo this command/model belongs to).
+ * 5. `SWAMP_REPO_DIR`.
+ * 6. The nearest ancestor of cwd that is a swamp repo.
+ *
+ * Every candidate is validated by the `.swamp.yaml` marker; a path that is not
+ * a swamp repo is skipped rather than written into a crash-looping unit.
+ */
+export async function resolveServiceRepo(
+  context: ResourceContext,
+  override = "",
+): Promise<RepoResolution> {
+  const oneOff = String(override ?? "").trim();
+  if (oneOff) {
+    const path = resolveRepoDir(oneOff, context.repoDir);
+    if (!(await isSwampRepo(path))) {
+      throw new Error(
+        `repoDir override ${path} is not a swamp repository ` +
+          `(no .swamp.yaml marker).`,
+      );
+    }
+    return { path, source: "override" };
+  }
+
+  const global = String(context.globalArgs.repoDir ?? ".").trim() || ".";
+  if (global !== ".") {
+    const path = resolveRepoDir(global, context.repoDir);
+    if (!(await isSwampRepo(path))) {
+      throw new Error(
+        `repoDir ${path} is not a swamp repository (no .swamp.yaml marker).`,
+      );
+    }
+    return { path, source: "global" };
+  }
+
+  let unit: { workingDirectory?: string } | null | undefined;
+  try {
+    unit = await context.readResource?.("unit") as
+      | { workingDirectory?: string }
+      | null
+      | undefined;
+  } catch (error) {
+    context.logger?.warn?.(
+      "could not read the stored unit repo; falling back to the context: {error}",
+      { error: error instanceof Error ? error.message : String(error) },
+    );
+  }
+  const existing = String(unit?.workingDirectory ?? "").trim();
+  if (existing && await isSwampRepo(existing)) {
+    return { path: existing, source: "unit" };
+  }
+
+  for (
+    const [source, candidate] of [
+      ["context", context.repoDir],
+      ["env", Deno.env.get("SWAMP_REPO_DIR")],
+    ] as Array<[RepoSource, string | undefined]>
+  ) {
+    const path = String(candidate ?? "").trim();
+    if (path && await isSwampRepo(path)) return { path, source };
+  }
+
+  const walked = await findSwampRepo(Deno.cwd());
+  if (walked) return { path: walked, source: "cwd" };
+
+  throw new Error(
+    "cannot resolve the swamp repository for this service: the existing " +
+      "unit, context.repoDir, SWAMP_REPO_DIR and cwd are not swamp " +
+      "repositories. Set the model's repoDir or pass --input repoDir=<path>.",
+  );
+}
+
+/** The globals with the unit-first repo resolution applied. */
+export async function resolveServiceGlobals(
+  context: ResourceContext,
+  override = "",
+): Promise<{ g: ServeGlobals; repo: RepoResolution }> {
+  const repo = await resolveServiceRepo(context, override);
+  if (
+    repo.source === "unit" && context.repoDir &&
+    context.repoDir !== repo.path
+  ) {
+    context.logger?.info(
+      "Keeping the existing unit's repo {repo} (pass --input repoDir=… to move it)",
+      { repo: repo.path },
+    );
+  }
+  return { g: { ...context.globalArgs, repoDir: repo.path }, repo };
 }
 
 /** `swamp 20260101.000000.0-sha.abc` (or a bare version) to the bare version. */
@@ -1546,7 +1744,7 @@ export async function resolveCaddyFromContext(
         `check the name with 'swamp behavior list'.\n` +
         `If there is exactly one Caddy model, clear caddyModelName to ` +
         `auto-select it:\n` +
-        `  swamp model edit ${serveModelName} --global-arg caddyModelName=`,
+        modelEditCommand(serveModelName, "caddyModelName", ""),
     );
   }
   // The caddy `desired` resource carries baseDomain + dnsRecords at the top
@@ -1558,9 +1756,8 @@ export async function resolveCaddyFromContext(
   );
   if (!facts.baseDomain) {
     throw new Error(
-      `caddy model '${modelName}' has no baseDomain; set one (e.g. ` +
-        `\`swamp model edit ${modelName} --global-arg ` +
-        "baseDomain=fi.gy`).",
+      `caddy model '${modelName}' has no baseDomain; set one, e.g.:\n` +
+        modelEditCommand(modelName, "baseDomain", "fi.gy"),
     );
   }
   return facts;
@@ -1645,6 +1842,29 @@ export function configPathFor(g: ServeGlobals): string {
   );
 }
 
+/** The globals with `repoDir` resolved to an absolute path in the repo. */
+export function resolvedGlobals(context: ResourceContext): ServeGlobals {
+  return {
+    ...context.globalArgs,
+    repoDir: resolveRepoDir(context.globalArgs.repoDir, context.repoDir),
+  };
+}
+
+/**
+ * Refuse to write a unit whose `--config` is missing: that unit can only
+ * crash-loop with `Restart=always` after `Server config file not found`.
+ */
+async function requireServeConfig(g: ServeGlobals): Promise<void> {
+  if (g.command) return; // a full ExecStart override owns its own config
+  const path = configPathFor(g);
+  if (await pathExists(path)) return;
+  throw new Error(
+    `serve config ${path} does not exist — run \`configure\` (or the ` +
+      `@svendowideit/swamp-serve-setup workflow) before ensureService, or ` +
+      `set repoDir to the repository that contains ${g.configPath}.`,
+  );
+}
+
 // ---------------------------------------------------------------------------
 // The model
 // ---------------------------------------------------------------------------
@@ -1652,7 +1872,7 @@ export function configPathFor(g: ServeGlobals): string {
 /** The swamp model definition for `@svendowideit/swamp-serve`. */
 export const model = {
   type: "@svendowideit/swamp-serve",
-  version: "2026.11.09.1",
+  version: "2026.11.28.1",
   globalArguments: GlobalArgsSchema,
   checks: {
     "valid-config": {
@@ -1801,6 +2021,23 @@ export const model = {
         "swampBinPath is missing instead of updating a different binary.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.28.1",
+      description: "Resolve the service repo unit-first: an existing unit's " +
+        "WorkingDirectory is kept when it is a valid swamp repo (.swamp.yaml), " +
+        "so upgrading several units from one workflow or running ensureService " +
+        "from a different repo never moves a service by accident. " +
+        "configure, ensureService and ensureTelemetry accept a one-off " +
+        "`repoDir` input, and a non-default model repoDir is also an explicit " +
+        "move. With no usable unit, resolve against the swamp repo root " +
+        "(context.repoDir, never the process cwd), then SWAMP_REPO_DIR, then " +
+        "the nearest swamp repo above cwd; every candidate is validated by the " +
+        ".swamp.yaml marker. ensureService and ensureTelemetry refuse to write " +
+        "a unit whose --config is missing instead of creating one that " +
+        "crash-loops under Restart=always; configure validates the resolved " +
+        "absolute config path and guidance emits current get|jq|edit commands.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     topology: {
@@ -1874,7 +2111,7 @@ export const model = {
         _args: z.infer<typeof ResolveArgsSchema>,
         context: ResourceContext,
       ): Promise<{ dataHandles: [{ name: string }] }> => {
-        const g = context.globalArgs;
+        const g = resolvedGlobals(context);
         const facts = await resolveCaddyFromContext(context, g);
         const hosts = hostnamesFor(g, facts);
         context.logger?.info(
@@ -1910,7 +2147,7 @@ export const model = {
         args: z.infer<typeof InstallArgsSchema>,
         context: ResourceContext,
       ): Promise<{ dataHandles: [{ name: string }] }> => {
-        const g = context.globalArgs;
+        const g = resolvedGlobals(context);
         const binPath = expandHome(g.swampBinPath);
         const version = args.version ?? g.installVersion;
 
@@ -1964,7 +2201,7 @@ export const model = {
         _args: Record<string, never>,
         context: ResourceContext,
       ): Promise<{ dataHandles: [{ name: string }] }> => {
-        const g = context.globalArgs;
+        const g = resolvedGlobals(context);
         const binPath = expandHome(g.swampBinPath);
         if (!(await pathExists(binPath))) {
           throw new Error(
@@ -2025,10 +2262,10 @@ export const model = {
         "Write .swamp/serve.yaml for the configured options and validate it with `swamp serve check-config`",
       arguments: ConfigureArgsSchema,
       execute: async (
-        _args: z.infer<typeof ConfigureArgsSchema>,
+        args: z.infer<typeof ConfigureArgsSchema>,
         context: ResourceContext,
       ): Promise<{ dataHandles: [{ name: string }] }> => {
-        const g = context.globalArgs;
+        const { g } = await resolveServiceGlobals(context, args.repoDir);
         const path = configPathFor(g);
         const trustedHosts = await resolveTrustedHosts(context, g);
 
@@ -2060,7 +2297,7 @@ export const model = {
           "serve",
           "check-config",
           "--config",
-          g.configPath,
+          path,
           "--auth-mode",
           g.authMode,
           ...(g.admins ? ["--admins", g.admins] : []),
@@ -2104,7 +2341,8 @@ export const model = {
         args: z.infer<typeof EnsureServiceArgsSchema>,
         context: ResourceContext,
       ): Promise<{ dataHandles: [{ name: string }, { name: string }] }> => {
-        const g = context.globalArgs;
+        const { g } = await resolveServiceGlobals(context, args.repoDir);
+        await requireServeConfig(g);
         const telemetry = await resolveTelemetry(context, g);
         const trustedHosts = await resolveTrustedHosts(context, g);
         const unit = renderUnit(g, telemetry, trustedHosts);
@@ -2161,7 +2399,8 @@ export const model = {
         args: z.infer<typeof EnsureTelemetryArgsSchema>,
         context: ResourceContext,
       ): Promise<{ dataHandles: [{ name: string }] }> => {
-        const g = context.globalArgs;
+        const { g } = await resolveServiceGlobals(context, args.repoDir);
+        await requireServeConfig(g);
         if (!g.otelSettingsModel) {
           throw new Error(
             "otelSettingsModel is required for ensureTelemetry — name the " +
@@ -2233,7 +2472,7 @@ export const model = {
         _args: Record<string, never>,
         context: ResourceContext,
       ): Promise<{ dataHandles: [{ name: string }] }> => {
-        const g = context.globalArgs;
+        const g = resolvedGlobals(context);
         const facts = await resolveCaddyFromContext(context, g);
         const hosts = hostnamesFor(g, facts);
         if (!facts.hostIp) {
@@ -2289,8 +2528,8 @@ export const model = {
         } else {
           context.logger?.warn?.(
             "caddy '{caddy}' does not own {count} record(s); add them to its " +
-              "dnsRecords global (e.g. `swamp model edit {caddy} --global-arg " +
-              "'dnsRecords=[...]'`) and re-run. Records needed: {records}",
+              "dnsRecords global (a list of {name, type, value} records) and " +
+              "re-run. Records needed: {records}",
             {
               caddy: facts.modelName,
               count: missing.length,
@@ -2317,7 +2556,7 @@ export const model = {
         _args: Record<string, never>,
         context: ResourceContext,
       ): Promise<{ dataHandles: [{ name: string }] }> => {
-        const g = context.globalArgs;
+        const g = resolvedGlobals(context);
         const facts = await resolveCaddyFromContext(context, g);
         const hosts = hostnamesFor(g, facts);
         const upstream = `${g.host}:${g.port}`;
@@ -2363,7 +2602,7 @@ export const model = {
         _args: Record<string, never>,
         context: ResourceContext,
       ): Promise<{ dataHandles: [{ name: string }] }> => {
-        const g = context.globalArgs;
+        const g = resolvedGlobals(context);
         const name = unitNameFor(g);
         const svc = await runCommand("systemctl", [
           "--user",
@@ -2436,7 +2675,7 @@ export const model = {
         _args: Record<string, never>,
         context: ResourceContext,
       ): Promise<{ dataHandles: [{ name: string }] }> => {
-        const g = context.globalArgs;
+        const { g } = await resolveServiceGlobals(context);
         const modelName = context.definition?.name ?? "swamp-serve";
         const caddyModels = await discoverCaddyModels(context, modelName);
         const options = describeOptions(
@@ -2502,7 +2741,7 @@ export const model = {
         args: z.infer<typeof RemoveArgsSchema>,
         context: ResourceContext,
       ): Promise<{ dataHandles: [{ name: string }] }> => {
-        const g = context.globalArgs;
+        const g = resolvedGlobals(context);
         const name = unitNameFor(g);
         if (args.removeRoutes) {
           try {

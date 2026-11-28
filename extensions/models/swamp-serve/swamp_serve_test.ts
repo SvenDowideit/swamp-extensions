@@ -4,6 +4,7 @@ import { parse as parseYaml } from "jsr:@std/yaml@1.2.0";
 import {
   absoluteRepoDir,
   buildTelemetryEnv,
+  configPathFor,
   createSystemdService,
   deriveHostnames,
   deriveZone,
@@ -13,11 +14,14 @@ import {
   effectiveTrustedHosts,
   expandHome,
   extractVersion,
+  findSwampRepo,
   hostnamesFor,
   installCommand,
+  isSwampRepo,
   isUnsupportedHardeningError,
   mergeServeConfig,
   model,
+  modelEditCommand,
   parseCaddyFacts,
   renderCaddyChoiceError,
   renderCaddyGuidance,
@@ -28,6 +32,9 @@ import {
   renderUnit,
   renderUnitEnvironment,
   resolveCaddyFromContext,
+  resolvedGlobals,
+  resolveRepoDir,
+  resolveServiceRepo,
   runSwamp,
   scalarToYaml,
   shellQuote,
@@ -178,6 +185,36 @@ Deno.test("absoluteRepoDir makes a relative repo dir absolute", () => {
   assertEquals(absoluteRepoDir("../x", "/home/u/repo"), "/home/u/x");
   assertEquals(absoluteRepoDir("/abs/path", "/cwd"), "/abs/path");
   assertEquals(absoluteRepoDir("", "/cwd"), "/cwd");
+});
+
+Deno.test("resolveRepoDir prefers the repo root over the process cwd", () => {
+  assertEquals(resolveRepoDir(".", "/home/alice/repo"), "/home/alice/repo");
+  assertEquals(
+    resolveRepoDir("sub", "/home/alice/repo"),
+    "/home/alice/repo/sub",
+  );
+  assertEquals(
+    resolveRepoDir("../other", "/home/alice/repo"),
+    "/home/alice/other",
+  );
+  assertEquals(
+    resolveRepoDir("/srv/serve", "/home/alice/repo"),
+    "/srv/serve",
+  );
+});
+
+Deno.test("resolvedGlobals feeds the repo root into the unit and config", () => {
+  const g = resolvedGlobals({
+    globalArgs: { ...G, repoDir: "." },
+    repoDir: "/home/alice/repo",
+  } as never);
+  assertEquals(g.repoDir, "/home/alice/repo");
+  assertEquals(
+    renderExecStart(g).includes("--repo-dir /home/alice/repo"),
+    true,
+  );
+  assertEquals(configPathFor(g), "/home/alice/repo/.swamp/serve.yaml");
+  assertEquals(renderUnit(g).workingDirectory, "/home/alice/repo");
 });
 
 Deno.test("renderExecStart enables dashboard, hot-reload and auto-resume by default", () => {
@@ -571,7 +608,7 @@ Deno.test("describeOptions covers the full argument surface", () => {
   );
   assertEquals(
     docs.find((o) => o.key === "caddyModelName")?.persist,
-    "swamp model edit my-serve --global-arg caddyModelName=my-caddy",
+    modelEditCommand("my-serve", "caddyModelName", "my-caddy"),
   );
 });
 
@@ -666,7 +703,7 @@ Deno.test("resolveCaddyFromContext lists every caddy model with an exact command
         { ...G, caddyModelName: "" } as never,
       ),
     Error,
-    "swamp model edit swamp-serve --global-arg caddyModelName=my-caddy",
+    "jq --arg v my-caddy",
   );
   await assertRejects(
     () =>
@@ -675,7 +712,7 @@ Deno.test("resolveCaddyFromContext lists every caddy model with an exact command
         { ...G, caddyModelName: "" } as never,
       ),
     Error,
-    "swamp model edit swamp-serve --global-arg caddyModelName=eieio-caddy",
+    "jq --arg v eieio-caddy",
   );
 });
 
@@ -739,7 +776,7 @@ Deno.test("discoverCaddyModels enriches choices from the desired resource", asyn
   assertEquals(choices[0].hostIp, "10.10.13.208");
   assertEquals(
     choices[0].selectCommand,
-    "swamp model edit swamp-serve --global-arg caddyModelName=my-caddy",
+    modelEditCommand("swamp-serve", "caddyModelName", "my-caddy"),
   );
   assertEquals(
     describeCaddyChoice(choices[0]),
@@ -754,8 +791,11 @@ Deno.test("caddy guidance has exact commands and no <model> placeholders", () =>
       baseDomain: "fi.gy",
       target: "x1yoga",
       hostIp: "10.10.13.208",
-      selectCommand:
-        "swamp model edit swamp-serve --global-arg caddyModelName=my-caddy",
+      selectCommand: modelEditCommand(
+        "swamp-serve",
+        "caddyModelName",
+        "my-caddy",
+      ),
     },
   ];
   const lines = renderCaddyGuidance("swamp-serve", choices, "my-caddy");
@@ -763,7 +803,8 @@ Deno.test("caddy guidance has exact commands and no <model> placeholders", () =>
   assertEquals(text.includes("<model>"), false);
   assertEquals(
     text.includes(
-      "swamp model edit swamp-serve --global-arg caddyModelName=my-caddy",
+      modelEditCommand("swamp-serve", "caddyModelName", "my-caddy")
+        .replace(/\n/g, "\n    "),
     ),
     true,
   );
@@ -875,6 +916,169 @@ Deno.test("the model exposes a resource for every method", () => {
     ]
   ) {
     assertEquals(methods.includes(m), true, `missing method ${m}`);
+  }
+});
+
+/** A temp swamp repo with the `.swamp.yaml` marker, and optionally a config. */
+async function makeRepo(
+  root: string,
+  opts: { config?: boolean } = {},
+): Promise<string> {
+  await Deno.mkdir(`${root}/.swamp`, { recursive: true });
+  await Deno.writeTextFile(`${root}/.swamp.yaml`, "swampVersion: test\n");
+  if (opts.config) {
+    await Deno.writeTextFile(`${root}/.swamp/serve.yaml`, "port: 9090\n");
+  }
+  return root;
+}
+
+Deno.test("isSwampRepo and findSwampRepo use the .swamp.yaml marker", async () => {
+  const base = await Deno.makeTempDir();
+  try {
+    const repo = await makeRepo(`${base}/repo`);
+    assertEquals(await isSwampRepo(repo), true);
+    assertEquals(await isSwampRepo(`${base}/not-a-repo`), false);
+    await Deno.mkdir(`${base}/repo/a/b`, { recursive: true });
+    assertEquals(await findSwampRepo(`${base}/repo/a/b`), repo);
+    assertEquals(await findSwampRepo(`${base}/not-a-repo`), null);
+  } finally {
+    await Deno.remove(base, { recursive: true });
+  }
+});
+
+Deno.test("resolveServiceRepo keeps the existing unit's repo over the context", async () => {
+  const base = await Deno.makeTempDir();
+  try {
+    const unitRepo = await makeRepo(`${base}/unit`);
+    const contextRepo = await makeRepo(`${base}/context`);
+    const repo = await resolveServiceRepo({
+      globalArgs: { ...G, repoDir: "." },
+      repoDir: contextRepo,
+      readResource: () => Promise.resolve({ workingDirectory: unitRepo }),
+    } as never);
+    assertEquals(repo, { path: unitRepo, source: "unit" });
+  } finally {
+    await Deno.remove(base, { recursive: true });
+  }
+});
+
+Deno.test("resolveServiceRepo ignores an invalid unit repo and uses the context", async () => {
+  const base = await Deno.makeTempDir();
+  try {
+    const broken = `${base}/broken`;
+    await Deno.mkdir(`${broken}/.swamp`, { recursive: true });
+    const contextRepo = await makeRepo(`${base}/context`);
+    const repo = await resolveServiceRepo({
+      globalArgs: { ...G, repoDir: "." },
+      repoDir: contextRepo,
+      readResource: () => Promise.resolve({ workingDirectory: broken }),
+    } as never);
+    assertEquals(repo, { path: contextRepo, source: "context" });
+  } finally {
+    await Deno.remove(base, { recursive: true });
+  }
+});
+
+Deno.test("resolveServiceRepo lets a per-call repoDir override the unit", async () => {
+  const base = await Deno.makeTempDir();
+  try {
+    const unitRepo = await makeRepo(`${base}/unit`);
+    const target = await makeRepo(`${base}/target`);
+    const repo = await resolveServiceRepo({
+      globalArgs: { ...G, repoDir: "." },
+      repoDir: unitRepo,
+      readResource: () => Promise.resolve({ workingDirectory: unitRepo }),
+    } as never, target);
+    assertEquals(repo, { path: target, source: "override" });
+  } finally {
+    await Deno.remove(base, { recursive: true });
+  }
+});
+
+Deno.test("resolveServiceRepo lets a non-default model repoDir override the unit", async () => {
+  const base = await Deno.makeTempDir();
+  try {
+    const unitRepo = await makeRepo(`${base}/unit`);
+    const modelRepo = await makeRepo(`${base}/model`);
+    const repo = await resolveServiceRepo({
+      globalArgs: { ...G, repoDir: modelRepo },
+      repoDir: unitRepo,
+      readResource: () => Promise.resolve({ workingDirectory: unitRepo }),
+    } as never);
+    assertEquals(repo, { path: modelRepo, source: "global" });
+  } finally {
+    await Deno.remove(base, { recursive: true });
+  }
+});
+
+Deno.test("ensureService keeps the unit's repo, and its override moves it", async () => {
+  const base = await Deno.makeTempDir();
+  try {
+    const unitRepo = await makeRepo(`${base}/unit`, { config: true });
+    const contextRepo = await makeRepo(`${base}/context`, { config: true });
+    const calls: Array<Record<string, unknown>> = [];
+    const ctx = {
+      globalArgs: { ...G, repoDir: ".", caddyModelName: "" },
+      repoDir: contextRepo,
+      readResource: () => Promise.resolve({ workingDirectory: unitRepo }),
+      readModelData: () => Promise.resolve([]),
+      runModel: (options: Record<string, unknown>) => {
+        calls.push(options);
+        return Promise.resolve({ ok: true, resources: [] });
+      },
+      writeResource: () => Promise.resolve({ name: "x" }),
+      logger: { info: () => {} },
+    };
+    await model.methods.ensureService.execute(
+      { repoDir: "", restart: true },
+      ctx as never,
+    );
+    const create = calls.find((c) => c.method === "createService");
+    if (!create) throw new Error("createService was not called");
+    const args = create.arguments as Record<string, unknown>;
+    assertEquals(args.workingDirectory, unitRepo);
+    assertEquals(String(args.command).includes(`--repo-dir ${unitRepo}`), true);
+
+    calls.length = 0;
+    await model.methods.ensureService.execute(
+      { repoDir: contextRepo, restart: true },
+      ctx as never,
+    );
+    const moved = calls.find((c) => c.method === "createService");
+    if (!moved) throw new Error("createService was not called after the move");
+    const movedArgs = moved.arguments as Record<string, unknown>;
+    assertEquals(movedArgs.workingDirectory, contextRepo);
+    assertEquals(
+      String(movedArgs.command).includes(`--repo-dir ${contextRepo}`),
+      true,
+    );
+  } finally {
+    await Deno.remove(base, { recursive: true });
+  }
+});
+
+Deno.test("ensureService refuses a missing serve config before writing a unit", async () => {
+  const base = await Deno.makeTempDir();
+  try {
+    await Deno.writeTextFile(`${base}/.swamp.yaml`, "swampVersion: test\n");
+    const ctx = {
+      globalArgs: { ...G, repoDir: "." },
+      repoDir: base,
+      readResource: () => Promise.resolve(null),
+      writeResource: () => Promise.resolve({ name: "x" }),
+      logger: { info: () => {} },
+    };
+    await assertRejects(
+      () =>
+        model.methods.ensureService.execute(
+          { repoDir: "", restart: true },
+          ctx as never,
+        ),
+      Error,
+      "does not exist",
+    );
+  } finally {
+    await Deno.remove(base, { recursive: true });
   }
 });
 

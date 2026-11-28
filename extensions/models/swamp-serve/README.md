@@ -34,8 +34,8 @@ So: to just **run** the server you need no Caddy setup at all. To reach it at
 first — the model reads it rather than inventing one, so those hostnames follow
 the Caddy you already configured. When `caddyModelName` is empty, `resolve`
 auto-selects the only installed `@svendowideit/caddy` model; when several exist
-it prints their names and the exact `swamp model edit … --global-arg
-caddyModelName=…` command for each. When none exists it prints the
+it prints their names and the exact
+`swamp model get … | jq … | swamp model edit …` command for each. When none exists it prints the
 `@svendowideit/caddy-setup` command to create one. The bundled workflow marks the
 Caddy steps `allowFailure`, so a host without Caddy still gets a running service,
 and its final `guidance` step always spells out the next command.
@@ -66,7 +66,11 @@ the workflow — the workflow does not override your values:
 swamp model method run swamp-serve guidance
 
 # 2. Change one value on the real model instance.
-swamp model edit swamp-serve --global-arg port=9091
+swamp model get swamp-serve --json \
+  | jq '
+      {name, version, tags, globalArguments}
+      | .globalArguments.port = 9091' \
+  | swamp model edit swamp-serve --json
 
 # 3. Apply it (the workflow also creates the model on a first run).
 swamp workflow run @svendowideit/swamp-serve-setup
@@ -83,7 +87,11 @@ installed `@svendowideit/caddy` model, or list them and pick one:
 swamp behavior list --json \
   | jq -r '.results[] | select(.type == "@svendowideit/caddy") | .name'
 
-swamp model edit swamp-serve --global-arg caddyModelName=my-caddy
+swamp model get swamp-serve --json \
+  | jq --arg v my-caddy '
+      {name, version, tags, globalArguments}
+      | .globalArguments.caddyModelName = $v' \
+  | swamp model edit swamp-serve --json
 swamp workflow run @svendowideit/swamp-serve-setup
 ```
 
@@ -98,7 +106,7 @@ The rest of the global arguments have defaults.
 
 | Argument | Type | Default | Purpose |
 | -------- | ---- | ------- | ------- |
-| `repoDir` | string | `.` | Repository the server runs (`WorkingDirectory` and `--repo-dir`). |
+| `repoDir` | string | `.` | Repository the server runs (`WorkingDirectory` and `--repo-dir`). `.` keeps the existing unit's repo on later runs; set an absolute path, or pass the per-call `repoDir` input, to move it. A relative path resolves against the swamp repo root, never the process cwd. |
 | `swampBinPath` | string | `~/.local/bin/swamp` | swamp binary the unit executes. |
 | `installVersion` | string | `""` | Version to install when swamp is absent (empty = latest). |
 | `serviceName` | string | `swamp-serve` | systemd user service name. |
@@ -149,8 +157,10 @@ update command. The unit is then created with whatever hardening the installed
 systemd-service applies; updating systemd-service restores
 `serviceHardening=false` control.
 
-Method arguments: `installBinary` takes `version`/`force`; `ensureService` takes
-`restart`; `ensureTelemetry` takes `endpoint`; `remove` takes `removeRoutes`.
+Method arguments: `installBinary` takes `version`/`force`; `configure`,
+`ensureService` and `ensureTelemetry` each take `repoDir` (a one-off repo
+override, empty keeps the unit's repo); `ensureService` also takes `restart`;
+`ensureTelemetry` also takes `endpoint`; `remove` takes `removeRoutes`.
 
 ## Examples
 
@@ -176,7 +186,11 @@ swamp behavior list --json \
   | jq -r '.results[] | select(.type == "@svendowideit/caddy") | .name'
 
 # Pick one; the two hostnames follow its baseDomain and A record for this host.
-swamp model edit swamp-serve --global-arg caddyModelName=my-caddy
+swamp model get swamp-serve --json \
+  | jq --arg v my-caddy '
+      {name, version, tags, globalArguments}
+      | .globalArguments.caddyModelName = $v' \
+  | swamp model edit swamp-serve --json
 swamp workflow run @svendowideit/swamp-serve-setup
 ```
 
@@ -186,7 +200,11 @@ option, its current and default value, and the exact edit command:
 
 ```sh
 swamp model method run swamp-serve guidance
-swamp model edit swamp-serve --global-arg port=9091
+swamp model get swamp-serve --json \
+  | jq '
+      {name, version, tags, globalArguments}
+      | .globalArguments.port = 9091' \
+  | swamp model edit swamp-serve --json
 swamp workflow run @svendowideit/swamp-serve-setup
 
 # The same applied value is visible in the rendered unit and status.
@@ -240,9 +258,9 @@ and one workflow. Methods:
 | `resolve` | none | Read the Caddy model and derive `swamp.<host FQDN>` / `dashboard.<host FQDN>` from its own A record; writes `topology`. When `caddyModelName` is empty, auto-selects the only installed Caddy, or errors with the exact choice commands. No side effects. |
 | `installBinary` | `version`, `force` | Install swamp when absent (pinned `installVersion`) **at `swampBinPath`**, else report that file's version; never overwrites an existing binary unless `force`. The installer is given `-d <dir of swampBinPath>`, so it cannot fall back to `~/.swamp/bin` and its sudo link. |
 | `updateBinary` | none | Run `swamp update` **as `swampBinPath`** and restart the service so it execs the new build. Refuses when that file is missing rather than updating whatever `swamp` is on PATH. |
-| `configure` | none | Merge the model's options into `.swamp/serve.yaml` (preserving keys it does not own, notably `webhooks` and `triggers`) and validate it with `swamp serve check-config`. |
-| `ensureService` | `restart` | Render the unit (command + OTLP environment) and create/restart it via `@svendowideit/systemd-service`. Degrades to a `hardening`-less `createService` on a systemd-service older than 2026.10.26.1. |
-| `ensureTelemetry` | `endpoint` | Read the settings contract, apply the OTLP environment, restart. Same older-dependency fallback as `ensureService`. |
+| `configure` | `repoDir` | Merge the model's options into `.swamp/serve.yaml` (preserving keys it does not own, notably `webhooks` and `triggers`) and validate it with `swamp serve check-config`. |
+| `ensureService` | `repoDir`, `restart` | Render the unit (command + OTLP environment) and create/restart it via `@svendowideit/systemd-service`. Degrades to a `hardening`-less `createService` on a systemd-service older than 2026.10.26.1. |
+| `ensureTelemetry` | `repoDir`, `endpoint` | Read the settings contract, apply the OTLP environment, restart. Same older-dependency fallback as `ensureService`. |
 | `ensureDns` | none | Verify the Caddy model owns the two A records (it reconciles only its own `dnsRecords`); reports any missing. |
 | `ensureProxy` | none | Reverse-proxy both hostnames to the server via `ensureDnsProxy`. |
 | `status` | none | systemd state, HTTP status of both hostnames, version, telemetry summary. |
@@ -258,8 +276,8 @@ Resources: `topology`, `binary`, `serveConfig`, `unit`, `service`, `telemetry`,
 `context.readModelData`, reading its `desired` resource). When `caddyModelName`
 is empty it queries the definition repository for every
 `@svendowideit/caddy` model, uses the single one if there is exactly one, and
-otherwise fails with a list and one exact `swamp model edit … --global-arg
-caddyModelName=…` command per candidate. It then looks through the chosen
+otherwise fails with a list and one exact
+`swamp model get … | jq … | swamp model edit …` command per candidate. It then looks through the chosen
 model's `dnsRecords` for an `A`/`AAAA` record under its `baseDomain`. It picks the
 record whose leftmost label is this machine's hostname (else the deepest such
 record), so a base domain of `fi.gy` with a record for `x1yoga.fi.gy` yields
@@ -310,6 +328,20 @@ Environment=SWAMP_HOME=… SWAMP_CONFIG_DIR=…
 `SWAMP_HOME` and `SWAMP_CONFIG_DIR` are always pinned: without them a scheduled
 run cannot resolve a pulled extension type. `OTEL_BSP_USE`/`OTEL_BLRP_USE`
 switch the OTLP exporters to batching, which suits a long-running server.
+
+`repoDir` is resolved **unit-first**: an existing unit's
+`WorkingDirectory` is kept when it is a valid swamp repo (`.swamp.yaml`),
+so upgrading several units from one workflow, or running `ensureService`
+from a different repo, never moves a service by accident. A per-call
+`repoDir` input or a non-default model `repoDir` is the explicit override.
+With no usable unit, the resolution falls back to `context.repoDir` (swamp's
+repo root, never the process cwd), then `SWAMP_REPO_DIR`, then the nearest
+swamp repo above cwd. Every candidate is validated by its `.swamp.yaml`
+marker; a directory that is not a swamp repo is skipped instead of baked
+into a unit. `ensureService` and `ensureTelemetry` still refuse to write a
+unit whose `--config` does not exist, so a wrong path fails loudly instead
+of creating a unit that crash-loops under `Restart=always`; `configure`
+validates the resolved absolute config path.
 
 ### Trusted hosts (dashboard WebSockets)
 

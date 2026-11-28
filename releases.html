@@ -10724,7 +10724,39 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261110.191731.0-sha.19a81b5b" rel="noopener">release v20261110.191731.0-sha.19a81b5b</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/19a81b5b64973fa95fdb1d673df8c20f039f0546" rel="noopener">19a81b5b</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3720" rel="noopener">#3720</a>𝗔 <a href="https://swamp-club.com/lab/4600" rel="noopener">lab#4600</a></div>
 </article></section>
-<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261126-225932-0-sha-13729dc7">
+<section class="tail"><h2>Hidden gems</h2><article class="item" id="release-swamp-club-swamp-v20261128-085411-0-sha-6ccc52dc">
+<h2><span class="tier C">C</span>measured team failover by snapshotInterval, and when 10m is worth its cost (swamp-club#5187) (#4028)</h2>
+<p class="lede">`docs` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-28T08:58:35Z">2026-11-28T08:58:35Z</time></span><span>datastore</span><span>docs</span></div>
+<div class="body"><h4 class="body-h">What&#39;s Changed</h4>
+<ul>
+<li>docs(datastore): measured team failover by snapshotInterval, and when 10m is worth its cost (swamp-club#5187) (#4028)</li>
+</ul>
+<h4 class="body-h">Summary</h4>
+<p>Docs only, for swamp-club#5187 (part of the work on #5179, team failover takeover time).</p>
+<ul>
+<li><code>design/enablers/datastore-litestream.md</code>: a new paragraph, &quot;The interval and team failover&quot;. It records measured leader-stop takeovers on the acceptance team:</li>
+<li><code>snapshotInterval: 10m</code>: 51.5–58.1 s over 3 reps on a 12–25 MB store;</li>
+<li>the default <code>1h</code>: at least 102 s.</li>
+</ul>
+<p>  It also records that restore time tracks LTX file count (about 47 ms per file). And it explains why <code>10m</code> doesn&#39;t hold on a large store: about 41 s of integrity check and 15 s of row copy at 585 MB, and snapshots at about half the database size, 144 a day (about 42 GB a day at 585 MB).</p>
+<ul>
+<li><code>.claude/skills/swamp/references/repo/reference.md</code>: the same recommendation under Replica Snapshot Interval. Use <code>10m</code> only for a small team datastore that must fail over within a minute.</li>
+</ul>
+<p>The code fix for large stores follows in a separate PR under #5179.</p>
+<h4 class="body-h">Test Plan</h4>
+<ul>
+<li>Numbers come from the 5179-snap10 and 5179-snap60 team runs and the 5179-install-size bench run.</li>
+<li>verify-build cb9941e4, verify-reviews 3b1ca4ed and verify-skills 560e52e2 all passed at 04510db48. An earlier verify-build failed only on an unrelated main property test, from #5175.</li>
+</ul>
+<p>🤖 Generated with <a href="https://claude.com/claude-code" rel="noopener">Claude Code</a></p>
+<p><a href="https://claude.ai/code/session_012GowZVXVB7smGLHongQ5Qo" rel="noopener">https://claude.ai/code/session_012GowZVXVB7smGLHongQ5Qo</a></p>
+<p>---</p>
+<h4 class="body-h">In</h4></div>
+<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/.claude/skills/swamp/references/repo/reference.md" rel="noopener">.claude/skills/swamp/references/repo/reference.md</a>, <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastore-litestream.md" rel="noopener">design/enablers/datastore-litestream.md</a></div>
+<div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261128.085411.0-sha.6ccc52dc" rel="noopener">release v20261128.085411.0-sha.6ccc52dc</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/6ccc52dc684e6257bb57fc982e0b6043eba1a87c" rel="noopener">6ccc52dc</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/4028" rel="noopener">#4028</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/5179" rel="noopener">#5179</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/5175" rel="noopener">#5175</a></div>
+</article>
+<article class="item" id="release-swamp-club-swamp-v20261126-225932-0-sha-13729dc7">
 <h2><span class="tier C">C</span>Clarify dashboard workspace help (#4007)</h2>
 <p class="lede">Change (untyped) · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-11-26T23:04:45Z">2026-11-26T23:04:45Z</time></span></div>
@@ -11282,13 +11314,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗗 <a href="https://github.com/swamp-club/swamp/releases/tag/v20261101.202412.0-sha.0500dc35" rel="noopener">release v20261101.202412.0-sha.0500dc35</a>𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0500dc35534060a870a5998e5dddbcd015dfc2e1" rel="noopener">0500dc35</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3528" rel="noopener">#3528</a>𝗔 <a href="https://swamp-club.com/lab/4250" rel="noopener">lab#4250</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>468 items across 1 source(s) in this window:
+<p>469 items across 1 source(s) in this window:
 2 critical, 417 notable, 28 routine,
-21 minor.</p>
-<ul><li><strong>fix</strong> — 305</li><li><strong>feat</strong> — 114</li><li><strong>perf</strong> — 24</li><li><strong>docs</strong> — 11</li><li><strong>test</strong> — 8</li><li><strong>refactor</strong> — 3</li></ul></section>
+22 minor.</p>
+<ul><li><strong>fix</strong> — 305</li><li><strong>feat</strong> — 114</li><li><strong>perf</strong> — 24</li><li><strong>docs</strong> — 12</li><li><strong>test</strong> — 8</li><li><strong>refactor</strong> — 3</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-28T10:28:22.000Z">2026-11-28T10:28:22.000Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-28T11:03:01.734Z">2026-11-28T11:03:01.734Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>

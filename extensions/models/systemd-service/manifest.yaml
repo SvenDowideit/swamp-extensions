@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/systemd-service"
-version: "2026.10.26.1"
+version: "2026.11.28.1"
 description: >
   Generic systemd *user* service management: idempotently create, start, stop,
   restart, and remove a persistent user service for any command line — and
@@ -70,9 +70,15 @@ description: >
 
     Per-call overrides on `createService`: `command`, `description`,
     `workingDirectory`, `environment`, `restart`, `restartSec`, `after`,
-    `wants`, `force`, and `hardening` (default true; set false for a service
-    that must read root-owned SSH config under a user namespace). `startService`
-    takes `linger` (default true) to
+    `wants`, `force`, `hardening` (default true; set false for a service
+    that must read root-owned SSH config under a user namespace), and
+    `enableEnsureBinariesPath` (default true): the `ExecStart` binary's
+    directory is prepended to the unit PATH when it is not already there,
+    so a service installed in a user directory (for example
+    `~/.local/bin/swamp`) can spawn sibling tools such as `herdr-core`.
+    A caller-supplied PATH is only prepended to; without one the directory
+    goes in front of systemd's default PATH. Set false for the previous
+    inherited-PATH behavior. `startService` takes `linger` (default true) to
     control whether user lingering is enabled. `restartService` restarts a
     running (or stopped) unit and verifies it is active — use it after
     replacing the service's executable, which `enable --now` does not restart.

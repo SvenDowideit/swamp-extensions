@@ -63,6 +63,17 @@ Global arguments (set at model creation with `--global-arg key=value`):
 | `wants` | `[network-online.target]` | `Wants=` dependencies. |
 | `force` | `false` | Rewrite the unit file even if it already matches. |
 | `hardening` | `true` | Apply `PrivateTmp=true` and `ProtectSystem=full`. Set false for a service that must read root-owned SSH config: `PrivateTmp`'s user namespace maps root-owned files to `nobody`, which OpenSSH rejects. |
+| `enableEnsureBinariesPath` | `true` | Prepend the `ExecStart` binary's directory to the unit's `PATH` when it is not already there. A caller-supplied `PATH=` is only prepended to; without one the directory goes in front of the systemd default PATH (`/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin`). Set false to keep the previously inherited PATH exactly. |
+
+`enableEnsureBinariesPath` matters when the service binary lives outside the
+standard directories. A user-installed `swamp` or `herdr-core` lives in
+`~/.local/bin`, which the systemd user manager may not have on `PATH`, so the
+service can exec its own binary but cannot spawn its sibling tools. The default
+puts the binary's directory first (once), so `hc`, `herdr-core`, or any other
+sibling is found. The directory is left alone when it is already in the PATH,
+and a bare, relative, or `/`-only executable is never added — `.` and `/` on
+`PATH` are a security hazard. Pass `enableEnsureBinariesPath=false` for a
+service whose inherited PATH must not change.
 
 `startService` arguments:
 
@@ -120,6 +131,24 @@ swamp model @svendowideit/systemd-service method run createService api \
   --input 'environment=LOG_LEVEL=info' \
   --input 'restart=always' \
   --input 'restartSec=2'
+```
+
+A service installed under `~/.local/bin` gets that directory on its PATH, so it
+can spawn sibling tools (`swamp serve` → `herdr-core`/`hc`). The default does
+this automatically; the explicit form documents the behavior, and the second
+command shows the opt-out for a service that must keep an inherited PATH:
+
+```sh
+# Prepends /home/alice/.local/bin to the unit PATH (default behavior).
+swamp model @svendowideit/systemd-service method run createService swamp-serve-unit \
+  --input 'serviceName=swamp-serve' \
+  --input 'command=/home/alice/.local/bin/swamp serve'
+
+# Keep the inherited PATH exactly as it was before this option existed.
+swamp model @svendowideit/systemd-service method run createService legacy \
+  --input 'serviceName=legacy' \
+  --input 'command=/home/alice/.local/bin/legacy' \
+  --input 'enableEnsureBinariesPath=false'
 ```
 
 Restart a service after replacing its executable — `enable --now` does **not**
@@ -202,7 +231,7 @@ auto-created `systemd-service-audit` model instance.
 
 | Method | Purpose |
 | ------ | ------- |
-| `createService` | Write (or update) the unit file and `daemon-reload`. Idempotent — if the unit already matches, it is left untouched. |
+| `createService` | Write (or update) the unit file and `daemon-reload`. Idempotent — if the unit already matches, it is left untouched. Prepends the binary's directory to the unit PATH unless `enableEnsureBinariesPath=false`. |
 | `startService` | Enable user lingering, `systemctl --user enable --now`, and verify it is active. |
 | `stopService` | `systemctl --user stop`. Idempotent — stopping an already-stopped or never-created service succeeds. |
 | `restartService` | `systemctl --user restart` and verify it is active. Use after replacing the service's executable or updating its unit. |
@@ -268,12 +297,20 @@ Resources:
   files (for example an SSH client config under `/etc/ssh/ssh_config.d`):
   `PrivateTmp` runs the service in a user namespace where only the service UID
   is mapped, so root-owned files appear as `nobody` and OpenSSH refuses them.
+- **PATH is extended, never guessed.** `createService` reads the executable
+  from the `ExecStart` command (including quotes, systemd's `-+!:@` prefixes,
+  and `env NAME=VALUE` indirection) and prepends its directory to PATH only
+  when it is absent. A relative, bare, or `/`-only executable is skipped, and a
+  caller-supplied `PATH=` is only prepended to — never replaced. The default
+  tail is systemd's own PATH, not the PATH of whichever process ran swamp, so
+  the rendered unit is deterministic and auditable.
 
 ### Extending and testing
 
 `systemd_service.ts` holds the model and the pure helpers: `expandHome`,
-`renderServiceUnit`, `assertValidServiceName`, `assertNoNewlines`, and — for
-`audit` — `parseDeclaredPorts`, `parseSsListeners`, `parseCgroupPids`,
+`renderServiceUnit`, `assertValidServiceName`, `assertNoNewlines`,
+`executablePath`, `ensureExecutableDirOnPath` (with `SYSTEMD_DEFAULT_PATH`),
+and — for `audit` — `parseDeclaredPorts`, `parseSsListeners`, `parseCgroupPids`,
 `resolveCgroupRoot`, and `stateFor`. The helpers are exported so they can be
 unit-tested without touching a real systemd session.
 
@@ -284,9 +321,10 @@ unit-tested without touching a real systemd session.
 ```
 
 `systemd_service_test.ts` covers home expansion, unit rendering, the
-name/directive validation guards, the `ss`/cgroup/port parsers, the systemd
-state mapping, and the `audit` assembly (including drift detection) driven
-through `createModelTestContext` and `withMockedCommand`.
+name/directive validation guards, the PATH derivation (quoted/`env`/prefixed
+commands, deduplication, the opt-out), the `ss`/cgroup/port parsers, the
+systemd state mapping, and the `audit` assembly (including drift detection)
+driven through `createModelTestContext` and `withMockedCommand`.
 
 ## License
 

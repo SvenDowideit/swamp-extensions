@@ -91,6 +91,12 @@ const CreateServiceArgsSchema = z.object({
       "for a service that must read root-owned SSH config or other files that " +
       "PrivateTmp's user namespace would map to nobody.",
   ),
+  enableEnsureBinariesPath: z.boolean().default(true).describe(
+    "Prepend the ExecStart binary's directory to the unit's PATH when it is " +
+      "not already there, so a service installed in a user directory can find " +
+      "sibling tools (for example herdr-core and hc beside swamp). Set false " +
+      "to leave PATH exactly as it was inherited.",
+  ),
 });
 
 const ServiceNameArgsSchema = z.object({
@@ -194,6 +200,131 @@ export function expandHome(path: string, home?: string): string {
   }
   if (path.startsWith("~/")) return `${h}${path.slice(1)}`;
   return path;
+}
+
+/**
+ * The PATH systemd gives a unit that does not set one. When we add a directory
+ * we pin this list too, because systemd does not expand `$PATH` inside an
+ * `Environment=` value; dropping these would make `sh`, `git`, `ssh` and the
+ * rest unresolvable for the service.
+ */
+export const SYSTEMD_DEFAULT_PATH =
+  "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin";
+
+/** Read one shell-style word, honouring quotes and backslash escapes. */
+function firstWord(text: string): { word: string; rest: string } | null {
+  let i = 0;
+  while (i < text.length && /\s/.test(text[i])) i++;
+  if (i >= text.length) return null;
+  let word = "";
+  let quote = "";
+  for (; i < text.length; i++) {
+    const ch = text[i];
+    if (quote === "'") {
+      if (ch === "'") quote = "";
+      else word += ch;
+      continue;
+    }
+    if (quote === '"') {
+      if (ch === '"') quote = "";
+      else if (ch === "\\" && i + 1 < text.length) word += text[++i];
+      else word += ch;
+      continue;
+    }
+    if (ch === "'" || ch === '"') {
+      quote = ch;
+      continue;
+    }
+    if (ch === "\\" && i + 1 < text.length) {
+      word += text[++i];
+      continue;
+    }
+    if (/\s/.test(ch)) break;
+    word += ch;
+  }
+  return { word, rest: text.slice(i) };
+}
+
+const ENV_ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/;
+
+/**
+ * The executable in a systemd `ExecStart=` command, or "" when it cannot be
+ * determined. Handles the leading `-+!:@` prefixes systemd allows and the
+ * common `env NAME=VALUE …` indirection. It does not parse `env` options such
+ * as `-i`/`-u NAME`; those return "" rather than guessing which token runs.
+ */
+export function executablePath(command: string): string {
+  let rest = command.trim().replace(/^[-+!:@]+/, "");
+  let token = firstWord(rest);
+  if (!token) return "";
+  const exe = token.word;
+  rest = token.rest;
+  if (exe.slice(exe.lastIndexOf("/") + 1) !== "env") return exe;
+  while ((token = firstWord(rest))) {
+    if (ENV_ASSIGNMENT.test(token.word)) {
+      rest = token.rest;
+      continue;
+    }
+    if (token.word.startsWith("-")) return "";
+    return token.word;
+  }
+  return "";
+}
+
+/** Expand `%h` and a leading `~` so the PATH entry is absolute. */
+function expandUnitPath(path: string): string {
+  if (path === "%h" || path.startsWith("%h/")) {
+    const home = expandHome("~");
+    return path === "%h" ? home : `${home}${path.slice(2)}`;
+  }
+  return expandHome(path);
+}
+
+/** `dir` with trailing slashes removed (a lone `/` is kept). */
+function trimTrailingSlashes(dir: string): string {
+  const trimmed = dir.replace(/\/+$/, "");
+  return trimmed === "" ? "/" : trimmed;
+}
+
+/** Split a PATH value into comparable entries. */
+function pathEntries(value: string): string[] {
+  return value.split(":").map(trimTrailingSlashes);
+}
+
+/**
+ * Prepend the `ExecStart` binary's directory to the unit's PATH unless it is
+ * already there. A caller-supplied `PATH=` is respected and only prepended to;
+ * without one the directory goes in front of {@link SYSTEMD_DEFAULT_PATH}.
+ * Bare, relative, and `/`-only executables are left alone: `.` and `/` on PATH
+ * are a security hazard, and a bare command is already resolved through PATH.
+ */
+export function ensureExecutableDirOnPath(
+  command: string,
+  environment: string[],
+  enabled = true,
+): string[] {
+  if (!enabled) return environment;
+  const exe = executablePath(command);
+  const slash = exe.lastIndexOf("/");
+  if (slash <= 0) return environment;
+  const dir = trimTrailingSlashes(expandUnitPath(exe.slice(0, slash)));
+  if (!dir.startsWith("/")) return environment;
+
+  const pathIndex = environment.reduce(
+    (last, entry, index) => entry.startsWith("PATH=") ? index : last,
+    -1,
+  );
+  if (pathIndex === -1) {
+    if (pathEntries(SYSTEMD_DEFAULT_PATH).includes(dir)) return environment;
+    return [...environment, `PATH=${dir}:${SYSTEMD_DEFAULT_PATH}`];
+  }
+
+  const current = environment[pathIndex].slice("PATH=".length);
+  if (pathEntries(current).includes(dir)) return environment;
+  const next = current ? `${dir}:${current}` : dir;
+  return environment.map((entry, index) =>
+    index === pathIndex ? `PATH=${next}` : entry
+  );
 }
 
 /**
@@ -700,7 +831,7 @@ type MethodContext = {
  */
 export const model = {
   type: "@svendowideit/systemd-service",
-  version: "2026.10.26.1",
+  version: "2026.11.28.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -737,6 +868,12 @@ export const model = {
       toVersion: "2026.10.26.1",
       description:
         "Adds an optional `hardening` argument to createService (default true). Set it false for a service that must read root-owned files such as /etc/ssh/ssh_config.d: PrivateTmp's user namespace maps root-owned files to nobody, which OpenSSH rejects. Existing callers get the previous hardening unchanged.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.28.1",
+      description:
+        "Adds `enableEnsureBinariesPath` to createService (default true): the ExecStart binary's directory is prepended to the unit's PATH when it is not already there, so a service installed in a user directory can spawn sibling tools such as herdr-core. A caller-supplied PATH is only prepended to; without one the directory is placed before the systemd default PATH. Set false for the previous inherited-PATH behavior. No global arguments changed.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -776,13 +913,28 @@ export const model = {
 
         // systemd does not expand `~` in ExecStart, so expand it here.
         const command = expandHome(args.command);
+        const environment = ensureExecutableDirOnPath(
+          command,
+          args.environment,
+          args.enableEnsureBinariesPath,
+        );
+        if (environment !== args.environment) {
+          context.logger?.info(
+            "Added the ExecStart binary directory to {serviceName}'s PATH",
+            {
+              serviceName: args.serviceName,
+              path: environment.find((entry) => entry.startsWith("PATH=")) ??
+                "",
+            },
+          );
+        }
 
         const unit = renderServiceUnit({
           serviceName: args.serviceName,
           command,
           description: args.description,
           workingDirectory: args.workingDirectory,
-          environment: args.environment,
+          environment,
           restart: args.restart,
           restartSec: args.restartSec,
           after: args.after,

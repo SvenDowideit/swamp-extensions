@@ -11,6 +11,8 @@ import {
 import {
   assertNoNewlines,
   assertValidServiceName,
+  ensureExecutableDirOnPath,
+  executablePath,
   expandHome,
   isAlreadyStopped,
   model,
@@ -21,6 +23,7 @@ import {
   renderServiceUnit,
   resolveCgroupRoot,
   stateFor,
+  SYSTEMD_DEFAULT_PATH,
 } from "./systemd_service.ts";
 
 Deno.test("expandHome expands a leading ~ to the home directory", () => {
@@ -176,6 +179,107 @@ Deno.test("renderServiceUnit rejects a traversal service name", () => {
     threw = true;
   }
   assertEquals(threw, true);
+});
+
+Deno.test("executablePath reads plain, quoted, prefixed, and env commands", () => {
+  assertEquals(
+    executablePath("/home/a/.local/bin/swamp serve"),
+    "/home/a/.local/bin/swamp",
+  );
+  assertEquals(
+    executablePath('-@"/opt/My App/bin/serve" --flag'),
+    "/opt/My App/bin/serve",
+  );
+  assertEquals(executablePath("env A=1 /opt/bin/serve"), "/opt/bin/serve");
+  assertEquals(executablePath("env -i /opt/bin/serve"), "");
+  assertEquals(executablePath("swamp serve"), "swamp");
+  assertEquals(
+    executablePath("~/.local/bin/swamp serve"),
+    "~/.local/bin/swamp",
+  );
+});
+
+Deno.test("ensureExecutableDirOnPath prepends the exec dir when there is no PATH", () => {
+  assertEquals(
+    ensureExecutableDirOnPath("/opt/app/bin/serve", []),
+    [`PATH=/opt/app/bin:${SYSTEMD_DEFAULT_PATH}`],
+  );
+});
+
+Deno.test("ensureExecutableDirOnPath keeps a caller PATH and only prepends", () => {
+  assertEquals(
+    ensureExecutableDirOnPath("/opt/app/bin/serve", [
+      "A=1",
+      "PATH=/usr/bin:/bin",
+    ]),
+    ["A=1", "PATH=/opt/app/bin:/usr/bin:/bin"],
+  );
+});
+
+Deno.test("ensureExecutableDirOnPath is a no-op when the dir is already there", () => {
+  const env = ["PATH=/opt/app/bin:/usr/bin:/bin"];
+  assertEquals(ensureExecutableDirOnPath("/opt/app/bin/serve", env), env);
+  assertEquals(ensureExecutableDirOnPath("/usr/bin/serve", []), []);
+});
+
+Deno.test("ensureExecutableDirOnPath skips bare, relative, and root binaries", () => {
+  assertEquals(ensureExecutableDirOnPath("swamp serve", []), []);
+  assertEquals(ensureExecutableDirOnPath("./run.sh", []), []);
+  assertEquals(ensureExecutableDirOnPath("/serve", []), []);
+});
+
+Deno.test("ensureExecutableDirOnPath can be disabled", () => {
+  assertEquals(
+    ensureExecutableDirOnPath("/opt/app/bin/serve", [], false),
+    [],
+  );
+});
+
+Deno.test("ensureExecutableDirOnPath expands ~ and %h to the home directory", () => {
+  const home = expandHome("~");
+  assertEquals(
+    ensureExecutableDirOnPath("~/bin/serve", []),
+    [`PATH=${home}/bin:${SYSTEMD_DEFAULT_PATH}`],
+  );
+  assertEquals(
+    ensureExecutableDirOnPath("%h/bin/serve", []),
+    [`PATH=${home}/bin:${SYSTEMD_DEFAULT_PATH}`],
+  );
+});
+
+Deno.test("createService writes the binary directory onto the unit PATH", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const ctx = createModelTestContext({
+      globalArgs: { denoPath: "~/.swamp/deno/deno", unitDir: dir },
+      methodName: "createService",
+    });
+    await withMockedCommand(() => ({ stdout: "", code: 0 }), async () => {
+      await model.methods.createService.execute(
+        {
+          serviceName: "svc",
+          command: "/opt/app/bin/serve --flag",
+          environment: [],
+          restart: "no",
+          restartSec: "5",
+          after: [],
+          wants: [],
+          force: false,
+          hardening: false,
+          enableEnsureBinariesPath: true,
+        },
+        ctx.context as never,
+      );
+    });
+    const unit = await Deno.readTextFile(`${dir}/svc.service`);
+    assertStringIncludes(
+      unit,
+      `Environment=PATH=/opt/app/bin:${SYSTEMD_DEFAULT_PATH}`,
+    );
+    assertStringIncludes(unit, "ExecStart=/opt/app/bin/serve --flag");
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
 });
 
 Deno.test("isAlreadyStopped treats a clean stop and an unloaded unit as success", () => {

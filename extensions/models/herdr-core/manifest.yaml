@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@svendowideit/herdr-core"
-version: "2026.11.23.2"
+version: "2026.11.28.1"
 description: >
   Give an agent hands and eyes in a herdr-core session that stays running:
   terminals, files, commands, search, and the whole machine fleet, as swamp
@@ -17,7 +17,11 @@ description: >
     belong, edit a file exactly once or replace a line range it found with
     search/read, and search a repo without spawning a shell per step. Every
     call is fan-out friendly: one `terminals`, `read`, `exec` or `file-*` call
-    handles many targets and takes the swamp lock once. Prefer it to `cat`,
+    handles many targets and takes the swamp lock once. It also keeps the
+    record of which pi session runs in which tab of which space, so a reboot
+    can bring each one back where it was — and leave the ones a person quit
+    alone, because a quit is an event and a host kill is an absence. Prefer it
+    to `cat`,
     `sed`, `rg`, `ssh` or a terminal-scraping wrapper: the result is typed
     swamp data, the target can be another machine with `--on`, and the same
     session is visible in every Herdr client. Every method can emit one
@@ -44,13 +48,13 @@ description: >
 
       # What is running, and where can it run? Read the live terminals and
       # the connected machines before choosing a target.
-      swamp model @svendowideit/herdr-core method run status herdr-core
-      swamp model @svendowideit/herdr-core method run terminals herdr-core \
+      swamp behavior run herdr-core status
+      swamp behavior run herdr-core terminals \
         --input all=true --input agent=pi
 
       # Run a test in a terminal I can watch, and wait for its exit code.
       # The terminal stays alive afterwards, so the output is still there.
-      swamp model @svendowideit/herdr-core method run run herdr-core \
+      swamp behavior run herdr-core run \
         --input 'argv:json=["npm","test"]' \
         --input cwd=/home/sven/src/swamp-project \
         --input name=test-run
@@ -58,20 +62,38 @@ description: >
       # Search a repo, then replace one exact occurrence. Both calls return
       # typed data; the edit is all-or-none and never leaves a half-written
       # file.
-      swamp model @svendowideit/herdr-core method run search herdr-core \
+      swamp behavior run herdr-core search \
         --input pattern=agent-ide-control --input paths:json='["docs"]'
-      swamp model @svendowideit/herdr-core method run file-edit herdr-core \
+      swamp behavior run herdr-core file-edit \
         --input path=docs/notes.md \
         --input 'edits:json=[{"old":"old sentence","new":"new sentence"}]'
 
       # Do the same on another machine the server already knows about.
-      swamp model @svendowideit/herdr-core method run exec herdr-core \
+      swamp behavior run herdr-core exec \
         --input machine=xeon \
         --input 'argv:json=["git","status","--short"]'
 
+      # Which pi session sits in which tab of which space, and would a restart
+      # bring it back? Read this before changing anything about sessions.
+      swamp behavior run herdr-core pi-sessions
+
+      # After a reboot, put the lost sessions back in the tabs they came from.
+      # Sessions a person quit, or killed, are left alone and reported as
+      # skipped; dryRun shows the plan without starting anything.
+      swamp behavior run herdr-core pi-resume \
+        --input dryRun=true
+      swamp behavior run herdr-core pi-resume \
+        --input only=tinygo
+
+      # Mark a terminal as a pi session by hand, which is what the addin does
+      # on session start: the labels are the record a restart reads.
+      swamp behavior run herdr-core label \
+        --input target=t13 \
+        --input 'labels:json={"pi.session":"<id>","pi.state":"running"}'
+
       # Check whether tracing is live, then post one test span.
-      swamp model @svendowideit/herdr-core method run otel-status herdr-core
-      swamp model @svendowideit/herdr-core method run otel-status herdr-core \
+      swamp behavior run herdr-core otel-status
+      swamp behavior run herdr-core otel-status \
         --input test=true
 
   CONFIGURE

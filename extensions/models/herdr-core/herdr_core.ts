@@ -28,7 +28,7 @@ import {
 /** The model type. */
 export const EXT_TYPE = "@svendowideit/herdr-core";
 /** The extension version; keep in step with manifest.yaml. */
-export const EXT_VERSION = "2026.11.23.2";
+export const EXT_VERSION = "2026.11.28.1";
 /** The herdr-core binary used when `herdrBin` is not set. */
 export const DEFAULT_BIN = "herdr-core";
 
@@ -39,6 +39,9 @@ export const DEFAULT_BIN = "herdr-core";
 const GlobalArgsSchema = z.object({
   herdrBin: z.string().default(DEFAULT_BIN).describe(
     "herdr-core binary (or `hc` alias) to run.",
+  ),
+  herdrAppBin: z.string().default("herdr-app").describe(
+    "herdr-app binary: reads the window's spaces and tabs for pi-sessions.",
   ),
   defaultCwd: z.string().default("").describe(
     "Working directory for commands when the method does not give one.",
@@ -63,6 +66,477 @@ const TargetArgsSchema = z.object({
     "Machine prefix for targets that do not already carry one.",
   ),
 });
+
+// ---------------------------------------------------------------------------
+// Pi sessions: which pi session runs in which terminal, tab and space
+// ---------------------------------------------------------------------------
+
+/** The label that marks a terminal as a pi session. */
+export const PI_SESSION_LABEL = "pi.session";
+/** The label holding the pi session's own state word: running, exited. */
+export const PI_STATE_LABEL = "pi.state";
+/** The label holding why a session that exited was left. */
+export const PI_END_LABEL = "pi.end";
+
+const LabelArgsSchema = z.object({
+  target: z.string().describe("Terminal address (`t7`) or name."),
+  machine: z.string().default("").describe(
+    "Machine prefix for a bare address.",
+  ),
+  labels: z.record(z.string(), z.string()).describe(
+    "Labels to set, key=value. An empty value removes one.",
+  ),
+});
+
+const PiSessionsArgsSchema = z.object({
+  all: z.boolean().default(true).describe(
+    "Include finished terminals: they are where a lost session is recorded.",
+  ),
+  machine: z.string().default("").describe(
+    "Only terminals on this machine (default: every machine).",
+  ),
+  maxAgeDays: z.number().int().positive().default(14).describe(
+    "Do not resume a session whose terminal was created longer ago.",
+  ),
+});
+
+const PiResumeArgsSchema = PiSessionsArgsSchema.extend({
+  dryRun: z.boolean().default(false).describe(
+    "Report the plan and start nothing.",
+  ),
+  only: z.string().default("").describe(
+    "Limit to one space name, tab name or terminal address.",
+  ),
+});
+
+const PiSessionResourceSchema = z.object({
+  terminal: z.string(),
+  machine: z.string().default(""),
+  sessionId: z.string().default(""),
+  spaceId: z.string().default(""),
+  spaceName: z.string().default(""),
+  tabId: z.string().default(""),
+  tabName: z.string().default(""),
+  cwd: z.string().default(""),
+  agent: z.string().default(""),
+  liveState: z.string().default(""),
+  herdrReason: z.string().default(""),
+  piState: z.string().default(""),
+  createdAt: z.string().default(""),
+  decision: z.string().default(""),
+  why: z.string().default(""),
+});
+
+const PiSessionsResourceSchema = z.object({
+  count: z.number(),
+  resumeCount: z.number(),
+  byDecision: z.record(z.string(), z.number()),
+  sessions: z.array(PiSessionResourceSchema),
+  capturedAt: z.string(),
+});
+
+const PiResumedSchema = z.object({
+  terminal: z.string(),
+  sessionId: z.string(),
+  spaceName: z.string().default(""),
+  tabName: z.string().default(""),
+  resumedAs: z.string().default(""),
+  placedInTab: z.boolean().default(false),
+  staleKilled: z.string().default(""),
+  error: z.string().default(""),
+});
+
+const PiResumeResourceSchema = z.object({
+  dryRun: z.boolean(),
+  resumed: z.array(PiResumedSchema),
+  skipped: z.array(
+    z.object({
+      terminal: z.string(),
+      sessionId: z.string().default(""),
+      why: z.string(),
+    }),
+  ),
+  capturedAt: z.string(),
+});
+
+/** Reasons a program vanished because the host went away, not the person. */
+const HOST_ENDED = new Set([
+  "host_shutdown",
+  "server_stop",
+  "holder_lost",
+  "signaled",
+  "stopped_by_restart",
+]);
+
+/** Reasons the person themselves ended it. */
+const PERSON_ENDED = new Set(["exited", "killed"]);
+
+/**
+ * Decide whether a terminal's pi session should come back after a restart.
+ *
+ * The record is the terminal's own labels, so nothing but the terminal can
+ * disagree with it: `pi.state=exited` is a session the person quit, and a
+ * missing shutdown with a shell sitting in the tab is the reboot case.
+ * Pure, so the rule is testable without a running herdr-core.
+ */
+export function decidePiResume(
+  terminal: {
+    agent: string;
+    liveState: string;
+    herdrReason: string;
+    labels: Record<string, string>;
+    createdAtMs: number;
+  },
+  nowMs: number,
+  maxAgeDays: number,
+): { decision: "resume" | "skip"; why: string } {
+  const sessionId = terminal.labels[PI_SESSION_LABEL] ?? "";
+  if (!sessionId) return { decision: "skip", why: "no pi session recorded" };
+  const piState = terminal.labels[PI_STATE_LABEL] ?? "";
+  if (piState === "exited") {
+    return {
+      decision: "skip",
+      why: `left deliberately (${terminal.labels[PI_END_LABEL] || "quit"})`,
+    };
+  }
+  if (terminal.createdAtMs > 0) {
+    const ageDays = Math.floor((nowMs - terminal.createdAtMs) / 86_400_000);
+    if (ageDays > maxAgeDays) {
+      return { decision: "skip", why: `stale: ${ageDays} days old` };
+    }
+  }
+  if (PERSON_ENDED.has(terminal.herdrReason)) {
+    return { decision: "skip", why: `you ended it (${terminal.herdrReason})` };
+  }
+  if (HOST_ENDED.has(terminal.herdrReason)) {
+    return {
+      decision: "resume",
+      why: `host ended it (${terminal.herdrReason})`,
+    };
+  }
+  if ((terminal.liveState || "live") !== "live") {
+    return {
+      decision: "skip",
+      why: `finished without a restart (${terminal.herdrReason || "exited"})`,
+    };
+  }
+  if (terminal.agent === "pi") {
+    return { decision: "skip", why: "session is still running" };
+  }
+  // Live terminal carrying a pi record, but a shell inside: the restart put it
+  // back as a shell. It is the reboot case, and its tab still points at it.
+  return { decision: "resume", why: "program lost when the host restarted" };
+}
+
+/** One tab of one space, as herdr-app reports it. */
+type HerdrTab = { id: string; name: string; terminals: string[] };
+/** One space, as herdr-app reports it. */
+type HerdrSpace = { id: string; name: string; tabs: HerdrTab[] };
+/** Where the window puts a terminal: its space and tab. */
+type HerdrWhere = {
+  spaceId: string;
+  spaceName: string;
+  tabId: string;
+  tabName: string;
+};
+
+/** Read the window's spaces > tabs > terminals, or [] when no window is open. */
+async function herdrAppSpaces(bin: string): Promise<HerdrSpace[]> {
+  let result: { code: number; stdout: string; stderr: string };
+  try {
+    result = await runHc(bin, ["ls"]);
+  } catch {
+    return [];
+  }
+  if (result.code !== 0) return [];
+  let raw: { spaces?: unknown };
+  try {
+    raw = JSON.parse(result.stdout) as { spaces?: unknown };
+  } catch {
+    return [];
+  }
+  const spaces = Array.isArray(raw.spaces)
+    ? raw.spaces as Array<Record<string, unknown>>
+    : [];
+  return spaces.map((space) => {
+    const tabs = Array.isArray(space.tabs)
+      ? space.tabs as Array<Record<string, unknown>>
+      : [];
+    return {
+      id: String(space.id ?? ""),
+      name: String(space.name ?? ""),
+      tabs: tabs.map((tab) => ({
+        id: String(tab.id ?? ""),
+        name: String(tab.name ?? ""),
+        terminals: (Array.isArray(tab.terminals)
+          ? tab.terminals as Array<Record<string, unknown>>
+          : [])
+          .map((t) =>
+            String(t.terminal ?? "")
+          )
+          .filter(Boolean),
+      })),
+    };
+  });
+}
+
+/** Map every terminal address the window shows to its space and tab. */
+function whereByTerminal(spaces: HerdrSpace[]): Map<string, HerdrWhere> {
+  const map = new Map<string, HerdrWhere>();
+  for (const space of spaces) {
+    for (const tab of space.tabs) {
+      for (const terminal of tab.terminals) {
+        map.set(terminal, {
+          spaceId: space.id,
+          spaceName: space.name,
+          tabId: tab.id,
+          tabName: tab.name,
+        });
+      }
+    }
+  }
+  return map;
+}
+
+/**
+ * Every terminal as `hc get` describes it.
+ *
+ * `hc ls` leaves out labels and created_ms, and the record is a label, so the
+ * list is only used for addresses and each one is fetched in full.
+ */
+async function piRows(
+  bin: string,
+  all: boolean,
+): Promise<Array<Record<string, unknown>>> {
+  const raw = await hcJson(bin, all ? ["ls", "--all"] : ["ls"]);
+  const listed = Array.isArray(raw.terminals)
+    ? raw.terminals as Array<Record<string, unknown>>
+    : [];
+  const rows: Array<Record<string, unknown>> = [];
+  for (const item of listed) {
+    const address = String(item.address ?? "");
+    if (!address) continue;
+    rows.push(await hcJson(bin, ["get", address]));
+  }
+  return rows;
+}
+
+/** One `hc ls --all` row, as far as pi sessions care about it. */
+function piRow(
+  row: Record<string, unknown>,
+  machine: string,
+  where: Map<string, HerdrWhere>,
+): { address: string; record: z.infer<typeof PiSessionResourceSchema> } {
+  const address = String(row.address ?? "");
+  const labels: Record<string, string> =
+    typeof row.labels === "object" && row.labels !== null
+      ? row.labels as Record<string, string>
+      : {};
+  const placed = where.get(address);
+  const created = typeof row.created_ms === "number"
+    ? new Date(row.created_ms as number).toISOString()
+    : "";
+  return {
+    address,
+    record: {
+      terminal: address,
+      machine: machineOf(address, machine),
+      sessionId: String(labels[PI_SESSION_LABEL] ?? ""),
+      spaceId: placed?.spaceId ?? "",
+      spaceName: placed?.spaceName ?? "",
+      tabId: placed?.tabId ?? "",
+      tabName: placed?.tabName ?? "",
+      cwd: String(row.cwd ?? ""),
+      agent: String(row.agent ?? ""),
+      liveState: String(row.state ?? ""),
+      herdrReason: String(row.reason ?? ""),
+      piState: String(labels[PI_STATE_LABEL] ?? ""),
+      createdAt: created,
+      decision: "",
+      why: "",
+    },
+  };
+}
+
+/** Set labels on a terminal and return it as the model sees terminals. */
+async function label(
+  args: z.infer<typeof LabelArgsSchema>,
+  ctx: MethodContext,
+): Promise<{ dataHandles: Array<{ name: string }> }> {
+  const g = ctx.globalArgs;
+  const machine = args.machine || g.defaultMachine;
+  const address = addressFor(args.target, machine);
+  const pairs = Object.entries(args.labels).map(([key, value]) =>
+    `${key}=${value}`
+  );
+  await hcJson(g.herdrBin, ["label", address, ...pairs]);
+  const detail = await hcJson(g.herdrBin, ["get", address]);
+  const resource = terminalResource(detail, machine);
+  return {
+    dataHandles: [await save(ctx, "terminal", resource.address, resource)],
+  };
+}
+
+/** Report every pi session a terminal records, with its resume decision. */
+async function piSessions(
+  args: z.infer<typeof PiSessionsArgsSchema>,
+  ctx: MethodContext,
+): Promise<{ dataHandles: Array<{ name: string }> }> {
+  const g = ctx.globalArgs;
+  const machine = args.machine || g.defaultMachine;
+  const rows = await piRows(g.herdrBin, args.all);
+  const where = whereByTerminal(await herdrAppSpaces(g.herdrAppBin));
+  const nowMs = Date.now();
+  const handles: Array<{ name: string }> = [];
+  const sessions: Array<z.infer<typeof PiSessionResourceSchema>> = [];
+  const byDecision: Record<string, number> = {};
+  for (const row of rows) {
+    const { address, record } = piRow(row, machine, where);
+    if (!record.sessionId) continue;
+    if (machine && record.machine !== machine) continue;
+    const createdAtMs = typeof row.created_ms === "number"
+      ? row.created_ms as number
+      : 0;
+    const verdict = decidePiResume(
+      {
+        agent: record.agent,
+        liveState: record.liveState,
+        herdrReason: record.herdrReason,
+        labels: {
+          [PI_SESSION_LABEL]: record.sessionId,
+          [PI_STATE_LABEL]: record.piState,
+        },
+        createdAtMs,
+      },
+      nowMs,
+      args.maxAgeDays,
+    );
+    record.decision = verdict.decision;
+    record.why = verdict.why;
+    byDecision[verdict.decision] = (byDecision[verdict.decision] ?? 0) + 1;
+    sessions.push(record);
+    handles.push(await save(ctx, "pi-session", address, record));
+  }
+  const fleet: z.infer<typeof PiSessionsResourceSchema> = {
+    count: sessions.length,
+    resumeCount: sessions.filter((s) => s.decision === "resume").length,
+    byDecision,
+    sessions,
+    capturedAt: now(),
+  };
+  handles.push(await save(ctx, "pi-sessions", "current", fleet));
+  return { dataHandles: handles };
+}
+
+/** Start a lost pi session again in the tab it was lost from. */
+async function piResume(
+  args: z.infer<typeof PiResumeArgsSchema>,
+  ctx: MethodContext,
+): Promise<{ dataHandles: Array<{ name: string }> }> {
+  const g = ctx.globalArgs;
+  const machine = args.machine || g.defaultMachine;
+  const rows = await piRows(g.herdrBin, args.all);
+  const where = whereByTerminal(await herdrAppSpaces(g.herdrAppBin));
+  const nowMs = Date.now();
+  const resumed: Array<z.infer<typeof PiResumedSchema>> = [];
+  const skipped: Array<{ terminal: string; sessionId: string; why: string }> =
+    [];
+  for (const row of rows) {
+    const { address, record } = piRow(row, machine, where);
+    if (!record.sessionId) continue;
+    if (machine && record.machine !== machine) continue;
+    const only = args.only.trim();
+    if (
+      only &&
+      only !== address &&
+      only !== record.spaceName &&
+      only !== record.tabName
+    ) continue;
+    const createdAtMs = typeof row.created_ms === "number"
+      ? row.created_ms as number
+      : 0;
+    const verdict = decidePiResume(
+      {
+        agent: record.agent,
+        liveState: record.liveState,
+        herdrReason: record.herdrReason,
+        labels: {
+          [PI_SESSION_LABEL]: record.sessionId,
+          [PI_STATE_LABEL]: record.piState,
+        },
+        createdAtMs,
+      },
+      nowMs,
+      args.maxAgeDays,
+    );
+    if (verdict.decision !== "resume") {
+      skipped.push({
+        terminal: address,
+        sessionId: record.sessionId,
+        why: verdict.why,
+      });
+      continue;
+    }
+    if (!record.tabId) {
+      // Without a tab id there is nowhere to put it back: starting it anyway
+      // would drop the session into whatever space happens to be focused.
+      skipped.push({
+        terminal: address,
+        sessionId: record.sessionId,
+        why: "no space/tab recorded (is herdr-app running?)",
+      });
+      continue;
+    }
+    const entry: z.infer<typeof PiResumedSchema> = {
+      terminal: address,
+      sessionId: record.sessionId,
+      spaceName: record.spaceName,
+      tabName: record.tabName,
+      resumedAs: "",
+      placedInTab: false,
+      staleKilled: "",
+      error: "",
+    };
+    if (args.dryRun) {
+      resumed.push(entry);
+      continue;
+    }
+    try {
+      const runArgs = ["run", "--bg", "--no-notify"];
+      if (record.cwd) runArgs.push("--cwd", record.cwd);
+      if (record.spaceId) {
+        runArgs.push("--label", `herdr.space=${record.spaceId}`);
+      }
+      if (record.tabId) runArgs.push("--label", `herdr.tab=${record.tabId}`);
+      runArgs.push("--label", `${PI_SESSION_LABEL}=${record.sessionId}`);
+      runArgs.push("--label", `${PI_STATE_LABEL}=running`);
+      runArgs.push("pi", "--session", record.sessionId);
+      const started = await hcJson(g.herdrBin, runArgs);
+      entry.resumedAs = String(started.address ?? "");
+      // Clear the stale shell only once the new terminal is seen in its tab: a
+      // tab whose last terminal goes closes, taking its id with it.
+      const after = whereByTerminal(await herdrAppSpaces(g.herdrAppBin));
+      const placed = after.get(entry.resumedAs);
+      entry.placedInTab = Boolean(
+        placed && record.tabId && placed.tabId === record.tabId,
+      );
+      if (entry.placedInTab && address !== entry.resumedAs) {
+        await hcJson(g.herdrBin, ["kill", address]);
+        entry.staleKilled = address;
+      }
+    } catch (error) {
+      entry.error = error instanceof Error ? error.message : String(error);
+    }
+    resumed.push(entry);
+  }
+  const plan: z.infer<typeof PiResumeResourceSchema> = {
+    dryRun: args.dryRun,
+    resumed,
+    skipped,
+    capturedAt: now(),
+  };
+  return { dataHandles: [await save(ctx, "pi-resume", "current", plan)] };
+}
 
 const StatusArgsSchema = z.object({});
 
@@ -1496,6 +1970,12 @@ export const model = {
         "Adds the terminal-session report, file-edit-lines with expected-line/hash checks, and JSONL activity events for the Herdr panel.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.28.1",
+      description:
+        "Adds label, pi-sessions and pi-resume, so a restart can put each lost pi session back in the tab it was lost from and leave the ones a person quit alone.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   reports: ["@svendowideit/terminal-session"],
 
@@ -1509,6 +1989,26 @@ export const model = {
     terminal: {
       description: "One herdr-core terminal and the program it hosts.",
       schema: TerminalResourceSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    "pi-session": {
+      description:
+        "One terminal's recorded pi session, where it sits and whether to resume it.",
+      schema: PiSessionResourceSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    "pi-sessions": {
+      description: "Every recorded pi session and its resume decision.",
+      schema: PiSessionsResourceSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    "pi-resume": {
+      description:
+        "What a resume did: sessions started, and why others stayed down.",
+      schema: PiResumeResourceSchema,
       lifetime: "infinite",
       garbageCollection: 10,
     },
@@ -1945,6 +2445,59 @@ export const model = {
         args: z.infer<typeof OtelStatusArgsSchema>,
         ctx: MethodContext,
       ) => otelStatusMethod(args, ctx),
+    },
+    label: {
+      description:
+        "Set or remove labels on a terminal. pi sessions mark themselves " +
+        "with pi.session, so a restart can tell which session sat where.",
+      arguments: LabelArgsSchema,
+      execute: (args: z.infer<typeof LabelArgsSchema>, ctx: MethodContext) =>
+        withOtelSpan(
+          ctx,
+          otelConfig(ctx.globalArgs),
+          spanInput("label", args, {
+            target: args.target,
+            machine: args.machine || ctx.globalArgs.defaultMachine,
+            attributes: {
+              "swamp.label_count": Object.keys(args.labels).length,
+            },
+          }),
+          () => label(args, ctx),
+        ),
+    },
+    "pi-sessions": {
+      description:
+        "Report which pi session runs in which terminal, tab and space, and " +
+        "whether a restart should bring it back.",
+      arguments: PiSessionsArgsSchema,
+      execute: (
+        args: z.infer<typeof PiSessionsArgsSchema>,
+        ctx: MethodContext,
+      ) =>
+        withOtelSpan(
+          ctx,
+          otelConfig(ctx.globalArgs),
+          spanInput("pi-sessions", args, {
+            machine: args.machine || ctx.globalArgs.defaultMachine,
+          }),
+          () => piSessions(args, ctx),
+        ),
+    },
+    "pi-resume": {
+      description:
+        "Start lost pi sessions again in the tab each was lost from, and " +
+        "leave the ones a person quit alone. dryRun reports the plan.",
+      arguments: PiResumeArgsSchema,
+      execute: (args: z.infer<typeof PiResumeArgsSchema>, ctx: MethodContext) =>
+        withOtelSpan(
+          ctx,
+          otelConfig(ctx.globalArgs),
+          spanInput("pi-resume", args, {
+            machine: args.machine || ctx.globalArgs.defaultMachine,
+            attributes: { "swamp.dry_run": args.dryRun },
+          }),
+          () => piResume(args, ctx),
+        ),
     },
   },
 };

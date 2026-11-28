@@ -90,6 +90,9 @@ Per-call arguments:
 | `machine-add` | `target`, `name`, `via`, `install`, `temporary` |
 | `machine-remove` | `machine` |
 | `otel-status` | `test` |
+| `label` | `target`, `machine`, `labels` |
+| `pi-sessions` | `all`, `machine`, `maxAgeDays` |
+| `pi-resume` | `all`, `machine`, `maxAgeDays`, `dryRun`, `only` |
 
 ## Examples
 

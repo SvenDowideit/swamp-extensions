@@ -1450,7 +1450,7 @@ footer .ver{color:var(--acc)}
 <p class="lede">`fix` change · swamp-club/swamp</p>
 <div class="meta"><span><time datetime="2026-11-09T19:12:21Z">2026-11-09T19:12:21Z</time></span><span>datastore</span><span>fix</span></div>
 <div class="body"><p>fix(datastore): large team-mode outputs upload under a size-scaled deadline, serve stores chunks while reading, failing uploads are capped at 3, and a lapse mid-request reports lease_lapsed (swamp-club#4542) (#3694)</p></div>
-<div class="docs"><span class="meta">Docs changed:</span> <a href="https://github.com/swamp-club/swamp/blob/main/design/enablers/datastores.md" rel="noopener">design/enablers/datastores.md</a></div>
+
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/4d382f0729ed46c935860316e9fede5a63b39165" rel="noopener">4d382f07</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3694" rel="noopener">#3694</a>𝗔 <a href="https://swamp-club.com/lab/4542" rel="noopener">lab#4542</a></div>
 </article>
 <article class="item" id="commit-swamp-club-swamp-77c5029d1b62bc168fd6e0f154618ee73dc1cb23">
@@ -1461,6 +1461,22 @@ footer .ver{color:var(--acc)}
 
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/77c5029d1b62bc168fd6e0f154618ee73dc1cb23" rel="noopener">77c5029d</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3693" rel="noopener">#3693</a>𝗔 <a href="https://swamp-club.com/lab/4547" rel="noopener">lab#4547</a></div>
 </article>
+<article class="item" id="commit-swamp-club-swamp-7675c1208ea057b569abec6c7a1950b83d588cf8">
+<h2><span class="tier A">A</span>workflow validate type-checks step expressions, and the skill&#39;s forEach example no longer uses range() (swamp-club#4553) (#3690)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-09T17:43:29Z">2026-11-09T17:43:29Z</time></span><span>workflows</span><span>fix</span></div>
+<div class="body"><p>fix(workflows): workflow validate type-checks step expressions, and the skill&#39;s forEach example no longer uses range() (swamp-club#4553) (#3690)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/7675c1208ea057b569abec6c7a1950b83d588cf8" rel="noopener">7675c120</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3690" rel="noopener">#3690</a>𝗔 <a href="https://swamp-club.com/lab/4553" rel="noopener">lab#4553</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-208256589990c3d7475029d8f0c24004f6901427">
+<h2><span class="tier A">A</span>worker connect resolves a relative --cache-dir, so bundle dispatches no longer fail with &#39;Path must be absolute&#39; (swamp-club#4552) (#3689)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-09T17:16:00Z">2026-11-09T17:16:00Z</time></span><span>worker</span><span>fix</span></div>
+<div class="body"><p>fix(worker): worker connect resolves a relative --cache-dir, so bundle dispatches no longer fail with &#39;Path must be absolute&#39; (swamp-club#4552) (#3689)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/208256589990c3d7475029d8f0c24004f6901427" rel="noopener">20825658</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3689" rel="noopener">#3689</a>𝗔 <a href="https://swamp-club.com/lab/4552" rel="noopener">lab#4552</a></div>
+</article>
 <article class="item" id="commit-swamp-club-swamp-d763b6ffb91b29c04f2bb75de06ddd2200a636a1">
 <h2><span class="tier A">A</span>a webhook route under serve&#39;s own paths is skipped instead of shadowing them (swamp-club#4407) (#3688)</h2>
 <p class="lede">`fix` change · swamp-club/swamp</p>
@@ -1468,6 +1484,14 @@ footer .ver{color:var(--acc)}
 <div class="body"><p>fix(serve): a webhook route under serve&#39;s own paths is skipped instead of shadowing them (swamp-club#4407) (#3688)</p></div>
 
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/d763b6ffb91b29c04f2bb75de06ddd2200a636a1" rel="noopener">d763b6ff</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3688" rel="noopener">#3688</a>𝗔 <a href="https://swamp-club.com/lab/4407" rel="noopener">lab#4407</a></div>
+</article>
+<article class="item" id="commit-swamp-club-swamp-12a2bec12fe5c321890055431fe1573f97ea9bc2">
+<h2><span class="tier A">A</span>a manifest&#39;s binaries reach workers executable, and a worker&#39;s extensionFile() says why a declared file is absent (swamp-club#4534) (#3687)</h2>
+<p class="lede">`fix` change · swamp-club/swamp</p>
+<div class="meta"><span><time datetime="2026-11-09T16:30:53Z">2026-11-09T16:30:53Z</time></span><span>serve</span><span>fix</span></div>
+<div class="body"><p>fix(serve): a manifest&#39;s binaries reach workers executable, and a worker&#39;s extensionFile() says why a declared file is absent (swamp-club#4534) (#3687)</p></div>
+
+<div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/12a2bec12fe5c321890055431fe1573f97ea9bc2" rel="noopener">12a2bec1</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3687" rel="noopener">#3687</a></div>
 </article>
 <article class="item" id="commit-swamp-club-swamp-7285a656c331464f882c6aa0dc78260b091e6896">
 <h2><span class="tier A">A</span>link a person, act over HTTP and refresh delegated tokens; a delegated refresh keeps the refresh token (swamp-club#4543) (#3686)</h2>
@@ -3278,13 +3302,13 @@ footer .ver{color:var(--acc)}
 <div class="refs">𝗖𝗟 <a href="https://github.com/swamp-club/swamp/commit/0500dc35534060a870a5998e5dddbcd015dfc2e1" rel="noopener">0500dc35</a>𝗣 <a href="https://github.com/swamp-club/swamp/pull/3528" rel="noopener">#3528</a>𝗔 <a href="https://swamp-club.com/lab/4250" rel="noopener">lab#4250</a></div>
 </article></section>
 <section class="tail"><h2>Final thoughts</h2>
-<p>401 items across 2 source(s) in this window:
-1 critical, 357 notable, 28 routine,
+<p>404 items across 2 source(s) in this window:
+1 critical, 360 notable, 28 routine,
 15 minor.</p>
-<ul><li><strong>fix</strong> — 261</li><li><strong>feat</strong> — 97</li><li><strong>perf</strong> — 13</li><li><strong>chore</strong> — 13</li><li><strong>docs</strong> — 7</li><li><strong>test</strong> — 6</li></ul></section>
+<ul><li><strong>fix</strong> — 264</li><li><strong>feat</strong> — 97</li><li><strong>perf</strong> — 13</li><li><strong>chore</strong> — 13</li><li><strong>docs</strong> — 7</li><li><strong>test</strong> — 6</li></ul></section>
 </div></div></main>
 <footer>
-  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-28T00:05:11.876Z">2026-11-28T00:05:11.876Z</time></div>
+  <div>Generated by <a href="https://swamp-club.com/extensions/@svendowideit/swamp-pulse" rel="noopener"><code>@svendowideit/swamp-pulse</code></a> <span class="ver">v2026.09.18.15</span> · last run <time datetime="2026-11-28T01:06:11.958Z">2026-11-28T01:06:11.958Z</time></div>
   <div>Detail pages follow the interactive release-notes tour format popularised by the
   <a href="https://victoriametrics.com/blog/go-1-27/" rel="noopener">VictoriaMetrics Go 1.27 tour</a>
   and <a href="https://antonz.org/" rel="noopener">Anton Zhiyanov</a>.</div>
